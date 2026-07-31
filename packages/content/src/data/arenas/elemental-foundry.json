@@ -1,0 +1,194 @@
+{
+  "id": "elemental-foundry",
+  "name": "Elemental Foundry",
+  "size": "large",
+  "theme": "foundry",
+  "width": 1500,
+  "height": 1120,
+  "spatialCellSize": 132,
+  "recommendedUnits": {
+    "min": 4,
+    "max": 24
+  },
+  "allowedModes": [
+    "team-battle",
+    "battle-royale",
+    "boss-raid",
+    "survival",
+    "mass-skirmish"
+  ],
+  "spawnZones": [
+    {
+      "id": "west-foundry",
+      "team": 1,
+      "x": 80,
+      "y": 250,
+      "width": 260,
+      "height": 620
+    },
+    {
+      "id": "east-foundry",
+      "team": 2,
+      "x": 1160,
+      "y": 250,
+      "width": 260,
+      "height": 620
+    },
+    {
+      "id": "north-free",
+      "x": 590,
+      "y": 70,
+      "width": 320,
+      "height": 160
+    },
+    {
+      "id": "south-free",
+      "x": 590,
+      "y": 890,
+      "width": 320,
+      "height": 160
+    }
+  ],
+  "obstacles": [
+    {
+      "id": "reactor-core",
+      "kind": "reactor",
+      "shape": "circle",
+      "x": 750,
+      "y": 560,
+      "radius": 88,
+      "restitution": 1.04,
+      "destructible": true,
+      "maxHp": 260,
+      "impactDamageScale": 2.4,
+      "breakImpulseThreshold": 4.5,
+      "contactDamage": 2
+    },
+    {
+      "id": "crate-west",
+      "kind": "crate",
+      "shape": "box",
+      "x": 475,
+      "y": 560,
+      "width": 120,
+      "height": 150,
+      "radius": 0,
+      "restitution": 0.72,
+      "destructible": true,
+      "maxHp": 105,
+      "impactDamageScale": 3.4,
+      "breakImpulseThreshold": 3.2,
+      "contactDamage": 0
+    },
+    {
+      "id": "crate-east",
+      "kind": "crate",
+      "shape": "box",
+      "x": 1025,
+      "y": 560,
+      "width": 120,
+      "height": 150,
+      "radius": 0,
+      "restitution": 0.72,
+      "destructible": true,
+      "maxHp": 105,
+      "impactDamageScale": 3.4,
+      "breakImpulseThreshold": 3.2,
+      "contactDamage": 0
+    }
+  ],
+  "zones": [
+    {
+      "id": "ice-bed",
+      "name": "Cryo Bed",
+      "kind": "ice",
+      "shape": "rect",
+      "x": 310,
+      "y": 185,
+      "width": 360,
+      "height": 230,
+      "radius": 0,
+      "strength": 0.58,
+      "damage": 0,
+      "intervalTicks": 30,
+      "direction": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "water-bed",
+      "name": "Coolant Pool",
+      "kind": "water",
+      "shape": "circle",
+      "x": 1140,
+      "y": 280,
+      "radius": 150,
+      "width": 0,
+      "height": 0,
+      "strength": 0.82,
+      "damage": 0,
+      "intervalTicks": 30,
+      "statusId": "wet",
+      "direction": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "lava-bed",
+      "name": "Magma Vent",
+      "kind": "lava",
+      "shape": "circle",
+      "x": 380,
+      "y": 850,
+      "radius": 155,
+      "width": 0,
+      "height": 0,
+      "strength": 0,
+      "damage": 6,
+      "intervalTicks": 30,
+      "statusId": "burn",
+      "direction": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "electric-bed",
+      "name": "Arc Grid",
+      "kind": "electric",
+      "shape": "rect",
+      "x": 970,
+      "y": 755,
+      "width": 330,
+      "height": 220,
+      "radius": 0,
+      "strength": 1.8,
+      "damage": 4,
+      "intervalTicks": 36,
+      "direction": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "wind-channel",
+      "name": "Pressure Channel",
+      "kind": "wind",
+      "shape": "rect",
+      "x": 610,
+      "y": 55,
+      "width": 280,
+      "height": 1010,
+      "radius": 0,
+      "strength": 0.075,
+      "damage": 0,
+      "intervalTicks": 30,
+      "direction": {
+        "x": 0,
+        "y": 1
+      }
+    }
+  ]
+}

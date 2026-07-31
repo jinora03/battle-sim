@@ -1,0 +1,17 @@
+{
+  "id": "training-grid",
+  "name": "Ability Lab Grid",
+  "size": "medium",
+  "theme": "iron",
+  "width": 1000,
+  "height": 720,
+  "spatialCellSize": 100,
+  "recommendedUnits": { "min": 2, "max": 6 },
+  "allowedModes": ["training"],
+  "spawnZones": [
+    { "id": "trainer", "x": 150, "y": 260, "width": 180, "height": 200, "team": 1 },
+    { "id": "targets", "x": 650, "y": 160, "width": 220, "height": 400, "team": 2 }
+  ],
+  "obstacles": [],
+  "zones": []
+}

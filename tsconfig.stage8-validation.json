@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "noEmit": false,
+    "outDir": "/tmp/kbe-stage8-validation",
+    "rootDir": ".",
+    "isolatedModules": false,
+    "types": [],
+    "baseUrl": ".",
+    "paths": {
+      "@kinetic/protocol": ["packages/protocol/src/index.ts"],
+      "@kinetic/visual-engine": ["packages/visual-engine/src/index.ts"],
+      "@kinetic/platform": ["packages/platform/src/index.ts"]
+    }
+  },
+  "include": [
+    "/tmp/kbe-validation-stubs.d.ts",
+    "packages/protocol/src/**/*.ts",
+    "packages/visual-engine/src/**/*.ts",
+    "packages/platform/src/**/*.ts",
+    "validation/v1.1-stage8-platform.ts"
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "id": "thunder-dome",
+  "name": "Thunder Dome",
+  "slot": "ultimate",
+  "cooldownTicks": 640,
+  "castTicks": 58,
+  "castMovementMultiplier": 0.08,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "EXPLODE",
+          "kind": "wave",
+          "radius": 285,
+          "damage": 31,
+          "impulse": 15,
+          "element": "electric",
+          "enemiesOnly": true
+        },
+        {
+          "type": "RADIAL_STATUS",
+          "radius": 310,
+          "statusId": "shocked",
+          "durationTicks": 180,
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
+}

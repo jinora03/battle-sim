@@ -1,0 +1,34 @@
+{
+  "id": "undertow",
+  "name": "Undertow",
+  "slot": "skill3",
+  "cooldownTicks": 370,
+  "castTicks": 36,
+  "castMovementMultiplier": 0.15,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "RADIAL_IMPULSE",
+          "radius": 260,
+          "magnitude": 7.5,
+          "enemiesOnly": true,
+          "direction": "pull"
+        },
+        {
+          "type": "RADIAL_STATUS",
+          "radius": 260,
+          "statusId": "wet",
+          "durationTicks": 90,
+          "enemiesOnly": true
+        },
+        {
+          "type": "HEAL_SELF",
+          "amount": 8
+        }
+      ]
+    }
+  ]
+}

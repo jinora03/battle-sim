@@ -1,0 +1,40 @@
+{
+  "id": "water-shaper",
+  "name": "Water Shaper",
+  "classification": {
+    "archetype": "controller",
+    "elements": [
+      "water"
+    ],
+    "traits": [
+      "fluid",
+      "caster"
+    ]
+  },
+  "physics": {
+    "radius": 36,
+    "mass": 1.15,
+    "restitution": 0.94,
+    "linearDamping": 0.993,
+    "maxSpeed": 11.8
+  },
+  "stats": {
+    "maxHp": 385,
+    "moveAcceleration": 0.19
+  },
+  "aiProfileId": "tidal-controller",
+  "abilitySlots": {
+    "skill1": "surge-dash",
+    "skill2": "pressure-wave",
+    "skill3": "undertow",
+    "ultimate": "tidal-cataclysm"
+  },
+  "resistances": {
+    "water": 0.72,
+    "fire": 0.82
+  },
+  "visualRecipeId": "water-shaper",
+  "animationRecipeId": "fluid-orb",
+  "audioProfileId": "water-fluid",
+  "primaryAttackId": "pressure-orb"
+}

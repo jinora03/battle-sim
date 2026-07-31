@@ -1,0 +1,43 @@
+{
+  "id": "rocket-vanguard",
+  "name": "Rocket Vanguard",
+  "classification": {
+    "archetype": "missile artillery",
+    "elements": [
+      "metal",
+      "fire"
+    ],
+    "traits": [
+      "explosive",
+      "guided",
+      "ranged"
+    ]
+  },
+  "physics": {
+    "radius": 40,
+    "mass": 1.65,
+    "restitution": 0.82,
+    "linearDamping": 0.994,
+    "maxSpeed": 10.8
+  },
+  "stats": {
+    "maxHp": 430,
+    "moveAcceleration": 0.17
+  },
+  "aiProfileId": "rocket-artillery",
+  "abilitySlots": {
+    "skill1": "rocket-salvo",
+    "skill2": "blast-jump",
+    "skill3": "siege-marker",
+    "ultimate": "starburst-convergence"
+  },
+  "resistances": {
+    "metal": 0.82,
+    "fire": 0.86,
+    "electric": 1.08
+  },
+  "visualRecipeId": "rocket-vanguard",
+  "animationRecipeId": "rocket-artillery",
+  "audioProfileId": "missile-heavy",
+  "primaryAttackId": "guided-rocket"
+}

@@ -1,0 +1,40 @@
+{
+  "id": "mech-bruiser",
+  "name": "Mech Bruiser",
+  "classification": {
+    "archetype": "tank",
+    "elements": [
+      "metal"
+    ],
+    "traits": [
+      "mechanical",
+      "heavy"
+    ]
+  },
+  "physics": {
+    "radius": 50,
+    "mass": 4.2,
+    "restitution": 0.66,
+    "linearDamping": 0.997,
+    "maxSpeed": 9
+  },
+  "stats": {
+    "maxHp": 510,
+    "moveAcceleration": 0.12
+  },
+  "aiProfileId": "heavy-bruiser",
+  "abilitySlots": {
+    "skill1": "kinetic-pulse",
+    "skill2": "magnet-drag",
+    "skill3": "fortify",
+    "ultimate": "reactor-overdrive"
+  },
+  "resistances": {
+    "fire": 0.85,
+    "neutral": 0.95
+  },
+  "visualRecipeId": "mech-bruiser",
+  "animationRecipeId": "heavy-mech",
+  "audioProfileId": "metal-heavy",
+  "primaryAttackId": "hydraulic-gauntlet"
+}

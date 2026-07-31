@@ -1,0 +1,37 @@
+{
+  "id": "gravity-well",
+  "name": "Gravity Well",
+  "slot": "skill2",
+  "cooldownTicks": 260,
+  "castTicks": 36,
+  "castMovementMultiplier": 0.1,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "RADIAL_IMPULSE",
+          "radius": 260,
+          "magnitude": 12,
+          "enemiesOnly": true,
+          "direction": "pull"
+        },
+        {
+          "type": "RADIAL_DAMAGE",
+          "radius": 235,
+          "amount": 12,
+          "element": "void",
+          "enemiesOnly": true
+        },
+        {
+          "type": "RADIAL_STATUS",
+          "radius": 230,
+          "statusId": "void-mark",
+          "durationTicks": 120,
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
+}

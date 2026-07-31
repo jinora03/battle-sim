@@ -1,0 +1,1 @@
+{"stage":"v1.1-stage3","weaponCategories":["continuous","melee","ranged","throwable"],"melee":{"checksum":"711caff8","phases":{"windup":true,"active":true,"recovery":true},"hits":1},"outOfRangeRejected":true,"ranged":{"checksum":"ac89f3e8","spawned":1,"impacts":1},"bomber":{"checksum":"537a0f84","spawned":true,"impacted":true,"exploded":true}}

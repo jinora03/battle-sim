@@ -1,0 +1,25 @@
+{
+  "id": "regenerate",
+  "name": "Regenerate",
+  "slot": "skill3",
+  "cooldownTicks": 410,
+  "castTicks": 42,
+  "castMovementMultiplier": 0.05,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "HEAL_SELF",
+          "amount": 42
+        },
+        {
+          "type": "APPLY_STATUS_SELF",
+          "statusId": "barkskin",
+          "durationTicks": 150
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "solar-aegis",
+  "name": "Solar Aegis",
+  "slot": "skill3",
+  "cooldownTicks": 260,
+  "castTicks": 24,
+  "castMovementMultiplier": 0.55,
+  "activation": {
+    "intent": "defensive",
+    "targeting": "self",
+    "priority": 90,
+    "minRange": 0,
+    "maxRange": 99999,
+    "requiresLineOfSight": false,
+    "minimumTargets": 1,
+    "aimToleranceDegrees": 180
+  },
+  "triggers": [{
+    "event": "ON_ACTIVATE",
+    "conditions": [],
+    "actions": [
+      { "type": "HEAL_SELF", "amount": 30 },
+      { "type": "APPLY_STATUS_SELF", "statusId": "fortified", "durationTicks": 180 },
+      { "type": "EXPLODE", "kind": "wave", "radius": 115, "damage": 6, "impulse": 5, "element": "fire", "enemiesOnly": true }
+    ]
+  }]
+}

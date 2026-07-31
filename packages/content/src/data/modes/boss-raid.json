@@ -1,0 +1,10 @@
+{
+  "id": "boss-raid",
+  "name": "Boss Raid",
+  "description": "A raider team cooperates to defeat one scaled boss fighter.",
+  "formatLabel": "1–7 raiders vs 1 boss",
+  "minUnits": 2,
+  "maxUnits": 8,
+  "victory": "DEFEAT_BOSS",
+  "bossTeam": 2
+}

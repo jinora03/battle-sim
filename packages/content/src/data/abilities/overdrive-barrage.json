@@ -1,0 +1,36 @@
+{
+  "id": "overdrive-barrage",
+  "name": "Overdrive Barrage",
+  "slot": "ultimate",
+  "cooldownTicks": 560,
+  "castTicks": 38,
+  "castMovementMultiplier": 0.2,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "target",
+    "priority": 104,
+    "minRange": 80,
+    "maxRange": 720,
+    "requiresLineOfSight": true,
+    "minimumTargets": 1,
+    "collisionWindowTicks": 0,
+    "aimToleranceDegrees": 80
+  },
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "DIRECTIONAL_DAMAGE",
+          "range": 720,
+          "arcDegrees": 58,
+          "amount": 30,
+          "knockback": 7,
+          "element": "metal",
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
+}

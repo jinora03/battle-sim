@@ -1,0 +1,25 @@
+{
+  "id": "thunder-clap",
+  "name": "Thunder Clap",
+  "slot": "skill2",
+  "cooldownTicks": 185,
+  "castTicks": 18,
+  "castMovementMultiplier": 0.4,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "area",
+    "priority": 76,
+    "minRange": 0,
+    "maxRange": 210,
+    "requiresLineOfSight": false,
+    "minimumTargets": 1,
+    "aimToleranceDegrees": 180
+  },
+  "triggers": [{
+    "event": "ON_ACTIVATE",
+    "conditions": [],
+    "actions": [
+      { "type": "EXPLODE", "kind": "wave", "radius": 210, "damage": 18, "impulse": 15, "element": "neutral", "enemiesOnly": true }
+    ]
+  }]
+}

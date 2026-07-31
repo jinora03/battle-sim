@@ -1,0 +1,11 @@
+{
+  "name": "@kinetic/controllers",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@kinetic/content": "1.0.0",
+    "@kinetic/protocol": "1.0.0"
+  }
+}

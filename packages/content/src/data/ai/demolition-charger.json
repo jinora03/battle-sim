@@ -1,0 +1,45 @@
+{
+  "id": "demolition-charger",
+  "reactionTicks": 9,
+  "aggression": 0.96,
+  "preferredDistance": 45,
+  "retreatHealthRatio": 0.06,
+  "steeringStrength": 1.08,
+  "movementStyle": "charger",
+  "orbitStrength": 0.18,
+  "wallAvoidance": 0.75,
+  "abilityUsage": [
+    {
+      "slot": "skill1",
+      "everyTicks": 175,
+      "phaseTicks": 55,
+      "minDistance": 95,
+      "maxDistance": 560
+    },
+    {
+      "slot": "skill2",
+      "everyTicks": 245,
+      "phaseTicks": 110,
+      "minDistance": 0,
+      "maxDistance": 220
+    },
+    {
+      "slot": "skill3",
+      "everyTicks": 360,
+      "phaseTicks": 185,
+      "minDistance": 0,
+      "maxDistance": 300
+    },
+    {
+      "slot": "ultimate",
+      "everyTicks": 660,
+      "phaseTicks": 285,
+      "minDistance": 0,
+      "maxDistance": 285
+    }
+  ],
+  "targeting": "clustered",
+  "allySeparation": 0.82,
+  "targetSpread": 0.45,
+  "targetStickiness": 0.84
+}

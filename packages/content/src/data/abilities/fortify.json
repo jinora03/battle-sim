@@ -1,0 +1,19 @@
+{
+  "id": "fortify",
+  "name": "Fortify",
+  "slot": "skill3",
+  "cooldownTicks": 420,
+  "castTicks": 40,
+  "castMovementMultiplier": 0.02,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        { "type": "HEAL_SELF", "amount": 38 },
+        { "type": "APPLY_STATUS_SELF", "statusId": "fortified", "durationTicks": 190 },
+        { "type": "RADIAL_IMPULSE", "radius": 150, "magnitude": 6, "enemiesOnly": true, "direction": "push" }
+      ]
+    }
+  ]
+}

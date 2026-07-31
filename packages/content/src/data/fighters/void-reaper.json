@@ -1,0 +1,41 @@
+{
+  "id": "void-reaper",
+  "name": "Void Reaper",
+  "classification": {
+    "archetype": "skirmisher",
+    "elements": [
+      "void"
+    ],
+    "traits": [
+      "phasing",
+      "gravity"
+    ]
+  },
+  "physics": {
+    "radius": 33,
+    "mass": 1.0,
+    "restitution": 0.96,
+    "linearDamping": 0.993,
+    "maxSpeed": 13.4
+  },
+  "stats": {
+    "maxHp": 325,
+    "moveAcceleration": 0.215
+  },
+  "aiProfileId": "void-stalker",
+  "abilitySlots": {
+    "skill1": "phase-lunge",
+    "skill2": "gravity-well",
+    "skill3": "void-burst",
+    "ultimate": "singularity"
+  },
+  "resistances": {
+    "void": 0.58,
+    "neutral": 0.9,
+    "electric": 1.08
+  },
+  "visualRecipeId": "void-reaper",
+  "animationRecipeId": "void-orbit",
+  "audioProfileId": "void-deep",
+  "primaryAttackId": "void-scythe"
+}

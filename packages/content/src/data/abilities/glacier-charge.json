@@ -1,0 +1,58 @@
+{
+  "id": "glacier-charge",
+  "name": "Glacier Charge",
+  "slot": "skill1",
+  "cooldownTicks": 175,
+  "castTicks": 18,
+  "castMovementMultiplier": 0.35,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "APPLY_IMPULSE_SELF",
+          "magnitude": 9.5
+        },
+        {
+          "type": "APPLY_STATUS_SELF",
+          "statusId": "cryo-guard",
+          "durationTicks": 80
+        }
+      ]
+    },
+    {
+      "event": "ON_COLLISION",
+      "conditions": [
+        {
+          "type": "SELF_HAS_STATUS",
+          "statusId": "cryo-guard"
+        },
+        {
+          "type": "IMPACT_ABOVE",
+          "value": 2.8
+        }
+      ],
+      "actions": [
+        {
+          "type": "DEAL_DAMAGE_TARGET",
+          "amount": 18,
+          "element": "ice"
+        },
+        {
+          "type": "APPLY_STATUS_TARGET",
+          "statusId": "frozen",
+          "durationTicks": 90
+        },
+        {
+          "type": "APPLY_KNOCKBACK_TARGET",
+          "magnitude": 8
+        },
+        {
+          "type": "REMOVE_STATUS_SELF",
+          "statusId": "cryo-guard"
+        }
+      ]
+    }
+  ]
+}

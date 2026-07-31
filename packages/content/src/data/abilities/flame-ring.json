@@ -1,0 +1,18 @@
+{
+  "id": "flame-ring",
+  "name": "Flame Ring",
+  "slot": "skill2",
+  "cooldownTicks": 245,
+  "castTicks": 22,
+  "castMovementMultiplier": 0.18,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        { "type": "EXPLODE", "kind": "wave", "radius": 175, "damage": 17, "impulse": 8.5, "element": "fire", "enemiesOnly": true },
+        { "type": "RADIAL_STATUS", "radius": 190, "statusId": "burn", "durationTicks": 130, "enemiesOnly": true }
+      ]
+    }
+  ]
+}

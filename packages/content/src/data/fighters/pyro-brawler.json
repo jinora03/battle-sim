@@ -1,0 +1,40 @@
+{
+  "id": "pyro-brawler",
+  "name": "Pyro Brawler",
+  "classification": {
+    "archetype": "bruiser",
+    "elements": [
+      "fire"
+    ],
+    "traits": [
+      "organic",
+      "brawler"
+    ]
+  },
+  "physics": {
+    "radius": 34,
+    "mass": 1.1,
+    "restitution": 0.92,
+    "linearDamping": 0.998,
+    "maxSpeed": 13
+  },
+  "stats": {
+    "maxHp": 295,
+    "moveAcceleration": 0.18
+  },
+  "aiProfileId": "aggressive-brawler",
+  "abilitySlots": {
+    "skill1": "magma-dash",
+    "skill2": "flame-ring",
+    "skill3": "molten-guard",
+    "ultimate": "inferno-collapse"
+  },
+  "resistances": {
+    "fire": 0.7,
+    "ice": 1.1
+  },
+  "visualRecipeId": "pyro-brawler",
+  "animationRecipeId": "volatile-orb",
+  "audioProfileId": "fire-heavy",
+  "primaryAttackId": "flame-fists"
+}

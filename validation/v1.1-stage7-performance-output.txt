@@ -1,0 +1,9 @@
+Kinetic Battle Engine v1.1 Stage 7 validation
+PASS snapshot cache keeps one immutable snapshot until state advances
+PASS deterministic spatial AABB query
+PASS 20v20 determinism checksum=264e5aea tick=900
+PASS broadphase maxCandidates=229 (< 780 all-pairs)
+PASS broadphase occupiedCells=40 maxBucket=5
+PASS projectile bounded checks=7921
+PASS invalid numeric recoveries=0 during normal benchmark
+PASS performance profiler pressure=critical bottleneck=render droppedTicks=3

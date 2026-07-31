@@ -1,0 +1,9 @@
+{
+  "id": "battle-royale",
+  "name": "Battle Royale",
+  "description": "Every combatant fights for survival with no fixed alliance.",
+  "formatLabel": "3–32 fighters",
+  "minUnits": 3,
+  "maxUnits": 32,
+  "victory": "LAST_TEAM_STANDING"
+}

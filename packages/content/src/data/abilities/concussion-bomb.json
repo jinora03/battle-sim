@@ -1,0 +1,25 @@
+{
+  "id": "concussion-bomb",
+  "name": "Concussion Bomb",
+  "slot": "skill2",
+  "cooldownTicks": 225,
+  "castTicks": 28,
+  "castMovementMultiplier": 0.15,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "EXPLODE",
+          "kind": "explosion",
+          "radius": 155,
+          "damage": 10,
+          "impulse": 11,
+          "element": "neutral",
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
+}

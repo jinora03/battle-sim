@@ -1,0 +1,23 @@
+{
+  "stage": "v1.1-stage5",
+  "preventedDamage": {
+    "amount": 12.979999999999999,
+    "hpUnchanged": true,
+    "statusApplied": true
+  },
+  "damageToggle": {
+    "hpUnchanged": true
+  },
+  "cooldownToggle": {
+    "activations": 2,
+    "cooldownRemainingTicks": 0
+  },
+  "victorySuppression": {
+    "battleEnded": false,
+    "remainingTargets": 0
+  },
+  "deterministic": {
+    "checksum": "e651aa86",
+    "repeated": true
+  }
+}

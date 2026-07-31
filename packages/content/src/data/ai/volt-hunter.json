@@ -1,0 +1,45 @@
+{
+  "id": "volt-hunter",
+  "reactionTicks": 6,
+  "aggression": 0.98,
+  "preferredDistance": 330,
+  "retreatHealthRatio": 0.12,
+  "steeringStrength": 1.2,
+  "movementStyle": "kite",
+  "orbitStrength": 0.48,
+  "wallAvoidance": 0.95,
+  "targeting": "lowest-health",
+  "allySeparation": 0.95,
+  "targetSpread": 1.1,
+  "targetStickiness": 0.68,
+  "abilityUsage": [
+    {
+      "slot": "skill1",
+      "everyTicks": 155,
+      "phaseTicks": 25,
+      "minDistance": 90,
+      "maxDistance": 600
+    },
+    {
+      "slot": "skill2",
+      "everyTicks": 235,
+      "phaseTicks": 100,
+      "minDistance": 0,
+      "maxDistance": 190
+    },
+    {
+      "slot": "skill3",
+      "everyTicks": 350,
+      "phaseTicks": 180,
+      "minDistance": 100,
+      "maxDistance": 300
+    },
+    {
+      "slot": "ultimate",
+      "everyTicks": 655,
+      "phaseTicks": 290,
+      "minDistance": 0,
+      "maxDistance": 300
+    }
+  ]
+}

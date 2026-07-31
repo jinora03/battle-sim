@@ -1,0 +1,19 @@
+{
+  "id": "iron-pit",
+  "name": "Iron Pit",
+  "size": "small",
+  "theme": "iron",
+  "width": 720,
+  "height": 960,
+  "spatialCellSize": 104,
+  "recommendedUnits": { "min": 2, "max": 6 },
+  "allowedModes": ["duel", "battle-royale"],
+  "spawnZones": [
+    { "id": "left", "team": 1, "x": 95, "y": 360, "width": 150, "height": 240 },
+    { "id": "right", "team": 2, "x": 475, "y": 360, "width": 150, "height": 240 },
+    { "id": "north", "x": 275, "y": 85, "width": 170, "height": 120 },
+    { "id": "south", "x": 275, "y": 755, "width": 170, "height": 120 }
+  ],
+  "obstacles": [],
+  "zones": []
+}

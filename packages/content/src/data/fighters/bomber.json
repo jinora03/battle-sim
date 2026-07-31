@@ -1,0 +1,40 @@
+{
+  "id": "bomber",
+  "name": "Bomber",
+  "classification": {
+    "archetype": "demolition",
+    "elements": [
+      "neutral"
+    ],
+    "traits": [
+      "explosive",
+      "volatile"
+    ]
+  },
+  "physics": {
+    "radius": 41,
+    "mass": 1.55,
+    "restitution": 0.88,
+    "linearDamping": 0.994,
+    "maxSpeed": 11.2
+  },
+  "stats": {
+    "maxHp": 395,
+    "moveAcceleration": 0.18
+  },
+  "aiProfileId": "demolition-charger",
+  "abilitySlots": {
+    "skill1": "blast-dash",
+    "skill2": "concussion-bomb",
+    "skill3": "shrapnel-burst",
+    "ultimate": "mega-bomb"
+  },
+  "resistances": {
+    "neutral": 0.92,
+    "fire": 0.9
+  },
+  "visualRecipeId": "bomber",
+  "animationRecipeId": "volatile-bomber",
+  "audioProfileId": "explosive-heavy",
+  "primaryAttackId": "demolition-bomb"
+}

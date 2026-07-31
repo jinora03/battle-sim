@@ -1,0 +1,10 @@
+{
+  "contentVersion": "1.1.2-stage7.2",
+  "fighters": 9,
+  "primaryAttacks": 14,
+  "gunnerShots": 4,
+  "deterministicChecksum": "f4eb1282",
+  "massChecksum": "faeebbac",
+  "massTicks": 450,
+  "massMillisecondsPerTick": 0.6
+}

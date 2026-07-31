@@ -1,0 +1,32 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "noEmit": false,
+    "outDir": "/tmp/kbe-stage7-1-validation",
+    "rootDir": ".",
+    "isolatedModules": false,
+    "types": [],
+    "baseUrl": ".",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "paths": {
+      "@kinetic/protocol": ["packages/protocol/src/index.ts"],
+      "@kinetic/content": ["packages/content/src/index.ts"],
+      "@kinetic/simulation": ["packages/simulation/src/index.ts"],
+      "@kinetic/controllers": ["packages/controllers/src/index.ts"],
+      "@kinetic/visual-engine": ["packages/visual-engine/src/index.ts"]
+    }
+  },
+  "include": [
+    "/tmp/kbe-validation-stubs.d.ts",
+    "packages/protocol/src/**/*.ts",
+    "packages/content/src/**/*.ts",
+    "packages/content/src/**/*.json",
+    "packages/simulation/src/**/*.ts",
+    "packages/controllers/src/**/*.ts",
+    "packages/visual-engine/src/**/*.ts",
+    "validation/v1.1-stage7-1-gameplay-performance.ts"
+  ]
+}

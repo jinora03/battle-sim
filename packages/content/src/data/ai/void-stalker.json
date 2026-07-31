@@ -1,0 +1,45 @@
+{
+  "id": "void-stalker",
+  "reactionTicks": 7,
+  "aggression": 0.84,
+  "preferredDistance": 125,
+  "retreatHealthRatio": 0.09,
+  "steeringStrength": 1.12,
+  "movementStyle": "orbit",
+  "orbitStrength": 1.15,
+  "wallAvoidance": 1.05,
+  "targeting": "clustered",
+  "allySeparation": 0.9,
+  "targetSpread": 0.65,
+  "targetStickiness": 0.72,
+  "abilityUsage": [
+    {
+      "slot": "skill1",
+      "everyTicks": 170,
+      "phaseTicks": 35,
+      "minDistance": 80,
+      "maxDistance": 560
+    },
+    {
+      "slot": "skill2",
+      "everyTicks": 275,
+      "phaseTicks": 125,
+      "minDistance": 70,
+      "maxDistance": 285
+    },
+    {
+      "slot": "skill3",
+      "everyTicks": 355,
+      "phaseTicks": 205,
+      "minDistance": 0,
+      "maxDistance": 210
+    },
+    {
+      "slot": "ultimate",
+      "everyTicks": 710,
+      "phaseTicks": 320,
+      "minDistance": 0,
+      "maxDistance": 340
+    }
+  ]
+}

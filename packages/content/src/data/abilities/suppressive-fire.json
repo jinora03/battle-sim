@@ -1,0 +1,36 @@
+{
+  "id": "suppressive-fire",
+  "name": "Suppressive Fire",
+  "slot": "skill2",
+  "cooldownTicks": 150,
+  "castTicks": 14,
+  "castMovementMultiplier": 0.45,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "target",
+    "priority": 69,
+    "minRange": 90,
+    "maxRange": 540,
+    "requiresLineOfSight": true,
+    "minimumTargets": 1,
+    "collisionWindowTicks": 0,
+    "aimToleranceDegrees": 55
+  },
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "DIRECTIONAL_DAMAGE",
+          "range": 540,
+          "arcDegrees": 34,
+          "amount": 14,
+          "knockback": 4,
+          "element": "metal",
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
+}

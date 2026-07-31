@@ -1,0 +1,46 @@
+{
+  "id": "aggressive-brawler",
+  "reactionTicks": 8,
+  "aggression": 0.95,
+  "preferredDistance": 70,
+  "retreatHealthRatio": 0.05,
+  "steeringStrength": 1.0,
+  "movementStyle": "charger",
+  "orbitStrength": 0.15,
+  "wallAvoidance": 0.9,
+  "abilityUsage": [
+    {
+      "slot": "skill1",
+      "everyTicks": 160,
+      "phaseTicks": 40,
+      "minDistance": 70,
+      "maxDistance": 520
+    },
+    {
+      "slot": "skill2",
+      "everyTicks": 245,
+      "phaseTicks": 85,
+      "minDistance": 0,
+      "maxDistance": 230
+    },
+    {
+      "slot": "skill3",
+      "everyTicks": 390,
+      "phaseTicks": 145,
+      "minDistance": 0,
+      "maxDistance": 9999,
+      "healthBelow": 0.58
+    },
+    {
+      "slot": "ultimate",
+      "everyTicks": 620,
+      "phaseTicks": 210,
+      "minDistance": 0,
+      "maxDistance": 250
+    }
+  ],
+  "targeting": "lowest-health",
+  "allySeparation": 0.72,
+  "targetSpread": 0.7,
+  "targetStickiness": 0.78
+}

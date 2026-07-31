@@ -1,0 +1,44 @@
+{
+  "id": "solar-sentinel",
+  "name": "Solar Sentinel",
+  "classification": {
+    "archetype": "solar guardian",
+    "elements": [
+      "fire",
+      "metal"
+    ],
+    "traits": [
+      "solar-powered",
+      "flying",
+      "powerhouse",
+      "ranged"
+    ]
+  },
+  "physics": {
+    "radius": 40,
+    "mass": 1.35,
+    "restitution": 0.98,
+    "linearDamping": 0.995,
+    "maxSpeed": 13.2
+  },
+  "stats": {
+    "maxHp": 450,
+    "moveAcceleration": 0.22
+  },
+  "aiProfileId": "aggressive-brawler",
+  "abilitySlots": {
+    "skill1": "solar-rush",
+    "skill2": "thunder-clap",
+    "skill3": "solar-aegis",
+    "ultimate": "solar-laser"
+  },
+  "resistances": {
+    "fire": 0.68,
+    "metal": 0.82,
+    "neutral": 0.9
+  },
+  "visualRecipeId": "solar-sentinel",
+  "animationRecipeId": "solar-flight",
+  "audioProfileId": "solar-heavy",
+  "primaryAttackId": "solar-punch"
+}

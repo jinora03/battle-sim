@@ -1,0 +1,20 @@
+{
+  "id": "riptide-contact",
+  "name": "Riptide Impact",
+  "slot": "basic",
+  "cooldownTicks": 28,
+  "castTicks": 0,
+  "castMovementMultiplier": 1,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "USE_WEAPON",
+          "weaponId": "tidal-spear"
+        }
+      ]
+    }
+  ]
+}

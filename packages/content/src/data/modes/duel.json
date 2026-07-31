@@ -1,0 +1,9 @@
+{
+  "id": "duel",
+  "name": "Duel",
+  "description": "A focused one-on-one fight. Duel is 1v1 only.",
+  "formatLabel": "1v1 only",
+  "minUnits": 2,
+  "maxUnits": 2,
+  "victory": "LAST_TEAM_STANDING"
+}

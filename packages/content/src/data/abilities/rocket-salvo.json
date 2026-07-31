@@ -1,0 +1,35 @@
+{
+  "id": "rocket-salvo",
+  "name": "Boosted Barrage",
+  "slot": "skill1",
+  "cooldownTicks": 150,
+  "castTicks": 18,
+  "castMovementMultiplier": 0.72,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "target",
+    "priority": 68,
+    "minRange": 150,
+    "maxRange": 720,
+    "requiresLineOfSight": true,
+    "minimumTargets": 1,
+    "aimToleranceDegrees": 80
+  },
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "LAUNCH_PROJECTILES",
+          "projectileId": "rocket-salvo-missile",
+          "count": 3,
+          "pattern": "fan",
+          "spreadDegrees": 20,
+          "targetMode": "selected",
+          "intervalTicks": 5
+        }
+      ]
+    }
+  ]
+}

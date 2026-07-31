@@ -1,0 +1,41 @@
+{
+  "id": "frost-warden",
+  "name": "Frost Warden",
+  "classification": {
+    "archetype": "sentinel",
+    "elements": [
+      "ice"
+    ],
+    "traits": [
+      "armored",
+      "controller"
+    ]
+  },
+  "physics": {
+    "radius": 42,
+    "mass": 2.7,
+    "restitution": 0.72,
+    "linearDamping": 0.996,
+    "maxSpeed": 9.6
+  },
+  "stats": {
+    "maxHp": 475,
+    "moveAcceleration": 0.135
+  },
+  "aiProfileId": "frost-sentinel",
+  "abilitySlots": {
+    "skill1": "glacier-charge",
+    "skill2": "frost-nova",
+    "skill3": "ice-anchor",
+    "ultimate": "absolute-zero"
+  },
+  "resistances": {
+    "ice": 0.65,
+    "water": 0.82,
+    "fire": 1.18
+  },
+  "visualRecipeId": "frost-warden",
+  "animationRecipeId": "frozen-sentinel",
+  "audioProfileId": "ice-heavy",
+  "primaryAttackId": "frost-halberd"
+}

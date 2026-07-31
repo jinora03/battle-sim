@@ -1,0 +1,9 @@
+{
+  "id": "mass-skirmish",
+  "name": "Mass Skirmish",
+  "description": "A large two-team battle designed for scale and performance testing.",
+  "formatLabel": "5v5 to 50v50",
+  "minUnits": 10,
+  "maxUnits": 100,
+  "victory": "LAST_TEAM_STANDING"
+}

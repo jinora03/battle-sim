@@ -1,0 +1,29 @@
+{
+  "id": "shrapnel-burst",
+  "name": "Shrapnel Burst",
+  "slot": "skill3",
+  "cooldownTicks": 340,
+  "castTicks": 36,
+  "castMovementMultiplier": 0.2,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "EXPLODE",
+          "kind": "explosion",
+          "radius": 205,
+          "damage": 14,
+          "impulse": 8,
+          "element": "neutral",
+          "enemiesOnly": true
+        },
+        {
+          "type": "APPLY_IMPULSE_SELF",
+          "magnitude": 5
+        }
+      ]
+    }
+  ]
+}

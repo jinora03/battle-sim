@@ -1,0 +1,20 @@
+{
+  "id": "thorn-impact",
+  "name": "Thorn Impact",
+  "slot": "basic",
+  "cooldownTicks": 38,
+  "castTicks": 0,
+  "castMovementMultiplier": 1,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "USE_WEAPON",
+          "weaponId": "thorn-claws"
+        }
+      ]
+    }
+  ]
+}

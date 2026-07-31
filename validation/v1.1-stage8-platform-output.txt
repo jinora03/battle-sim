@@ -1,0 +1,32 @@
+{
+  "stage": "v1.1-stage8",
+  "portrait": {
+    "orientation": "portrait",
+    "viewportClass": "compact",
+    "compact": true,
+    "shortLandscape": false
+  },
+  "landscape": {
+    "orientation": "landscape",
+    "viewportClass": "medium",
+    "compact": true,
+    "shortLandscape": true
+  },
+  "resolution": {
+    "effectiveResolution": 1.58,
+    "cappedDevicePixelRatio": 1.75,
+    "renderScale": 0.9,
+    "adaptiveScale": 1
+  },
+  "adaptiveResolution": {
+    "effectiveResolution": 0.79,
+    "cappedDevicePixelRatio": 2,
+    "renderScale": 0.72,
+    "adaptiveScale": 0.55
+  },
+  "defaults": {
+    "renderScale": 0.72,
+    "maxDevicePixelRatio": 1.25,
+    "targetRenderFps": 30
+  }
+}

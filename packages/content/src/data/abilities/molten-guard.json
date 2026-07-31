@@ -1,0 +1,19 @@
+{
+  "id": "molten-guard",
+  "name": "Molten Guard",
+  "slot": "skill3",
+  "cooldownTicks": 390,
+  "castTicks": 34,
+  "castMovementMultiplier": 0.08,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        { "type": "HEAL_SELF", "amount": 24 },
+        { "type": "APPLY_STATUS_SELF", "statusId": "molten-guard", "durationTicks": 170 },
+        { "type": "EXPLODE", "kind": "wave", "radius": 125, "damage": 8, "impulse": 5, "element": "fire", "enemiesOnly": true }
+      ]
+    }
+  ]
+}

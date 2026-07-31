@@ -1,0 +1,29 @@
+{
+  "id": "inferno-collapse",
+  "name": "Inferno Collapse",
+  "slot": "ultimate",
+  "cooldownTicks": 600,
+  "castTicks": 52,
+  "castMovementMultiplier": 0.18,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "actions": [
+        {
+          "type": "RADIAL_DAMAGE",
+          "radius": 220,
+          "amount": 28,
+          "element": "fire",
+          "enemiesOnly": true
+        },
+        {
+          "type": "RADIAL_IMPULSE",
+          "radius": 260,
+          "magnitude": 14,
+          "enemiesOnly": true
+        }
+      ],
+      "conditions": []
+    }
+  ]
+}

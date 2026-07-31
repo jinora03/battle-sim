@@ -1,0 +1,32 @@
+{
+  "id": "ice-anchor",
+  "name": "Ice Anchor",
+  "slot": "skill3",
+  "cooldownTicks": 360,
+  "castTicks": 32,
+  "castMovementMultiplier": 0.05,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "HEAL_SELF",
+          "amount": 26
+        },
+        {
+          "type": "APPLY_STATUS_SELF",
+          "statusId": "cryo-guard",
+          "durationTicks": 180
+        },
+        {
+          "type": "RADIAL_IMPULSE",
+          "radius": 160,
+          "magnitude": 7,
+          "enemiesOnly": true,
+          "direction": "push"
+        }
+      ]
+    }
+  ]
+}

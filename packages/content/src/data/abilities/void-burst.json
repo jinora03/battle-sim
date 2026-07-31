@@ -1,0 +1,25 @@
+{
+  "id": "void-burst",
+  "name": "Void Burst",
+  "slot": "skill3",
+  "cooldownTicks": 345,
+  "castTicks": 32,
+  "castMovementMultiplier": 0.12,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "EXPLODE",
+          "kind": "wave",
+          "radius": 185,
+          "damage": 18,
+          "impulse": 10,
+          "element": "void",
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
+}

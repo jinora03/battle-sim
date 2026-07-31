@@ -1,0 +1,11 @@
+{
+  "id": "survival",
+  "name": "Survival Trial",
+  "description": "Survive the configured timer against an opposing force and arena hazards.",
+  "formatLabel": "2–16 fighters",
+  "minUnits": 2,
+  "maxUnits": 16,
+  "victory": "SURVIVE_TICKS",
+  "survivorTeam": 1,
+  "durationTicks": 2700
+}

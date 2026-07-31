@@ -1,0 +1,42 @@
+{
+  "id": "thorn-colossus",
+  "name": "Thorn Colossus",
+  "classification": {
+    "archetype": "guardian",
+    "elements": [
+      "nature"
+    ],
+    "traits": [
+      "organic",
+      "heavy",
+      "regenerator"
+    ]
+  },
+  "physics": {
+    "radius": 54,
+    "mass": 5.4,
+    "restitution": 0.56,
+    "linearDamping": 0.998,
+    "maxSpeed": 7.8
+  },
+  "stats": {
+    "maxHp": 635,
+    "moveAcceleration": 0.095
+  },
+  "aiProfileId": "grove-guardian",
+  "abilitySlots": {
+    "skill1": "bramble-charge",
+    "skill2": "seed-burst",
+    "skill3": "regenerate",
+    "ultimate": "overgrowth"
+  },
+  "resistances": {
+    "nature": 0.58,
+    "water": 0.8,
+    "fire": 1.2
+  },
+  "visualRecipeId": "thorn-colossus",
+  "animationRecipeId": "rooted-giant",
+  "audioProfileId": "nature-heavy",
+  "primaryAttackId": "thorn-claws"
+}

@@ -1,0 +1,1095 @@
+
+/* Final refinement pass: layout stability, semantic buttons, zoom behavior and dense panels. */
+.ui-app-navigation {
+  position: static !important;
+  top: auto !important;
+  width: 100% !important;
+  max-width: none;
+  margin: 0 0 18px;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+.ui-app-navigation button {
+  min-width: 0;
+  width: 100%;
+  min-height: 72px;
+  padding: 14px 10px;
+  text-align: center;
+  justify-content: center;
+}
+.ui-app-navigation .ui-nav-label {
+  display: inline-block;
+  font-size: clamp(13px, 1.15vw, 17px);
+  line-height: 1.08;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.mode-tabs button span.ui-nav-label { min-width: 0; width: auto; height: auto; margin: 0; border-radius: 0; background: none; color: inherit; box-shadow: none; font-size: inherit; }
+
+/* remove the broad green default and lean on semantic tones */
+button:not(.ui-button):not(.secondary):not(.secondary-inline):not(.ghost-button):not(.ghost-inline):not(.danger-button):not(.text-button):not(.text-link-button):not(.toast-dismiss):not(.loadout-delete):not(.custom-library-item) {
+  --btn-a: rgba(167, 220, 255, .20);
+  --btn-b: rgba(166, 136, 255, .18);
+  --btn-glow: rgba(119, 182, 255, .18);
+}
+button.accent-button, .battle-start-button { --btn-a: #abfff0; --btn-b: #64dcb3; --btn-glow: rgba(123,255,204,.38); }
+.mode-tabs button.active, .training-slot.selected { --btn-a: #86c8ff; --btn-b: #a47cff; --btn-glow: rgba(140,129,255,.25); }
+
+.battle-command-actions { justify-content: center; }
+.battle-command-actions .ui-button {
+  justify-content: center;
+  text-align: center;
+}
+.battle-command-bar {
+  gap: 14px;
+}
+.battle-command-bar .ui-panel-title,
+.battle-command-bar > div:first-child { min-width: 0; }
+
+.battle-objective-bar {
+  gap: 12px;
+  align-items: center;
+}
+.battle-objective-bar.no-progress {
+  grid-template-columns: minmax(0,1fr) auto;
+}
+.battle-objective-bar.no-progress .objective-meta {
+  justify-items: end;
+}
+
+.workspace > .control-panel,
+.workspace > .arena-column,
+.workspace > .battle-secondary-panels {
+  min-width: 0;
+}
+.arena-column .battle-objective-bar,
+.arena-column .battle-command-bar { margin-bottom: 14px; }
+
+.debug-metric-grid {
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 8px;
+  overflow-x: hidden;
+}
+.debug-metric-grid .metric {
+  min-width: 0;
+  overflow: hidden;
+  padding: 10px;
+}
+.debug-metric-grid .metric span {
+  font-size: 9px;
+  line-height: 1.2;
+  word-break: break-word;
+}
+.debug-metric-grid .metric strong {
+  font-size: 11px;
+  line-height: 1.18;
+  word-break: break-word;
+}
+.battle-debug-panel,
+.debug-metric-grid,
+.debug-metric-grid .metric { box-sizing: border-box; }
+
+.battle-activity-grid,
+.developer-notes-grid {
+  align-items: start;
+}
+.battle-activity-grid > div,
+.developer-notes-grid > div,
+.note-card-inline {
+  min-width: 0;
+  overflow: hidden;
+}
+.battle-activity-grid strong,
+.architecture-item,
+.note-card-inline p {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.battle-activity-grid strong { font-size: 11px; line-height: 1.5; }
+.architecture-item { font-size: 11px; line-height: 1.45; }
+.note-card-inline strong { display: block; font-size: 15px; }
+.note-card-inline p { font-size: 11px; }
+
+.match-result-actions {
+  justify-items: center;
+  align-items: stretch;
+}
+.match-result-return {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: min(100%, 280px);
+}
+
+@media (max-width: 1280px) {
+  .ui-app-navigation .ui-nav-label { font-size: 13px; }
+}
+@media (max-width: 1100px) {
+  .ui-app-navigation { grid-template-columns: repeat(6, minmax(72px, 1fr)); gap: 8px; }
+  .ui-app-navigation button { min-height: 64px; }
+  .ui-app-navigation .ui-nav-label { font-size: 12px; }
+  .debug-metric-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media (max-width: 900px) {
+  .ui-app-navigation {
+    position: static !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .ui-app-navigation button { min-height: 56px; padding: 10px 6px; }
+  .ui-app-navigation .ui-nav-label { font-size: 11px; }
+  .battle-command-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    justify-content: center;
+  }
+  .battle-command-actions .ui-button {
+    width: 100%;
+    min-height: 54px;
+  }
+  .battle-command-actions .setup-jump { display: inline-flex !important; }
+  .battle-objective-bar.no-progress { grid-template-columns: 1fr; }
+  .battle-objective-bar.no-progress .objective-meta { justify-items: start; }
+}
+@media (max-width: 700px) {
+  .battle-activity-grid,
+  .developer-notes-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 620px) {
+  .ui-app-navigation { gap: 4px; padding: 4px; }
+  .ui-app-navigation button { min-height: 52px; padding: 8px 4px; }
+  .ui-app-navigation .ui-nav-label { font-size: 10px; }
+  .ui-nav-badge { display: none; }
+  .battle-command-actions { grid-template-columns: 1fr; }
+  .debug-metric-grid { grid-template-columns: 1fr; }
+}
+
+/* Pass 3 refinements */
+.active-battle-copy {
+  min-width: 0;
+  justify-self: center;
+  text-align: center;
+}
+.active-battle-copy strong,
+.active-battle-copy small,
+.active-battle-copy span {
+  display: block;
+  text-align: center;
+}
+.battle-command-bar {
+  align-items: center;
+}
+.battle-command-actions {
+  justify-content: center;
+}
+
+/* Richer semantic colors without everything becoming gray */
+.secondary,
+.secondary-inline,
+.inline-secondary,
+.debug-export {
+  --btn-a: #bde5ff;
+  --btn-b: #5a8ecf;
+  --btn-glow: rgba(120, 191, 255, .32);
+}
+.ghost-button,
+.ghost-inline,
+.ui-tone-ghost {
+  --btn-a: rgba(160, 212, 255, .22);
+  --btn-b: rgba(114, 124, 240, .20);
+  --btn-glow: rgba(117, 169, 255, .18);
+}
+
+.advanced-seed-panel .seed-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+}
+
+/* make fight-tab dropdowns a bit smaller */
+.controls-card select,
+.battle-setup-card select,
+.battle-stage select {
+  font-size: 13px;
+}
+
+/* battle activity empty state */
+.battle-activity-grid {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+}
+.empty-feed-note {
+  margin: 6px 0 0;
+  min-height: 126px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 14px;
+  border: 1px dashed rgba(130, 170, 215, .16);
+  border-radius: 14px;
+  text-align: center;
+  color: #7f93ac;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* metrics panel containment and polish */
+.battle-debug-panel {
+  overflow-x: hidden;
+}
+.battle-debug-panel > .debug-metric-grid {
+  padding-top: 18px;
+  padding-bottom: 8px;
+}
+.battle-debug-panel .panel-summary {
+  padding-top: 14px;
+}
+.debug-metric-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  overflow-x: hidden;
+}
+.debug-metric-grid .metric {
+  min-width: 0;
+  overflow: hidden;
+}
+.debug-metric-grid .metric span {
+  font-size: 10px;
+  word-break: break-word;
+}
+.debug-metric-grid .metric strong {
+  font-size: 13px;
+  word-break: break-word;
+}
+.ai-decision-debug {
+  padding-inline: 16px;
+}
+.debug-export {
+  display: flex;
+  justify-content: center;
+  margin: 14px auto 18px !important;
+  width: min(100%, 220px);
+}
+
+/* creator basic summary alignment */
+.primary-basic-summary {
+  margin: 0;
+  min-height: 56px;
+  align-items: center;
+}
+
+/* remove tiny overlay box entirely */
+.render-debug-badge {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  .battle-activity-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 640px) {
+  .debug-metric-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Pass 4 polish: compact navigation, button-only battle actions and strict panel containment. */
+.hero-panel {
+  align-items: center;
+}
+
+.ui-app-navigation {
+  gap: 8px;
+  padding: 6px;
+  margin-bottom: 14px;
+}
+.ui-app-navigation button {
+  min-height: 50px;
+  padding: 9px 8px;
+  border-radius: 14px !important;
+}
+.ui-app-navigation .ui-nav-label {
+  font-size: clamp(12px, 1vw, 15px);
+}
+
+.battle-command-bar {
+  display: flex;
+  justify-content: center;
+  padding: 10px 12px;
+}
+.battle-command-actions {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+.battle-command-actions .ui-button {
+  min-width: 150px;
+}
+
+/* Stronger function-based button colors. */
+.ui-tone-success,
+button.accent-button,
+.battle-start-button {
+  --btn-a: #7fffd3;
+  --btn-b: #0fbf83;
+  --btn-glow: rgba(49, 255, 180, .42);
+}
+.ui-tone-random {
+  --btn-a: #d1adff;
+  --btn-b: #7147e8;
+  --btn-glow: rgba(171, 104, 255, .44);
+}
+.ui-tone-utility,
+button.secondary,
+button.secondary-inline,
+button.inline-secondary,
+.debug-export {
+  --btn-a: #8fe9ff;
+  --btn-b: #2476c8;
+  --btn-glow: rgba(61, 181, 255, .38);
+}
+.ui-tone-pause,
+.playback-toggle {
+  --btn-a: #ffd184;
+  --btn-b: #b36722;
+  --btn-glow: rgba(255, 168, 70, .36);
+}
+.ui-tone-danger,
+button.danger-button,
+button.loadout-delete {
+  --btn-a: #ff9aa8;
+  --btn-b: #d92f62;
+  --btn-glow: rgba(255, 68, 112, .4);
+}
+.ui-tone-ghost,
+button.ghost-button,
+button.ghost-inline {
+  --btn-a: #86b8dd;
+  --btn-b: #48527f;
+  --btn-glow: rgba(100, 151, 220, .24);
+}
+
+/* Smaller Fight-tab dropdown typography without shrinking touch targets. */
+.view-battle .control-panel select,
+.view-battle .control-panel select option {
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+/* Seed field first, actions beneath it. */
+.advanced-seed-panel .seed-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+.advanced-seed-panel .seed-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.advanced-seed-panel .seed-actions .ui-button {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Full-width fullscreen action with a quieter reset action beneath it. */
+.settings-action-row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+.settings-action-row .ui-full-width {
+  width: 100%;
+}
+.settings-reset-button {
+  width: 100%;
+  margin: 0;
+}
+
+/* Prevent metrics or long diagnostic values from ever widening their parent. */
+.control-panel,
+.battle-secondary-panels,
+.battle-debug-panel,
+.battle-debug-panel[open],
+.battle-debug-panel .panel-summary,
+.battle-debug-panel .panel-summary > span,
+.battle-debug-panel .debug-metric-grid,
+.battle-debug-panel .debug-metric-grid .metric,
+.battle-debug-panel .ai-decision-debug,
+.battle-debug-panel .ai-decision-row {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.control-panel,
+.battle-secondary-panels,
+.battle-debug-panel {
+  overflow-x: hidden;
+}
+.battle-debug-panel .panel-summary {
+  gap: 6px;
+  overflow: hidden;
+}
+.battle-debug-panel .panel-summary > span {
+  overflow: hidden;
+}
+.battle-debug-panel .panel-summary strong,
+.battle-debug-panel .panel-summary small,
+.battle-debug-panel .panel-summary em {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+.battle-debug-panel .panel-summary em {
+  flex: 0 1 auto;
+  max-width: 64px;
+  font-size: 9px;
+  text-align: right;
+}
+.battle-debug-panel .debug-metric-grid {
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 12px;
+  gap: 7px;
+  overflow: hidden;
+}
+.battle-debug-panel .debug-metric-grid .metric {
+  width: 100%;
+  padding: 9px;
+  overflow: hidden;
+}
+.battle-debug-panel .debug-metric-grid .metric span {
+  min-width: 0;
+  font-size: 8px;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+.battle-debug-panel .debug-metric-grid .metric strong {
+  min-width: 0;
+  max-width: 100%;
+  font-size: 10px;
+  line-height: 1.16;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  white-space: normal;
+}
+.battle-debug-panel .ai-decision-row {
+  grid-template-columns: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+.battle-debug-panel .ai-decision-row small {
+  grid-column: 1 / -1;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .ui-app-navigation button {
+    min-height: 46px;
+    padding: 7px 5px;
+  }
+  .battle-command-actions .ui-button {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  .ui-app-navigation button {
+    min-height: 43px;
+    padding: 6px 3px;
+  }
+  .advanced-seed-panel .seed-actions {
+    grid-template-columns: 1fr;
+  }
+  .battle-debug-panel .debug-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+/* v1.1 Stage 7.4 pass 5.4 — skill-card cleanup, analog touch pad, movement mode and refined button variance. */
+.ui-button,
+button.secondary,
+button.secondary-inline,
+button.ghost-button,
+button.ghost-inline,
+button.accent-button,
+button.danger-button,
+button.inline-secondary,
+button.debug-export,
+button.loadout-delete,
+button.playback-toggle {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.045) 28%, transparent 56%),
+    linear-gradient(135deg, color-mix(in srgb, var(--btn-a, #91efff) 92%, #324966), color-mix(in srgb, var(--btn-b, #8e83ff) 88%, #101827)) !important;
+}
+.ui-tone-success,
+button.accent-button,
+.battle-start-button {
+  --btn-a: #a8f6d2;
+  --btn-b: #4bb891;
+  --btn-glow: rgba(91, 235, 181, .26);
+}
+.ui-tone-random {
+  --btn-a: #d6b8ff;
+  --btn-b: #7f6ae3;
+  --btn-glow: rgba(150, 121, 255, .24);
+}
+.ui-tone-utility,
+button.secondary,
+button.secondary-inline,
+button.inline-secondary,
+.debug-export {
+  --btn-a: #acd9ff;
+  --btn-b: #5d8fcb;
+  --btn-glow: rgba(101, 165, 235, .22);
+}
+.ui-tone-pause,
+.playback-toggle {
+  --btn-a: #f4d39c;
+  --btn-b: #b87f41;
+  --btn-glow: rgba(239, 175, 89, .24);
+}
+.ui-tone-danger,
+button.danger-button,
+button.loadout-delete {
+  --btn-a: #f7b1b7;
+  --btn-b: #d85f78;
+  --btn-glow: rgba(231, 98, 128, .24);
+}
+.ui-tone-ghost,
+button.ghost-button,
+button.ghost-inline {
+  --btn-a: #90b0ce;
+  --btn-b: #54617f;
+  --btn-glow: rgba(107, 140, 192, .16);
+}
+.settings-action-row .ui-button,
+.battle-command-actions .ui-button,
+.match-result-actions .ui-button {
+  border-color: color-mix(in srgb, var(--btn-a) 42%, rgba(255,255,255,.14)) !important;
+}
+
+.player-control-strip .ghost-inline {
+  min-height: 28px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  font-size: 10px;
+  letter-spacing: .02em;
+}
+.toggle {
+  gap: 6px;
+  font-size: 12px;
+}
+.toggle input {
+  transform: scale(.92);
+}
+
+.analog-pad {
+  position: relative;
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  border: 1px solid rgba(158, 212, 255, .16);
+  background:
+    radial-gradient(circle at 50% 35%, rgba(163, 221, 255, .10), transparent 48%),
+    linear-gradient(180deg, rgba(13, 22, 38, .92), rgba(8, 13, 23, .90));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 10px 26px rgba(0,0,0,.28);
+}
+.analog-pad-ring,
+.analog-pad-core,
+.analog-pad-knob {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.analog-pad-ring {
+  width: 86px;
+  height: 86px;
+  border: 1px solid rgba(147, 213, 255, .20);
+  box-shadow: inset 0 0 18px rgba(96, 184, 255, .12);
+}
+.analog-pad-core {
+  width: 16px;
+  height: 16px;
+  background: radial-gradient(circle at 35% 35%, #d4f3ff, #75b9ff 58%, #203455 100%);
+  box-shadow: 0 0 12px rgba(115, 196, 255, .36);
+}
+.analog-pad-knob {
+  width: 42px;
+  height: 42px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.30), rgba(255,255,255,.06) 34%, transparent 60%),
+    linear-gradient(180deg, rgba(108, 176, 255, .92), rgba(55, 90, 148, .92));
+  border: 1px solid rgba(183, 230, 255, .35);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.34), 0 8px 18px rgba(0,0,0,.25), 0 0 16px rgba(101, 185, 255, .24);
+  transform: translate(0, 0);
+  transition: transform .04s linear;
+}
+html[data-touch-size='large'] .analog-pad { width: 126px; height: 126px; }
+html[data-touch-size='large'] .analog-pad-knob { width: 48px; height: 48px; }
+html[data-short-landscape='true'][data-touch-first='true'] .analog-pad { width: 94px; height: 94px; }
+
+/* Replace the old d-pad layout without changing markup elsewhere. */
+.direction-pad {
+  display: contents;
+}
+.direction-pad button {
+  display: none;
+}
+
+.skill-indicator {
+  background:
+    radial-gradient(circle at 50% 0, color-mix(in srgb, var(--skill-color) 28%, rgba(255,255,255,.05)), transparent 52%),
+    linear-gradient(180deg, color-mix(in srgb, var(--skill-color) 17%, rgba(22, 35, 58, .98)), color-mix(in srgb, var(--skill-color) 10%, rgba(9, 15, 26, .92))) !important;
+  border-color: color-mix(in srgb, var(--skill-color) 42%, rgba(255,255,255,.16));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 0 22px color-mix(in srgb, var(--skill-color) 12%, transparent);
+}
+.skill-indicator::before {
+  background: radial-gradient(circle at 50% 0, color-mix(in srgb, var(--skill-color) 26%, rgba(255,255,255,.06)), transparent 48%);
+}
+.skill-name { display: none !important; }
+.skill-icon-text {
+  margin-top: 9px;
+  font-size: 13px;
+  text-shadow: 0 0 14px color-mix(in srgb, var(--skill-color) 34%, transparent);
+}
+.skill-slot {
+  color: color-mix(in srgb, var(--skill-color) 52%, #ecf5ff);
+}
+.cooldown-number {
+  position: absolute;
+  inset: 5px 6px auto auto;
+  width: auto;
+  height: auto;
+  display: block !important;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  color: #eef9ff !important;
+  font-size: 9px !important;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: .02em;
+  text-shadow: 0 1px 2px rgba(0,0,0,.55), 0 0 8px color-mix(in srgb, var(--skill-color) 28%, transparent);
+}
+.skill-indicator.cooldown .skill-name { padding-right: 0; }
+
+.player-control-strip .player-control-hint {
+  max-width: 62ch;
+}
+
+
+/* v1.1 Stage 7.4 pass 5.5 — high-visibility eye charge, spring analog input and restrained semantic colors. */
+button {
+  --btn-a: #aac8e5;
+  --btn-b: #66799f;
+  --btn-glow: rgba(96, 135, 190, .16);
+}
+.ui-tone-primary {
+  --btn-a: #a8d9ec;
+  --btn-b: #657ab8;
+  --btn-glow: rgba(96, 157, 216, .20);
+}
+.ui-tone-success,
+button.accent-button,
+.battle-start-button {
+  --btn-a: #b2ead5;
+  --btn-b: #579f88;
+  --btn-glow: rgba(91, 194, 158, .20);
+}
+.ui-tone-random {
+  --btn-a: #d1c0e9;
+  --btn-b: #7b6aa8;
+  --btn-glow: rgba(139, 112, 188, .20);
+}
+.ui-tone-utility,
+button.secondary,
+button.secondary-inline,
+button.inline-secondary,
+.debug-export {
+  --btn-a: #bad7ee;
+  --btn-b: #6688ad;
+  --btn-glow: rgba(101, 151, 202, .18);
+}
+.ui-tone-pause,
+.playback-toggle {
+  --btn-a: #ead5ad;
+  --btn-b: #a27c51;
+  --btn-glow: rgba(201, 154, 92, .19);
+}
+.ui-tone-danger,
+button.danger-button,
+button.loadout-delete {
+  --btn-a: #e8b9bd;
+  --btn-b: #ac6676;
+  --btn-glow: rgba(190, 100, 122, .20);
+}
+.ui-tone-ghost,
+button.ghost-button,
+button.ghost-inline {
+  --btn-a: #9eb7ce;
+  --btn-b: #59677f;
+  --btn-glow: rgba(102, 128, 166, .13);
+}
+.ui-tone-ultimate {
+  --btn-a: #e8d6a8;
+  --btn-b: #8b6ca8;
+  --btn-glow: rgba(171, 126, 197, .22);
+}
+.ui-button,
+button.secondary,
+button.secondary-inline,
+button.ghost-button,
+button.ghost-inline,
+button.accent-button,
+button.danger-button,
+button.inline-secondary,
+button.debug-export,
+button.loadout-delete,
+button.playback-toggle {
+  filter: saturate(.94);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.20), rgba(255,255,255,.038) 29%, transparent 58%),
+    linear-gradient(135deg, color-mix(in srgb, var(--btn-a) 88%, #2d405c), color-mix(in srgb, var(--btn-b) 84%, #101827)) !important;
+}
+.ui-button:hover:not(:disabled),
+button.secondary:hover:not(:disabled),
+button.secondary-inline:hover:not(:disabled),
+button.ghost-button:hover:not(:disabled),
+button.ghost-inline:hover:not(:disabled),
+button.accent-button:hover:not(:disabled),
+button.danger-button:hover:not(:disabled),
+button.inline-secondary:hover:not(:disabled),
+button.debug-export:hover:not(:disabled),
+button.playback-toggle:hover:not(:disabled) {
+  filter: saturate(1.02) brightness(1.07);
+}
+
+.analog-pad {
+  --stick-intensity: 0;
+  --stick-border-alpha: .16;
+  --stick-inset-alpha: .07;
+  --stick-glow-alpha: .05;
+  --stick-halo-size: 10px;
+  --stick-guide-opacity: .34;
+  --stick-ring-alpha: .18;
+  --stick-ring-scale: 1;
+  --stick-core-opacity: .72;
+  --stick-core-scale: 1;
+  --stick-knob-core-opacity: .68;
+  overflow: hidden;
+  border-color: rgba(155, 217, 255, var(--stick-border-alpha));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.07),
+    inset 0 0 24px rgba(91, 171, 238, var(--stick-inset-alpha)),
+    0 10px 26px rgba(0,0,0,.28),
+    0 0 var(--stick-halo-size) rgba(92, 174, 241, var(--stick-glow-alpha));
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+.analog-pad::before {
+  content: '';
+  position: absolute;
+  inset: 10px;
+  border-radius: 50%;
+  background: conic-gradient(from 45deg, transparent 0 10%, rgba(154, 216, 255, .08) 10% 12%, transparent 12% 35%, rgba(154, 216, 255, .08) 35% 37%, transparent 37% 60%, rgba(154, 216, 255, .08) 60% 62%, transparent 62% 85%, rgba(154, 216, 255, .08) 85% 87%, transparent 87% 100%);
+  opacity: var(--stick-guide-opacity);
+  pointer-events: none;
+}
+.analog-pad[data-active='true'] {
+  border-color: rgba(152, 218, 255, .34);
+}
+.analog-pad-axis {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  pointer-events: none;
+  background: rgba(139, 205, 246, .10);
+  opacity: var(--stick-guide-opacity);
+}
+.analog-pad-axis-horizontal { width: 74%; height: 1px; }
+.analog-pad-axis-vertical { width: 1px; height: 74%; }
+.analog-pad-ring {
+  border-color: rgba(151, 213, 255, var(--stick-ring-alpha));
+  transform: scale(var(--stick-ring-scale));
+  transition: transform .1s ease, border-color .1s ease;
+}
+.analog-pad-core {
+  opacity: var(--stick-core-opacity);
+  transform: scale(var(--stick-core-scale));
+  transition: opacity .1s ease, transform .1s ease;
+}
+.analog-pad-knob {
+  display: grid;
+  place-items: center;
+  transition: none;
+  will-change: transform;
+}
+.analog-pad-knob i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(225, 246, 255, .82);
+  box-shadow: 0 0 10px rgba(188, 232, 255, .54);
+  opacity: var(--stick-knob-core-opacity);
+}
+
+
+/* v1.1 Stage 7.4 pass 5.6 — responsive dock, skill-card reflow and explicit tone backgrounds. */
+
+/* The quick-control dock is part of the arena flow, never a viewport overlay. */
+.mobile-battle-dock {
+  display: none !important;
+  position: static !important;
+  inset: auto !important;
+  width: 100% !important;
+  margin: 10px 0 0;
+}
+
+@media (max-width: 900px) {
+  .mobile-battle-dock {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+    padding: 7px;
+    border: 1px solid rgba(157, 217, 255, .13);
+    border-radius: 16px;
+    background: rgba(7, 12, 23, .88);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 28px rgba(0,0,0,.20);
+    backdrop-filter: blur(16px);
+  }
+  .app-shell { padding-bottom: max(10px, var(--safe-bottom)); }
+}
+
+@media (max-width: 620px) {
+  .mobile-battle-dock { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (orientation: landscape) and (max-height: 560px) and (pointer: coarse) {
+  .mobile-battle-dock {
+    position: static !important;
+    width: 100% !important;
+    margin-top: 7px;
+  }
+  .app-shell { padding-bottom: max(6px, var(--safe-bottom)); }
+}
+
+/* Explicit tone backgrounds avoid inherited/custom-property collisions. */
+.ui-button {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.15;
+}
+.ui-button.ui-tone-primary {
+  background: linear-gradient(180deg, rgba(255,255,255,.18), transparent 42%), linear-gradient(135deg, #82b7d1, #536a9d) !important;
+  border-color: rgba(164, 216, 242, .44) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.30), 0 9px 22px rgba(0,0,0,.22), 0 0 22px rgba(88, 145, 206, .16) !important;
+}
+.ui-button.ui-tone-success {
+  background: linear-gradient(180deg, rgba(255,255,255,.18), transparent 42%), linear-gradient(135deg, #9fd8c2, #4f8f79) !important;
+  border-color: rgba(168, 232, 207, .44) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.30), 0 9px 22px rgba(0,0,0,.22), 0 0 22px rgba(82, 181, 145, .16) !important;
+}
+.ui-button.ui-tone-random {
+  background: linear-gradient(180deg, rgba(255,255,255,.18), transparent 42%), linear-gradient(135deg, #b7a5d3, #6e5d98) !important;
+  border-color: rgba(205, 184, 234, .44) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.30), 0 9px 22px rgba(0,0,0,.22), 0 0 22px rgba(131, 101, 178, .16) !important;
+}
+.ui-button.ui-tone-utility {
+  background: linear-gradient(180deg, rgba(255,255,255,.18), transparent 42%), linear-gradient(135deg, #a4c3db, #58799f) !important;
+  border-color: rgba(180, 216, 241, .42) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.30), 0 9px 22px rgba(0,0,0,.22), 0 0 22px rgba(83, 135, 188, .15) !important;
+}
+.ui-button.ui-tone-pause {
+  background: linear-gradient(180deg, rgba(255,255,255,.17), transparent 42%), linear-gradient(135deg, #d7bd8e, #92704a) !important;
+  border-color: rgba(232, 207, 160, .42) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 9px 22px rgba(0,0,0,.22), 0 0 22px rgba(180, 132, 70, .14) !important;
+}
+.ui-button.ui-tone-danger {
+  background: linear-gradient(180deg, rgba(255,255,255,.17), transparent 42%), linear-gradient(135deg, #d7a1aa, #985469) !important;
+  border-color: rgba(235, 176, 188, .42) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 9px 22px rgba(0,0,0,.22), 0 0 22px rgba(177, 76, 105, .14) !important;
+}
+.ui-button.ui-tone-ghost {
+  background: linear-gradient(180deg, rgba(255,255,255,.12), transparent 44%), linear-gradient(135deg, #73889d, #455169) !important;
+  border-color: rgba(159, 185, 211, .30) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.20), 0 8px 20px rgba(0,0,0,.20), 0 0 18px rgba(92, 124, 166, .10) !important;
+}
+.ui-button.ui-tone-ultimate {
+  background: linear-gradient(180deg, rgba(255,255,255,.18), transparent 42%), linear-gradient(135deg, #d5be8e, #795d91) !important;
+  border-color: rgba(224, 196, 151, .42) !important;
+}
+.ui-button:disabled {
+  background: linear-gradient(180deg, rgba(255,255,255,.08), transparent 44%), linear-gradient(135deg, #59666b, #39434d) !important;
+  border-color: rgba(151, 169, 179, .18) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 6px 14px rgba(0,0,0,.16) !important;
+  color: rgba(225, 235, 240, .48) !important;
+  opacity: .72;
+}
+
+/* Keep all fighter cards and their five skills readable under zoom. */
+.fighter-card-copy { width: 100%; min-width: 0; }
+.fighter-card-heading { flex-wrap: wrap; row-gap: 3px; }
+.skill-grid {
+  width: 100%;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.skill-indicator {
+  min-width: 0 !important;
+  min-height: 0;
+  height: 62px;
+  padding: 16px 4px 5px;
+}
+.skill-indicator .skill-slot {
+  position: absolute;
+  top: 5px;
+  left: 6px;
+  margin: 0;
+  font-size: 8px;
+  line-height: 1;
+}
+.skill-indicator .skill-icon-text {
+  display: grid;
+  place-items: center;
+  min-height: 34px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1;
+}
+.skill-indicator .cooldown-number {
+  top: 5px;
+  right: 6px;
+  bottom: auto;
+  left: auto;
+  font-size: 8px !important;
+  line-height: 1;
+}
+.skill-indicator .cooldown-shade {
+  border-top: 0;
+  background: linear-gradient(180deg, rgba(2,5,10,.04), rgba(2,5,10,.58));
+}
+
+@media (max-width: 900px) {
+  .fighter-strip {
+    grid-template-columns: minmax(0, 1fr) !important;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 620px) {
+  .fighter-card { gap: 8px; padding: 10px; }
+  .fighter-icon { width: 34px; height: 34px; }
+  .skill-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .skill-indicator { height: 56px; padding-top: 15px; }
+  .skill-indicator .skill-icon-text { min-height: 30px; font-size: 12px; }
+}
+
+
+/* Performance phase 6: keep replay export centered at all responsive widths. */
+.debug-export-row {
+  width: 100%;
+  display: grid;
+  place-items: center;
+  padding: 14px 12px 18px;
+}
+.debug-export-row .debug-export {
+  width: min(100%, 230px);
+  margin: 0 !important;
+  justify-self: center;
+  align-self: center;
+}
+
+/* Stage 7.5 — left-aligned matchup identity and live elimination progress. */
+.battle-objective-bar {
+  grid-template-columns: minmax(210px, .82fr) minmax(280px, 1.25fr) auto;
+}
+.objective-summary {
+  justify-self: stretch;
+  justify-items: start;
+  align-items: start;
+  text-align: left;
+}
+.objective-summary small,
+.objective-summary strong {
+  width: 100%;
+  text-align: left;
+}
+.elimination-progress {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+  height: auto;
+  min-width: 0;
+  overflow: visible;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+.team-progress-lane {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.team-progress-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+}
+.team-progress-heading b,
+.team-progress-heading small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.team-progress-heading b {
+  color: #dce9f8;
+  font: 700 10px/1.1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.team-progress-heading small {
+  color: #8ba0b8;
+  font: 600 9px/1.1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.team-progress-track {
+  position: relative;
+  display: block;
+  height: 7px;
+  overflow: hidden;
+  border: 1px solid rgba(112, 164, 211, .2);
+  border-radius: 999px;
+  background: rgba(2, 7, 16, .78);
+}
+.team-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(54, 202, 255, .72), rgba(107, 238, 184, .96));
+  box-shadow: 0 0 12px rgba(74, 216, 239, .35);
+  transition: width 180ms linear;
+}
+.team-progress-lane:nth-child(even) .team-progress-fill {
+  background: linear-gradient(90deg, rgba(255, 177, 79, .76), rgba(255, 98, 120, .96));
+  box-shadow: 0 0 12px rgba(255, 111, 111, .3);
+}
+
+@media (max-width: 900px) {
+  .battle-objective-bar { grid-template-columns: 1fr; }
+  .objective-meta { justify-items: start; text-align: left; }
+}
+@media (max-width: 560px) {
+  .elimination-progress { grid-template-columns: 1fr; }
+}

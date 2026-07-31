@@ -1,0 +1,29 @@
+{
+  "id": "kinetic-pulse",
+  "name": "Kinetic Pulse",
+  "slot": "skill1",
+  "cooldownTicks": 220,
+  "castTicks": 24,
+  "castMovementMultiplier": 0.28,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "actions": [
+        {
+          "type": "RADIAL_DAMAGE",
+          "radius": 190,
+          "amount": 12,
+          "element": "neutral",
+          "enemiesOnly": true
+        },
+        {
+          "type": "RADIAL_IMPULSE",
+          "radius": 220,
+          "magnitude": 16,
+          "enemiesOnly": true
+        }
+      ],
+      "conditions": []
+    }
+  ]
+}

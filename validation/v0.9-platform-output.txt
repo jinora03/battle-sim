@@ -1,0 +1,1 @@
+{"phase":"0.9-platform","desktopPreset":"high","phonePreset":"battery","targetFps":30,"migratedSchema":2,"reducedMotionSafe":true}

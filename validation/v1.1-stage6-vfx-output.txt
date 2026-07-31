@@ -1,0 +1,9 @@
+{
+  "stage": "v1.1-stage6",
+  "highTier": "high",
+  "armyTier": "low",
+  "highGroundMarks": 72,
+  "armyGroundMarks": 18,
+  "rifleTrail": "beam",
+  "status": "passed"
+}

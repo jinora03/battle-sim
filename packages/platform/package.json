@@ -1,0 +1,11 @@
+{
+  "name": "@kinetic/platform",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@kinetic/protocol": "1.0.0",
+    "@kinetic/visual-engine": "1.0.0"
+  }
+}

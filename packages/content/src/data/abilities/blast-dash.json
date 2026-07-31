@@ -1,0 +1,25 @@
+{
+  "id": "blast-dash",
+  "name": "Blast Dash",
+  "slot": "skill1",
+  "cooldownTicks": 165,
+  "castTicks": 12,
+  "castMovementMultiplier": 0.45,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "APPLY_IMPULSE_SELF",
+          "magnitude": 10.5
+        },
+        {
+          "type": "APPLY_STATUS_SELF",
+          "statusId": "blast-dash",
+          "durationTicks": 72
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,141 @@
+{
+  "id": "cryo-ring",
+  "name": "Cryo Ring",
+  "size": "medium",
+  "theme": "temple",
+  "width": 1120,
+  "height": 920,
+  "spatialCellSize": 112,
+  "recommendedUnits": {
+    "min": 2,
+    "max": 16
+  },
+  "allowedModes": [
+    "duel",
+    "team-battle",
+    "battle-royale",
+    "survival"
+  ],
+  "spawnZones": [
+    {
+      "id": "west",
+      "team": 1,
+      "x": 70,
+      "y": 220,
+      "width": 220,
+      "height": 480
+    },
+    {
+      "id": "east",
+      "team": 2,
+      "x": 830,
+      "y": 220,
+      "width": 220,
+      "height": 480
+    },
+    {
+      "id": "north",
+      "x": 430,
+      "y": 55,
+      "width": 260,
+      "height": 140
+    },
+    {
+      "id": "south",
+      "x": 430,
+      "y": 725,
+      "width": 260,
+      "height": 140
+    }
+  ],
+  "obstacles": [
+    {
+      "id": "cryo-north",
+      "kind": "pillar",
+      "shape": "circle",
+      "x": 560,
+      "y": 260,
+      "radius": 72,
+      "width": 0,
+      "height": 0,
+      "restitution": 1.04,
+      "destructible": false,
+      "maxHp": 0,
+      "impactDamageScale": 0,
+      "breakImpulseThreshold": 0,
+      "contactDamage": 0
+    },
+    {
+      "id": "cryo-south",
+      "kind": "pillar",
+      "shape": "circle",
+      "x": 560,
+      "y": 660,
+      "radius": 72,
+      "width": 0,
+      "height": 0,
+      "restitution": 1.04,
+      "destructible": false,
+      "maxHp": 0,
+      "impactDamageScale": 0,
+      "breakImpulseThreshold": 0,
+      "contactDamage": 0
+    }
+  ],
+  "zones": [
+    {
+      "id": "frozen-center",
+      "name": "Frozen Center",
+      "kind": "ice",
+      "shape": "circle",
+      "x": 560,
+      "y": 460,
+      "radius": 205,
+      "width": 0,
+      "height": 0,
+      "strength": 0.5,
+      "damage": 0,
+      "intervalTicks": 30,
+      "direction": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "north-gale",
+      "name": "North Gale",
+      "kind": "wind",
+      "shape": "rect",
+      "x": 260,
+      "y": 80,
+      "width": 600,
+      "height": 120,
+      "radius": 0,
+      "strength": 0.055,
+      "damage": 0,
+      "intervalTicks": 30,
+      "direction": {
+        "x": 0,
+        "y": 1
+      }
+    },
+    {
+      "id": "south-gale",
+      "name": "South Gale",
+      "kind": "wind",
+      "shape": "rect",
+      "x": 260,
+      "y": 720,
+      "width": 600,
+      "height": 120,
+      "radius": 0,
+      "strength": 0.055,
+      "damage": 0,
+      "intervalTicks": 30,
+      "direction": {
+        "x": 0,
+        "y": -1
+      }
+    }
+  ]
+}

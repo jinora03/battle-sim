@@ -1,0 +1,30 @@
+{
+  "id": "polarity-pull",
+  "name": "Polarity Pull",
+  "slot": "skill3",
+  "cooldownTicks": 330,
+  "castTicks": 34,
+  "castMovementMultiplier": 0.12,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "RADIAL_IMPULSE",
+          "radius": 250,
+          "magnitude": 10,
+          "enemiesOnly": true,
+          "direction": "pull"
+        },
+        {
+          "type": "RADIAL_DAMAGE",
+          "radius": 230,
+          "amount": 10,
+          "element": "electric",
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
+}

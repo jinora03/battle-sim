@@ -1,0 +1,41 @@
+{
+  "id": "volt-striker",
+  "name": "Volt Striker",
+  "classification": {
+    "archetype": "assassin",
+    "elements": [
+      "electric"
+    ],
+    "traits": [
+      "fast",
+      "volatile"
+    ]
+  },
+  "physics": {
+    "radius": 31,
+    "mass": 0.9,
+    "restitution": 1.02,
+    "linearDamping": 0.992,
+    "maxSpeed": 14.8
+  },
+  "stats": {
+    "maxHp": 280,
+    "moveAcceleration": 0.245
+  },
+  "aiProfileId": "volt-hunter",
+  "abilitySlots": {
+    "skill1": "lightning-dash",
+    "skill2": "arc-burst",
+    "skill3": "polarity-pull",
+    "ultimate": "thunder-dome"
+  },
+  "resistances": {
+    "electric": 0.6,
+    "metal": 0.82,
+    "nature": 1.1
+  },
+  "visualRecipeId": "volt-striker",
+  "animationRecipeId": "electric-spark",
+  "audioProfileId": "electric-fast",
+  "primaryAttackId": "arc-emitter"
+}

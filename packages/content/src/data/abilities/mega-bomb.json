@@ -1,0 +1,25 @@
+{
+  "id": "mega-bomb",
+  "name": "MEGA BOMB",
+  "slot": "ultimate",
+  "cooldownTicks": 620,
+  "castTicks": 66,
+  "castMovementMultiplier": 0,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "EXPLODE",
+          "kind": "explosion",
+          "radius": 285,
+          "damage": 30,
+          "impulse": 38,
+          "element": "neutral",
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "id": "war-basin",
+  "name": "War Basin",
+  "size": "huge",
+  "theme": "iron",
+  "width": 2400,
+  "height": 1600,
+  "spatialCellSize": 112,
+  "recommendedUnits": { "min": 16, "max": 80 },
+  "allowedModes": ["team-battle", "battle-royale", "mass-skirmish"],
+  "spawnZones": [
+    { "id": "west-army", "team": 1, "x": 90, "y": 160, "width": 500, "height": 1280 },
+    { "id": "east-army", "team": 2, "x": 1810, "y": 160, "width": 500, "height": 1280 },
+    { "id": "north-free", "x": 880, "y": 80, "width": 640, "height": 260 },
+    { "id": "south-free", "x": 880, "y": 1260, "width": 640, "height": 260 },
+    { "id": "center-free", "x": 920, "y": 570, "width": 560, "height": 460 }
+  ],
+  "obstacles": [
+    { "id": "bastion-nw", "kind": "pillar", "shape": "circle", "x": 830, "y": 470, "radius": 82, "restitution": 0.9, "destructible": false, "maxHp": 0, "impactDamageScale": 0, "breakImpulseThreshold": 0, "contactDamage": 0 },
+    { "id": "bastion-sw", "kind": "pillar", "shape": "circle", "x": 830, "y": 1130, "radius": 82, "restitution": 0.9, "destructible": false, "maxHp": 0, "impactDamageScale": 0, "breakImpulseThreshold": 0, "contactDamage": 0 },
+    { "id": "bastion-ne", "kind": "pillar", "shape": "circle", "x": 1570, "y": 470, "radius": 82, "restitution": 0.9, "destructible": false, "maxHp": 0, "impactDamageScale": 0, "breakImpulseThreshold": 0, "contactDamage": 0 },
+    { "id": "bastion-se", "kind": "pillar", "shape": "circle", "x": 1570, "y": 1130, "radius": 82, "restitution": 0.9, "destructible": false, "maxHp": 0, "impactDamageScale": 0, "breakImpulseThreshold": 0, "contactDamage": 0 },
+    { "id": "center-reactor", "kind": "reactor", "shape": "circle", "x": 1200, "y": 800, "radius": 108, "restitution": 1.02, "destructible": true, "maxHp": 620, "impactDamageScale": 1.8, "breakImpulseThreshold": 5.5, "contactDamage": 0 }
+  ],
+  "zones": []
+}

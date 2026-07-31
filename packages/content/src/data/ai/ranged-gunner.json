@@ -1,0 +1,58 @@
+{
+  "id": "ranged-gunner",
+  "reactionTicks": 5,
+  "aggression": 0.82,
+  "preferredDistance": 370,
+  "retreatHealthRatio": 0.16,
+  "steeringStrength": 1.06,
+  "movementStyle": "kite",
+  "orbitStrength": 0.42,
+  "wallAvoidance": 1.25,
+  "targeting": "lowest-health",
+  "allySeparation": 1.15,
+  "targetSpread": 1.15,
+  "targetStickiness": 0.82,
+  "abilityUsage": [
+    {
+      "slot": "basic",
+      "everyTicks": 1,
+      "phaseTicks": 0,
+      "minDistance": 115,
+      "maxDistance": 720,
+      "priority": 8
+    },
+    {
+      "slot": "skill1",
+      "everyTicks": 150,
+      "phaseTicks": 0,
+      "minDistance": 0,
+      "maxDistance": 620,
+      "priority": 8
+    },
+    {
+      "slot": "skill2",
+      "everyTicks": 220,
+      "phaseTicks": 0,
+      "minDistance": 0,
+      "maxDistance": 190,
+      "priority": 12
+    },
+    {
+      "slot": "skill3",
+      "everyTicks": 360,
+      "phaseTicks": 0,
+      "minDistance": 0,
+      "maxDistance": 9999,
+      "healthBelow": 0.62,
+      "priority": 18
+    },
+    {
+      "slot": "ultimate",
+      "everyTicks": 620,
+      "phaseTicks": 0,
+      "minDistance": 0,
+      "maxDistance": 310,
+      "priority": 24
+    }
+  ]
+}

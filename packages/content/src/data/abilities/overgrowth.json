@@ -1,0 +1,41 @@
+{
+  "id": "overgrowth",
+  "name": "Overgrowth",
+  "slot": "ultimate",
+  "cooldownTicks": 720,
+  "castTicks": 72,
+  "castMovementMultiplier": 0,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "RADIAL_IMPULSE",
+          "radius": 300,
+          "magnitude": 12,
+          "enemiesOnly": true,
+          "direction": "pull"
+        },
+        {
+          "type": "RADIAL_DAMAGE",
+          "radius": 285,
+          "amount": 26,
+          "element": "nature",
+          "enemiesOnly": true
+        },
+        {
+          "type": "RADIAL_STATUS",
+          "radius": 315,
+          "statusId": "rooted",
+          "durationTicks": 210,
+          "enemiesOnly": true
+        },
+        {
+          "type": "HEAL_SELF",
+          "amount": 24
+        }
+      ]
+    }
+  ]
+}

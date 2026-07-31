@@ -1,0 +1,166 @@
+.ui-button,
+button.secondary,
+button.secondary-inline,
+button.ghost-button,
+button.ghost-inline,
+button.accent-button,
+button.danger-button,
+button.inline-secondary,
+button.debug-export,
+button.loadout-delete,
+button.playback-toggle {
+  position: relative;
+  border: 1px solid rgba(203, 241, 255, 0.22) !important;
+  border-radius: 16px !important;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.24), rgba(255,255,255,.035) 30%, transparent 58%),
+    linear-gradient(135deg, color-mix(in srgb, var(--btn-a, #91efff) 84%, #23344f), color-mix(in srgb, var(--btn-b, #8e83ff) 78%, #0c1425)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.38),
+    inset 0 -8px 24px rgba(255,255,255,.05),
+    0 10px 26px rgba(0,0,0,.24),
+    0 0 34px var(--btn-glow, rgba(119, 182, 255, .25)) !important;
+  overflow: hidden;
+}
+.ui-button::after,
+button.secondary::after,
+button.secondary-inline::after,
+button.ghost-button::after,
+button.ghost-inline::after,
+button.accent-button::after,
+button.danger-button::after,
+button.inline-secondary::after,
+button.debug-export::after,
+button.loadout-delete::after,
+button.playback-toggle::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: radial-gradient(circle at 50% 0, rgba(255,255,255,.34), transparent 46%);
+  pointer-events: none;
+  opacity: .72;
+}
+.ui-button:hover,
+button.secondary:hover,
+button.secondary-inline:hover,
+button.ghost-button:hover,
+button.ghost-inline:hover,
+button.accent-button:hover,
+button.danger-button:hover,
+button.inline-secondary:hover,
+button.debug-export:hover,
+button.loadout-delete:hover,
+button.playback-toggle:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.42),
+    inset 0 -8px 24px rgba(255,255,255,.06),
+    0 14px 32px rgba(0,0,0,.28),
+    0 0 46px var(--btn-glow, rgba(119,182,255,.34)) !important;
+}
+.ui-tone-success,
+button.accent-button,
+.battle-start-button {
+  --btn-a: #abfff0;
+  --btn-b: #64dcb3;
+  --btn-glow: rgba(123, 255, 204, .38);
+}
+.ui-tone-random {
+  --btn-a: #c0b0ff;
+  --btn-b: #8277ff;
+  --btn-glow: rgba(157, 122, 255, .40);
+}
+.ui-tone-utility,
+button.secondary,
+button.secondary-inline,
+button.inline-secondary,
+.debug-export {
+  --btn-a: #bde5ff;
+  --btn-b: #6f9dcc;
+  --btn-glow: rgba(125, 196, 255, .34);
+}
+.ui-tone-pause,
+.playback-toggle {
+  --btn-a: #f3d0a7;
+  --btn-b: #99775b;
+  --btn-glow: rgba(255, 181, 105, .30);
+}
+.ui-tone-danger,
+button.danger-button,
+button.loadout-delete {
+  --btn-a: #ffb49b;
+  --btn-b: #ff5e7f;
+  --btn-glow: rgba(255, 98, 127, .36);
+}
+.ui-tone-ghost,
+button.ghost-button,
+button.ghost-inline {
+  --btn-a: rgba(167, 220, 255, .20);
+  --btn-b: rgba(166, 136, 255, .18);
+  --btn-glow: rgba(119, 182, 255, .18);
+}
+.ui-tone-ultimate {
+  --btn-a: #ffe3a0;
+  --btn-b: #a25cff;
+  --btn-glow: rgba(214, 131, 255, .40);
+}
+
+.battle-debug-panel,
+.creator-section {
+  box-shadow: var(--ui-shadow-panel);
+}
+.debug-metric-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 16px;
+}
+.debug-metric-grid .metric,
+.weapon-spec-grid .metric {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  padding: 11px 12px;
+  border: 1px solid rgba(155, 210, 255, .14);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02) 24%),
+    linear-gradient(180deg, rgba(12, 20, 37, .86), rgba(8, 13, 25, .84));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 8px 20px rgba(0,0,0,.16);
+  border-bottom: 1px solid rgba(155, 210, 255, .14);
+}
+.debug-metric-grid .metric span,
+.weapon-spec-grid .metric span {
+  color: #89a4bf;
+  font-size: 10px;
+  line-height: 1.25;
+}
+.debug-metric-grid .metric strong,
+.weapon-spec-grid .metric strong {
+  color: #f2f8ff;
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.2;
+}
+.ai-decision-debug {
+  margin: 4px 16px 0;
+  border-top: 1px solid rgba(166, 217, 255, .08);
+  padding-top: 14px;
+}
+.ai-decision-row {
+  padding: 8px 0;
+  border-bottom-color: rgba(166, 217, 255, .08);
+}
+.weapon-spec-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.small-note {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(166, 217, 255, .10);
+  border-radius: 14px;
+  background: rgba(9, 15, 28, .72);
+  line-height: 1.6;
+}

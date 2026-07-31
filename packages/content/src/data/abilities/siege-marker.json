@@ -1,0 +1,35 @@
+{
+  "id": "siege-marker",
+  "name": "Siege Marker",
+  "slot": "skill3",
+  "cooldownTicks": 300,
+  "castTicks": 32,
+  "castMovementMultiplier": 0.45,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "area",
+    "priority": 82,
+    "minRange": 220,
+    "maxRange": 760,
+    "requiresLineOfSight": true,
+    "minimumTargets": 1,
+    "aimToleranceDegrees": 100
+  },
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "LAUNCH_PROJECTILES",
+          "projectileId": "siege-missile",
+          "count": 6,
+          "pattern": "fan",
+          "spreadDegrees": 42,
+          "targetMode": "distributed",
+          "intervalTicks": 5
+        }
+      ]
+    }
+  ]
+}

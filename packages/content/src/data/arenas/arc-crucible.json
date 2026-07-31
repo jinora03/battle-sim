@@ -1,0 +1,159 @@
+{
+  "id": "arc-crucible",
+  "name": "Arc Crucible",
+  "size": "large",
+  "theme": "foundry",
+  "width": 1500,
+  "height": 1120,
+  "spatialCellSize": 116,
+  "recommendedUnits": {
+    "min": 2,
+    "max": 28
+  },
+  "allowedModes": [
+    "duel",
+    "team-battle",
+    "battle-royale",
+    "boss-raid",
+    "survival"
+  ],
+  "spawnZones": [
+    {
+      "id": "west",
+      "team": 1,
+      "x": 70,
+      "y": 240,
+      "width": 300,
+      "height": 640
+    },
+    {
+      "id": "east",
+      "team": 2,
+      "x": 1130,
+      "y": 240,
+      "width": 300,
+      "height": 640
+    },
+    {
+      "id": "north",
+      "x": 560,
+      "y": 65,
+      "width": 380,
+      "height": 170
+    },
+    {
+      "id": "south",
+      "x": 560,
+      "y": 885,
+      "width": 380,
+      "height": 170
+    }
+  ],
+  "obstacles": [
+    {
+      "id": "reactor-west",
+      "kind": "reactor",
+      "shape": "circle",
+      "x": 520,
+      "y": 560,
+      "radius": 88,
+      "width": 0,
+      "height": 0,
+      "restitution": 0.95,
+      "destructible": true,
+      "maxHp": 360,
+      "impactDamageScale": 2.1,
+      "breakImpulseThreshold": 4.8,
+      "contactDamage": 0
+    },
+    {
+      "id": "reactor-east",
+      "kind": "reactor",
+      "shape": "circle",
+      "x": 980,
+      "y": 560,
+      "radius": 88,
+      "width": 0,
+      "height": 0,
+      "restitution": 0.95,
+      "destructible": true,
+      "maxHp": 360,
+      "impactDamageScale": 2.1,
+      "breakImpulseThreshold": 4.8,
+      "contactDamage": 0
+    },
+    {
+      "id": "conduit-center",
+      "kind": "pillar",
+      "shape": "box",
+      "x": 750,
+      "y": 560,
+      "radius": 0,
+      "width": 110,
+      "height": 310,
+      "restitution": 0.82,
+      "destructible": false,
+      "maxHp": 0,
+      "impactDamageScale": 0,
+      "breakImpulseThreshold": 0,
+      "contactDamage": 0
+    }
+  ],
+  "zones": [
+    {
+      "id": "arc-north",
+      "name": "North Arc Grid",
+      "kind": "electric",
+      "shape": "rect",
+      "x": 420,
+      "y": 175,
+      "width": 660,
+      "height": 190,
+      "radius": 0,
+      "strength": 1.7,
+      "damage": 4,
+      "intervalTicks": 36,
+      "direction": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "arc-south",
+      "name": "South Arc Grid",
+      "kind": "electric",
+      "shape": "rect",
+      "x": 420,
+      "y": 755,
+      "width": 660,
+      "height": 190,
+      "radius": 0,
+      "strength": 1.7,
+      "damage": 4,
+      "intervalTicks": 36,
+      "direction": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "coolant-core",
+      "name": "Coolant Core",
+      "kind": "water",
+      "shape": "circle",
+      "x": 750,
+      "y": 560,
+      "radius": 190,
+      "width": 0,
+      "height": 0,
+      "strength": 0.84,
+      "damage": 0,
+      "intervalTicks": 30,
+      "statusId": "wet",
+      "direction": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  ]
+}

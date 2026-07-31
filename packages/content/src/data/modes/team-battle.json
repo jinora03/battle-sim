@@ -1,0 +1,9 @@
+{
+  "id": "team-battle",
+  "name": "Team Battle",
+  "description": "Two organized teams fight until only one team remains.",
+  "formatLabel": "2v2 to 25v25",
+  "minUnits": 4,
+  "maxUnits": 50,
+  "victory": "LAST_TEAM_STANDING"
+}

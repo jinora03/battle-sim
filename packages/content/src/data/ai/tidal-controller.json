@@ -1,0 +1,45 @@
+{
+  "id": "tidal-controller",
+  "reactionTicks": 7,
+  "aggression": 0.74,
+  "preferredDistance": 175,
+  "retreatHealthRatio": 0.12,
+  "steeringStrength": 1.0,
+  "movementStyle": "orbit",
+  "orbitStrength": 0.82,
+  "wallAvoidance": 1.35,
+  "abilityUsage": [
+    {
+      "slot": "skill1",
+      "everyTicks": 190,
+      "phaseTicks": 35,
+      "minDistance": 135,
+      "maxDistance": 520
+    },
+    {
+      "slot": "skill2",
+      "everyTicks": 270,
+      "phaseTicks": 120,
+      "minDistance": 0,
+      "maxDistance": 195
+    },
+    {
+      "slot": "skill3",
+      "everyTicks": 390,
+      "phaseTicks": 205,
+      "minDistance": 95,
+      "maxDistance": 320
+    },
+    {
+      "slot": "ultimate",
+      "everyTicks": 690,
+      "phaseTicks": 330,
+      "minDistance": 0,
+      "maxDistance": 300
+    }
+  ],
+  "targeting": "clustered",
+  "allySeparation": 1.25,
+  "targetSpread": 1.15,
+  "targetStickiness": 0.72
+}

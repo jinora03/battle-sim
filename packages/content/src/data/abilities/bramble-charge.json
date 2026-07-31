@@ -1,0 +1,58 @@
+{
+  "id": "bramble-charge",
+  "name": "Bramble Charge",
+  "slot": "skill1",
+  "cooldownTicks": 205,
+  "castTicks": 24,
+  "castMovementMultiplier": 0.32,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "APPLY_IMPULSE_SELF",
+          "magnitude": 8.5
+        },
+        {
+          "type": "APPLY_STATUS_SELF",
+          "statusId": "barkskin",
+          "durationTicks": 100
+        }
+      ]
+    },
+    {
+      "event": "ON_COLLISION",
+      "conditions": [
+        {
+          "type": "SELF_HAS_STATUS",
+          "statusId": "barkskin"
+        },
+        {
+          "type": "IMPACT_ABOVE",
+          "value": 2.4
+        }
+      ],
+      "actions": [
+        {
+          "type": "DEAL_DAMAGE_TARGET",
+          "amount": 19,
+          "element": "nature"
+        },
+        {
+          "type": "APPLY_STATUS_TARGET",
+          "statusId": "rooted",
+          "durationTicks": 105
+        },
+        {
+          "type": "APPLY_KNOCKBACK_TARGET",
+          "magnitude": 9
+        },
+        {
+          "type": "REMOVE_STATUS_SELF",
+          "statusId": "barkskin"
+        }
+      ]
+    }
+  ]
+}

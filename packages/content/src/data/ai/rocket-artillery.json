@@ -1,0 +1,21 @@
+{
+  "id": "rocket-artillery",
+  "reactionTicks": 5,
+  "aggression": 0.62,
+  "preferredDistance": 440,
+  "retreatHealthRatio": 0.24,
+  "steeringStrength": 0.93,
+  "movementStyle": "kite",
+  "orbitStrength": 0.34,
+  "wallAvoidance": 1.18,
+  "targeting": "clustered",
+  "allySeparation": 1.05,
+  "targetSpread": 0.9,
+  "targetStickiness": 0.84,
+  "abilityUsage": [
+    { "slot": "skill1", "everyTicks": 120, "phaseTicks": 15, "minDistance": 170, "maxDistance": 720, "priority": 10 },
+    { "slot": "skill2", "everyTicks": 180, "phaseTicks": 60, "minDistance": 0, "maxDistance": 240, "priority": 18 },
+    { "slot": "skill3", "everyTicks": 240, "phaseTicks": 90, "minDistance": 250, "maxDistance": 760, "priority": 16, "minimumTargets": 2 },
+    { "slot": "ultimate", "everyTicks": 420, "phaseTicks": 180, "minDistance": 120, "maxDistance": 850, "priority": 28, "minimumTargets": 2 }
+  ]
+}

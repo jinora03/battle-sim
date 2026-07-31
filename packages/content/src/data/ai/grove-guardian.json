@@ -1,0 +1,46 @@
+{
+  "id": "grove-guardian",
+  "reactionTicks": 13,
+  "aggression": 0.68,
+  "preferredDistance": 115,
+  "retreatHealthRatio": 0.2,
+  "steeringStrength": 0.76,
+  "movementStyle": "chase",
+  "orbitStrength": 0.08,
+  "wallAvoidance": 1.45,
+  "targeting": "largest",
+  "allySeparation": 1.35,
+  "targetSpread": 0.8,
+  "targetStickiness": 0.94,
+  "abilityUsage": [
+    {
+      "slot": "skill1",
+      "everyTicks": 225,
+      "phaseTicks": 65,
+      "minDistance": 80,
+      "maxDistance": 430
+    },
+    {
+      "slot": "skill2",
+      "everyTicks": 290,
+      "phaseTicks": 150,
+      "minDistance": 0,
+      "maxDistance": 215
+    },
+    {
+      "slot": "skill3",
+      "everyTicks": 430,
+      "phaseTicks": 220,
+      "minDistance": 0,
+      "maxDistance": 9999,
+      "healthBelow": 0.55
+    },
+    {
+      "slot": "ultimate",
+      "everyTicks": 735,
+      "phaseTicks": 340,
+      "minDistance": 0,
+      "maxDistance": 320
+    }
+  ]
+}

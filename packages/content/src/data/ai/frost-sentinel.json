@@ -1,0 +1,46 @@
+{
+  "id": "frost-sentinel",
+  "reactionTicks": 10,
+  "aggression": 0.7,
+  "preferredDistance": 150,
+  "retreatHealthRatio": 0.14,
+  "steeringStrength": 0.9,
+  "movementStyle": "kite",
+  "orbitStrength": 0.45,
+  "wallAvoidance": 1.35,
+  "targeting": "largest",
+  "allySeparation": 1.1,
+  "targetSpread": 0.9,
+  "targetStickiness": 0.88,
+  "abilityUsage": [
+    {
+      "slot": "skill1",
+      "everyTicks": 190,
+      "phaseTicks": 45,
+      "minDistance": 90,
+      "maxDistance": 480
+    },
+    {
+      "slot": "skill2",
+      "everyTicks": 270,
+      "phaseTicks": 120,
+      "minDistance": 0,
+      "maxDistance": 210
+    },
+    {
+      "slot": "skill3",
+      "everyTicks": 410,
+      "phaseTicks": 220,
+      "minDistance": 0,
+      "maxDistance": 9999,
+      "healthBelow": 0.62
+    },
+    {
+      "slot": "ultimate",
+      "everyTicks": 710,
+      "phaseTicks": 330,
+      "minDistance": 0,
+      "maxDistance": 310
+    }
+  ]
+}

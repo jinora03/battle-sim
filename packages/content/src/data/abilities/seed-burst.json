@@ -1,0 +1,32 @@
+{
+  "id": "seed-burst",
+  "name": "Seed Burst",
+  "slot": "skill2",
+  "cooldownTicks": 270,
+  "castTicks": 30,
+  "castMovementMultiplier": 0.14,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "EXPLODE",
+          "kind": "wave",
+          "radius": 175,
+          "damage": 12,
+          "impulse": 5,
+          "element": "nature",
+          "enemiesOnly": true
+        },
+        {
+          "type": "RADIAL_STATUS",
+          "radius": 195,
+          "statusId": "rooted",
+          "durationTicks": 105,
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
+}

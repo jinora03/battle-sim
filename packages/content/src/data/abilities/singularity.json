@@ -1,0 +1,39 @@
+{
+  "id": "singularity",
+  "name": "Singularity",
+  "slot": "ultimate",
+  "cooldownTicks": 700,
+  "castTicks": 70,
+  "castMovementMultiplier": 0,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "RADIAL_IMPULSE",
+          "radius": 340,
+          "magnitude": 18,
+          "enemiesOnly": true,
+          "direction": "pull"
+        },
+        {
+          "type": "EXPLODE",
+          "kind": "wave",
+          "radius": 300,
+          "damage": 34,
+          "impulse": 11,
+          "element": "void",
+          "enemiesOnly": true
+        },
+        {
+          "type": "RADIAL_STATUS",
+          "radius": 320,
+          "statusId": "void-mark",
+          "durationTicks": 210,
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
+}

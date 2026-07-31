@@ -1,0 +1,25 @@
+{
+  "id": "reactor-overdrive",
+  "name": "Reactor Overdrive",
+  "slot": "ultimate",
+  "cooldownTicks": 680,
+  "castTicks": 58,
+  "castMovementMultiplier": 0.16,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "actions": [
+        {
+          "type": "APPLY_STATUS_SELF",
+          "statusId": "overdrive",
+          "durationTicks": 180
+        },
+        {
+          "type": "HEAL_SELF",
+          "amount": 24
+        }
+      ],
+      "conditions": []
+    }
+  ]
+}

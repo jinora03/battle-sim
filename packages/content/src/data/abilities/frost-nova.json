@@ -1,0 +1,32 @@
+{
+  "id": "frost-nova",
+  "name": "Frost Nova",
+  "slot": "skill2",
+  "cooldownTicks": 245,
+  "castTicks": 28,
+  "castMovementMultiplier": 0.18,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "EXPLODE",
+          "kind": "wave",
+          "radius": 170,
+          "damage": 13,
+          "impulse": 7,
+          "element": "ice",
+          "enemiesOnly": true
+        },
+        {
+          "type": "RADIAL_STATUS",
+          "radius": 185,
+          "statusId": "frozen",
+          "durationTicks": 100,
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
+}

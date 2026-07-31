@@ -1,0 +1,18 @@
+{
+  "id": "magnet-drag",
+  "name": "Magnet Drag",
+  "slot": "skill2",
+  "cooldownTicks": 275,
+  "castTicks": 30,
+  "castMovementMultiplier": 0.12,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        { "type": "RADIAL_IMPULSE", "radius": 255, "magnitude": 10.5, "enemiesOnly": true, "direction": "pull" },
+        { "type": "RADIAL_DAMAGE", "radius": 220, "amount": 11, "element": "metal", "enemiesOnly": true }
+      ]
+    }
+  ]
+}

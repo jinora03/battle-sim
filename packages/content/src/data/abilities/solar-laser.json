@@ -1,0 +1,19 @@
+{
+  "id": "solar-laser",
+  "name": "Solar Eye Beams",
+  "slot": "ultimate",
+  "cooldownTicks": 720,
+  "castTicks": 210,
+  "castMovementMultiplier": 0,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "target",
+    "priority": 115,
+    "minRange": 90,
+    "maxRange": 1080,
+    "requiresLineOfSight": true,
+    "minimumTargets": 1,
+    "aimToleranceDegrees": 42
+  },
+  "triggers": []
+}

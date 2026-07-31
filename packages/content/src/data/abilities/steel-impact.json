@@ -1,0 +1,20 @@
+{
+  "id": "steel-impact",
+  "name": "Steel Impact",
+  "slot": "basic",
+  "cooldownTicks": 31,
+  "castTicks": 0,
+  "castMovementMultiplier": 1,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "USE_WEAPON",
+          "weaponId": "steel-hammer"
+        }
+      ]
+    }
+  ]
+}

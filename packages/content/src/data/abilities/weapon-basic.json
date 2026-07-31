@@ -1,0 +1,19 @@
+{
+  "id": "weapon-basic",
+  "name": "Equipped Weapon",
+  "slot": "basic",
+  "cooldownTicks": 0,
+  "castTicks": 0,
+  "castMovementMultiplier": 1,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "USE_WEAPON"
+        }
+      ]
+    }
+  ]
+}

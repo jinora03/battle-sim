@@ -1,0 +1,25 @@
+{
+  "id": "pillar-court",
+  "name": "Pillar Court",
+  "size": "medium",
+  "theme": "temple",
+  "width": 1080,
+  "height": 1080,
+  "spatialCellSize": 120,
+  "recommendedUnits": { "min": 2, "max": 12 },
+  "allowedModes": ["duel", "team-battle", "battle-royale", "boss-raid"],
+  "spawnZones": [
+    { "id": "west-team", "team": 1, "x": 85, "y": 310, "width": 210, "height": 460 },
+    { "id": "east-team", "team": 2, "x": 785, "y": 310, "width": 210, "height": 460 },
+    { "id": "north-free", "x": 400, "y": 70, "width": 280, "height": 160 },
+    { "id": "south-free", "x": 400, "y": 850, "width": 280, "height": 160 }
+  ],
+  "obstacles": [
+    { "id": "pillar-nw", "kind": "pillar", "shape": "circle", "x": 370, "y": 370, "radius": 64, "restitution": 0.92, "destructible": false, "maxHp": 0, "impactDamageScale": 0, "breakImpulseThreshold": 0, "contactDamage": 0 },
+    { "id": "pillar-ne", "kind": "pillar", "shape": "circle", "x": 710, "y": 370, "radius": 64, "restitution": 0.92, "destructible": false, "maxHp": 0, "impactDamageScale": 0, "breakImpulseThreshold": 0, "contactDamage": 0 },
+    { "id": "pillar-sw", "kind": "pillar", "shape": "circle", "x": 370, "y": 710, "radius": 64, "restitution": 0.92, "destructible": false, "maxHp": 0, "impactDamageScale": 0, "breakImpulseThreshold": 0, "contactDamage": 0 },
+    { "id": "pillar-se", "kind": "pillar", "shape": "circle", "x": 710, "y": 710, "radius": 64, "restitution": 0.92, "destructible": false, "maxHp": 0, "impactDamageScale": 0, "breakImpulseThreshold": 0, "contactDamage": 0 },
+    { "id": "center-crate", "kind": "crate", "shape": "box", "x": 540, "y": 540, "width": 130, "height": 130, "radius": 0, "restitution": 0.72, "destructible": true, "maxHp": 125, "impactDamageScale": 3.2, "breakImpulseThreshold": 3.4, "contactDamage": 0 }
+  ],
+  "zones": []
+}

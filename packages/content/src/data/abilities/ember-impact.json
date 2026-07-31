@@ -1,0 +1,20 @@
+{
+  "id": "ember-impact",
+  "name": "Ember Impact",
+  "slot": "basic",
+  "cooldownTicks": 27,
+  "castTicks": 0,
+  "castMovementMultiplier": 1,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "USE_WEAPON",
+          "weaponId": "ember-sword"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+PASS Gunner automatic rifle: 4 shots, 720 range
+PASS mouse targeting selected entity 2
+PASS 50v50 checksum dfb3c442; tick 300
+PASS AI activity: 82 basics, 256 skills, 189 projectiles
+PASS 50v50 headless timing: 387.7 ms total, 1.29 ms/tick, max 45 projectiles

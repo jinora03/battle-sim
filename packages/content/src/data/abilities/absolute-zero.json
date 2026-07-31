@@ -1,0 +1,37 @@
+{
+  "id": "absolute-zero",
+  "name": "Absolute Zero",
+  "slot": "ultimate",
+  "cooldownTicks": 690,
+  "castTicks": 68,
+  "castMovementMultiplier": 0,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "RADIAL_DAMAGE",
+          "radius": 280,
+          "amount": 30,
+          "element": "ice",
+          "enemiesOnly": true
+        },
+        {
+          "type": "RADIAL_STATUS",
+          "radius": 310,
+          "statusId": "frozen",
+          "durationTicks": 210,
+          "enemiesOnly": true
+        },
+        {
+          "type": "RADIAL_IMPULSE",
+          "radius": 300,
+          "magnitude": 12,
+          "enemiesOnly": true,
+          "direction": "pull"
+        }
+      ]
+    }
+  ]
+}

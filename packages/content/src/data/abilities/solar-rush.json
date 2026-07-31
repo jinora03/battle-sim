@@ -1,0 +1,26 @@
+{
+  "id": "solar-rush",
+  "name": "Sky Rush",
+  "slot": "skill1",
+  "cooldownTicks": 125,
+  "castTicks": 9,
+  "castMovementMultiplier": 1,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "direction",
+    "priority": 70,
+    "minRange": 70,
+    "maxRange": 430,
+    "requiresLineOfSight": true,
+    "minimumTargets": 1,
+    "aimToleranceDegrees": 65
+  },
+  "triggers": [{
+    "event": "ON_ACTIVATE",
+    "conditions": [],
+    "actions": [
+      { "type": "APPLY_IMPULSE_SELF", "magnitude": 16 },
+      { "type": "DIRECTIONAL_DAMAGE", "range": 190, "arcDegrees": 48, "amount": 16, "knockback": 10, "element": "neutral", "enemiesOnly": true }
+    ]
+  }]
+}

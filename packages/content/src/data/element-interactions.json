@@ -1,0 +1,62 @@
+[
+  {
+    "source": "water",
+    "target": "fire",
+    "multiplier": 1.25
+  },
+  {
+    "source": "fire",
+    "target": "water",
+    "multiplier": 0.8
+  },
+  {
+    "source": "fire",
+    "target": "ice",
+    "multiplier": 1.2
+  },
+  {
+    "source": "electric",
+    "target": "water",
+    "multiplier": 1.2
+  },
+  {
+    "source": "ice",
+    "target": "water",
+    "multiplier": 1.1
+  },
+  {
+    "source": "fire",
+    "target": "nature",
+    "multiplier": 1.25
+  },
+  {
+    "source": "nature",
+    "target": "water",
+    "multiplier": 1.15
+  },
+  {
+    "source": "electric",
+    "target": "metal",
+    "multiplier": 1.18
+  },
+  {
+    "source": "nature",
+    "target": "electric",
+    "multiplier": 0.88
+  },
+  {
+    "source": "void",
+    "target": "neutral",
+    "multiplier": 1.12
+  },
+  {
+    "source": "neutral",
+    "target": "void",
+    "multiplier": 0.92
+  },
+  {
+    "source": "ice",
+    "target": "fire",
+    "multiplier": 0.88
+  }
+]

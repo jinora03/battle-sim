@@ -1,0 +1,32 @@
+{
+  "id": "tidal-cataclysm",
+  "name": "Tidal Cataclysm",
+  "slot": "ultimate",
+  "cooldownTicks": 650,
+  "castTicks": 54,
+  "castMovementMultiplier": 0,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "EXPLODE",
+          "kind": "wave",
+          "radius": 275,
+          "damage": 34,
+          "impulse": 16,
+          "element": "water",
+          "enemiesOnly": true
+        },
+        {
+          "type": "RADIAL_STATUS",
+          "radius": 300,
+          "statusId": "wet",
+          "durationTicks": 180,
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
+}

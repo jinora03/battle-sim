@@ -1,0 +1,39 @@
+{
+  "id": "blast-jump",
+  "name": "Blast Jump",
+  "slot": "skill2",
+  "cooldownTicks": 210,
+  "castTicks": 7,
+  "castMovementMultiplier": 0.9,
+  "activation": {
+    "intent": "movement",
+    "targeting": "direction",
+    "priority": 78,
+    "minRange": 0,
+    "maxRange": 240,
+    "requiresLineOfSight": false,
+    "minimumTargets": 1,
+    "aimToleranceDegrees": 180
+  },
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "APPLY_IMPULSE_SELF",
+          "magnitude": 15
+        },
+        {
+          "type": "EXPLODE",
+          "kind": "explosion",
+          "radius": 145,
+          "damage": 8,
+          "impulse": 15,
+          "element": "fire",
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
+}

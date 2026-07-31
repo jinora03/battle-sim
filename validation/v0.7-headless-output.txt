@@ -1,0 +1,14 @@
+{"tick":2343,"checksum":"d40009d7","starts":54,"resolves":54,"blasts":17,"maxCasting":2,"winner":1}
+{"tick":2343,"checksum":"d40009d7","starts":54,"resolves":54,"blasts":17,"maxCasting":2,"winner":1}
+{"tick":2400,"checksum":"f7a1b6db","starts":44,"resolves":44,"blasts":11,"maxCasting":2,"winner":null}
+{"tick":420,"checksum":"4028fa0c","playerStarts":6,"aiControlledPlayer":false,"playerController":"player","playerX":678}
+{"tick":420,"checksum":"4028fa0c","playerStarts":6,"aiControlledPlayer":false,"playerController":"player","playerX":678}
+{"tick":900,"checksum":"6c2ae332","starts":4,"fighter":"headless-arc-prototype","winner":null}
+{"tick":900,"checksum":"6c2ae332","starts":4,"fighter":"headless-arc-prototype","winner":null}
+{"phase":"0.6-foundry","tick":2229,"checksum":"175773c4","winner":2,"objective":{"kind":"elimination","label":"Last team standing","progress":0,"remainingTicks":null},"destroyedObstacles":["reactor-core","crate-west","crate-east"],"counts":{"zoneEntered":128,"hazardTriggered":28,"obstacleImpact":24,"obstacleDamaged":21,"obstacleDestroyed":3}}
+{"phase":"0.6-foundry-repeat","tick":2229,"checksum":"175773c4","winner":2,"objective":{"kind":"elimination","label":"Last team standing","progress":0,"remainingTicks":null},"destroyedObstacles":["reactor-core","crate-west","crate-east"],"counts":{"zoneEntered":128,"hazardTriggered":28,"obstacleImpact":24,"obstacleDamaged":21,"obstacleDestroyed":3}}
+{"phase":"0.6-boss","tick":2644,"checksum":"5178e869","winner":2,"objective":{"kind":"boss","label":"Destroy the boss","progress":0.24434176320220713,"remainingTicks":null},"destroyedObstacles":["center-crate"],"counts":{"zoneEntered":0,"hazardTriggered":0,"obstacleImpact":53,"obstacleDamaged":7,"obstacleDestroyed":1}}
+{"phase":"0.6-survival","tick":1299,"checksum":"63963ca4","winner":2,"objective":{"kind":"survival","label":"Survive the foundry","progress":0.4811111111111111,"remainingTicks":1401},"destroyedObstacles":["crate-west"],"counts":{"zoneEntered":73,"hazardTriggered":19,"obstacleImpact":15,"obstacleDamaged":12,"obstacleDestroyed":1}}
+{"phase":"0.7-mass-skirmish","seed":707070,"tick":900,"checksum":"96596dba","winner":null,"alive":31,"teams":[{"team":1,"alive":11},{"team":2,"alive":20}],"totalCandidates":40544,"maxCandidates":227,"totalContacts":2662,"sameTeamContacts":2397,"abilityStarts":227}
+{"phase":"0.7-mass-skirmish","seed":707070,"tick":900,"checksum":"96596dba","winner":null,"alive":31,"teams":[{"team":1,"alive":11},{"team":2,"alive":20}],"totalCandidates":40544,"maxCandidates":227,"totalContacts":2662,"sameTeamContacts":2397,"abilityStarts":227}
+{"phase":"0.7-mass-skirmish","seed":707071,"tick":900,"checksum":"df878173","winner":null,"alive":25,"teams":[{"team":1,"alive":5},{"team":2,"alive":20}],"totalCandidates":52559,"maxCandidates":236,"totalContacts":4255,"sameTeamContacts":3932,"abilityStarts":231}

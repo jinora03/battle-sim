@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700;800&display=swap');
+
+html { color-scheme: dark; }
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-ui);
+  letter-spacing: -0.015em;
+}
+
+body {
+  background:
+    radial-gradient(circle at 23% 18%, rgba(255, 94, 171, .22), transparent 26%),
+    radial-gradient(circle at 53% 24%, rgba(124, 255, 250, .18), transparent 24%),
+    radial-gradient(circle at 82% 16%, rgba(255, 213, 100, .10), transparent 20%),
+    linear-gradient(180deg, #060811 0%, #070d19 42%, #05070e 100%);
+}
+
+.metric strong,
+.mono,
+code,
+pre,
+.range-field > span strong {
+  font-family: var(--font-ui);
+}
+
+select,
+option,
+optgroup {
+  color-scheme: dark;
+  background-color: #08101f;
+  color: #eef7ff;
+}
+
+.control-panel,
+.battle-secondary-panels,
+.training-sidebar,
+.profile-side-column,
+.creator-form-column,
+.creator-output-column {
+  padding-inline: 8px;
+  box-sizing: border-box;
+}
+
+.panel-summary { padding-inline: 14px; }
+.panel-content { padding: 16px 14px; }

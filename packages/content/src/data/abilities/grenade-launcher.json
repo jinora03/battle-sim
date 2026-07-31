@@ -1,0 +1,36 @@
+{
+  "id": "grenade-launcher",
+  "name": "Grenade Launcher",
+  "slot": "skill3",
+  "cooldownTicks": 210,
+  "castTicks": 18,
+  "castMovementMultiplier": 0.7,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "target",
+    "priority": 76,
+    "minRange": 100,
+    "maxRange": 600,
+    "requiresLineOfSight": true,
+    "minimumTargets": 1,
+    "collisionWindowTicks": 0,
+    "aimToleranceDegrees": 70
+  },
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "EXPLODE_AT_TARGET",
+          "kind": "explosion",
+          "radius": 190,
+          "damage": 18,
+          "impulse": 10,
+          "element": "metal",
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
+}

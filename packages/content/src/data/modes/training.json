@@ -1,0 +1,9 @@
+{
+  "id": "training",
+  "name": "Ability Lab",
+  "description": "A deterministic sandbox for testing real fighter abilities, weapons, projectiles and status effects.",
+  "formatLabel": "1 trainer vs 1–5 targets",
+  "minUnits": 2,
+  "maxUnits": 6,
+  "victory": "LAST_TEAM_STANDING"
+}

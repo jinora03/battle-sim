@@ -1,0 +1,32 @@
+{
+  "id": "pressure-wave",
+  "name": "Pressure Wave",
+  "slot": "skill2",
+  "cooldownTicks": 250,
+  "castTicks": 24,
+  "castMovementMultiplier": 0.2,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "EXPLODE",
+          "kind": "wave",
+          "radius": 165,
+          "damage": 16,
+          "impulse": 10,
+          "element": "water",
+          "enemiesOnly": true
+        },
+        {
+          "type": "RADIAL_STATUS",
+          "radius": 180,
+          "statusId": "wet",
+          "durationTicks": 120,
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
+}

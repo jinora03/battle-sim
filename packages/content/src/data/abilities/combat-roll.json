@@ -1,0 +1,27 @@
+{
+  "id": "combat-roll",
+  "name": "Combat Roll",
+  "slot": "skill1",
+  "cooldownTicks": 95,
+  "castTicks": 4,
+  "castMovementMultiplier": 1,
+  "activation": {
+    "intent": "movement",
+    "targeting": "direction",
+    "priority": 58,
+    "minRange": 0,
+    "maxRange": 560,
+    "requiresLineOfSight": false,
+    "minimumTargets": 1,
+    "collisionWindowTicks": 0,
+    "aimToleranceDegrees": 180
+  },
+  "triggers": [{
+    "event": "ON_ACTIVATE",
+    "conditions": [],
+    "actions": [
+      { "type": "APPLY_IMPULSE_SELF", "magnitude": 11 },
+      { "type": "APPLY_STATUS_SELF", "statusId": "phased", "durationTicks": 28 }
+    ]
+  }]
+}

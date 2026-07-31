@@ -1,0 +1,7 @@
+{
+  "id": "void-mark",
+  "periodicDamage": 1.5,
+  "periodTicks": 30,
+  "element": "void",
+  "speedMultiplier": 0.88
+}

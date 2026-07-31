@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "fighter": {
+    "id": "arc-prototype",
+    "name": "Arc Prototype",
+    "classification": {
+      "archetype": "striker",
+      "elements": [
+        "electric"
+      ],
+      "traits": [
+        "custom",
+        "experimental"
+      ]
+    },
+    "physics": {
+      "radius": 28,
+      "mass": 1.25,
+      "restitution": 0.94,
+      "linearDamping": 0.993,
+      "maxSpeed": 12.2
+    },
+    "stats": {
+      "maxHp": 225,
+      "moveAcceleration": 0.2
+    },
+    "aiProfileId": "aggressive-brawler",
+    "abilitySlots": {
+      "basic": "blast-contact",
+      "skill1": "surge-dash",
+      "skill2": "kinetic-pulse",
+      "skill3": "undertow",
+      "ultimate": "reactor-overdrive"
+    },
+    "resistances": {
+      "electric": 0.75,
+      "metal": 0.9
+    },
+    "visualRecipeId": "arc-prototype-visual",
+    "animationRecipeId": "arc-prototype-motion",
+    "audioProfileId": "custom-hybrid"
+  },
+  "visualRecipe": {
+    "id": "arc-prototype-visual",
+    "shape": "orb",
+    "bodyColor": 7297245,
+    "bodyDarkColor": 2366293,
+    "coreColor": 16773740,
+    "auraColor": 11824383,
+    "accentColor": 6746111,
+    "weapon": "blade",
+    "horns": false
+  },
+  "motionRecipe": {
+    "id": "arc-prototype-motion",
+    "speedStretch": 0.17,
+    "impactSquash": 0.2,
+    "lean": 0.14,
+    "pulseAmount": 0.04,
+    "pulseSpeed": 3.1,
+    "weaponSpin": 2.2
+  }
+}

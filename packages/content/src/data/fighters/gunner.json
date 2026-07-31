@@ -1,0 +1,42 @@
+{
+  "id": "gunner",
+  "name": "Gunner",
+  "classification": {
+    "archetype": "ranged striker",
+    "elements": [
+      "metal"
+    ],
+    "traits": [
+      "automatic",
+      "mobile",
+      "ranged"
+    ]
+  },
+  "physics": {
+    "radius": 35,
+    "mass": 1.05,
+    "restitution": 0.9,
+    "linearDamping": 0.993,
+    "maxSpeed": 12.8
+  },
+  "stats": {
+    "maxHp": 355,
+    "moveAcceleration": 0.205
+  },
+  "aiProfileId": "ranged-gunner",
+  "abilitySlots": {
+    "skill1": "combat-roll",
+    "skill2": "suppressive-fire",
+    "skill3": "grenade-launcher",
+    "ultimate": "overdrive-barrage"
+  },
+  "resistances": {
+    "metal": 0.8,
+    "electric": 0.92,
+    "fire": 1.08
+  },
+  "visualRecipeId": "gunner",
+  "animationRecipeId": "gunner-mobile",
+  "audioProfileId": "automatic-rifle",
+  "primaryAttackId": "automatic-rifle"
+}

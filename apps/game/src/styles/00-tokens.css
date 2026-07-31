@@ -1,0 +1,12 @@
+:root {
+  --font-ui: 'Roboto Mono', 'IBM Plex Mono', 'JetBrains Mono', 'SFMono-Regular', ui-monospace, monospace;
+  --ui-bg-0: #060a15;
+  --ui-bg-1: #091121;
+  --ui-bg-2: #0c1830;
+  --ui-surface-0: rgba(9, 15, 29, 0.88);
+  --ui-surface-1: rgba(12, 19, 35, 0.92);
+  --ui-border-soft: rgba(166, 217, 255, 0.16);
+  --ui-border-strong: rgba(184, 233, 255, 0.26);
+  --ui-shadow-panel: 0 16px 40px rgba(0, 0, 0, 0.32), 0 0 36px rgba(99, 188, 255, 0.06);
+  --ui-shadow-button: 0 12px 28px rgba(0,0,0,.24);
+}

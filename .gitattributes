@@ -1,0 +1,21 @@
+# Store text files with LF line endings in Git and check them out as LF.
+* text=auto eol=lf
+
+# Windows command files require CRLF for maximum compatibility.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Explicitly mark common binary assets so Git never modifies them.
+*.avif binary
+*.gif binary
+*.ico binary
+*.jpg binary
+*.jpeg binary
+*.mp3 binary
+*.ogg binary
+*.png binary
+*.wav binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.zip binary

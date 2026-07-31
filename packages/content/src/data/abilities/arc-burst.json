@@ -1,0 +1,32 @@
+{
+  "id": "arc-burst",
+  "name": "Arc Burst",
+  "slot": "skill2",
+  "cooldownTicks": 220,
+  "castTicks": 20,
+  "castMovementMultiplier": 0.25,
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "EXPLODE",
+          "kind": "wave",
+          "radius": 155,
+          "damage": 16,
+          "impulse": 9,
+          "element": "electric",
+          "enemiesOnly": true
+        },
+        {
+          "type": "RADIAL_STATUS",
+          "radius": 175,
+          "statusId": "shocked",
+          "durationTicks": 90,
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
+}

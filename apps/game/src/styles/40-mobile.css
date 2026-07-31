@@ -1,0 +1,65 @@
+@media (max-width: 900px) {
+  .battle-command-bar,
+  .training-topbar,
+  .ui-app-navigation {
+    position: static !important;
+    top: auto !important;
+  }
+
+  .battle-command-bar {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .battle-command-actions {
+    display: flex !important;
+    flex-wrap: wrap;
+    justify-content: stretch;
+  }
+  .battle-command-actions .ui-button {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 0;
+  }
+  .battle-command-actions .setup-jump {
+    display: inline-flex !important;
+  }
+  .mobile-battle-dock,
+  .training-mobile-dock {
+    bottom: calc(64px + var(--safe-bottom));
+  }
+
+  .control-panel,
+  .battle-secondary-panels,
+  .training-sidebar {
+    padding-inline: 0;
+  }
+  .ui-mobile-drawer {
+    width: min(430px, calc(100vw - 22px));
+    padding-inline: 12px 10px;
+  }
+
+  .debug-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 12px;
+  }
+  .weapon-spec-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .battle-command-actions .ui-button {
+    flex: 1 1 100%;
+  }
+  .battle-objective-bar {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    min-height: 0;
+  }
+  .objective-meta {
+    justify-items: start;
+  }
+  .debug-metric-grid,
+  .weapon-spec-grid {
+    grid-template-columns: 1fr;
+  }
+}
