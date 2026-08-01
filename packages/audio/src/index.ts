@@ -270,19 +270,21 @@ export class BattleAudioEngine {
 
   private playHitmarker(amount: number): void {
     const strength = Math.max(0, Math.min(1, amount / 24));
-    this.playHitmarkerClick(strength);
-    this.playFocusTone(1760 + strength * 260, 940, 0.032, 'square', 0.072 + strength * 0.024);
-    this.playFocusTone(920, 520, 0.052, 'triangle', 0.047 + strength * 0.02);
-    this.playFocusTone(245, 150, 0.045, 'square', 0.03 + strength * 0.014);
+    // Bright, crisp Call-of-Duty-style confirmation: a high metallic "tink"
+    // layered on the noise click, with a fast attack and quick decay.
+    this.playHitmarkerClick(strength * 1.05);
+    this.playFocusTone(2550 + strength * 520, 1600, 0.03, 'square', 0.08 + strength * 0.03);
+    this.playFocusTone(3550 + strength * 450, 2300, 0.022, 'triangle', 0.055 + strength * 0.02);
+    this.playFocusTone(1250, 760, 0.04, 'triangle', 0.04 + strength * 0.018);
   }
 
   private playAiHitmarker(amount: number): void {
-    // A lower, two-part confirmation than the player's bright click. It stays
-    // readable in AI-vs-AI battles without turning mass combat into audio spam.
+    // A lower, softer two-part confirmation than the player's bright tink, so
+    // AI-vs-AI stays clearly distinct and readable without becoming audio spam.
     const strength = Math.max(0.16, Math.min(0.82, amount / 28));
-    this.playHitmarkerClick(strength * 0.78);
-    this.playFocusTone(1280 + strength * 210, 680, 0.034, 'square', 0.052 + strength * 0.022);
-    this.playFocusTone(520, 290, 0.052, 'triangle', 0.032 + strength * 0.016);
+    this.playHitmarkerClick(strength * 0.7);
+    this.playFocusTone(1480 + strength * 240, 900, 0.032, 'square', 0.05 + strength * 0.02);
+    this.playFocusTone(760, 430, 0.05, 'triangle', 0.03 + strength * 0.015);
   }
 
   private playHitmarkerClick(strength: number): void {

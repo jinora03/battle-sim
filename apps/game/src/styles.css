@@ -142,7 +142,8 @@ kbd { display: inline-grid; place-items: center; min-width: 34px; padding: 4px 6
 .skill-indicator.compact .skill-icon-text { margin-top: 7px; }
 .passive-mark { position: absolute; z-index: 4; bottom: 3px; left: 0; right: 0; color: #71839a !important; font-size: 7px !important; font-weight: 900; letter-spacing: .08em; }
 
-.touch-controls { position: absolute; z-index: 6; left: 14px; right: 14px; bottom: 14px; display: flex; align-items: end; justify-content: space-between; gap: 14px; pointer-events: none; }
+.touch-controls { position: absolute; z-index: 6; left: 14px; right: 14px; bottom: 14px; display: flex; align-items: end; justify-content: space-between; gap: 14px; pointer-events: none; opacity: .72; }
+.touch-controls .analog-pad[data-active='true'] { opacity: 1; }
 .direction-pad, .touch-skill-row { pointer-events: auto; }
 .direction-pad { display: grid; grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(3, 42px); gap: 3px; opacity: .82; }
 .direction-pad button { margin: 0; padding: 0; border: 1px solid #4b627b; border-radius: 11px; background: rgba(7,13,22,.82); color: #d8e8fb; touch-action: none; user-select: none; }
@@ -543,7 +544,7 @@ html[data-touch-size='large'] .touch-skill-row { max-width: calc(100% - 185px); 
   .app-shell { padding: max(4px, var(--safe-top)) max(4px, var(--safe-right)) max(4px, var(--safe-bottom)) max(4px, var(--safe-left)); }
   .workspace { display: block; }
   .control-panel, .architecture-panel, .fighter-strip, .team-summary-strip { display: none; }
-  .arena-frame { width: 100%; height: calc(100svh - var(--safe-top) - var(--safe-bottom) - 8px); min-height: 0; border-radius: 8px; }
+  .arena-frame { width: 100%; height: calc(100svh - var(--safe-top) - var(--safe-bottom) - 8px); min-height: 180px; border-radius: 8px; }
   .touch-controls { opacity: 1; }
 }
 
@@ -800,7 +801,7 @@ details[open] > .panel-summary { border-bottom: 1px solid rgba(61,82,107,.42); b
   .battle-objective-bar { min-height: 34px; padding: 4px 7px; }
   .skill-activity-rail { display: none; }
   .control-panel, .battle-secondary-panels, .fighter-strip, .team-summary-strip { display: none; }
-  .arena-frame { height: calc(100svh - var(--safe-top) - var(--safe-bottom) - 100px); min-height: 0; }
+  .arena-frame { height: calc(100svh - var(--safe-top) - var(--safe-bottom) - 100px); min-height: 180px; }
 }
 
 /* v1.1 Stage 2 — deliberate match completion and explainable AI. */

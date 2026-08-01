@@ -144,21 +144,26 @@ class FxEngine {
   private readonly flashes: FlashState[] = [];
 
   constructor(private readonly container: Container) {
+    // Additive blending makes bright particles/flashes/shockwaves bloom and glow
+    // over the dark arena instead of looking like flat sprites.
     for (let i = 0; i < 420; i += 1) {
       const node = new Graphics();
       node.visible = false;
+      node.blendMode = 'add';
       container.addChild(node);
       this.particles.push({ node, active: false, vx: 0, vy: 0, life: 0, maxLife: 1, drag: 0.96, growth: 0 });
     }
     for (let i = 0; i < 28; i += 1) {
       const node = new Graphics();
       node.visible = false;
+      node.blendMode = 'add';
       container.addChild(node);
       this.shockwaves.push({ node, active: false, life: 0, maxLife: 1 });
     }
     for (let i = 0; i < 14; i += 1) {
       const node = new Graphics();
       node.visible = false;
+      node.blendMode = 'add';
       container.addChild(node);
       this.flashes.push({ node, active: false, life: 0, maxLife: 1 });
     }
@@ -1448,6 +1453,11 @@ export class PixiBattleRenderer {
     }
     this.app.canvas.classList.add('kinetic-render-canvas');
     this.app.canvas.setAttribute('aria-hidden', 'true');
+    // The arena is display-only on touch (aiming is handled by React/the stick),
+    // so let vertical drags over the canvas scroll the page and stop Pixi from
+    // preventing default on touch gestures.
+    this.app.canvas.style.touchAction = 'pan-y';
+    this.app.renderer.events.autoPreventDefault = false;
     mountHost.replaceChildren(this.app.canvas);
     this.app.canvas.style.display = 'block';
     this.app.canvas.style.visibility = this.active ? 'visible' : 'hidden';
@@ -2160,27 +2170,24 @@ export class PixiBattleRenderer {
   }
 
   private drawTouchAimArrow(player: EntitySnapshot, x: number, y: number): void {
-    // Touch has no crosshair, so show where the fighter is aiming (its facing,
-    // which follows the analog stick) with an arrow the Basic fires along.
+    // Restore the skill range indicator for the currently selected/previewed slot.
+    const preview = resolvePlayerTargetingPreview(player, this.playerPreviewSlot);
+    if (preview.finiteRange && preview.maxRange > 0) {
+      this.playerTargetingGraphics.circle(x, y, preview.maxRange).fill({ color: 0x72f2a0, alpha: 0.012 }).stroke({ color: 0x72f2a0, width: 2, alpha: 0.32 });
+      if (preview.minRange > 0) this.playerTargetingGraphics.circle(x, y, preview.minRange).stroke({ color: 0xffb85b, width: 1.6, alpha: 0.42 });
+    } else if (preview.targeting === 'self') {
+      this.playerTargetingGraphics.circle(x, y, player.radius * 1.75).stroke({ color: 0x72f2a0, width: 2.4, alpha: 0.5 });
+    }
+    // Simple dark aim line (no arrowhead) showing the fighter's facing/aim, with a
+    // faint light edge so it stays readable on the dark arena.
     const nx = Math.cos(player.rotation);
     const ny = Math.sin(player.rotation);
-    const color = 0x7ce6ff;
-    const lineLength = player.radius * 3.6;
-    this.playerTargetingGraphics
-      .moveTo(x + nx * player.radius * 1.15, y + ny * player.radius * 1.15)
-      .lineTo(x + nx * lineLength, y + ny * lineLength)
-      .stroke({ color, width: 2.4, alpha: 0.42 });
-    const headDistance = player.radius * 2.2;
-    const hx = x + nx * headDistance;
-    const hy = y + ny * headDistance;
-    const sideX = -ny;
-    const sideY = nx;
-    this.playerTargetingGraphics
-      .moveTo(hx + nx * 13, hy + ny * 13)
-      .lineTo(hx - nx * 9 + sideX * 8, hy - ny * 9 + sideY * 8)
-      .lineTo(hx - nx * 9 - sideX * 8, hy - ny * 9 - sideY * 8)
-      .closePath()
-      .fill({ color, alpha: 0.95 });
+    const x1 = x + nx * player.radius * 1.1;
+    const y1 = y + ny * player.radius * 1.1;
+    const x2 = x + nx * player.radius * 3.4;
+    const y2 = y + ny * player.radius * 3.4;
+    this.playerTargetingGraphics.moveTo(x1, y1).lineTo(x2, y2).stroke({ color: 0xe6eefb, width: 5, alpha: 0.26 });
+    this.playerTargetingGraphics.moveTo(x1, y1).lineTo(x2, y2).stroke({ color: 0x0a0d14, width: 3, alpha: 0.92 });
   }
 
   private drawPlayerTargeting(snapshot: WorldSnapshot, alpha: number): void {

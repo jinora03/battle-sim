@@ -592,7 +592,7 @@ export default function App() {
             resolve();
             return;
           }
-          if (attempt >= 15) {
+          if (attempt >= 40) {
             reject(new Error('The battle arena is still waiting for a visible layout.'));
             return;
           }
@@ -641,6 +641,22 @@ export default function App() {
       runtime.setActive(false);
     };
   }, [view, bootAttempt]);
+
+  // Auto-recover from a renderer boot failure (e.g. a landscape rotation where the
+  // arena layout wasn't ready yet): retry once the layout settles or resizes.
+  useEffect(() => {
+    if (!bootError) return;
+    let done = false;
+    const retry = () => { if (done) return; done = true; setBootAttempt((attempt) => attempt + 1); };
+    const timer = window.setTimeout(retry, 700);
+    window.addEventListener('resize', retry, { passive: true });
+    window.addEventListener('orientationchange', retry, { passive: true });
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('resize', retry);
+      window.removeEventListener('orientationchange', retry);
+    };
+  }, [bootError]);
 
   useEffect(() => {
     runtimeRef.current?.setUnlockedAchievements(profile.unlockedAchievementIds);
@@ -1952,6 +1968,7 @@ function SkillIndicator({ state, entityId, tick, recentSkills, controllable = fa
   onActivate?: (() => void) | undefined;
   onPreview?: (() => void) | undefined;
 }) {
+  const touchActivatedRef = useRef(false);
   const primary = state.source === 'primaryAttack' ? getPrimaryAttack(state.abilityId) : null;
   const ability = primary ? null : getAbility(state.abilityId);
   const skillRecipe = primary ? null : getSkillPresentation(state.abilityId);
@@ -1979,9 +1996,21 @@ function SkillIndicator({ state, entityId, tick, recentSkills, controllable = fa
       style={{ '--skill-color': hexColor(color), '--cooldown-cover': `${cooldownRatio * 100}%` } as CSSProperties}
       disabled={!enabled}
       onPointerEnter={onPreview}
-      onPointerDown={onPreview}
+      onPointerDown={(event) => {
+        onPreview?.();
+        // Activate on pointer-down for touch/pen so a second finger works even
+        // while the analog stick is held (browsers drop the synthetic click
+        // during multi-touch). Mouse keeps click activation below.
+        if (event.pointerType === 'touch' || event.pointerType === 'pen') {
+          touchActivatedRef.current = true;
+          onActivate?.();
+        }
+      }}
       onFocus={onPreview}
-      onClick={onActivate}
+      onClick={() => {
+        if (touchActivatedRef.current) { touchActivatedRef.current = false; return; }
+        onActivate?.();
+      }}
     >
       <span className="skill-slot">{slot}</span>
       <strong className="skill-icon-text">{icon}</strong>
