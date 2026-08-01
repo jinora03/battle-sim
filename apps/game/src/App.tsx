@@ -1009,7 +1009,9 @@ export default function App() {
   const aimFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
     if (target.closest('.touch-controls')) return;
-    if (event.pointerType === 'touch' && event.type === 'pointermove') return;
+    // Touch devices steer and aim from the analog stick, so the arena stays
+    // inert to touch (which also lets drags over it scroll the page).
+    if (event.pointerType === 'touch') return;
     if (settings.movementMode === 'mouse' && playerEntity && event.pointerType === 'mouse') {
       runtimeRef.current?.setPlayerMouseDriveFromClient(event.clientX, event.clientY);
       return;
@@ -1817,6 +1819,11 @@ function DirectionPad({ onDirection }: { onDirection: (direction: Vec2) => void 
         padRef.current.style.setProperty('--stick-core-opacity', (0.72 - intensity * 0.26).toFixed(3));
         padRef.current.style.setProperty('--stick-core-scale', (1 - intensity * 0.18).toFixed(3));
         padRef.current.style.setProperty('--stick-knob-core-opacity', (0.68 + intensity * 0.28).toFixed(3));
+        if (intensity > 0.03) {
+          const angle = Math.atan2(currentDirection.y, currentDirection.x) * 180 / Math.PI;
+          padRef.current.style.setProperty('--stick-angle', `${angle.toFixed(1)}deg`);
+        }
+        padRef.current.style.setProperty('--stick-arrow-opacity', Math.min(1, Math.max(0, (intensity - 0.03) * 1.7)).toFixed(3));
         padRef.current.dataset.active = pointerIdRef.current === null ? 'false' : 'true';
       }
       onDirectionRef.current({ ...currentDirection });
@@ -1884,6 +1891,7 @@ function DirectionPad({ onDirection }: { onDirection: (direction: Vec2) => void 
       <div className="analog-pad-ring" />
       <div className="analog-pad-axis analog-pad-axis-horizontal" />
       <div className="analog-pad-axis analog-pad-axis-vertical" />
+      <div className="analog-pad-arrow" aria-hidden="true" />
       <div className="analog-pad-core" />
       <div ref={knobRef} className="analog-pad-knob"><i /></div>
     </div>

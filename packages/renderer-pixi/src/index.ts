@@ -2159,13 +2159,41 @@ export class PixiBattleRenderer {
     this.resizeObserver?.observe(host, { box: 'content-box' });
   }
 
+  private drawTouchAimArrow(player: EntitySnapshot, x: number, y: number): void {
+    // Touch has no crosshair, so show where the fighter is aiming (its facing,
+    // which follows the analog stick) with an arrow the Basic fires along.
+    const nx = Math.cos(player.rotation);
+    const ny = Math.sin(player.rotation);
+    const color = 0x7ce6ff;
+    const lineLength = player.radius * 3.6;
+    this.playerTargetingGraphics
+      .moveTo(x + nx * player.radius * 1.15, y + ny * player.radius * 1.15)
+      .lineTo(x + nx * lineLength, y + ny * lineLength)
+      .stroke({ color, width: 2.4, alpha: 0.42 });
+    const headDistance = player.radius * 2.2;
+    const hx = x + nx * headDistance;
+    const hy = y + ny * headDistance;
+    const sideX = -ny;
+    const sideY = nx;
+    this.playerTargetingGraphics
+      .moveTo(hx + nx * 13, hy + ny * 13)
+      .lineTo(hx - nx * 9 + sideX * 8, hy - ny * 9 + sideY * 8)
+      .lineTo(hx - nx * 9 - sideX * 8, hy - ny * 9 - sideY * 8)
+      .closePath()
+      .fill({ color, alpha: 0.95 });
+  }
+
   private drawPlayerTargeting(snapshot: WorldSnapshot, alpha: number): void {
     this.playerTargetingGraphics.clear();
-    if (!this.pointerAimEnabled) return;
     const player = snapshot.entities.find((entity) => entity.controller === 'player');
-    if (!player || !this.playerAimPoint) return;
+    if (!player) return;
     const x = player.prevX + (player.x - player.prevX) * alpha;
     const y = player.prevY + (player.y - player.prevY) * alpha;
+    if (!this.pointerAimEnabled) {
+      this.drawTouchAimArrow(player, x, y);
+      return;
+    }
+    if (!this.playerAimPoint) return;
     const preview = resolvePlayerTargetingPreview(player, this.playerPreviewSlot);
     const validity = evaluatePlayerAim(snapshot, player, this.playerAimPoint, preview);
     const color = validity.valid ? 0x72f2a0 : validity.reason === 'too-close' ? 0xffc05c : 0xff5b68;

@@ -631,6 +631,30 @@ button.ghost-inline {
   transform: translate(0, 0);
   transition: transform .04s linear;
 }
+/* Directional arrow showing where the stick is heading (points to the rim). */
+.analog-pad-arrow {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  pointer-events: none;
+  opacity: var(--stick-arrow-opacity, 0);
+  transform: rotate(var(--stick-angle, 0deg));
+  transition: opacity .08s linear;
+  z-index: 2;
+}
+.analog-pad-arrow::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 3px;
+  width: 0;
+  height: 0;
+  transform: translateY(-50%);
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 9px solid rgba(190, 233, 255, .92);
+  filter: drop-shadow(0 0 4px rgba(101, 185, 255, .55));
+}
 html[data-touch-size='large'] .analog-pad { width: 126px; height: 126px; }
 html[data-touch-size='large'] .analog-pad-knob { width: 48px; height: 48px; }
 html[data-short-landscape='true'][data-touch-first='true'] .analog-pad { width: 94px; height: 94px; }

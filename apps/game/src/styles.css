@@ -461,8 +461,11 @@ button.ghost-button { width: 100%; margin-top: 8px; border-color: #263547; backg
 }
 body { overscroll-behavior: none; }
 .app-shell { padding-top: max(24px, calc(16px + var(--safe-top))); padding-right: max(24px, calc(14px + var(--safe-right))); padding-bottom: max(24px, calc(16px + var(--safe-bottom))); padding-left: max(24px, calc(14px + var(--safe-left))); }
-.arena-wrap { touch-action: none; -webkit-user-select: none; user-select: none; }
-.arena-frame canvas { touch-action: none; }
+/* The arena is display-only on touch (aiming/steering come from the stick), so
+   allow vertical page scrolling over it. The analog pad and skill buttons keep
+   their own touch-action: none, so they still capture drags/taps reliably. */
+.arena-wrap { touch-action: pan-y; -webkit-user-select: none; user-select: none; }
+.arena-frame canvas { touch-action: pan-y; }
 .release-settings .range-field { margin-top: 11px; }
 .settings-action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 10px; }
 .settings-action-row .secondary { margin-top: 0; }
