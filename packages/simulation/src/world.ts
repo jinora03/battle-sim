@@ -223,12 +223,30 @@ export class World {
     return this.activeIdList;
   }
 
+  /**
+   * Refills `out` with the current active ids in stable ascending order and
+   * returns it. Callers that mutate the active set while iterating (e.g. periodic
+   * damage that can kill mid-loop) reuse a dedicated buffer instead of allocating
+   * a fresh `[...activeIdList]` copy every tick. The copy is required for
+   * iteration safety; `activeIdsView()` is for read-only, non-mutating loops.
+   */
+  copyActiveIdsInto(out: EntityId[]): EntityId[] {
+    out.length = 0;
+    for (const id of this.activeIdList) out.push(id);
+    return out;
+  }
+
   activeCount(): number {
     return this.activeIdList.length;
   }
 
   hasStatus(id: EntityId, statusId: string): boolean {
     return this.statuses.get(id)?.has(statusId) ?? false;
+  }
+
+  hasAnyStatus(id: EntityId): boolean {
+    const map = this.statuses.get(id);
+    return map !== undefined && map.size > 0;
   }
 
   applyStatus(id: EntityId, statusId: string, durationTicks: number, sourceId: EntityId | null): void {
@@ -254,14 +272,18 @@ export class World {
   }
 
   getSpeedMultiplier(id: EntityId): number {
+    const statuses = this.statuses.get(id);
+    if (!statuses || statuses.size === 0) return 1;
     let multiplier = 1;
-    for (const status of this.getStatuses(id).values()) multiplier *= getStatus(status.id).speedMultiplier ?? 1;
+    for (const status of statuses.values()) multiplier *= getStatus(status.id).speedMultiplier ?? 1;
     return multiplier;
   }
 
   getMassMultiplier(id: EntityId): number {
+    const statuses = this.statuses.get(id);
+    if (!statuses || statuses.size === 0) return 1;
     let multiplier = 1;
-    for (const status of this.getStatuses(id).values()) multiplier *= getStatus(status.id).massMultiplier ?? 1;
+    for (const status of statuses.values()) multiplier *= getStatus(status.id).massMultiplier ?? 1;
     return multiplier;
   }
 

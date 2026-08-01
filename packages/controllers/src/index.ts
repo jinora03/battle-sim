@@ -504,6 +504,9 @@ export class PlayerController implements ControllerSource {
     if (snapshot.battleEnded) return [];
     const commands = this.queued.splice(0, this.queued.length);
     const slots = this.queuedSlots.splice(0, this.queuedSlots.length);
+    // No controlled entities (e.g. AI-vs-AI battles): skip the per-tick entity
+    // map build and only forward any directly-queued commands.
+    if (this.controlled.size === 0) return commands;
     const entityById = new Map(snapshot.entities.map((entity) => [entity.id, entity]));
 
     for (const entityId of [...this.controlled].sort((a, b) => a - b)) {

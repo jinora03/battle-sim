@@ -650,6 +650,7 @@ export class LayeredVfxEngine {
   }
 
   private enforceGroundMarkLimit(limit: number): void {
+    if (!Number.isFinite(limit)) return;
     const active = this.groundMarks.filter((mark) => mark.active).sort((a, b) => a.life - b.life);
     while (active.length > limit) {
       const oldest = active.shift();

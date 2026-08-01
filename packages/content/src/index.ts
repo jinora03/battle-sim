@@ -280,7 +280,12 @@ const skillProjectileMap = new Map<string, SkillProjectileDefinition>(skillProje
 const statusMap = new Map<string, StatusDefinition>(statuses.map((item) => [item.id, item]));
 const arenaMap = new Map<string, ArenaDefinition>(arenas.map((item) => [item.id, item]));
 const modeMap = new Map<string, GameModeDefinition>(gameModes.map((item) => [item.id, item]));
-const interactionMap = new Map<string, number>(interactions.map((item: ElementInteraction) => [`${item.source}>${item.target}`, item.multiplier]));
+const interactionBySource = new Map<Element, Map<Element, number>>();
+for (const item of interactions as ElementInteraction[]) {
+  let inner = interactionBySource.get(item.source);
+  if (!inner) { inner = new Map<Element, number>(); interactionBySource.set(item.source, inner); }
+  inner.set(item.target, item.multiplier);
+}
 
 function requireFromMap<T>(map: Map<string, T>, id: string, kind: string): T {
   const value = map.get(id);
@@ -307,9 +312,16 @@ export const getWeapon = getPrimaryAttack;
  * any field, while older definitions receive deterministic defaults derived
  * from their trigger/action composition.
  */
+const ABILITY_ACTIVATION_PROFILE_CACHE = new WeakMap<AbilityDefinition, AbilityActivationProfile>();
+
 export function getAbilityActivationProfile(abilityOrId: AbilityDefinition | string, fighterOrId?: FighterDefinition | string | null): AbilityActivationProfile {
   const ability = typeof abilityOrId === 'string' ? getAbility(abilityOrId) : abilityOrId;
   void fighterOrId;
+  // The profile is a pure function of the ability definition (the fighter arg is
+  // intentionally unused), so memoize per ability object. Re-registered content
+  // produces a new object identity and therefore recomputes.
+  const cachedProfile = ABILITY_ACTIVATION_PROFILE_CACHE.get(ability);
+  if (cachedProfile) return cachedProfile;
   const allActions = ability.triggers.flatMap((trigger) => trigger.actions);
   const activateActions = ability.triggers.filter((trigger) => trigger.event === 'ON_ACTIVATE').flatMap((trigger) => trigger.actions);
   const hasCollision = ability.triggers.some((trigger) => trigger.event === 'ON_COLLISION');
@@ -354,15 +366,19 @@ export function getAbilityActivationProfile(abilityOrId: AbilityDefinition | str
     collisionWindowTicks: hasCollision ? (ability.slot === 'basic' ? 42 : 100) : 0,
     aimToleranceDegrees: targeting === 'target' || targeting === 'direction' ? 95 : 180
   };
-  return { ...derived, ...ability.activation };
+  const profile: AbilityActivationProfile = { ...derived, ...ability.activation };
+  ABILITY_ACTIVATION_PROFILE_CACHE.set(ability, profile);
+  return profile;
 }
 
 export const getArena = (id: string) => requireFromMap(arenaMap, id, 'arena');
 export const getGameMode = (id: string) => requireFromMap(modeMap, id, 'game mode');
 
 export function getElementMultiplier(source: Element, targetElements: Element[]): number {
+  const inner = interactionBySource.get(source);
+  if (!inner) return 1;
   let multiplier = 1;
-  for (const target of targetElements) multiplier *= interactionMap.get(`${source}>${target}`) ?? 1;
+  for (const target of targetElements) multiplier *= inner.get(target) ?? 1;
   return multiplier;
 }
 

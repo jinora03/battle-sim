@@ -180,6 +180,15 @@ export class LocalSimulationRunner implements SimulationRunner {
   private readonly obstacleList: RuntimeObstacle[] = [];
   private readonly projectileCandidateIds: EntityId[] = [];
   private readonly hazardReadyTick = new Map<string, number>();
+  // Reusable active-id buffers for loops that can kill entities mid-iteration.
+  // Each call site owns a dedicated buffer so the reuse can never alias a
+  // concurrently-iterated one; none of these loops nest inside each other.
+  private readonly statusIdScratch: EntityId[] = [];
+  private readonly zoneIdScratch: EntityId[] = [];
+  private readonly obstacleIdScratch: EntityId[] = [];
+  private readonly meleeIdScratch: EntityId[] = [];
+  private readonly zoneCurrentScratch = new Set<string>();
+  private readonly zoneById = new Map<string, ArenaZoneDefinition>();
   private readonly rules: ResolvedBattleRules;
   private trainingRules: ResolvedTrainingRules;
   private stepMetrics: SimulationMetricsSnapshot = createSimulationMetrics();
@@ -231,6 +240,7 @@ export class LocalSimulationRunner implements SimulationRunner {
       this.obstacleList.push(obstacle);
     }
     this.obstacleList.sort((a, b) => a.definition.id.localeCompare(b.definition.id));
+    for (const zone of this.arena.zones) this.zoneById.set(zone.id, zone);
     this.spawnInitialParticipants();
     for (const id of this.world.activeIdsView()) this.maxEntityRadius = Math.max(this.maxEntityRadius, this.world.radius[id] ?? 0);
   }
@@ -433,7 +443,8 @@ export class LocalSimulationRunner implements SimulationRunner {
   }
 
   private integrateMotion(): void {
-    for (const id of this.world.activeIds()) {
+    // Read-only over the active set (moves entities, never adds/removes them).
+    for (const id of this.world.activeIdsView()) {
       const environment = this.environmentModifiers(id);
       const damping = environment.damping ?? (this.world.damping[id] ?? 1);
       const impulse = this.externalImpulse.get(id) ?? { x: 0, y: 0, retention: 0.92, maxSpeed: 48, minWallBounces: 0, wallBounces: 0, trailStrength: 0 };
@@ -474,21 +485,29 @@ export class LocalSimulationRunner implements SimulationRunner {
   }
 
   private updateArenaZones(events: SimulationEvent[]): void {
-    for (const id of this.world.activeIds()) {
+    if (this.arena.zones.length === 0) return;
+    // Zone hazards can kill mid-loop; iterate a stable copy. Zone membership is
+    // rebuilt into a reused Set and the containing zones are visited in arena
+    // order, preserving the original event order without per-entity allocations.
+    for (const id of this.world.copyActiveIdsInto(this.zoneIdScratch)) {
       const previous = this.world.getActiveZoneIds(id);
-      const currentZones = this.arena.zones.filter((zone) => this.zoneContains(zone, this.world.x[id] ?? 0, this.world.y[id] ?? 0));
-      const current = new Set<string>(currentZones.map((zone) => zone.id));
+      const x = this.world.x[id] ?? 0;
+      const y = this.world.y[id] ?? 0;
+      const current = this.zoneCurrentScratch;
+      current.clear();
 
-      for (const zone of currentZones) {
+      for (const zone of this.arena.zones) {
+        if (!this.zoneContains(zone, x, y)) continue;
+        current.add(zone.id);
         if (!previous.has(zone.id)) {
-          events.push({ type: 'zoneEntered', tick: this.tickValue, entityId: id, zoneId: zone.id, kind: zone.kind, position: { x: this.world.x[id] ?? 0, y: this.world.y[id] ?? 0 } });
+          events.push({ type: 'zoneEntered', tick: this.tickValue, entityId: id, zoneId: zone.id, kind: zone.kind, position: { x, y } });
         }
         this.applyZoneEffect(id, zone, events);
       }
       for (const zoneId of previous) {
         if (current.has(zoneId)) continue;
-        const zone = this.arena.zones.find((item) => item.id === zoneId);
-        if (zone) events.push({ type: 'zoneExited', tick: this.tickValue, entityId: id, zoneId, kind: zone.kind, position: { x: this.world.x[id] ?? 0, y: this.world.y[id] ?? 0 } });
+        const zone = this.zoneById.get(zoneId);
+        if (zone) events.push({ type: 'zoneExited', tick: this.tickValue, entityId: id, zoneId, kind: zone.kind, position: { x, y } });
       }
       this.world.setActiveZones(id, current);
     }
@@ -533,7 +552,7 @@ export class LocalSimulationRunner implements SimulationRunner {
     let damping: number | null = null;
     let maxSpeed = 1;
     for (const zoneId of active) {
-      const zone = this.arena.zones.find((item) => item.id === zoneId);
+      const zone = this.zoneById.get(zoneId);
       if (!zone) continue;
       if (zone.kind === 'ice') {
         steering *= Math.max(0.25, 1 - zone.strength);
@@ -549,7 +568,7 @@ export class LocalSimulationRunner implements SimulationRunner {
   }
 
   private resolveArenaBounds(events: SimulationEvent[]): void {
-    for (const id of this.world.activeIds()) {
+    for (const id of this.world.activeIdsView()) {
       const r = this.world.radius[id] ?? 0;
       const baseRestitution = this.world.restitution[id] ?? 1;
       let x = this.world.x[id] ?? 0;
@@ -594,7 +613,7 @@ export class LocalSimulationRunner implements SimulationRunner {
   }
 
   private resolveObstacleCollisions(events: SimulationEvent[]): void {
-    for (const id of this.world.activeIds()) {
+    for (const id of this.world.copyActiveIdsInto(this.obstacleIdScratch)) {
       for (const obstacle of this.obstacleList) {
         if (!obstacle.alive) continue;
         const contact = obstacle.definition.shape === 'circle'
@@ -1299,8 +1318,11 @@ export class LocalSimulationRunner implements SimulationRunner {
     const nx = direction.x / dirLength;
     const ny = direction.y / dirLength;
     const halfArc = weapon.attackAngleDegrees * Math.PI / 360;
-    const candidates = this.world.activeIds().filter((id) => id !== source).sort((a, b) => a - b);
+    // activeIdList is maintained in ascending id order, so the prior explicit
+    // sort was redundant. Reuse a stable buffer since damage can kill mid-loop.
+    const candidates = this.world.copyActiveIdsInto(this.meleeIdScratch);
     for (const target of candidates) {
+      if (target === source) continue;
       if (alreadyHit.has(target)) continue;
       if (!weapon.friendlyFire && this.world.getTeam(target) === sourceTeam) continue;
       const dx = (this.world.x[target] ?? 0) - sx;
@@ -1926,7 +1948,9 @@ export class LocalSimulationRunner implements SimulationRunner {
   }
 
   private tickStatuses(events: SimulationEvent[]): void {
-    for (const id of this.world.activeIds()) {
+    // Periodic damage can kill the entity mid-loop, so iterate a stable copy.
+    for (const id of this.world.copyActiveIdsInto(this.statusIdScratch)) {
+      if (!this.world.hasAnyStatus(id)) continue;
       const statuses = this.world.getStatuses(id);
       for (const [statusId, status] of [...statuses.entries()]) {
         const definition = getStatus(statusId);
@@ -2064,7 +2088,7 @@ export class LocalSimulationRunner implements SimulationRunner {
 
   private checkVictory(events: SimulationEvent[]): void {
     if (this.trainingRules.enabled && this.trainingRules.suppressVictory) return;
-    const aliveIds = this.world.activeIds();
+    const aliveIds = this.world.activeIdsView();
     const teams = new Set<TeamId>(aliveIds.map((id) => this.world.getTeam(id)));
 
     if (this.mode.victory === 'DEFEAT_BOSS') {
