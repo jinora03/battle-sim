@@ -807,10 +807,16 @@ export class LocalSimulationRunner implements SimulationRunner {
   }
 
   private primaryAttackIsValid(self: EntityId, attack: PrimaryAttackDefinition, target: EntityId | null, direction: Vec2): boolean {
+    // Player-controlled fighters fire their Basic on demand: a ranged Basic
+    // always launches toward the aim direction and a valid enemy target is never
+    // rejected for range/angle/line-of-sight. Range gating stays AI-only, so
+    // AI-vs-AI simulation/replay checksums are unchanged.
+    const isPlayer = this.world.getController(self) === 'player';
     const areaBehavior = ['spin', 'continuous', 'orbit', 'slam'].includes(attack.behavior);
-    if (!areaBehavior && target === null) return false;
+    if (!areaBehavior && target === null) return isPlayer;
     if (target === null) return true;
     if (!this.world.isAlive(target) || this.world.getTeam(target) === this.world.getTeam(self)) return false;
+    if (isPlayer) return true;
     const dx = (this.world.x[target] ?? 0) - (this.world.x[self] ?? 0);
     const dy = (this.world.y[target] ?? 0) - (this.world.y[self] ?? 0);
     const distance = Math.hypot(dx, dy);

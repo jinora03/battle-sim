@@ -393,6 +393,15 @@ export class BattleRuntime {
     this.player.setAim(direction);
   }
 
+  setPointerAimEnabled(enabled: boolean): void {
+    this.renderer.setPointerAimEnabled(enabled);
+    if (!enabled) this.player.clearAimPoint();
+  }
+
+  setAimAssist(strength: number): void {
+    this.player.setAimAssist(strength);
+  }
+
   setPlayerAimFromClient(clientX: number, clientY: number): void {
     if (this.playerEntityIds.length === 0) return;
     const player = this.latestSnapshot.entities.find((entity) => entity.id === this.playerEntityIds[0]);

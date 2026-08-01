@@ -1378,6 +1378,7 @@ export class PixiBattleRenderer {
   private performanceScale = 1;
   private active = true;
   private playerAimPoint: Vec2 | null = null;
+  private pointerAimEnabled = true;
   private playerPreviewSlot: AbilitySlot = 'basic';
   private playerHitmarkerFlash = 0;
   private readonly playerEntityIdsScratch = new Set<EntityId>();
@@ -1505,6 +1506,14 @@ export class PixiBattleRenderer {
 
   setPlayerAimPoint(point: Vec2 | null): void {
     this.playerAimPoint = point ? { ...point } : null;
+  }
+
+  /** Touch devices steer with the analog stick and have no cursor, so the aim
+   *  reticle/crosshair is suppressed entirely on those devices. */
+  setPointerAimEnabled(enabled: boolean): void {
+    if (this.pointerAimEnabled === enabled) return;
+    this.pointerAimEnabled = enabled;
+    if (!enabled) this.playerTargetingGraphics.clear();
   }
 
   setPlayerPreviewSlot(slot: AbilitySlot): void {
@@ -2152,6 +2161,7 @@ export class PixiBattleRenderer {
 
   private drawPlayerTargeting(snapshot: WorldSnapshot, alpha: number): void {
     this.playerTargetingGraphics.clear();
+    if (!this.pointerAimEnabled) return;
     const player = snapshot.entities.find((entity) => entity.controller === 'player');
     if (!player || !this.playerAimPoint) return;
     const x = player.prevX + (player.x - player.prevX) * alpha;

@@ -5,6 +5,7 @@ export type QualityPresetId = 'auto' | 'battery' | 'balanced' | 'high' | 'custom
 export type TargetRenderFps = 30 | 60;
 export type TouchControlMode = 'auto' | 'always' | 'never';
 export type MovementMode = 'wasd' | 'mouse';
+export type AimAssistLevel = 'off' | 'light' | 'medium' | 'strong';
 export type ViewportOrientation = 'portrait' | 'landscape';
 export type ViewportClass = 'compact' | 'medium' | 'wide';
 
@@ -74,6 +75,7 @@ export interface AppSettings {
   showPerformanceHud: boolean;
   fullscreenBattle: boolean;
   movementMode: MovementMode;
+  aimAssist: AimAssistLevel;
 }
 
 export interface QualityPresetDefinition {
@@ -245,7 +247,8 @@ export function createDefaultAppSettings(capabilities = detectDeviceCapabilities
     touchControls: 'auto',
     showPerformanceHud: false,
     fullscreenBattle: false,
-    movementMode: 'wasd'
+    movementMode: 'wasd',
+    aimAssist: 'light'
   };
 }
 
@@ -276,6 +279,9 @@ export function normalizeAppSettings(input: unknown, capabilities = detectDevice
   const movementMode = ['wasd', 'mouse'].includes(String((raw as AppSettings).movementMode))
     ? (raw as AppSettings).movementMode as MovementMode
     : defaults.movementMode;
+  const aimAssist = ['off', 'light', 'medium', 'strong'].includes(String((raw as AppSettings).aimAssist))
+    ? (raw as AppSettings).aimAssist as AimAssistLevel
+    : defaults.aimAssist;
   return {
     ...seeded,
     schemaVersion: 6,
@@ -301,7 +307,8 @@ export function normalizeAppSettings(input: unknown, capabilities = detectDevice
     touchControls,
     showPerformanceHud: typeof raw.showPerformanceHud === 'boolean' ? raw.showPerformanceHud : seeded.showPerformanceHud,
     fullscreenBattle: typeof raw.fullscreenBattle === 'boolean' ? raw.fullscreenBattle : seeded.fullscreenBattle,
-    movementMode
+    movementMode,
+    aimAssist
   };
 }
 

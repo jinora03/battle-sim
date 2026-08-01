@@ -215,6 +215,10 @@ export class World {
     return this.team[id] ?? 0;
   }
 
+  getController(id: EntityId): ControllerKind {
+    return this.controller[id] ?? 'ai';
+  }
+
   activeIds(): EntityId[] {
     return [...this.activeIdList];
   }

@@ -469,7 +469,15 @@ export class PlayerController implements ControllerSource {
   private movement: Vec2 = { x: 0, y: 0 };
   private aim: Vec2 = { x: 1, y: 0 };
   private aimPoint: Vec2 | null = null;
+  private aimAssist = 0;
   private readonly queuedSlots: AbilitySlot[] = [];
+
+  /** 0 disables aim assist; higher values widen the acquisition cone and pull
+   *  the aim toward the best on-screen enemy. Player-only, so it never affects
+   *  AI-vs-AI determinism. */
+  setAimAssist(strength: number): void {
+    this.aimAssist = Math.max(0, Math.min(1, strength));
+  }
 
   setControlledEntities(ids: readonly EntityId[]): void {
     this.controlled.clear();
@@ -492,6 +500,11 @@ export class PlayerController implements ControllerSource {
     if (direction) this.setAim(direction);
   }
 
+  /** Drop any cursor aim point so aiming follows the movement/stick direction. */
+  clearAimPoint(): void {
+    this.aimPoint = null;
+  }
+
   activate(slot: AbilitySlot): void {
     this.queuedSlots.push(slot);
   }
@@ -512,10 +525,11 @@ export class PlayerController implements ControllerSource {
     for (const entityId of [...this.controlled].sort((a, b) => a - b)) {
       const self = entityById.get(entityId);
       if (!self || self.controller !== 'player') continue;
-      const aim = this.aimPoint ? normalize({ x: this.aimPoint.x - self.x, y: this.aimPoint.y - self.y }) : this.aim;
-      this.aim = aim;
+      const rawAim = this.aimPoint ? normalize({ x: this.aimPoint.x - self.x, y: this.aimPoint.y - self.y }) : this.aim;
+      this.aim = rawAim;
+      const aim = this.aimAssist > 0 ? this.applyAimAssist(snapshot, self, rawAim) : rawAim;
       // Emit even while stationary so the fighter and weapon continue facing
-      // the mouse cursor independently from WASD movement.
+      // the aim direction independently from WASD movement.
       commands.push({ type: 'move', entityId, direction: this.movement, facing: aim });
       const target = this.findAimedEnemy(snapshot, self, aim);
       for (const slot of slots) {
@@ -547,6 +561,36 @@ export class PlayerController implements ControllerSource {
     this.movement = { x: 0, y: 0 };
     this.aim = { x: 1, y: 0 };
     this.aimPoint = null;
+  }
+
+  private applyAimAssist(snapshot: WorldSnapshot, self: EntitySnapshot, aim: Vec2): Vec2 {
+    // Acquire the best enemy inside an aim cone that widens with strength, then
+    // bias the aim toward it. Deterministic id tie-break keeps replays stable.
+    const halfAngle = (12 + this.aimAssist * 33) * Math.PI / 180;
+    const coneCos = Math.cos(halfAngle);
+    const maxRange = 560;
+    let best: EntitySnapshot | undefined;
+    let bestScore = Number.NEGATIVE_INFINITY;
+    for (const candidate of snapshot.entities) {
+      if (candidate.id === self.id || candidate.team === self.team) continue;
+      const dx = candidate.x - self.x;
+      const dy = candidate.y - self.y;
+      const distance = Math.hypot(dx, dy) || 1;
+      if (distance > maxRange) continue;
+      const alignment = (dx / distance) * aim.x + (dy / distance) * aim.y;
+      if (alignment < coneCos) continue;
+      const score = alignment - (distance / maxRange) * 0.15;
+      if (score > bestScore || (score === bestScore && candidate.id < (best?.id ?? Number.MAX_SAFE_INTEGER))) {
+        bestScore = score;
+        best = candidate;
+      }
+    }
+    if (!best) return aim;
+    const dx = best.x - self.x;
+    const dy = best.y - self.y;
+    const length = Math.hypot(dx, dy) || 1;
+    const pull = Math.max(0, Math.min(0.92, this.aimAssist));
+    return normalize({ x: aim.x * (1 - pull) + (dx / length) * pull, y: aim.y * (1 - pull) + (dy / length) * pull });
   }
 
   private findAimedEnemy(snapshot: WorldSnapshot, self: EntitySnapshot, aim: Vec2): EntitySnapshot | undefined {

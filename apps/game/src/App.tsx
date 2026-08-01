@@ -66,7 +66,8 @@ import {
   type ViewportMetrics,
   type QualityPresetId,
   type TouchControlMode,
-  type MovementMode
+  type MovementMode,
+  type AimAssistLevel
 } from '@kinetic/platform';
 import {
   getMotionRecipe,
@@ -292,6 +293,8 @@ export default function App() {
   const [setup, setSetup] = useState<BattleSetup>(DEFAULT_SETUP);
   const [activeSetup, setActiveSetup] = useState<BattleSetup>(DEFAULT_SETUP);
   const [setupPanelOpen, setSetupPanelOpen] = useState(true);
+  const [perfPanelOpen, setPerfPanelOpen] = useState(true);
+  const [landscapeHintDismissed, setLandscapeHintDismissed] = useState(false);
   const [battleDrawerOpen, setBattleDrawerOpen] = useState(false);
   const [diagnostics, setDiagnostics] = useState<RuntimeDiagnostics>(initialDiagnostics);
   const [ready, setReady] = useState(false);
@@ -513,6 +516,16 @@ export default function App() {
   useEffect(() => {
     runtimeRef.current?.setDetailedDiagnosticsEnabled(settings.showPerformanceHud);
   }, [settings.showPerformanceHud]);
+
+  useEffect(() => {
+    // Touch devices have no cursor: hide the aim crosshair and steer/aim from the stick.
+    runtimeRef.current?.setPointerAimEnabled(!touchControlsVisible);
+  }, [touchControlsVisible]);
+
+  useEffect(() => {
+    const strength: Record<AimAssistLevel, number> = { off: 0, light: 0.35, medium: 0.6, strong: 0.9 };
+    runtimeRef.current?.setAimAssist(strength[settings.aimAssist]);
+  }, [settings.aimAssist]);
 
   useEffect(() => {
     if (!settings.audio) return;
@@ -979,7 +992,13 @@ export default function App() {
     teamSizeB: 1
   });
 
-  const movePlayer = (direction: Vec2) => { runtimeRef.current?.setPlayerMovement(direction); };
+  const movePlayer = (direction: Vec2) => {
+    runtimeRef.current?.setPlayerMovement(direction);
+    // On touch, the analog stick is the only input, so it drives facing/aim too.
+    if (touchControlsVisible && (Math.abs(direction.x) > 0.001 || Math.abs(direction.y) > 0.001)) {
+      runtimeRef.current?.setPlayerAim(direction);
+    }
+  };
   const activate = (slot: AbilitySlot) => { runtimeRef.current?.activatePlayerAbility(slot); };
   const previewAbility = (slot: AbilitySlot) => { runtimeRef.current?.previewPlayerAbility(slot); };
   const stopPlayerMovement = () => { runtimeRef.current?.setPlayerMovement({ x: 0, y: 0 }); };
@@ -1167,6 +1186,14 @@ export default function App() {
                 <option value="wasd">WASD / arrows move</option>
                 <option value="mouse">Mouse move + aim</option>
               </select>
+              <label className="field-label stacked-label" htmlFor="aim-assist">Aim assist</label>
+              <select id="aim-assist" value={settings.aimAssist} onChange={(event: ChangeEvent<HTMLSelectElement>) => updateAppSetting('aimAssist', event.target.value as AimAssistLevel)}>
+                <option value="off">Off</option>
+                <option value="light">Light</option>
+                <option value="medium">Medium</option>
+                <option value="strong">Strong</option>
+              </select>
+              <p className="small-note">Aim assist pulls your aim toward the nearest enemy in your aiming direction. Stronger levels widen the cone and pull harder. Applies to player fighters only.</p>
               <p className="small-note">Custom fighters use the same controller, cooldown, command and replay systems as built-in fighters.</p>
               </div>
             </details>
@@ -1266,7 +1293,7 @@ export default function App() {
                 )}
                 <span className="objective-meta">
                   {diagnostics.objective.remainingTicks !== null && <b>{Math.ceil(diagnostics.objective.remainingTicks / 60)}s</b>}
-                  <em>{diagnostics.battleEnded ? resultPresentation.compact : activeMode?.victory === 'LAST_TEAM_STANDING' ? `${eliminationProgress.alive}/${eliminationProgress.total} alive · Win by elimination` : `${diagnostics.entities.length} active`}</em>
+                  <em>{diagnostics.battleEnded ? resultPresentation.compact : activeMode?.victory === 'LAST_TEAM_STANDING' ? (viewportMetrics.compact ? '' : `${eliminationProgress.alive}/${eliminationProgress.total} alive · Win by elimination`) : `${diagnostics.entities.length} active`}</em>
                 </span>
               </div>
 
@@ -1277,6 +1304,12 @@ export default function App() {
                 {diagnostics.renderDiagnostics.contextLost && <div className="system-pause-badge renderer-recovery-badge">Graphics context interrupted · attempting recovery</div>}
                 {pausedBySystem && <div className="system-pause-badge">Paused while the app is in the background</div>}
                 {pausedByUser && !pausedBySystem && !diagnostics.battleEnded && <div className="system-pause-badge user-pause-badge">Battle paused · press Resume battle to continue</div>}
+                {touchControlsVisible && viewportMetrics.orientation === 'portrait' && !diagnostics.battleEnded && !landscapeHintDismissed && (
+                  <div className="landscape-hint-badge" role="note">
+                    <span>Rotate to landscape for a wider battle view</span>
+                    <button type="button" onClick={() => setLandscapeHintDismissed(true)} aria-label="Dismiss landscape suggestion">×</button>
+                  </div>
+                )}
                 {diagnostics.battleEnded && diagnostics.result && (
                   <div className="match-result-overlay" role="dialog" aria-labelledby="match-result-title" aria-describedby="match-result-description">
                     <div className={`match-result-card ${diagnostics.result.reason}`}>
@@ -1391,9 +1424,10 @@ export default function App() {
           <div className="battle-secondary-panels">
             <details
               className="panel-section battle-debug-panel"
-              open={settings.showPerformanceHud}
+              open={perfPanelOpen}
               onToggle={(event: SyntheticEvent<HTMLDetailsElement>) => {
                 const open = event.currentTarget.open;
+                setPerfPanelOpen(open);
                 if (open !== settings.showPerformanceHud) {
                   setSettings((current) => ({ ...current, showPerformanceHud: open }));
                 }
@@ -1486,7 +1520,7 @@ export default function App() {
               <div className="debug-export-row"><NeonButton tone="utility" size="small" className="debug-export" onClick={exportReplay}>Export replay JSON</NeonButton></div>
             </details>
 
-            <details className="panel-section battle-activity-panel">
+            <details className="panel-section battle-activity-panel" open>
               <summary className="panel-summary"><span><small>Battle log</small><strong>Arena activity & achievements</strong></span><em>{diagnostics.recentArenaActivity.length}</em></summary>
               <div className="battle-activity-grid">
                 <div>
@@ -1500,7 +1534,7 @@ export default function App() {
               </div>
             </details>
 
-            <details className="panel-section developer-notes-panel">
+            <details className="panel-section developer-notes-panel" open>
               <summary className="panel-summary"><span><small>Developer information</small><strong>Architecture & implementation proof</strong></span></summary>
               <div className="developer-notes-grid">
                 <div>

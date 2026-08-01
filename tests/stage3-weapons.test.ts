@@ -35,10 +35,28 @@ describe('v1.1 primary attack system', () => {
     }
   });
 
-  it('does not start a melee attack outside its configured effective range', () => {
-    const runner = duel('pyro-brawler', 'water-shaper', 120, 690, 1302);
+  it('does not start an AI melee attack outside its configured effective range', () => {
+    // Range/angle/line-of-sight gating is AI-only: player fighters fire their
+    // Basic on demand, so this guard is verified against an AI attacker.
+    const battle: BattleDefinition = {
+      seed: 1302,
+      arenaId: 'iron-pit',
+      modeId: 'duel',
+      participants: [
+        { fighterId: 'pyro-brawler', team: 1, controller: 'ai', x: 120, y: 470 },
+        { fighterId: 'water-shaper', team: 2, controller: 'ai', x: 690, y: 470 }
+      ],
+      rules: { maxBattleTicks: 900 }
+    };
+    const runner = new LocalSimulationRunner(battle);
     const events = runner.step([primary()]);
     expect(events.some((event) => event.type === 'weaponAttackStarted')).toBe(false);
+  });
+
+  it('lets a player fire the Basic on demand even outside effective range', () => {
+    const runner = duel('pyro-brawler', 'water-shaper', 120, 690, 1302);
+    const events = runner.step([primary()]);
+    expect(events.some((event) => event.type === 'weaponAttackStarted')).toBe(true);
   });
 
   it('runs visible melee wind-up, active hit and recovery inside range', () => {
