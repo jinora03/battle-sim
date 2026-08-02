@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CONTENT_VERSION, getAbility, getElementMultiplier, getFighter, getPrimaryAttack } from '@kinetic/content';
+import { getAbility, getElementMultiplier, getFighter, getPrimaryAttack } from '@kinetic/content';
 import type { BattleDefinition, SimulationCommand, SimulationEvent } from '@kinetic/protocol';
 import { compactMissilePresentationEvents, compactMissileSecondaryPresentationEvents, isMissileCascadeFrame, MissileCascadeTracker, resolveBlastFeedback, resolveUltimateFreezeMs, resolveWeaponHitFreezeMs, shouldPresentDamage } from '../packages/renderer-pixi/src/combatFeedback';
 import { LocalSimulationRunner } from '@kinetic/simulation';
@@ -27,7 +27,6 @@ function run(runner: LocalSimulationRunner, ticks: number, first?: SimulationCom
 
 describe('v1.1 Stage 7.4 combat feedback and stability', () => {
   it('keeps Gunner cadence and projectile feel while retaining only the damage nerf', () => {
-    expect(CONTENT_VERSION).toBe('1.1.6-stage7.5');
     const rifle = getPrimaryAttack('automatic-rifle');
     expect(rifle.damage).toBe(3.4);
     expect(rifle.burstCount).toBe(4);

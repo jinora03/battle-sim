@@ -6,6 +6,7 @@ import {
   getElementMultiplier,
   getFighter,
   getGameMode,
+  getPassive,
   getPrimaryAttack,
   getProjectileSource,
   getStatus,
@@ -14,6 +15,7 @@ import {
   type AbilityDefinition,
   type ArenaObstacleDefinition,
   type ArenaZoneDefinition,
+  type PassiveTriggerEvent,
   type PrimaryAttackDefinition,
   type ProjectileSourceDefinition
 } from '@kinetic/content';
@@ -43,8 +45,10 @@ import type {
 import { SeededRng } from './rng';
 import { SpatialHashGrid } from './spatialHash';
 import { World, type ActiveCastState, type ActiveWeaponAttackState, type ArmedAbilityState } from './world';
+import { resolveImpulseDirection, resolveProjectileStatusInteraction } from './combatModifiers';
+import { compareOrdinal } from './order';
 
-export const ENGINE_VERSION = '1.1.6-stage7.5';
+export const ENGINE_VERSION = '1.2.0-stage8.0';
 export { CONTENT_VERSION };
 export const SIM_TICK_RATE = 60;
 export const SIM_TICK_MS = 1000 / SIM_TICK_RATE;
@@ -86,6 +90,7 @@ interface RuntimeProjectile {
   team: TeamId;
   weapon: ProjectileSourceDefinition;
   targetId: EntityId | null;
+  isPrimaryAttack: boolean;
   x: number; y: number; prevX: number; prevY: number;
   vx: number; vy: number;
   radius: number;
@@ -93,6 +98,14 @@ interface RuntimeProjectile {
   totalTicks: number;
   ageTicks: number;
   fuseRemainingTicks: number;
+  damageMultiplier: number;
+  knockbackMultiplier: number;
+  bounceRetention: number;
+  maxWallBounces: number;
+  wallBounces: number;
+  penetrationRemaining: number;
+  hitTargetIds: EntityId[];
+  homingStrength: number;
   alive: boolean;
 }
 
@@ -214,6 +227,7 @@ export class LocalSimulationRunner implements SimulationRunner {
   private readonly pendingProjectileLaunches: PendingProjectileLaunch[] = [];
   private nextProjectileId = 1;
   private nextPendingProjectileSequence = 1;
+  private passivesInitialized = false;
 
   constructor(private readonly battle: BattleDefinition, maxEntities = 2048) {
     this.arena = getArena(battle.arenaId);
@@ -239,7 +253,7 @@ export class LocalSimulationRunner implements SimulationRunner {
       this.obstacles.set(definition.id, obstacle);
       this.obstacleList.push(obstacle);
     }
-    this.obstacleList.sort((a, b) => a.definition.id.localeCompare(b.definition.id));
+    this.obstacleList.sort((a, b) => compareOrdinal(a.definition.id, b.definition.id));
     for (const zone of this.arena.zones) this.zoneById.set(zone.id, zone);
     this.spawnInitialParticipants();
     for (const id of this.world.activeIdsView()) this.maxEntityRadius = Math.max(this.maxEntityRadius, this.world.radius[id] ?? 0);
@@ -331,6 +345,10 @@ export class LocalSimulationRunner implements SimulationRunner {
     this.tickValue += 1;
     this.stepMetrics = createSimulationMetrics(this.world.activeCount());
     const events: SimulationEvent[] = [];
+    if (!this.passivesInitialized) {
+      this.passivesInitialized = true;
+      this.triggerBattleStartPassives(events);
+    }
     this.world.copyPreviousTransforms();
     this.explicitFacingThisTick.clear();
 
@@ -398,7 +416,7 @@ export class LocalSimulationRunner implements SimulationRunner {
   }
 
   private processCommands(commands: readonly SimulationCommand[], events: SimulationEvent[]): void {
-    const ordered = [...commands].sort((a, b) => a.entityId - b.entityId || a.type.localeCompare(b.type));
+    const ordered = [...commands].sort((a, b) => a.entityId - b.entityId || compareOrdinal(a.type, b.type));
     this.stepMetrics.commandsProcessed = ordered.length;
     for (const command of ordered) {
       if (!this.world.isAlive(command.entityId)) continue;
@@ -787,7 +805,10 @@ export class LocalSimulationRunner implements SimulationRunner {
     const target = command.targetId !== undefined && this.world.isAlive(command.targetId) ? command.targetId : null;
     const direction = this.resolveAbilityDirection(command.entityId, target, command.direction);
     if (!this.primaryAttackIsValid(command.entityId, attack, target, direction)) return;
-    if (this.trainingRules.cooldownsEnabled) this.world.setPrimaryAttackCooldown(command.entityId, attack.id, this.tickValue + attack.cooldownTicks);
+    if (this.trainingRules.cooldownsEnabled) {
+      const cooldownMultiplier = this.world.getLoadout(command.entityId).primaryCooldownMultiplier;
+      this.world.setPrimaryAttackCooldown(command.entityId, attack.id, this.tickValue + Math.max(1, Math.round(attack.cooldownTicks * cooldownMultiplier)));
+    }
     const position = { x: this.world.x[command.entityId] ?? 0, y: this.world.y[command.entityId] ?? 0 };
     const windupTicks = Math.max(0, attack.windupTicks);
     this.activeWeaponAttacks.set(command.entityId, {
@@ -1002,6 +1023,7 @@ export class LocalSimulationRunner implements SimulationRunner {
       type: 'abilityResolved', tick: this.tickValue, entityId, abilityId: ability.id, slot,
       position: { x: this.world.x[entityId] ?? 0, y: this.world.y[entityId] ?? 0 }, direction
     });
+    this.triggerPassives(entityId, 'ON_ABILITY_RESOLVED', { self: entityId, target, impact: 0, normal: direction, abilityId: ability.id }, events);
   }
 
   private armCollisionAbility(entityId: EntityId, ability: AbilityDefinition): void {
@@ -1049,6 +1071,7 @@ export class LocalSimulationRunner implements SimulationRunner {
       armed.delete(abilityId);
       const position = { x: this.world.x[context.self] ?? 0, y: this.world.y[context.self] ?? 0 };
       events.push({ type: 'abilityResolved', tick: this.tickValue, entityId: context.self, abilityId: ability.id, slot, position, direction: context.normal });
+      this.triggerPassives(context.self, 'ON_ABILITY_RESOLVED', triggerContext, events);
     }
     if (armed.size === 0) this.armedAbilities.delete(context.self);
   }
@@ -1081,6 +1104,11 @@ export class LocalSimulationRunner implements SimulationRunner {
       }).length;
       if (nearby < activation.minimumTargets) return false;
     }
+    const activateTriggers = ability.triggers.filter((trigger) => trigger.event === 'ON_ACTIVATE');
+    if (activateTriggers.length > 0) {
+      const context: TriggerContext = { self, target, impact: 0, normal: direction, abilityId: ability.id };
+      if (!activateTriggers.some((trigger) => trigger.conditions.every((condition) => this.conditionPasses(condition, context)))) return false;
+    }
     return true;
   }
 
@@ -1101,6 +1129,42 @@ export class LocalSimulationRunner implements SimulationRunner {
     return true;
   }
 
+  private triggerBattleStartPassives(events: SimulationEvent[]): void {
+    for (const entityId of this.world.activeIdsView()) {
+      this.triggerPassives(entityId, 'ON_BATTLE_START', {
+        self: entityId,
+        target: null,
+        impact: 0,
+        normal: { x: 1, y: 0 },
+        abilityId: 'battle-start'
+      }, events);
+    }
+  }
+
+  private triggerPassives(entityId: EntityId, event: PassiveTriggerEvent, context: TriggerContext, events: SimulationEvent[]): void {
+    if (!this.world.isAlive(entityId)) return;
+    const fighter = getFighter(this.world.getFighterId(entityId));
+    for (const passiveId of fighter.passiveIds ?? []) {
+      const passive = getPassive(passiveId);
+      let fired = false;
+      for (const trigger of passive.triggers) {
+        if (trigger.event !== event) continue;
+        if (!trigger.conditions.every((condition) => this.conditionPasses(condition, context))) continue;
+        fired = true;
+        for (const action of trigger.actions) this.executeAction(action, { ...context, abilityId: passive.id }, events);
+      }
+      if (fired) {
+        events.push({
+          type: 'passiveTriggered',
+          tick: this.tickValue,
+          entityId,
+          passiveId,
+          ...(context.target !== null ? { targetId: context.target } : {})
+        });
+      }
+    }
+  }
+
   private executeTriggers(ability: AbilityDefinition, event: 'ON_ACTIVATE' | 'ON_COLLISION' | 'ON_HEALTH_BELOW', context: TriggerContext, events: SimulationEvent[]): boolean {
     let fired = false;
     for (const trigger of ability.triggers) {
@@ -1114,7 +1178,12 @@ export class LocalSimulationRunner implements SimulationRunner {
 
   private conditionPasses(condition: AbilityCondition, context: { self: EntityId; target: EntityId | null; impact: number }): boolean {
     if (condition.type === 'IMPACT_ABOVE') return context.impact >= condition.value;
-    if (condition.type === 'SELF_HAS_STATUS') return this.world.hasStatus(context.self, condition.statusId);
+    if (condition.type === 'SELF_HAS_STATUS') return this.world.getStatusStacks(context.self, condition.statusId) >= (condition.minimumStacks ?? 1);
+    if (condition.type === 'TARGET_HAS_STATUS') {
+      if (context.target === null) return false;
+      const stacks = this.world.getStatusStacks(context.target, condition.statusId);
+      return stacks >= (condition.minimumStacks ?? 1) && stacks <= (condition.maximumStacks ?? Number.POSITIVE_INFINITY);
+    }
     return (this.world.hp[context.self] ?? 0) / Math.max(1, this.world.maxHp[context.self] ?? 1) <= condition.ratio;
   }
 
@@ -1124,21 +1193,24 @@ export class LocalSimulationRunner implements SimulationRunner {
 
     switch (action.type) {
       case 'APPLY_IMPULSE_SELF': {
-        const length = Math.hypot(context.normal.x, context.normal.y) || 1;
-        this.addExternalImpulse(self, (context.normal.x / length) * action.magnitude, (context.normal.y / length) * action.magnitude);
+        const impulseDirection = resolveImpulseDirection(context.normal, action.direction);
+        this.addExternalImpulse(self, impulseDirection.x * action.magnitude, impulseDirection.y * action.magnitude);
         break;
       }
       case 'DEAL_DAMAGE_TARGET':
         if (target !== null) this.dealDamage(self, target, action.amount, action.element, events);
         break;
       case 'APPLY_STATUS_SELF':
-        this.applyStatus(self, self, action.statusId, action.durationTicks, events);
+        this.applyStatus(self, self, action.statusId, action.durationTicks, events, action.stacks ?? 1);
         break;
       case 'APPLY_STATUS_TARGET':
-        if (target !== null) this.applyStatus(self, target, action.statusId, action.durationTicks, events);
+        if (target !== null) this.applyStatus(self, target, action.statusId, action.durationTicks, events, action.stacks ?? 1);
         break;
       case 'REMOVE_STATUS_SELF':
         this.world.removeStatus(self, action.statusId);
+        break;
+      case 'REMOVE_STATUS_TARGET':
+        if (target !== null) this.world.removeStatusStacks(target, action.statusId, action.stacks ?? 'all');
         break;
       case 'APPLY_KNOCKBACK_TARGET':
         if (target !== null && this.world.isAlive(target)) this.applyKnockback(self, target, action.magnitude, events, 'ability');
@@ -1158,7 +1230,7 @@ export class LocalSimulationRunner implements SimulationRunner {
         });
         break;
       case 'RADIAL_STATUS':
-        this.forEachInRadius(self, action.radius, action.enemiesOnly, (other) => this.applyStatus(self, other, action.statusId, action.durationTicks, events));
+        this.forEachInRadius(self, action.radius, action.enemiesOnly, (other) => this.applyStatus(self, other, action.statusId, action.durationTicks, events, action.stacks ?? 1));
         break;
       case 'EXPLODE': {
         const position = { x: this.world.x[self] ?? 0, y: this.world.y[self] ?? 0 };
@@ -1340,12 +1412,16 @@ export class LocalSimulationRunner implements SimulationRunner {
       const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
       if (angle > halfArc) continue;
       alreadyHit.add(target);
-      this.dealDamage(source, target, weapon.damage, this.primaryElement(source), events);
+      const loadout = this.world.getLoadout(source);
+      const damage = weapon.damage * loadout.primaryDamageMultiplier;
+      const knockback = weapon.knockback * loadout.primaryKnockbackMultiplier;
+      this.dealDamage(source, target, damage, this.primaryElement(source), events);
       if (this.world.isAlive(target)) {
-        this.applyKnockback(source, target, weapon.knockback, events, 'weapon');
-        for (const status of weapon.onHitStatuses ?? []) this.applyStatus(source, target, status.statusId, status.durationTicks, events);
+        this.applyKnockback(source, target, knockback, events, 'weapon');
+        for (const status of weapon.onHitStatuses ?? []) this.applyStatus(source, target, status.statusId, status.durationTicks, events, status.stacks ?? 1);
       }
-      events.push({ type: 'weaponHit', tick: this.tickValue, sourceId: source, targetId: target, weaponId: weapon.id, position: { x: this.world.x[target] ?? 0, y: this.world.y[target] ?? 0 }, damage: weapon.damage, knockback: weapon.knockback });
+      events.push({ type: 'weaponHit', tick: this.tickValue, sourceId: source, targetId: target, weaponId: weapon.id, position: { x: this.world.x[target] ?? 0, y: this.world.y[target] ?? 0 }, damage, knockback });
+      this.triggerPassives(source, 'ON_PRIMARY_HIT', { self: source, target, impact: knockback, normal: direction, abilityId: weapon.id }, events);
       if (!['spin', 'continuous', 'orbit', 'slam'].includes(weapon.behavior)) break;
     }
   }
@@ -1364,6 +1440,8 @@ export class LocalSimulationRunner implements SimulationRunner {
     const normalized = normalizeVector(direction);
     const baseAngle = Math.atan2(normalized.y, normalized.x);
     const primary = tryGetPrimaryAttack(weapon.id);
+    const isPrimaryAttack = primary !== null;
+    const loadout = this.world.getLoadout(source);
     const spreadRadians = (primary?.spreadDegrees ?? 0) * Math.PI / 180;
     const offset = shotCount <= 1 ? 0 : ((shotIndex / (shotCount - 1)) - 0.5) * spreadRadians;
     const angle = baseAngle + offset;
@@ -1371,13 +1449,27 @@ export class LocalSimulationRunner implements SimulationRunner {
     const ny = Math.sin(angle);
     const spawnDistance = (this.world.radius[source] ?? 20) + definition.radius + 5;
     const totalTicks = Math.max(1, definition.lifetimeTicks);
+    const interactionStacks = weapon.statusInteraction && targetId !== null
+      ? this.world.getStatusStacks(targetId, weapon.statusInteraction.statusId)
+      : 0;
+    const interaction = resolveProjectileStatusInteraction(weapon.statusInteraction, interactionStacks);
+    const nativeBounce = definition.bounce > 0;
     const projectile: RuntimeProjectile = {
-      id: this.nextProjectileId++, sourceId: source, team: this.world.getTeam(source), weapon, targetId,
+      id: this.nextProjectileId++, sourceId: source, team: this.world.getTeam(source), weapon, targetId, isPrimaryAttack,
       x: (this.world.x[source] ?? 0) + nx * spawnDistance, y: (this.world.y[source] ?? 0) + ny * spawnDistance,
       prevX: (this.world.x[source] ?? 0) + nx * spawnDistance, prevY: (this.world.y[source] ?? 0) + ny * spawnDistance,
       vx: nx * definition.speed, vy: ny * definition.speed,
       radius: definition.radius, remainingTicks: totalTicks, totalTicks, ageTicks: 0,
-      fuseRemainingTicks: definition.fuseTicks, alive: true
+      fuseRemainingTicks: definition.fuseTicks,
+      damageMultiplier: isPrimaryAttack ? loadout.primaryDamageMultiplier : loadout.skillProjectileDamageMultiplier,
+      knockbackMultiplier: isPrimaryAttack ? loadout.primaryKnockbackMultiplier : 1,
+      bounceRetention: nativeBounce ? definition.bounce : loadout.primaryProjectileBounce,
+      maxWallBounces: nativeBounce ? Number.POSITIVE_INFINITY : loadout.primaryProjectileMaxWallBounces,
+      wallBounces: 0,
+      penetrationRemaining: isPrimaryAttack ? loadout.primaryProjectilePenetration : 0,
+      hitTargetIds: [],
+      homingStrength: Math.max(0, Math.min(1, (definition.homingStrength ?? 0) * (isPrimaryAttack ? 1 : loadout.skillProjectileHomingMultiplier) + interaction.homingStrengthBonus)),
+      alive: true
     };
     this.projectiles.push(projectile);
     events.push({
@@ -1385,6 +1477,57 @@ export class LocalSimulationRunner implements SimulationRunner {
       weaponId: weapon.id, position: { x: projectile.x, y: projectile.y }, velocity: { x: projectile.vx, y: projectile.vy },
       ...(targetId !== null ? { targetId } : {})
     });
+  }
+
+  private resolveDirectProjectileHit(projectile: RuntimeProjectile, targetId: EntityId, events: SimulationEvent[]): { damage: number; knockback: number } {
+    const interactionStacks = projectile.weapon.statusInteraction
+      ? this.world.getStatusStacks(targetId, projectile.weapon.statusInteraction.statusId)
+      : 0;
+    const interaction = resolveProjectileStatusInteraction(projectile.weapon.statusInteraction, interactionStacks);
+    const damage = (projectile.weapon.damage + interaction.bonusDamage) * projectile.damageMultiplier;
+    const knockback = (projectile.weapon.knockback + interaction.bonusKnockback) * projectile.knockbackMultiplier;
+
+    this.dealDamage(projectile.sourceId, targetId, damage, this.primaryElement(projectile.sourceId), events);
+    if (this.world.isAlive(targetId)) {
+      this.applyKnockback(projectile.sourceId, targetId, knockback, events, 'weapon');
+      for (const status of projectile.weapon.onHitStatuses ?? []) {
+        this.applyStatus(projectile.sourceId, targetId, status.statusId, status.durationTicks, events, status.stacks ?? 1);
+      }
+      if (interaction.applyStatus) {
+        this.applyStatus(
+          projectile.sourceId,
+          targetId,
+          interaction.applyStatus.statusId,
+          interaction.applyStatus.durationTicks,
+          events,
+          interaction.applyStatus.stacks ?? 1
+        );
+      }
+      if (interaction.consumeStacks !== null && projectile.weapon.statusInteraction) {
+        this.world.removeStatusStacks(targetId, projectile.weapon.statusInteraction.statusId, interaction.consumeStacks);
+      }
+    }
+
+    events.push({
+      type: 'weaponHit',
+      tick: this.tickValue,
+      sourceId: projectile.sourceId,
+      targetId,
+      weaponId: projectile.weapon.id,
+      position: { x: projectile.x, y: projectile.y },
+      damage,
+      knockback
+    });
+    if (projectile.isPrimaryAttack) {
+      this.triggerPassives(projectile.sourceId, 'ON_PRIMARY_HIT', {
+        self: projectile.sourceId,
+        target: targetId,
+        impact: knockback,
+        normal: normalizeVector({ x: projectile.vx, y: projectile.vy }),
+        abilityId: projectile.weapon.id
+      }, events);
+    }
+    return { damage, knockback };
   }
 
   private updateProjectiles(events: SimulationEvent[]): void {
@@ -1414,7 +1557,7 @@ export class LocalSimulationRunner implements SimulationRunner {
       this.projectileCandidateIds.sort((a, b) => a - b);
       for (const target of this.projectileCandidateIds) {
         this.stepMetrics.projectileEntityChecks += 1;
-        if (!this.world.isAlive(target) || target === projectile.sourceId) continue;
+        if (!this.world.isAlive(target) || target === projectile.sourceId || projectile.hitTargetIds.includes(target)) continue;
         if (!projectile.weapon.friendlyFire && this.world.getTeam(target) === projectile.team) continue;
         const combined = projectile.radius + (this.world.radius[target] ?? 0);
         if (segmentIntersectsCircle(projectile.prevX, projectile.prevY, projectile.x, projectile.y, this.world.x[target] ?? 0, this.world.y[target] ?? 0, combined)) {
@@ -1440,16 +1583,23 @@ export class LocalSimulationRunner implements SimulationRunner {
       const hitBottom = projectile.y > this.arena.height - projectile.radius;
       const wallHit = hitLeft || hitRight || hitTop || hitBottom;
       const fuseExpired = definition.fuseTicks > 0 && projectile.fuseRemainingTicks <= 0;
+      let penetratedTarget = false;
       if (impactTarget !== null && definition.explosionRadius <= 0) {
-        this.dealDamage(projectile.sourceId, impactTarget, projectile.weapon.damage, this.primaryElement(projectile.sourceId), events);
-        if (this.world.isAlive(impactTarget)) {
-          this.applyKnockback(projectile.sourceId, impactTarget, projectile.weapon.knockback, events, 'weapon');
-          for (const status of projectile.weapon.onHitStatuses ?? []) this.applyStatus(projectile.sourceId, impactTarget, status.statusId, status.durationTicks, events);
+        this.resolveDirectProjectileHit(projectile, impactTarget, events);
+        projectile.hitTargetIds.push(impactTarget);
+        if (projectile.penetrationRemaining > 0) {
+          projectile.penetrationRemaining -= 1;
+          penetratedTarget = true;
+          impactTarget = null;
         }
-        events.push({ type: 'weaponHit', tick: this.tickValue, sourceId: projectile.sourceId, targetId: impactTarget, weaponId: projectile.weapon.id, position: { x: projectile.x, y: projectile.y }, damage: projectile.weapon.damage, knockback: projectile.weapon.knockback });
       }
 
-      if ((wallHit || obstacleHit) && definition.bounce > 0 && !fuseExpired && impactTarget === null) {
+      const canBounce = projectile.bounceRetention > 0
+        && projectile.wallBounces < projectile.maxWallBounces
+        && !fuseExpired
+        && impactTarget === null;
+      if ((wallHit || obstacleHit) && canBounce) {
+        projectile.wallBounces += 1;
         if (obstacleHit) {
           const item = obstacleHit.definition;
           if (item.shape === 'circle') {
@@ -1459,23 +1609,24 @@ export class LocalSimulationRunner implements SimulationRunner {
             const ux = nx / length;
             const uy = ny / length;
             const dot = projectile.vx * ux + projectile.vy * uy;
-            projectile.vx = (projectile.vx - 2 * dot * ux) * definition.bounce;
-            projectile.vy = (projectile.vy - 2 * dot * uy) * definition.bounce;
+            projectile.vx = (projectile.vx - 2 * dot * ux) * projectile.bounceRetention;
+            projectile.vy = (projectile.vy - 2 * dot * uy) * projectile.bounceRetention;
           } else {
             const dx = projectile.prevX - item.x;
             const dy = projectile.prevY - item.y;
-            if (Math.abs(dx) / Math.max(1, item.width) > Math.abs(dy) / Math.max(1, item.height)) projectile.vx *= -definition.bounce;
-            else projectile.vy *= -definition.bounce;
+            if (Math.abs(dx) / Math.max(1, item.width) > Math.abs(dy) / Math.max(1, item.height)) projectile.vx *= -projectile.bounceRetention;
+            else projectile.vy *= -projectile.bounceRetention;
           }
           projectile.x = projectile.prevX;
           projectile.y = projectile.prevY;
         } else {
-          if (hitLeft || hitRight) projectile.vx *= -definition.bounce;
-          if (hitTop || hitBottom) projectile.vy *= -definition.bounce;
+          if (hitLeft || hitRight) projectile.vx *= -projectile.bounceRetention;
+          if (hitTop || hitBottom) projectile.vy *= -projectile.bounceRetention;
           projectile.x = Math.max(projectile.radius, Math.min(this.arena.width - projectile.radius, projectile.x));
           projectile.y = Math.max(projectile.radius, Math.min(this.arena.height - projectile.radius, projectile.y));
         }
-      } else if (impactTarget !== null || wallHit || obstacleHit !== null || fuseExpired || projectile.remainingTicks <= 0) {
+      } else if ((impactTarget !== null || wallHit || obstacleHit !== null || fuseExpired || projectile.remainingTicks <= 0)
+        && (!penetratedTarget || wallHit || obstacleHit !== null || fuseExpired || projectile.remainingTicks <= 0)) {
         this.resolveProjectileImpact(projectile, impactTarget, events);
       }
     }
@@ -1510,13 +1661,20 @@ export class LocalSimulationRunner implements SimulationRunner {
       const dy = (this.world.y[id] ?? 0) - projectile.y;
       if (dx * dx + dy * dy > definition.explosionRadius * definition.explosionRadius) continue;
       const directHit = target !== null && id === target;
-      const combinedDamage = definition.explosionDamage + (directHit ? projectile.weapon.damage : 0);
+      const interactionStacks = directHit && projectile.weapon.statusInteraction
+        ? this.world.getStatusStacks(id, projectile.weapon.statusInteraction.statusId)
+        : 0;
+      const interaction = resolveProjectileStatusInteraction(projectile.weapon.statusInteraction, interactionStacks);
+      const explosionDamage = definition.explosionDamage * projectile.damageMultiplier;
+      const directDamage = directHit ? (projectile.weapon.damage + interaction.bonusDamage) * projectile.damageMultiplier : 0;
+      const combinedDamage = explosionDamage + directDamage;
       this.dealDamage(projectile.sourceId, id, combinedDamage, this.primaryElement(projectile.sourceId), events);
       if (this.world.isAlive(id)) {
         const distance = Math.hypot(dx, dy);
         const distanceRatio = Math.min(1, distance / Math.max(1, definition.explosionRadius));
         const falloff = 0.58 + (1 - distanceRatio) * 0.42;
-        const combinedBaseImpulse = definition.explosionImpulse + (directHit ? projectile.weapon.knockback : 0);
+        const directKnockback = directHit ? projectile.weapon.knockback + interaction.bonusKnockback : 0;
+        const combinedBaseImpulse = (definition.explosionImpulse + directKnockback) * projectile.knockbackMultiplier;
         const impulse = this.damageScaledImpulse(combinedBaseImpulse, combinedDamage) * falloff;
         this.applyKnockbackFromPoint(
           projectile.sourceId,
@@ -1529,7 +1687,15 @@ export class LocalSimulationRunner implements SimulationRunner {
           this.explosionImpulseOptions(combinedDamage, projectile.weapon.id)
         );
         if (directHit) {
-          for (const status of projectile.weapon.onHitStatuses ?? []) this.applyStatus(projectile.sourceId, id, status.statusId, status.durationTicks, events);
+          for (const status of projectile.weapon.onHitStatuses ?? []) {
+            this.applyStatus(projectile.sourceId, id, status.statusId, status.durationTicks, events, status.stacks ?? 1);
+          }
+          if (interaction.applyStatus) {
+            this.applyStatus(projectile.sourceId, id, interaction.applyStatus.statusId, interaction.applyStatus.durationTicks, events, interaction.applyStatus.stacks ?? 1);
+          }
+          if (interaction.consumeStacks !== null && projectile.weapon.statusInteraction) {
+            this.world.removeStatusStacks(id, projectile.weapon.statusInteraction.statusId, interaction.consumeStacks);
+          }
         }
       }
     }
@@ -1541,11 +1707,22 @@ export class LocalSimulationRunner implements SimulationRunner {
         targetId: target,
         weaponId: projectile.weapon.id,
         position: { x: projectile.x, y: projectile.y },
-        damage: definition.explosionDamage + projectile.weapon.damage,
-        knockback: definition.explosionImpulse + projectile.weapon.knockback
+        damage: (definition.explosionDamage + projectile.weapon.damage) * projectile.damageMultiplier,
+        knockback: (definition.explosionImpulse + projectile.weapon.knockback) * projectile.knockbackMultiplier
       });
+      if (projectile.isPrimaryAttack) {
+        this.triggerPassives(projectile.sourceId, 'ON_PRIMARY_HIT', {
+          self: projectile.sourceId,
+          target,
+          impact: (definition.explosionImpulse + projectile.weapon.knockback) * projectile.knockbackMultiplier,
+          normal: normalizeVector({ x: projectile.vx, y: projectile.vy }),
+          abilityId: projectile.weapon.id
+        }, events);
+      }
     }
-    events.push({ type: 'blast', tick: this.tickValue, sourceId: projectile.sourceId, abilityId: projectile.weapon.id, kind: 'explosion', position: { x: projectile.x, y: projectile.y }, radius: definition.explosionRadius, force: this.damageScaledImpulse(definition.explosionImpulse, definition.explosionDamage), damage: definition.explosionDamage, element: this.primaryElement(projectile.sourceId) });
+    const blastDamage = definition.explosionDamage * projectile.damageMultiplier;
+    const blastForce = this.damageScaledImpulse(definition.explosionImpulse * projectile.knockbackMultiplier, blastDamage);
+    events.push({ type: 'blast', tick: this.tickValue, sourceId: projectile.sourceId, abilityId: projectile.weapon.id, kind: 'explosion', position: { x: projectile.x, y: projectile.y }, radius: definition.explosionRadius, force: blastForce, damage: blastDamage, element: this.primaryElement(projectile.sourceId) });
   }
 
   private updateRuntimeProjectileSnapshots(): void {
@@ -1713,7 +1890,7 @@ export class LocalSimulationRunner implements SimulationRunner {
 
   private steerHomingProjectile(projectile: RuntimeProjectile): void {
     const definition = projectile.weapon.projectile;
-    if (!definition || (definition.homingStrength ?? 0) <= 0 || projectile.ageTicks < (definition.homingDelayTicks ?? 0)) return;
+    if (!definition || projectile.homingStrength <= 0 || projectile.ageTicks < (definition.homingDelayTicks ?? 0)) return;
     const range = definition.homingRange ?? Number.POSITIVE_INFINITY;
     let targetId = projectile.targetId;
     if (targetId === null || !this.world.isAlive(targetId) || this.world.getTeam(targetId) === projectile.team) {
@@ -1729,7 +1906,7 @@ export class LocalSimulationRunner implements SimulationRunner {
     const currentAngle = Math.atan2(projectile.vy, projectile.vx);
     const desiredAngle = Math.atan2(dy, dx);
     const delta = shortestAngleDelta(currentAngle, desiredAngle);
-    const responsiveness = Math.max(0, Math.min(1, definition.homingStrength ?? 0));
+    const responsiveness = projectile.homingStrength;
     const maxTurn = definition.homingTurnRadians ?? 0.055;
     const turn = Math.sign(delta) * Math.min(Math.abs(delta) * responsiveness, maxTurn);
     const nextAngle = currentAngle + turn;
@@ -1890,14 +2067,16 @@ export class LocalSimulationRunner implements SimulationRunner {
     }
     const nx = dx / length;
     const ny = dy / length;
+    const incomingKnockbackMultiplier = this.world.getLoadout(target).incomingKnockbackMultiplier;
+    const resolvedMagnitude = magnitude * incomingKnockbackMultiplier;
     const invMass = 1 / this.world.getEffectiveMass(target);
-    const velocityDelta = magnitude * invMass;
+    const velocityDelta = resolvedMagnitude * invMass;
     this.addExternalImpulse(target, nx * velocityDelta, ny * velocityDelta, impulseOptions);
-    const visualForce = Math.abs(magnitude);
+    const visualForce = Math.abs(resolvedMagnitude);
     // Keep the event stream bounded in mass battles. Tiny recoil still affects
     // physics, while meaningful displacement receives explicit presentation.
     if (kind === 'explosion' || visualForce >= 2.4) {
-      const sign = magnitude < 0 ? -1 : 1;
+      const sign = resolvedMagnitude < 0 ? -1 : 1;
       events.push({
         type: 'knockbackApplied',
         tick: this.tickValue,
@@ -1946,11 +2125,16 @@ export class LocalSimulationRunner implements SimulationRunner {
     this.world.vy[target] = (this.world.vy[target] ?? 0) + appliedY;
   }
 
-  private applyStatus(sourceId: EntityId, targetId: EntityId, statusId: string, durationTicks: number, events: SimulationEvent[]): void {
+  private applyStatus(sourceId: EntityId, targetId: EntityId, statusId: string, durationTicks: number, events: SimulationEvent[], stacks = 1): void {
     if (!this.world.isAlive(targetId)) return;
     if (statusId === 'wet') this.world.removeStatus(targetId, 'burn');
-    this.world.applyStatus(targetId, statusId, durationTicks, sourceId);
-    events.push({ type: 'statusApplied', tick: this.tickValue, sourceId, targetId, statusId, durationTicks });
+    const durationMultiplier = this.world.isAlive(sourceId)
+      ? this.world.getLoadout(sourceId).statusDurationMultiplier[statusId] ?? 1
+      : 1;
+    const resolvedDuration = Math.max(1, Math.round(durationTicks * durationMultiplier));
+    const applied = this.world.applyStatus(targetId, statusId, resolvedDuration, sourceId, stacks);
+    if (!applied) return;
+    events.push({ type: 'statusApplied', tick: this.tickValue, sourceId, targetId, statusId, durationTicks: resolvedDuration, stacks: applied.stacks });
   }
 
   private tickStatuses(events: SimulationEvent[]): void {
@@ -1982,7 +2166,8 @@ export class LocalSimulationRunner implements SimulationRunner {
     const sourceDamageScale = sourceId !== null
       ? (this.world.damageScale[sourceId] ?? 1)
       : 1;
-    const amount = Math.max(0, rawAmount * sourceDamageScale * resistance * elementMultiplier);
+    const incomingDamageMultiplier = this.world.getLoadout(targetId).incomingDamageMultiplier;
+    const amount = Math.max(0, rawAmount * sourceDamageScale * resistance * elementMultiplier * incomingDamageMultiplier);
     const prevented = this.trainingRules.enabled && (!this.trainingRules.damageEnabled || this.trainingRules.invulnerableTeams.has(this.world.getTeam(targetId)));
     if (!prevented) this.world.hp[targetId] = Math.max(0, (this.world.hp[targetId] ?? 0) - amount);
     const damageEvent: DamageEvent = {

@@ -1,58 +1,65 @@
 {
   "id": "ranged-gunner",
   "reactionTicks": 5,
-  "aggression": 0.82,
-  "preferredDistance": 370,
-  "retreatHealthRatio": 0.16,
-  "steeringStrength": 1.06,
+  "aggression": 0.84,
+  "preferredDistance": 390,
+  "retreatHealthRatio": 0.18,
+  "steeringStrength": 1.08,
   "movementStyle": "kite",
-  "orbitStrength": 0.42,
-  "wallAvoidance": 1.25,
+  "orbitStrength": 0.48,
+  "wallAvoidance": 1.3,
   "targeting": "lowest-health",
   "allySeparation": 1.15,
   "targetSpread": 1.15,
-  "targetStickiness": 0.82,
+  "targetStickiness": 0.9,
   "abilityUsage": [
     {
       "slot": "basic",
       "everyTicks": 1,
       "phaseTicks": 0,
-      "minDistance": 115,
+      "minDistance": 110,
       "maxDistance": 720,
-      "priority": 8
+      "priority": 10
     },
     {
       "slot": "skill1",
-      "everyTicks": 150,
+      "everyTicks": 108,
       "phaseTicks": 0,
       "minDistance": 0,
-      "maxDistance": 620,
-      "priority": 8
+      "maxDistance": 245,
+      "priority": 25
     },
     {
       "slot": "skill2",
-      "everyTicks": 220,
-      "phaseTicks": 0,
-      "minDistance": 0,
-      "maxDistance": 190,
-      "priority": 12
+      "everyTicks": 168,
+      "phaseTicks": 12,
+      "minDistance": 100,
+      "maxDistance": 620,
+      "priority": 20,
+      "targetStatusId": "target-lock",
+      "maximumTargetStatusStacks": 2
     },
     {
       "slot": "skill3",
-      "everyTicks": 360,
-      "phaseTicks": 0,
-      "minDistance": 0,
-      "maxDistance": 9999,
-      "healthBelow": 0.62,
-      "priority": 18
+      "everyTicks": 228,
+      "phaseTicks": 26,
+      "minDistance": 120,
+      "maxDistance": 760,
+      "priority": 28,
+      "targetStatusId": "target-lock",
+      "minimumTargetStatusStacks": 2,
+      "priorityPerTargetStatusStack": 8
     },
     {
       "slot": "ultimate",
-      "everyTicks": 620,
-      "phaseTicks": 0,
-      "minDistance": 0,
-      "maxDistance": 310,
-      "priority": 24
+      "everyTicks": 600,
+      "phaseTicks": 44,
+      "minDistance": 120,
+      "maxDistance": 820,
+      "priority": 36,
+      "targetStatusId": "target-lock",
+      "minimumTargetStatusStacks": 3,
+      "priorityPerTargetStatusStack": 12
     }
   ]
 }

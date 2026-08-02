@@ -12,6 +12,7 @@ export type Element =
   | 'void';
 
 export type AbilitySlot = 'basic' | 'skill1' | 'skill2' | 'skill3' | 'ultimate';
+export type ModuleSlot = 'offense' | 'defense' | 'mobility' | 'utility';
 export type ControllerKind = 'ai' | 'player' | 'network' | 'replay';
 export type TeamCollisionMode = 'full' | 'soft' | 'ghost';
 export type AbilityPhase = 'ready' | 'casting' | 'armed' | 'cooldown';
@@ -243,6 +244,15 @@ export interface StatusAppliedEvent {
   targetId: EntityId;
   statusId: string;
   durationTicks: number;
+  stacks: number;
+}
+
+export interface PassiveTriggeredEvent {
+  type: 'passiveTriggered';
+  tick: number;
+  entityId: EntityId;
+  passiveId: string;
+  targetId?: EntityId;
 }
 
 /** Emitted when a fighter visibly commits to a skill. */
@@ -311,6 +321,7 @@ export type SimulationEvent =
   | KnockbackAppliedEvent
   | DamageEvent
   | StatusAppliedEvent
+  | PassiveTriggeredEvent
   | AbilityActivatedEvent
   | AbilityResolvedEvent
   | DeathEvent
@@ -345,6 +356,8 @@ export interface WeaponAttackStateSnapshot {
 export interface StatusStateSnapshot {
   statusId: string;
   remainingTicks: number;
+  /** Stack count for marks, chill, heat, and other combo resources. */
+  stacks: number;
 }
 
 export interface EntitySnapshot {
@@ -369,6 +382,8 @@ export interface EntitySnapshot {
   abilities: AbilityStateSnapshot[];
   activeZoneIds: string[];
   statuses: StatusStateSnapshot[];
+  /** Deterministically resolved developer-approved modules equipped for this battle. */
+  moduleIds: string[];
   primaryAttackId: string;
   /** @deprecated Read primaryAttackId. */
   weaponId: string | null;
@@ -455,6 +470,10 @@ export interface ParticipantStatScale {
   speed?: number;
 }
 
+export interface FighterLoadout {
+  moduleIds: string[];
+}
+
 export interface BattleParticipant {
   fighterId: string;
   team: TeamId;
@@ -463,6 +482,7 @@ export interface BattleParticipant {
   spawnZoneId?: string;
   controller?: ControllerKind;
   statScale?: ParticipantStatScale;
+  loadout?: FighterLoadout;
 }
 
 export interface TrainingBattleRules {

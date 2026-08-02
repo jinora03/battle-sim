@@ -1,0 +1,37 @@
+{
+  "id": "pinning-round",
+  "name": "Pinning Round",
+  "slot": "skill3",
+  "cooldownTicks": 228,
+  "castTicks": 16,
+  "castMovementMultiplier": 0.58,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "target",
+    "priority": 90,
+    "minRange": 120,
+    "maxRange": 760,
+    "requiresLineOfSight": true,
+    "minimumTargets": 1,
+    "collisionWindowTicks": 0,
+    "aimToleranceDegrees": 42
+  },
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [
+        { "type": "TARGET_HAS_STATUS", "statusId": "target-lock", "minimumStacks": 2 }
+      ],
+      "actions": [
+        {
+          "type": "LAUNCH_PROJECTILES",
+          "projectileId": "pinning-round-projectile",
+          "count": 1,
+          "pattern": "forward",
+          "spreadDegrees": 0,
+          "targetMode": "selected"
+        }
+      ]
+    }
+  ]
+}

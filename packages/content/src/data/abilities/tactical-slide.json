@@ -1,0 +1,38 @@
+{
+  "id": "tactical-slide",
+  "name": "Tactical Slide",
+  "slot": "skill1",
+  "cooldownTicks": 108,
+  "castTicks": 3,
+  "castMovementMultiplier": 1,
+  "activation": {
+    "intent": "movement",
+    "targeting": "target",
+    "priority": 70,
+    "minRange": 0,
+    "maxRange": 280,
+    "requiresLineOfSight": false,
+    "minimumTargets": 1,
+    "collisionWindowTicks": 0,
+    "aimToleranceDegrees": 180
+  },
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        { "type": "APPLY_IMPULSE_SELF", "magnitude": 12.5, "direction": "backward" },
+        { "type": "APPLY_STATUS_SELF", "statusId": "phased", "durationTicks": 20 },
+        {
+          "type": "LAUNCH_PROJECTILES",
+          "projectileId": "tactical-round",
+          "count": 2,
+          "pattern": "forward",
+          "spreadDegrees": 0,
+          "targetMode": "selected",
+          "intervalTicks": 3
+        }
+      ]
+    }
+  ]
+}

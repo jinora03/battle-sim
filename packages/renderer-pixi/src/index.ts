@@ -3,9 +3,13 @@ import { calculateArenaFit, calculateCameraTarget } from './camera';
 import { classifyBlast, compactMissilePresentationEvents, compactMissileSecondaryPresentationEvents, isMissileCascadeAbility, isMissileCascadeFrame, isMissileWeapon, MissileCascadeTracker, resolveBlastFeedback, resolveUltimateFreezeMs, resolveWeaponHitFreezeMs, shouldPresentDamage } from './combatFeedback';
 import { LayeredVfxEngine } from './layeredVfx';
 import { budgetPresentationEvents, resolveMassBattleRenderPolicy, selectProjectileVisuals } from './massBattlePolicy';
+import { formatDamageNumber, resolveDamageNumberPresentation } from './combatText';
+import { drawMountedAttachments } from './mountedAttachments';
+export * from './combatText';
 export * from './massBattlePolicy';
+export * from './mountedAttachments';
 import { evaluatePlayerAim, resolvePlayerTargetingPreview } from './playerTargeting';
-import { getAbility, getAbilityActivationProfile, getArena, getFighter, getPrimaryAttack, getProjectileSource, type ArenaDefinition, type PrimaryAttackDefinition } from '@kinetic/content';
+import { getAbility, getAbilityActivationProfile, getArena, getAttackSource, getFighter, getPrimaryAttack, getProjectileSource, listMountedAttachments, type ArenaDefinition, type MountedAttachmentDefinition, type PrimaryAttackDefinition } from '@kinetic/content';
 import type { AbilitySlot, EntityId, EntitySnapshot, ProjectileSnapshot, SimulationEvent, Vec2, WorldSnapshot } from '@kinetic/protocol';
 import { resolveCanvasResolution } from '@kinetic/platform';
 import {
@@ -277,7 +281,10 @@ class FxEngine {
         this.flash(event.position?.x ?? 0, event.position?.y ?? 0, color, radius, 0.085);
         this.shardBurst(event.position?.x ?? 0, event.position?.y ?? 0, color, Math.round(Math.min(12, 3 + event.amount * 0.32) * particleScale), 3.8 + Math.min(4, event.amount * 0.12));
       } else if (event.type === 'weaponHit') {
-        const attack = getPrimaryAttack(event.weaponId);
+        // weaponHit is emitted by both fighter primary attacks and skill-owned
+        // projectiles. Resolving only the primary registry throws on the first
+        // Tactical/Suppressive/Pinning/Kill Zone hit and stops the RAF loop.
+        const attack = getAttackSource(event.weaponId);
         const color = primaryAttackColor(attack);
         const count = Math.round(Math.min(24, 8 + event.damage * 0.55) * particleScale);
         this.shardBurst(event.position.x, event.position.y, color, count, 6 + event.knockback * 0.35);
@@ -929,9 +936,15 @@ function drawRingArc(graphics: Graphics, radius: number, start: number, sweep: n
   graphics.stroke({ color, width, alpha, cap: 'round' });
 }
 
+function moduleIdsKey(moduleIds: readonly string[]): string {
+  return moduleIds.join('\u001f');
+}
+
 class FighterView {
   readonly container = new Container();
   private readonly playerMarker = new Graphics();
+  private readonly statusEffects = new Graphics();
+  private readonly attachments = new Graphics();
   private readonly body = new Graphics();
   private readonly damageOverlay = new Graphics();
   private readonly core = new Graphics();
@@ -945,6 +958,8 @@ class FighterView {
   private readonly visual: VisualRecipe;
   private readonly motion: MotionRecipe;
   private readonly weaponDefinition: PrimaryAttackDefinition;
+  private readonly mountedAttachmentDefinitions: readonly MountedAttachmentDefinition[];
+  private readonly equippedModuleIdsKey: string;
   private impact = 0;
   private damageFlash = 0;
   private displayedHpRatio: number;
@@ -956,11 +971,13 @@ class FighterView {
     this.visual = getVisualRecipe(fighter.visualRecipeId);
     this.motion = getMotionRecipe(fighter.animationRecipeId);
     this.weaponDefinition = getPrimaryAttack(entity.primaryAttackId);
+    this.mountedAttachmentDefinitions = listMountedAttachments(entity.moduleIds);
+    this.equippedModuleIdsKey = moduleIdsKey(entity.moduleIds);
     this.profileId = profileId;
     this.lod = lod;
     this.displayedHpRatio = Math.max(0, Math.min(1, entity.hp / Math.max(1, entity.maxHp)));
     this.delayedHpRatio = this.displayedHpRatio;
-    this.container.addChild(this.playerMarker, this.aura, this.body, this.core, this.damageOverlay, this.weapon, this.health, this.velocityVector);
+    this.container.addChild(this.playerMarker, this.statusEffects, this.attachments, this.aura, this.body, this.core, this.damageOverlay, this.weapon, this.health, this.velocityVector);
     this.build();
   }
 
@@ -968,6 +985,7 @@ class FighterView {
     return this.entity.fighterId === entity.fighterId
       && this.entity.primaryAttackId === entity.primaryAttackId
       && this.entity.controller === entity.controller
+      && this.equippedModuleIdsKey === moduleIdsKey(entity.moduleIds)
       && Math.abs(this.entity.radius - entity.radius) < 0.001;
   }
 
@@ -999,7 +1017,15 @@ class FighterView {
     this.impact = Math.max(this.impact, Math.min(1, amount / 24));
   }
 
-  update(entity: EntitySnapshot, alpha: number, elapsedSeconds: number, reducedMotion = false, victory = false): void {
+  update(
+    entity: EntitySnapshot,
+    alpha: number,
+    elapsedSeconds: number,
+    reducedMotion = false,
+    victory = false,
+    showMountedAttachments = true,
+    showFighterHealthRings = true
+  ): void {
     const profile = getRenderProfile(this.profileId);
     const x = entity.prevX + (entity.x - entity.prevX) * alpha;
     const y = entity.prevY + (entity.y - entity.prevY) * alpha;
@@ -1057,13 +1083,16 @@ class FighterView {
     }
 
     const uiAngle = -this.container.rotation;
+    this.updateStatusEffects(entity, elapsedSeconds, uiAngle, reducedMotion);
+    this.attachments.visible = showMountedAttachments;
+    if (showMountedAttachments) this.updateAttachments(entity, elapsedSeconds, uiAngle, reducedMotion);
     this.health.position.set(0, 0);
     this.health.rotation = uiAngle;
-    if (this.profileId === 'standard') {
-      const actualRatio = Math.max(0, Math.min(1, entity.hp / Math.max(1, entity.maxHp)));
-      this.displayedHpRatio += (actualRatio - this.displayedHpRatio) * 0.38;
-      if (actualRatio < this.delayedHpRatio) this.delayedHpRatio += (actualRatio - this.delayedHpRatio) * 0.055;
-      else this.delayedHpRatio = actualRatio;
+    const actualRatio = Math.max(0, Math.min(1, entity.hp / Math.max(1, entity.maxHp)));
+    this.displayedHpRatio += (actualRatio - this.displayedHpRatio) * 0.38;
+    if (actualRatio < this.delayedHpRatio) this.delayedHpRatio += (actualRatio - this.delayedHpRatio) * 0.055;
+    else this.delayedHpRatio = actualRatio;
+    if (showFighterHealthRings && this.profileId === 'standard') {
       const ringRadius = entity.radius * (entity.controller === 'player' ? 1.33 : 1.27);
       const lineWidth = entity.controller === 'player' ? Math.max(4.5, entity.radius * 0.15) : this.lod === 'army' ? 2.2 : Math.max(3.2, entity.radius * 0.115);
       const startAngle = Math.PI * 0.72;
@@ -1090,6 +1119,42 @@ class FighterView {
       this.label.text = `#${entity.id}  hp ${Math.ceil(entity.hp)}\nv ${speed.toFixed(1)} m ${entity.mass.toFixed(1)}`;
       this.label.rotation = uiAngle;
     }
+  }
+
+  private updateStatusEffects(entity: EntitySnapshot, elapsedSeconds: number, uiAngle: number, reducedMotion: boolean): void {
+    this.statusEffects.clear();
+    this.statusEffects.rotation = uiAngle;
+    const targetLock = entity.statuses.find((status) => status.statusId === 'target-lock');
+    if (!targetLock) return;
+
+    const stacks = Math.max(1, Math.min(4, targetLock.stacks));
+    const radius = entity.radius * (this.lod === 'army' ? 1.42 : 1.58);
+    const pulse = reducedMotion ? 1 : 0.78 + Math.sin(elapsedSeconds * 8 + entity.id) * 0.12;
+    const color = stacks >= 4 ? 0xff5a66 : 0x65d8ff;
+    this.statusEffects.circle(0, 0, radius).stroke({ color, width: this.lod === 'army' ? 1.5 : 2.2, alpha: 0.28 + pulse * 0.32 });
+    for (let index = 0; index < stacks; index += 1) {
+      const angle = -Math.PI / 2 + (index / 4) * Math.PI * 2;
+      const tangentX = -Math.sin(angle);
+      const tangentY = Math.cos(angle);
+      const centerX = Math.cos(angle) * radius;
+      const centerY = Math.sin(angle) * radius;
+      const half = entity.radius * 0.22;
+      this.statusEffects
+        .moveTo(centerX - tangentX * half, centerY - tangentY * half)
+        .lineTo(centerX + tangentX * half, centerY + tangentY * half)
+        .stroke({ color, width: this.lod === 'army' ? 2 : 3.2, alpha: 0.72 + pulse * 0.22 });
+    }
+  }
+
+  private updateAttachments(entity: EntitySnapshot, elapsedSeconds: number, uiAngle: number, reducedMotion: boolean): void {
+    drawMountedAttachments(this.attachments, this.mountedAttachmentDefinitions, {
+      entityId: entity.id,
+      radius: entity.radius,
+      elapsedSeconds,
+      counterRotation: uiAngle,
+      reducedMotion,
+      lod: this.lod
+    });
   }
 
   destroy(): void {
@@ -1242,6 +1307,8 @@ class FighterView {
     const profile = getRenderProfile(this.profileId);
     const r = this.entity.radius;
     this.playerMarker.clear();
+    this.statusEffects.clear();
+    this.attachments.clear();
     this.aura.clear();
     this.body.clear();
     this.damageOverlay.clear();
@@ -1594,6 +1661,7 @@ export class PixiBattleRenderer {
       || this.settings?.adaptiveQuality !== settings.adaptiveQuality;
     const followChanged = this.settings?.cameraFollow !== settings.cameraFollow;
     this.settings = { ...settings };
+    if (!this.shouldShowDamageNumbers()) this.clearFloatingCombatTexts();
     if (resolutionChanged && this.initialized) this.queueRendererResize(true);
     if (profileChanged) {
       this.invalidateObstacleCache();
@@ -1621,7 +1689,7 @@ export class PixiBattleRenderer {
   setTrainingDebugOptions(options: Partial<TrainingDebugOptions>): void {
     this.trainingDebug = { ...this.trainingDebug, ...options };
     if (!this.trainingDebug.enabled || !this.trainingDebug.showProjectilePaths) this.projectileDebugHistory.clear();
-    if (!this.trainingDebug.enabled || !this.trainingDebug.showDamageNumbers) this.clearFloatingCombatTexts();
+    if (!this.shouldShowDamageNumbers()) this.clearFloatingCombatTexts();
   }
 
   render(snapshot: WorldSnapshot, alpha: number, events: readonly SimulationEvent[], dtMs: number): RenderDiagnostics {
@@ -1747,7 +1815,15 @@ export class PixiBattleRenderer {
         const damage = this.damageByEntity.get(entity.id) ?? 0;
         if (damage > 0) view.damage(damage);
         this.damageByEntity.delete(entity.id);
-        view.update(entity, alpha, this.elapsedSeconds, this.settings.reducedMotion, snapshot.battleEnded && snapshot.winningTeam === entity.team);
+        view.update(
+          entity,
+          alpha,
+          this.elapsedSeconds,
+          this.settings.reducedMotion,
+          snapshot.battleEnded && snapshot.winningTeam === entity.team,
+          this.settings.showMountedAttachments,
+          this.settings.showFighterHealthRings
+        );
         const hasKnockbackTrail = this.knockbackTrails.has(entity.id);
         if (hasKnockbackTrail || (this.performanceScale >= 0.48 && (snapshot.entities.length <= 24 || entity.controller === 'player' || entity.id % Math.ceil(snapshot.entities.length / 24) === 0))) this.updateTrail(entity, alpha);
       }
@@ -1757,7 +1833,10 @@ export class PixiBattleRenderer {
     else this.layeredFx?.reset();
     this.drawProjectiles(visibleProjectiles, alpha);
     this.drawPlayerTargeting(snapshot, alpha);
-    this.consumeTrainingDamageEvents(events, snapshot);
+    const combatTextEvents = this.trainingDebug.enabled && this.trainingDebug.showDamageNumbers
+      ? events
+      : presentationEvents;
+    this.consumeDamageNumberEvents(combatTextEvents, snapshot);
     this.drawTrainingDebug(snapshot, alpha);
     this.updateFloatingCombatTexts(dtMs);
 
@@ -1983,29 +2062,48 @@ export class PixiBattleRenderer {
     }
   }
 
-  private consumeTrainingDamageEvents(events: readonly SimulationEvent[], snapshot: WorldSnapshot): void {
-    if (!this.trainingDebug.enabled || !this.trainingDebug.showDamageNumbers) return;
-    const entityMap = new Map(snapshot.entities.map((entity) => [entity.id, entity]));
+  private shouldShowDamageNumbers(): boolean {
+    return this.settings?.showDamageNumbers === true
+      || (this.trainingDebug.enabled && this.trainingDebug.showDamageNumbers);
+  }
+
+  private consumeDamageNumberEvents(events: readonly SimulationEvent[], snapshot: WorldSnapshot): void {
+    if (!this.shouldShowDamageNumbers()) return;
+
+    this.entityByIdScratch.clear();
+    for (const entity of snapshot.entities) this.entityByIdScratch.set(entity.id, entity);
+
     for (const event of events) {
-      if (event.type !== 'damage') continue;
-      const target = entityMap.get(event.targetId);
+      if (event.type !== 'damage' || event.amount <= 0) continue;
+      const target = this.entityByIdScratch.get(event.targetId);
       const position = event.position ?? (target ? { x: target.x, y: target.y } : null);
       if (!position) continue;
-      const text = event.prevented ? `TEST ${event.amount.toFixed(1)}` : `-${event.amount.toFixed(1)}`;
+
+      const presentation = resolveDamageNumberPresentation(event.amount, event.prevented === true);
       const node = new Text({
-        text,
+        text: formatDamageNumber(event.amount, event.prevented === true),
         style: {
-          fill: event.prevented ? 0x9ff6ff : 0xffe083,
-          fontSize: 18,
+          fill: presentation.color,
+          fontSize: presentation.fontSize,
           fontWeight: '900',
           fontFamily: 'Inter, system-ui',
-          stroke: { color: 0x07101b, width: 5 }
+          stroke: { color: 0x07101b, width: Math.max(4, Math.round(presentation.fontSize * 0.26)) }
         }
       });
       node.anchor.set(0.5);
+      node.scale.set(presentation.initialScale);
       node.position.set(position.x, position.y - (target?.radius ?? 24) - 18);
       this.combatTextLayer.addChild(node);
-      this.floatingCombatTexts.push({ node, life: 0.9, maxLife: 0.9, rise: 42 });
+      this.floatingCombatTexts.push({
+        node,
+        life: presentation.lifeSeconds,
+        maxLife: presentation.lifeSeconds,
+        rise: presentation.risePerSecond
+      });
+
+      // Keep large battles bounded even when many fighters take damage on the
+      // same rendered frame. Presentation-event budgeting limits creation;
+      // this cap limits retained Pixi text nodes.
       if (this.floatingCombatTexts.length > 40) {
         const oldest = this.floatingCombatTexts.shift();
         oldest?.node.destroy();

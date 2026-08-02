@@ -86,9 +86,11 @@ describe('v0.8 progression and persistent profile', () => {
   it('round-trips portable profile JSON and saves battle loadouts', () => {
     let profile = createDefaultPlayerProfile(1);
     profile = upsertBattlePreset(profile, {
-      name: 'Water Control',
-      fighterAId: 'water-shaper',
+      name: 'Drone Gunner',
+      fighterAId: 'gunner',
       fighterBId: 'bomber',
+      moduleIdsA: ['targeting-drone'],
+      moduleIdsB: [],
       controllerA: 'player',
       controllerB: 'ai',
       arenaId: 'pillar-court',
@@ -101,7 +103,8 @@ describe('v0.8 progression and persistent profile', () => {
     }, 15);
     const restored = parsePlayerProfile(serializePlayerProfile(profile));
     expect(restored.loadouts).toHaveLength(1);
-    expect(restored.loadouts[0]?.name).toBe('Water Control');
+    expect(restored.loadouts[0]?.name).toBe('Drone Gunner');
+    expect(restored.loadouts[0]?.moduleIdsA).toEqual(['targeting-drone']);
     expect(restored.playerId).toBe(profile.playerId);
   });
 });
