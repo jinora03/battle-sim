@@ -2,33 +2,29 @@ import { Application, Container, Graphics, Point, Text } from 'pixi.js';
 import { calculateArenaFit, calculateCameraTarget } from './camera';
 import { classifyBlast, compactMissilePresentationEvents, compactMissileSecondaryPresentationEvents, isMissileCascadeAbility, isMissileCascadeFrame, isMissileWeapon, MissileCascadeTracker, resolveBlastFeedback, resolveUltimateFreezeMs, resolveWeaponHitFreezeMs, shouldPresentDamage } from './combatFeedback';
 import { LayeredVfxEngine } from './layeredVfx';
+import { DamageNumberLayer } from './effects/DamageNumberLayer';
+import { FighterView } from './fighters/FighterView';
+import type { VisualLod } from './fighters/types';
 import { budgetPresentationEvents, resolveMassBattleRenderPolicy, selectProjectileVisuals } from './massBattlePolicy';
-import { formatDamageNumber, resolveDamageNumberPresentation } from './combatText';
-import { drawMountedAttachments } from './mountedAttachments';
 export * from './combatText';
 export * from './massBattlePolicy';
 export * from './mountedAttachments';
 import { evaluatePlayerAim, resolvePlayerTargetingPreview } from './playerTargeting';
-import { getAbility, getAbilityActivationProfile, getArena, getAttackSource, getFighter, getPrimaryAttack, getProjectileSource, listMountedAttachments, type ArenaDefinition, type MountedAttachmentDefinition, type PrimaryAttackDefinition } from '@kinetic/content';
+import { getAbility, getAbilityActivationProfile, getArena, getAttackSource, getFighter, getPrimaryAttack, getProjectileSource, type ArenaDefinition, type PrimaryAttackDefinition } from '@kinetic/content';
 import type { AbilitySlot, EntityId, EntitySnapshot, ProjectileSnapshot, SimulationEvent, Vec2, WorldSnapshot } from '@kinetic/protocol';
 import { resolveCanvasResolution } from '@kinetic/platform';
 import {
-  computeMotionPose,
   elementColor,
-  getMotionRecipe,
   getRenderProfile,
   getSkillPresentation,
-  getVisualRecipe,
   resolveImpactResponse,
   resolveVfxQuality,
-  type MotionRecipe,
   type PresentationSettings,
-  type SkillPresentationRecipe,
-  type VisualRecipe
+  type SkillPresentationRecipe
 } from '@kinetic/visual-engine';
 
 
-export type VisualLod = 'hero' | 'standard' | 'army';
+export type { VisualLod } from './fighters/types';
 export interface RenderDiagnostics {
   lod: VisualLod;
   fighterViews: number;
@@ -69,12 +65,6 @@ export interface TrainingDebugOptions {
   showDamageNumbers: boolean;
 }
 
-interface FloatingCombatTextState {
-  node: Text;
-  life: number;
-  maxLife: number;
-  rise: number;
-}
 
 interface KnockbackTrailState {
   life: number;
@@ -922,461 +912,6 @@ function elapsedAngle(progress: number, index: number, direction: number): numbe
   return progress * Math.PI * 5 * direction + (index / 8) * Math.PI * 2;
 }
 
-function drawRingArc(graphics: Graphics, radius: number, start: number, sweep: number, ratio: number, color: number, width: number, alpha: number): void {
-  const clamped = Math.max(0, Math.min(1, ratio));
-  if (clamped <= 0) return;
-  const steps = Math.max(4, Math.ceil(36 * clamped));
-  for (let index = 0; index <= steps; index += 1) {
-    const angle = start + sweep * clamped * (index / steps);
-    const x = Math.cos(angle) * radius;
-    const y = Math.sin(angle) * radius;
-    if (index === 0) graphics.moveTo(x, y);
-    else graphics.lineTo(x, y);
-  }
-  graphics.stroke({ color, width, alpha, cap: 'round' });
-}
-
-function moduleIdsKey(moduleIds: readonly string[]): string {
-  return moduleIds.join('\u001f');
-}
-
-class FighterView {
-  readonly container = new Container();
-  private readonly playerMarker = new Graphics();
-  private readonly statusEffects = new Graphics();
-  private readonly attachments = new Graphics();
-  private readonly body = new Graphics();
-  private readonly damageOverlay = new Graphics();
-  private readonly core = new Graphics();
-  private readonly aura = new Graphics();
-  private readonly weapon = new Graphics();
-  private readonly velocityVector = new Graphics();
-  private readonly health = new Graphics();
-  private label: Text | null = null;
-  private profileId: PresentationSettings['renderProfile'];
-  private lod: VisualLod;
-  private readonly visual: VisualRecipe;
-  private readonly motion: MotionRecipe;
-  private readonly weaponDefinition: PrimaryAttackDefinition;
-  private readonly mountedAttachmentDefinitions: readonly MountedAttachmentDefinition[];
-  private readonly equippedModuleIdsKey: string;
-  private impact = 0;
-  private damageFlash = 0;
-  private displayedHpRatio: number;
-  private delayedHpRatio: number;
-  private lastHealthRenderKey = '';
-
-  constructor(private readonly entity: EntitySnapshot, profileId: PresentationSettings['renderProfile'], lod: VisualLod) {
-    const fighter = getFighter(entity.fighterId);
-    this.visual = getVisualRecipe(fighter.visualRecipeId);
-    this.motion = getMotionRecipe(fighter.animationRecipeId);
-    this.weaponDefinition = getPrimaryAttack(entity.primaryAttackId);
-    this.mountedAttachmentDefinitions = listMountedAttachments(entity.moduleIds);
-    this.equippedModuleIdsKey = moduleIdsKey(entity.moduleIds);
-    this.profileId = profileId;
-    this.lod = lod;
-    this.displayedHpRatio = Math.max(0, Math.min(1, entity.hp / Math.max(1, entity.maxHp)));
-    this.delayedHpRatio = this.displayedHpRatio;
-    this.container.addChild(this.playerMarker, this.statusEffects, this.attachments, this.aura, this.body, this.core, this.damageOverlay, this.weapon, this.health, this.velocityVector);
-    this.build();
-  }
-
-  matches(entity: EntitySnapshot): boolean {
-    return this.entity.fighterId === entity.fighterId
-      && this.entity.primaryAttackId === entity.primaryAttackId
-      && this.entity.controller === entity.controller
-      && this.equippedModuleIdsKey === moduleIdsKey(entity.moduleIds)
-      && Math.abs(this.entity.radius - entity.radius) < 0.001;
-  }
-
-  prepareForReuse(): void {
-    this.impact = 0;
-    this.damageFlash = 0;
-    this.container.visible = true;
-    this.weapon.position.set(0, 0);
-  }
-
-  setProfile(profileId: PresentationSettings['renderProfile']): void {
-    if (profileId === this.profileId) return;
-    this.profileId = profileId;
-    this.build();
-  }
-
-  setLod(lod: VisualLod): void {
-    if (lod === this.lod) return;
-    this.lod = lod;
-    this.build();
-  }
-
-  hit(magnitude: number): void {
-    this.impact = Math.max(this.impact, Math.min(1, magnitude / 18));
-  }
-
-  damage(amount: number): void {
-    this.damageFlash = Math.max(this.damageFlash, Math.min(1, 0.72 + amount / 24));
-    this.impact = Math.max(this.impact, Math.min(1, amount / 24));
-  }
-
-  update(
-    entity: EntitySnapshot,
-    alpha: number,
-    elapsedSeconds: number,
-    reducedMotion = false,
-    victory = false,
-    showMountedAttachments = true,
-    showFighterHealthRings = true
-  ): void {
-    const profile = getRenderProfile(this.profileId);
-    const x = entity.prevX + (entity.x - entity.prevX) * alpha;
-    const y = entity.prevY + (entity.y - entity.prevY) * alpha;
-    const speed = Math.hypot(entity.vx, entity.vy);
-    const pose = reducedMotion ? { scaleX: 1, scaleY: 1 } : computeMotionPose(this.motion, { speed, impact: this.impact, elapsedSeconds });
-    const cast = entity.abilities.find((ability) => ability.source === 'ability' && ability.phase === 'casting');
-    const castRecipe = cast ? getSkillPresentation(cast.abilityId) : null;
-    const castProgress = cast && cast.castTotalTicks > 0 ? 1 - cast.castRemainingTicks / cast.castTotalTicks : 0;
-    const castPulse = cast ? Math.sin(castProgress * Math.PI * 8) : 0;
-    let castScaleX = 1;
-    let castScaleY = 1;
-    let rotationOffset = 0;
-    let jitterX = 0;
-    let jitterY = 0;
-    if (castRecipe && !reducedMotion) {
-      switch (castRecipe.motion) {
-        case 'stream': castScaleX = 1.16 + castProgress * 0.16; castScaleY = 0.92; break;
-        case 'compress': castScaleX = 1.08 + castProgress * 0.1; castScaleY = 0.92 - castProgress * 0.08; break;
-        case 'vortex': rotationOffset = castProgress * Math.PI * 1.2; castScaleX = castScaleY = 1 + Math.sin(castProgress * Math.PI) * 0.08; break;
-        case 'gather': castScaleX = castScaleY = 1 - castProgress * 0.12 + Math.abs(castPulse) * 0.04; break;
-        case 'rocket': castScaleX = 1.12 + castProgress * 0.18; castScaleY = 0.88; break;
-        case 'brace': castScaleX = 1.14; castScaleY = 0.86; break;
-        case 'spin': rotationOffset = castProgress * Math.PI * 3.5; break;
-        case 'tremble': jitterX = Math.sin(elapsedSeconds * 70) * (1 + castProgress * 4); jitterY = Math.cos(elapsedSeconds * 83) * (1 + castProgress * 3); castScaleX = castScaleY = 1 + castProgress * 0.12; break;
-        case 'overdrive': rotationOffset = Math.sin(elapsedSeconds * 18) * 0.08; castScaleX = castScaleY = 1 + castProgress * 0.18 + Math.abs(castPulse) * 0.06; break;
-        case 'fuse-pop': castScaleX = castScaleY = 1.08; break;
-        case 'snap': castScaleX = 1.12; castScaleY = 0.92; break;
-      }
-    }
-    this.impact *= 0.86;
-
-    const victoryLift = victory && !reducedMotion ? Math.sin(elapsedSeconds * 2.6) * 2.2 - 3 : 0;
-    const victoryPulse = victory && !reducedMotion ? 1 + Math.sin(elapsedSeconds * 3.2) * 0.025 : 1;
-    this.container.x = x + jitterX;
-    this.container.y = y + jitterY + victoryLift;
-    const weaponAttack = entity.weaponAttack;
-    const attackFacing = weaponAttack ? Math.atan2(weaponAttack.direction.y, weaponAttack.direction.x) : null;
-    const castFacing = cast?.castDirection ? Math.atan2(cast.castDirection.y, cast.castDirection.x) : null;
-    if (this.profileId !== 'debug') this.container.rotation = (castFacing ?? attackFacing ?? entity.rotation) + rotationOffset;
-    else this.container.rotation = 0;
-    this.container.scale.set(pose.scaleX * castScaleX * victoryPulse, pose.scaleY * castScaleY * victoryPulse);
-    this.updateWeaponPose(weaponAttack, reducedMotion);
-    this.damageFlash *= reducedMotion ? 0.84 : 0.925;
-    const damagePulse = Math.max(0, this.damageFlash);
-    this.damageOverlay.alpha = Math.min(1, damagePulse * 1.18);
-    this.damageOverlay.scale.set(1 + damagePulse * 0.18);
-    this.core.alpha = 1 - damagePulse * 0.72;
-    this.core.scale.set(castRecipe ? 1 + castProgress * (castRecipe.importance === 'ultimate' ? 0.55 : 0.24) : 1);
-    this.aura.scale.set(castRecipe ? 1 + castProgress * 0.18 : 1);
-    this.aura.alpha = castRecipe ? 0.75 + Math.abs(castPulse) * 0.25 : 1;
-
-    this.velocityVector.clear();
-    if (profile.showVelocityVectors) {
-      this.velocityVector.moveTo(0, 0).lineTo(entity.vx * 8, entity.vy * 8).stroke({ color: 0x6dff9a, width: 2, alpha: 0.9 });
-    }
-
-    const uiAngle = -this.container.rotation;
-    this.updateStatusEffects(entity, elapsedSeconds, uiAngle, reducedMotion);
-    this.attachments.visible = showMountedAttachments;
-    if (showMountedAttachments) this.updateAttachments(entity, elapsedSeconds, uiAngle, reducedMotion);
-    this.health.position.set(0, 0);
-    this.health.rotation = uiAngle;
-    const actualRatio = Math.max(0, Math.min(1, entity.hp / Math.max(1, entity.maxHp)));
-    this.displayedHpRatio += (actualRatio - this.displayedHpRatio) * 0.38;
-    if (actualRatio < this.delayedHpRatio) this.delayedHpRatio += (actualRatio - this.delayedHpRatio) * 0.055;
-    else this.delayedHpRatio = actualRatio;
-    if (showFighterHealthRings && this.profileId === 'standard') {
-      const ringRadius = entity.radius * (entity.controller === 'player' ? 1.33 : 1.27);
-      const lineWidth = entity.controller === 'player' ? Math.max(4.5, entity.radius * 0.15) : this.lod === 'army' ? 2.2 : Math.max(3.2, entity.radius * 0.115);
-      const startAngle = Math.PI * 0.72;
-      const sweep = Math.PI * 1.56;
-      const pulseStep = actualRatio <= 0.25 && this.lod !== 'army' ? Math.round((0.4 + Math.sin(elapsedSeconds * 8) * 0.18) * 20) : 0;
-      const healthKey = `${Math.round(this.displayedHpRatio * 160)}:${Math.round(this.delayedHpRatio * 160)}:${Math.round(actualRatio * 160)}:${pulseStep}:${this.lod}:${entity.controller}`;
-      if (healthKey !== this.lastHealthRenderKey) {
-        this.lastHealthRenderKey = healthKey;
-        this.health.clear();
-        drawRingArc(this.health, ringRadius, startAngle, sweep, 1, 0x111722, lineWidth + 2, this.lod === 'army' ? 0.55 : 0.88);
-        if (this.delayedHpRatio > actualRatio + 0.01) drawRingArc(this.health, ringRadius, startAngle, sweep, this.delayedHpRatio, 0xffc65a, lineWidth, 0.82);
-        const hpColor = actualRatio > 0.58 ? 0x72f29a : actualRatio > 0.28 ? 0xffc45f : 0xff4f58;
-        drawRingArc(this.health, ringRadius, startAngle, sweep, this.displayedHpRatio, hpColor, lineWidth, 0.98);
-        if (actualRatio <= 0.25 && this.lod !== 'army') {
-          drawRingArc(this.health, ringRadius + lineWidth * 0.8, startAngle, sweep, actualRatio, 0xff5860, 1.8, pulseStep / 20);
-        }
-      }
-    } else if (this.lastHealthRenderKey !== 'hidden') {
-      this.lastHealthRenderKey = 'hidden';
-      this.health.clear();
-    }
-
-    if (this.label) {
-      this.label.text = `#${entity.id}  hp ${Math.ceil(entity.hp)}\nv ${speed.toFixed(1)} m ${entity.mass.toFixed(1)}`;
-      this.label.rotation = uiAngle;
-    }
-  }
-
-  private updateStatusEffects(entity: EntitySnapshot, elapsedSeconds: number, uiAngle: number, reducedMotion: boolean): void {
-    this.statusEffects.clear();
-    this.statusEffects.rotation = uiAngle;
-    const targetLock = entity.statuses.find((status) => status.statusId === 'target-lock');
-    if (!targetLock) return;
-
-    const stacks = Math.max(1, Math.min(4, targetLock.stacks));
-    const radius = entity.radius * (this.lod === 'army' ? 1.42 : 1.58);
-    const pulse = reducedMotion ? 1 : 0.78 + Math.sin(elapsedSeconds * 8 + entity.id) * 0.12;
-    const color = stacks >= 4 ? 0xff5a66 : 0x65d8ff;
-    this.statusEffects.circle(0, 0, radius).stroke({ color, width: this.lod === 'army' ? 1.5 : 2.2, alpha: 0.28 + pulse * 0.32 });
-    for (let index = 0; index < stacks; index += 1) {
-      const angle = -Math.PI / 2 + (index / 4) * Math.PI * 2;
-      const tangentX = -Math.sin(angle);
-      const tangentY = Math.cos(angle);
-      const centerX = Math.cos(angle) * radius;
-      const centerY = Math.sin(angle) * radius;
-      const half = entity.radius * 0.22;
-      this.statusEffects
-        .moveTo(centerX - tangentX * half, centerY - tangentY * half)
-        .lineTo(centerX + tangentX * half, centerY + tangentY * half)
-        .stroke({ color, width: this.lod === 'army' ? 2 : 3.2, alpha: 0.72 + pulse * 0.22 });
-    }
-  }
-
-  private updateAttachments(entity: EntitySnapshot, elapsedSeconds: number, uiAngle: number, reducedMotion: boolean): void {
-    drawMountedAttachments(this.attachments, this.mountedAttachmentDefinitions, {
-      entityId: entity.id,
-      radius: entity.radius,
-      elapsedSeconds,
-      counterRotation: uiAngle,
-      reducedMotion,
-      lod: this.lod
-    });
-  }
-
-  destroy(): void {
-    this.container.destroy({ children: true });
-  }
-
-  private updateWeaponPose(attack: EntitySnapshot['weaponAttack'], reducedMotion: boolean): void {
-    const r = this.entity.radius;
-    // The weapon pivot is the exact fighter center. This keeps every weapon
-    // aligned with the circular body regardless of facing direction.
-    const socketX = 0;
-    const socketY = 0;
-    this.weapon.position.set(socketX, socketY);
-    this.weapon.scale.set(1);
-    // Primary attacks are deliberately stable while idle. Only an explicit
-    // spin/orbit behavior is allowed to rotate, and only during its attack.
-    if (!attack || reducedMotion) {
-      this.weapon.rotation = 0;
-      return;
-    }
-    const progress = 1 - attack.remainingTicks / Math.max(1, attack.totalTicks);
-    const eased = progress * progress * (3 - 2 * progress);
-    switch (attack.style) {
-      case 'swing':
-        this.weapon.rotation = attack.phase === 'windup' ? -1.2 + eased * 0.42 : attack.phase === 'active' ? -0.78 + eased * 2.28 : 1.5 - eased * 1.5;
-        break;
-      case 'thrust':
-        this.weapon.rotation = 0;
-        this.weapon.x = socketX + (attack.phase === 'windup' ? -r * 0.28 * eased : attack.phase === 'active' ? r * 0.78 * Math.sin(progress * Math.PI) : r * 0.28 * (1 - eased));
-        break;
-      case 'overhead':
-      case 'slam':
-        this.weapon.rotation = attack.phase === 'windup' ? -1.55 + eased * 0.3 : attack.phase === 'active' ? -1.25 + eased * 1.9 : 0.65 - eased * 0.65;
-        break;
-      case 'spin':
-      case 'orbit':
-        this.weapon.rotation = attack.phase === 'active' ? progress * Math.PI * 5 : attack.phase === 'windup' ? -0.45 * eased : 0;
-        break;
-      case 'shot':
-      case 'burst':
-      case 'stream':
-        this.weapon.rotation = 0;
-        this.weapon.x = socketX + (attack.phase === 'active' ? -r * 0.22 * Math.sin(progress * Math.PI * 2) : 0);
-        break;
-      case 'lob':
-        this.weapon.rotation = attack.phase === 'windup' ? -0.95 * eased : attack.phase === 'active' ? -0.95 + eased * 1.9 : 0.95 - eased * 0.95;
-        this.weapon.y = socketY + (attack.phase === 'windup' ? -r * 0.2 * eased : 0);
-        break;
-      default:
-        this.weapon.rotation = 0;
-    }
-  }
-
-  private drawConfiguredWeapon(r: number, attack: PrimaryAttackDefinition): void {
-    const accent = this.visual.accentColor;
-    const core = this.visual.coreColor;
-    const size = r * attack.visualScale;
-
-    if (attack.form === 'fire') {
-      this.weapon.circle(size * 0.58, 0, size * 0.28).fill({ color: 0xff5b28, alpha: 0.92 });
-      this.weapon.circle(size * 0.67, -size * 0.08, size * 0.18).fill({ color: 0xffb33d, alpha: 0.96 });
-      this.weapon.moveTo(size * 0.52, -size * 0.22).lineTo(size * 0.82, -size * 0.52).lineTo(size * 0.76, -size * 0.08).fill({ color: 0xffe16f, alpha: 0.9 });
-      return;
-    }
-    if (attack.form === 'water') {
-      this.weapon.circle(size * 0.7, 0, size * 0.28).fill({ color: 0x4fd3ff, alpha: 0.72 });
-      this.weapon.circle(size * 0.7, 0, size * 0.31).stroke({ color: 0xc9f8ff, width: Math.max(2, r * 0.1), alpha: 0.85 });
-      this.weapon.circle(size * 0.61, -size * 0.09, size * 0.08).fill({ color: 0xffffff, alpha: 0.72 });
-      return;
-    }
-    if (attack.form === 'lightning') {
-      this.weapon.circle(size * 0.48, 0, size * 0.23).fill({ color: 0xffef4e, alpha: 0.95 });
-      this.weapon.circle(size * 0.48, 0, size * 0.32).stroke({ color: 0x8df6ff, width: 3, alpha: 0.8 });
-      this.weapon.moveTo(size * 0.68, -size * 0.2).lineTo(size * 0.58, 0).lineTo(size * 0.84, -size * 0.03).lineTo(size * 0.72, size * 0.22).stroke({ color: 0xffffff, width: 3, alpha: 0.95 });
-      return;
-    }
-    if (attack.form === 'gauntlet') {
-      this.weapon.rect(size * 0.18, -size * 0.22, size * 0.62, size * 0.44).fill({ color: 0x334657, alpha: 1 });
-      this.weapon.rect(size * 0.62, -size * 0.32, size * 0.42, size * 0.64).fill({ color: accent, alpha: 0.95 });
-      this.weapon.rect(size * 0.28, -size * 0.08, size * 0.42, size * 0.16).fill({ color: core, alpha: 0.9 });
-      return;
-    }
-    if (attack.form === 'rifle') {
-      this.weapon.moveTo(size * 0.05, 0).lineTo(size * 0.3, 0).stroke({ color: 0x26303b, width: Math.max(10, r * 0.45), alpha: 1 });
-      this.weapon.rect(size * 0.22, -size * 0.11, size * 0.78, size * 0.22).fill({ color: 0x202a34, alpha: 1 });
-      this.weapon.rect(size * 0.34, -size * 0.065, size * 0.48, size * 0.13).fill({ color: accent, alpha: 0.85 });
-      this.weapon.moveTo(size * 0.96, 0).lineTo(size * 1.28, 0).stroke({ color: core, width: Math.max(3, r * 0.13), alpha: 0.98 });
-      this.weapon.moveTo(size * 0.55, size * 0.11).lineTo(size * 0.62, size * 0.35).lineTo(size * 0.76, size * 0.11).fill({ color: 0x111820, alpha: 0.96 });
-      return;
-    }
-    if (attack.form === 'launcher') {
-      if (attack.visualId.includes('rocket')) {
-        this.weapon.rect(size * 0.08, -size * 0.19, size * 0.98, size * 0.38).fill({ color: 0x29343d, alpha: 1 });
-        this.weapon.rect(size * 0.18, -size * 0.12, size * 0.72, size * 0.24).fill({ color: accent, alpha: 0.8 });
-        this.weapon.circle(size * 1.03, 0, size * 0.22).stroke({ color: 0xffc15d, width: Math.max(3, r * 0.11), alpha: 0.95 });
-        this.weapon.moveTo(size * 0.16, size * 0.18).lineTo(size * 0.03, size * 0.38).lineTo(size * 0.35, size * 0.19).fill({ color: 0x171f27, alpha: 1 });
-      } else {
-        const x = size * 0.66;
-        this.weapon.circle(x, 0, size * 0.26).fill({ color: 0x171a22, alpha: 1 });
-        this.weapon.circle(x, 0, size * 0.22).stroke({ color: 0xff883a, width: 3, alpha: 0.92 });
-        this.weapon.moveTo(x + size * 0.14, -size * 0.14).lineTo(x + size * 0.28, -size * 0.34).stroke({ color: 0xcab58e, width: 3, alpha: 0.95 });
-        this.weapon.circle(x + size * 0.29, -size * 0.35, Math.max(3, r * 0.13)).fill({ color: 0xffd05a, alpha: 1 });
-      }
-      return;
-    }
-    if (attack.form === 'claws') {
-      for (let index = -1; index <= 1; index += 1) {
-        this.weapon.moveTo(size * 0.12, index * size * 0.1).lineTo(size * 0.94, index * size * 0.15 - size * 0.08).stroke({ color: index === 0 ? core : accent, width: Math.max(4, r * 0.15), alpha: 0.94 });
-      }
-      return;
-    }
-    if (attack.form === 'void') {
-      const end = size * 0.92;
-      this.weapon.moveTo(size * 0.12, size * 0.1).lineTo(end * 0.72, 0).stroke({ color: 0x58307f, width: Math.max(5, r * 0.18), alpha: 0.98 });
-      this.weapon.moveTo(end * 0.62, 0).quadraticCurveTo(end, -size * 0.55, end * 1.18, -size * 0.12).lineTo(end * 0.88, size * 0.02).quadraticCurveTo(end * 0.78, -size * 0.25, end * 0.62, 0).fill({ color: accent, alpha: 0.94 });
-      return;
-    }
-    if (attack.form === 'axe' || attack.form === 'hammer') {
-      const end = size * 0.92;
-      this.weapon.moveTo(size * 0.08, 0).lineTo(end, 0).stroke({ color: attack.form === 'axe' ? 0xc5f4ff : 0x8095a5, width: Math.max(5, r * 0.18), alpha: 0.97 });
-      if (attack.form === 'axe') {
-        this.weapon.moveTo(end - size * 0.08, -size * 0.34).lineTo(end + size * 0.18, 0).lineTo(end - size * 0.08, size * 0.34).lineTo(end - size * 0.22, 0).fill({ color: 0x8ee9ff, alpha: 0.94 });
-      } else {
-        this.weapon.rect(end - size * 0.12, -size * 0.25, size * 0.35, size * 0.5).fill({ color: accent, alpha: 0.96 });
-      }
-      return;
-    }
-    if (attack.form === 'spear') {
-      const end = size * 1.04;
-      this.weapon.moveTo(size * 0.04, 0).lineTo(end, 0).stroke({ color: 0xa9c7d7, width: Math.max(6, r * 0.19), alpha: 0.98 });
-      this.weapon.moveTo(end, 0).lineTo(end - size * 0.24, -size * 0.18).lineTo(end - size * 0.14, 0).lineTo(end - size * 0.24, size * 0.18).lineTo(end, 0).fill({ color: core, alpha: 0.98 });
-      return;
-    }
-    // Sword and shield-compatible fallback: oversized handle, guard and broad blade for readability.
-    const handleStart = -size * 0.2;
-    const guardX = size * 0.14;
-    const end = size * 1.04;
-    this.weapon.moveTo(handleStart, 0).lineTo(guardX, 0).stroke({ color: 0x5a3624, width: Math.max(7, r * 0.22), alpha: 1 });
-    this.weapon.circle(handleStart, 0, Math.max(4, r * 0.13)).fill({ color: 0xd9ad5e, alpha: 0.98 });
-    this.weapon.moveTo(guardX, -size * 0.24).lineTo(guardX, size * 0.24).stroke({ color: core, width: Math.max(5, r * 0.16), alpha: 1 });
-    this.weapon.moveTo(guardX + size * 0.04, -size * 0.13).lineTo(end - size * 0.12, -size * 0.17).lineTo(end + size * 0.18, 0).lineTo(end - size * 0.12, size * 0.17).lineTo(guardX + size * 0.04, size * 0.13).fill({ color: accent, alpha: 0.98 });
-    this.weapon.moveTo(guardX + size * 0.12, 0).lineTo(end, 0).stroke({ color: 0xffffff, width: Math.max(2, r * 0.06), alpha: 0.55 });
-  }
-
-  private drawIdentityWeaponSilhouette(r: number, attack: PrimaryAttackDefinition): void {
-    this.drawConfiguredWeapon(r * 0.8, attack);
-  }
-
-  private build(): void {
-    const profile = getRenderProfile(this.profileId);
-    const r = this.entity.radius;
-    this.playerMarker.clear();
-    this.statusEffects.clear();
-    this.attachments.clear();
-    this.aura.clear();
-    this.body.clear();
-    this.damageOverlay.clear();
-    this.core.clear();
-    this.weapon.clear();
-    this.velocityVector.clear();
-    this.health.clear();
-    this.lastHealthRenderKey = '';
-    if (this.label) { this.label.destroy(); this.label = null; }
-
-    if (this.entity.controller === 'player') {
-      this.playerMarker.circle(0, 0, r * 1.48).stroke({ color: 0xffffff, width: 2.2, alpha: 0.48 });
-    }
-
-    if (profile.showCharacterLayers && this.lod !== 'army') {
-      if (this.lod === 'hero') {
-        this.aura.circle(0, 0, r * 1.32).fill({ color: this.visual.auraColor, alpha: 0.07 });
-        this.aura.circle(0, 0, r * 1.1).stroke({ color: this.visual.auraColor, width: 3, alpha: 0.36 });
-      }
-      this.body.circle(0, 0, r).fill({ color: this.visual.bodyDarkColor, alpha: 1 });
-      this.body.circle(0, 0, r * 0.88).fill({ color: this.visual.bodyColor, alpha: this.visual.shape === 'water' ? 0.78 : 1 });
-
-      if (this.visual.shape === 'mech') {
-        this.body.rect(-r * 0.78, -r * 0.22, r * 1.56, r * 0.44).fill({ color: this.visual.accentColor, alpha: 0.28 });
-        this.body.rect(-r * 0.22, -r * 0.78, r * 0.44, r * 1.56).fill({ color: this.visual.accentColor, alpha: 0.2 });
-      } else if (this.visual.shape === 'water') {
-        this.body.circle(-r * 0.2, -r * 0.14, r * 0.56).fill({ color: 0x72dfff, alpha: 0.18 });
-        this.body.circle(r * 0.27, r * 0.16, r * 0.43).fill({ color: 0x0b5f9b, alpha: 0.25 });
-        this.body.circle(0, 0, r * 0.7).stroke({ color: this.visual.accentColor, width: 2, alpha: 0.52 });
-      } else if (this.visual.shape === 'bomber') {
-        this.body.circle(0, 0, r * 0.68).stroke({ color: this.visual.accentColor, width: 3, alpha: 0.45 });
-        for (let i = -2; i <= 2; i += 1) {
-          const offset = i * r * 0.28;
-          this.body.moveTo(offset - r * 0.13, r * 0.58).lineTo(offset + r * 0.13, r * 0.78).stroke({ color: this.visual.accentColor, width: 3, alpha: 0.72 });
-        }
-      }
-
-      this.damageOverlay.circle(0, 0, r * 0.98).fill({ color: 0xff172f, alpha: 0.98 });
-      this.damageOverlay.circle(0, 0, r * 1.08).stroke({ color: 0xff5364, width: Math.max(4, r * 0.16), alpha: 0.94 });
-      this.damageOverlay.circle(-r * 0.24, -r * 0.24, r * 0.46).fill({ color: 0xffffff, alpha: 0.42 });
-      this.damageOverlay.alpha = 0;
-      this.core.circle(0, 0, r * 0.3).fill({ color: this.visual.coreColor, alpha: 1 });
-      this.core.circle(0, 0, r * 0.5).stroke({ color: this.visual.coreColor, width: 2, alpha: 0.42 });
-      if (this.visual.horns && this.lod === 'hero') {
-        this.body.moveTo(-r * 0.6, -r * 0.55).lineTo(-r * 0.92, -r * 1.02).stroke({ color: this.visual.accentColor, width: 5, alpha: 0.95 });
-        this.body.moveTo(r * 0.6, -r * 0.55).lineTo(r * 0.92, -r * 1.02).stroke({ color: this.visual.accentColor, width: 5, alpha: 0.95 });
-      }
-      this.drawConfiguredWeapon(r, this.weaponDefinition);
-    } else {
-      const color = this.visual.bodyColor;
-      this.body.circle(0, 0, r).fill({ color, alpha: this.lod === 'army' || this.profileId === 'minimal' ? 0.9 : 0.08 });
-      this.body.circle(0, 0, r).stroke({ color: this.profileId === 'debug' ? 0xffffff : this.visual.accentColor, width: this.profileId === 'debug' ? 2 : 3, alpha: 0.95 });
-      this.core.circle(0, 0, Math.max(3, r * 0.25)).fill({ color: this.visual.coreColor, alpha: 1 });
-      this.body.moveTo(-r * 0.45, -r * 0.52).lineTo(r * 0.36, r * 0.5).stroke({ color: this.visual.bodyDarkColor, width: Math.max(2, r * 0.13), alpha: 0.62 });
-      this.damageOverlay.circle(0, 0, r).fill({ color: 0xff1730, alpha: 0.98 });
-      this.damageOverlay.circle(0, 0, r * 1.08).stroke({ color: 0xff5a68, width: Math.max(3, r * 0.14), alpha: 0.92 });
-      this.damageOverlay.alpha = 0;
-      this.drawIdentityWeaponSilhouette(r, this.weaponDefinition);
-    }
-
-    if (profile.showLabels && this.lod !== 'army') {
-      this.label = new Text({ text: `#${this.entity.id}`, style: { fill: 0xffffff, fontSize: 12, fontFamily: 'monospace' } });
-      this.label.x = this.entity.radius + 8;
-      this.label.y = -this.entity.radius - 8;
-      this.container.addChild(this.label);
-    }
-  }
-}
 
 export class PixiBattleRenderer {
   private readonly app = new Application();
@@ -1412,7 +947,7 @@ export class PixiBattleRenderer {
   private readonly trailHistory = new Map<EntityId, Array<{ x: number; y: number }>>();
   private readonly knockbackTrails = new Map<EntityId, KnockbackTrailState>();
   private readonly projectileDebugHistory = new Map<number, Array<{ x: number; y: number }>>();
-  private readonly floatingCombatTexts: FloatingCombatTextState[] = [];
+  private readonly damageNumbers = new DamageNumberLayer(this.combatTextLayer);
   private fx: FxEngine | null = null;
   private layeredFx: LayeredVfxEngine | null = null;
   private legacyFxSuppressed = false;
@@ -1661,7 +1196,7 @@ export class PixiBattleRenderer {
       || this.settings?.adaptiveQuality !== settings.adaptiveQuality;
     const followChanged = this.settings?.cameraFollow !== settings.cameraFollow;
     this.settings = { ...settings };
-    if (!this.shouldShowDamageNumbers()) this.clearFloatingCombatTexts();
+    if (!this.shouldShowDamageNumbers()) this.damageNumbers.clear();
     if (resolutionChanged && this.initialized) this.queueRendererResize(true);
     if (profileChanged) {
       this.invalidateObstacleCache();
@@ -1689,7 +1224,7 @@ export class PixiBattleRenderer {
   setTrainingDebugOptions(options: Partial<TrainingDebugOptions>): void {
     this.trainingDebug = { ...this.trainingDebug, ...options };
     if (!this.trainingDebug.enabled || !this.trainingDebug.showProjectilePaths) this.projectileDebugHistory.clear();
-    if (!this.shouldShowDamageNumbers()) this.clearFloatingCombatTexts();
+    if (!this.shouldShowDamageNumbers()) this.damageNumbers.clear();
   }
 
   render(snapshot: WorldSnapshot, alpha: number, events: readonly SimulationEvent[], dtMs: number): RenderDiagnostics {
@@ -1836,9 +1371,9 @@ export class PixiBattleRenderer {
     const combatTextEvents = this.trainingDebug.enabled && this.trainingDebug.showDamageNumbers
       ? events
       : presentationEvents;
-    this.consumeDamageNumberEvents(combatTextEvents, snapshot);
+    this.damageNumbers.consume(combatTextEvents, snapshot, this.shouldShowDamageNumbers());
     this.drawTrainingDebug(snapshot, alpha);
-    this.updateFloatingCombatTexts(dtMs);
+    this.damageNumbers.update(dtMs);
 
     if (!this.legacyFxSuppressed) this.fx?.update(frozen ? 0 : Math.min(0.05, dtMs / 1000));
     this.drawScreenFlash(dtMs);
@@ -1890,7 +1425,7 @@ export class PixiBattleRenderer {
     this.trailHistory.clear();
     this.knockbackTrails.clear();
     this.projectileDebugHistory.clear();
-    this.clearFloatingCombatTexts();
+    this.damageNumbers.clear();
     this.trailGraphics.clear();
     this.projectileGraphics.clear();
     this.trainingDebugGraphics.clear();
@@ -2065,71 +1600,6 @@ export class PixiBattleRenderer {
   private shouldShowDamageNumbers(): boolean {
     return this.settings?.showDamageNumbers === true
       || (this.trainingDebug.enabled && this.trainingDebug.showDamageNumbers);
-  }
-
-  private consumeDamageNumberEvents(events: readonly SimulationEvent[], snapshot: WorldSnapshot): void {
-    if (!this.shouldShowDamageNumbers()) return;
-
-    this.entityByIdScratch.clear();
-    for (const entity of snapshot.entities) this.entityByIdScratch.set(entity.id, entity);
-
-    for (const event of events) {
-      if (event.type !== 'damage' || event.amount <= 0) continue;
-      const target = this.entityByIdScratch.get(event.targetId);
-      const position = event.position ?? (target ? { x: target.x, y: target.y } : null);
-      if (!position) continue;
-
-      const presentation = resolveDamageNumberPresentation(event.amount, event.prevented === true);
-      const node = new Text({
-        text: formatDamageNumber(event.amount, event.prevented === true),
-        style: {
-          fill: presentation.color,
-          fontSize: presentation.fontSize,
-          fontWeight: '900',
-          fontFamily: 'Inter, system-ui',
-          stroke: { color: 0x07101b, width: Math.max(4, Math.round(presentation.fontSize * 0.26)) }
-        }
-      });
-      node.anchor.set(0.5);
-      node.scale.set(presentation.initialScale);
-      node.position.set(position.x, position.y - (target?.radius ?? 24) - 18);
-      this.combatTextLayer.addChild(node);
-      this.floatingCombatTexts.push({
-        node,
-        life: presentation.lifeSeconds,
-        maxLife: presentation.lifeSeconds,
-        rise: presentation.risePerSecond
-      });
-
-      // Keep large battles bounded even when many fighters take damage on the
-      // same rendered frame. Presentation-event budgeting limits creation;
-      // this cap limits retained Pixi text nodes.
-      if (this.floatingCombatTexts.length > 40) {
-        const oldest = this.floatingCombatTexts.shift();
-        oldest?.node.destroy();
-      }
-    }
-  }
-
-  private updateFloatingCombatTexts(dtMs: number): void {
-    const dt = Math.min(0.05, dtMs / 1000);
-    for (let index = this.floatingCombatTexts.length - 1; index >= 0; index -= 1) {
-      const item = this.floatingCombatTexts[index];
-      if (!item) continue;
-      item.life -= dt;
-      item.node.y -= item.rise * dt;
-      item.node.alpha = Math.max(0, item.life / item.maxLife);
-      item.node.scale.set(1 + (1 - item.life / item.maxLife) * 0.08);
-      if (item.life <= 0) {
-        item.node.destroy();
-        this.floatingCombatTexts.splice(index, 1);
-      }
-    }
-  }
-
-  private clearFloatingCombatTexts(): void {
-    for (const item of this.floatingCombatTexts) item.node.destroy();
-    this.floatingCombatTexts.length = 0;
   }
 
   private drawTrainingDebug(snapshot: WorldSnapshot, alpha: number): void {
