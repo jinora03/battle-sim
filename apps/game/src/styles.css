@@ -329,6 +329,9 @@ button.ghost-button { width: 100%; margin-top: 8px; border-color: #263547; backg
 .team-size-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
 .team-size-grid .creator-field { margin: 0; }
 .team-size-grid input { width: 100%; }
+.fighter-module-selectors { display: grid; gap: 8px; margin: 10px 0 2px; padding: 10px; border: 1px solid rgba(80, 178, 255, 0.16); border-radius: 10px; background: rgba(10, 23, 38, 0.58); }
+.fighter-module-field { min-width: 0; }
+.fighter-module-field select { width: 100%; }
 .compatibility-note { display: grid; gap: 3px; margin-top: 10px; padding: 9px; border: 1px solid #29394d; border-radius: 9px; background: #09111b; }
 .compatibility-note strong { color: #dceafa; font-size: 11px; }
 .compatibility-note span { color: #748aa2; font-size: 9px; line-height: 1.4; }
@@ -2554,4 +2557,63 @@ html[data-contrast='high'] .ui-tone-ultimate { border-color: #c7a0ff; }
   background:
     linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.01) 30%, transparent 56%),
     linear-gradient(135deg, rgba(38, 47, 63, .92), rgba(24, 31, 45, .92));
+}
+
+
+.fighter-identity-summary {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.fighter-identity-summary > div {
+  display: grid;
+  gap: 3px;
+  padding: 9px 10px;
+  border: 1px solid rgba(125, 232, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(4, 13, 24, 0.54);
+}
+
+.fighter-identity-summary span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.fighter-identity-summary strong {
+  font-size: 0.82rem;
+}
+
+.fighter-identity-summary small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+
+.fighter-module-description {
+  display: flex;
+  flex-direction: column;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.mounted-module-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 5px;
+  padding: 2px 7px;
+  border: 1px solid rgba(101, 216, 255, 0.32);
+  border-radius: 999px;
+  background: rgba(101, 216, 255, 0.08);
+  color: #8be7ff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }

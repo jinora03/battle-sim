@@ -70,7 +70,7 @@ function eventEntityIds(event: SimulationEvent): readonly EntityId[] {
     case 'weaponAttackStarted':
       return [event.entityId];
     case 'impact':
-      return [event.a, event.b];
+      return [event.a, event.b]
     case 'obstacleDamaged':
     case 'obstacleDestroyed':
     case 'blast':
@@ -81,6 +81,8 @@ function eventEntityIds(event: SimulationEvent): readonly EntityId[] {
       return event.targetId === undefined ? [event.sourceId] : [event.sourceId, event.targetId];
     case 'projectileImpact':
       return event.targetId === undefined ? [event.sourceId] : [event.sourceId, event.targetId];
+      case 'passiveTriggered':
+    return event.targetId === undefined ? [event.entityId] : [event.entityId, event.targetId];
     case 'damage':
     case 'knockbackApplied':
     case 'statusApplied':

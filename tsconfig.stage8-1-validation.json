@@ -1,0 +1,33 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": [],
+    "baseUrl": ".",
+    "paths": {
+      "@kinetic/protocol": ["packages/protocol/src/index.ts"],
+      "@kinetic/content": ["packages/content/src/index.ts"],
+      "@kinetic/simulation": ["packages/simulation/src/index.ts"],
+      "@kinetic/controllers": ["packages/controllers/src/index.ts"],
+      "@kinetic/visual-engine": ["packages/visual-engine/src/index.ts"],
+      "@kinetic/renderer-pixi": ["packages/renderer-pixi/src/index.ts"],
+      "@kinetic/platform": ["packages/platform/src/index.ts"],
+      "@kinetic/audio": ["packages/audio/src/index.ts"],
+      "@kinetic/meta": ["packages/meta/src/index.ts"],
+      "@kinetic/replay": ["packages/replay/src/index.ts"],
+      "@kinetic/creator": ["packages/creator/src/index.ts"]
+    }
+  },
+  "include": [
+    "/tmp/kbe-validation-stubs.d.ts",
+    "packages/protocol/src/**/*.ts",
+    "packages/content/src/**/*.ts",
+    "packages/simulation/src/**/*.ts",
+    "packages/controllers/src/**/*.ts",
+    "packages/visual-engine/src/**/*.ts",
+    "packages/platform/src/**/*.ts",
+    "packages/renderer-pixi/src/**/*.ts",
+    "tests/stage8-1-mounted-attachments.test.ts",
+    "tests/stage8-gunner-combo-and-modules.test.ts",
+    "tests/stage8-attack-source-regression.test.ts"
+  ]
+}

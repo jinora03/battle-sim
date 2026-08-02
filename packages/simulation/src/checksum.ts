@@ -13,7 +13,7 @@ export function checksumSnapshot(snapshot: WorldSnapshot): string {
     feed(`o:${obstacle.id}:${obstacle.alive}:${obstacle.hp.toFixed(4)}`);
   }
   for (const entity of snapshot.entities) {
-    feed(`${entity.id}|${entity.fighterId}|${entity.team}|${entity.x.toFixed(5)}|${entity.y.toFixed(5)}|${entity.vx.toFixed(5)}|${entity.vy.toFixed(5)}|${entity.hp.toFixed(5)}|${entity.activeZoneIds.join(',')}|${entity.statuses.map((status) => `${status.statusId}:${status.remainingTicks}`).join(',')}|${entity.primaryAttackId}|${entity.weaponAttack?.weaponId ?? 'idle'}:${entity.weaponAttack?.phase ?? 'idle'}:${entity.weaponAttack?.remainingTicks ?? 0}`);
+    feed(`${entity.id}|${entity.fighterId}|${entity.team}|${entity.x.toFixed(5)}|${entity.y.toFixed(5)}|${entity.vx.toFixed(5)}|${entity.vy.toFixed(5)}|${entity.hp.toFixed(5)}|${entity.activeZoneIds.join(',')}|${entity.statuses.map((status) => `${status.statusId}:${status.stacks}:${status.remainingTicks}`).join(',')}|${entity.moduleIds.join(',')}|${entity.primaryAttackId}|${entity.weaponAttack?.weaponId ?? 'idle'}:${entity.weaponAttack?.phase ?? 'idle'}:${entity.weaponAttack?.remainingTicks ?? 0}`);
     for (const ability of entity.abilities) {
       feed(`|${ability.slot}:${ability.abilityId}:${ability.phase}:${ability.cooldownRemainingTicks}:${ability.castRemainingTicks}:${ability.armedRemainingTicks}`);
     }

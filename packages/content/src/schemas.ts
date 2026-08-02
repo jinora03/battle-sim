@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { AbilitySlot, ArenaObstacleKind, ArenaZoneKind, BlastKind, Element, PrimaryAttackBehavior, TeamId, Vec2 } from '@kinetic/protocol';
+import type { AbilitySlot, ArenaObstacleKind, ArenaZoneKind, BlastKind, Element, ModuleSlot, PrimaryAttackBehavior, TeamId, Vec2 } from '@kinetic/protocol';
 
 export interface FighterDefinition {
   id: string;
@@ -21,7 +21,12 @@ export interface FighterDefinition {
     moveAcceleration: number;
   };
   aiProfileId: string | null;
+  /** Zero or more developer-authored passives. They never consume an input slot. */
+  passiveIds?: string[];
   abilitySlots: Partial<Record<AbilitySlot, string | null>>;
+  /** Approved module choices by slot. Players may only select from these ids. */
+  moduleSlots?: Partial<Record<ModuleSlot, string[]>>;
+  defaultModuleIds?: string[];
   resistances: Partial<Record<Element, number>>;
   visualRecipeId: string;
   animationRecipeId: string;
@@ -112,7 +117,7 @@ export interface PrimaryAttackDefinition {
   /** Re-arms per-target contact for sustained attacks. */
   repeatHitIntervalTicks?: number;
   projectile?: ProjectileDefinition;
-  onHitStatuses?: Array<{ statusId: string; durationTicks: number }>;
+  onHitStatuses?: Array<{ statusId: string; durationTicks: number; stacks?: number }>;
   movementAllowed: boolean;
   friendlyFire: boolean;
   visualId: string;
@@ -122,6 +127,20 @@ export interface PrimaryAttackDefinition {
 export type WeaponDefinition = PrimaryAttackDefinition;
 
 /** Reusable projectile used by skills without becoming the fighter's Basic attack. */
+export interface ProjectileStatusInteraction {
+  statusId: string;
+  bonusDamagePerStack?: number;
+  bonusKnockbackPerStack?: number;
+  homingStrengthPerStack?: number;
+  consumeStacks?: number | 'all';
+  applyStatusAtStacks?: {
+    minimumStacks: number;
+    statusId: string;
+    durationTicks: number;
+    stacks?: number;
+  };
+}
+
 export interface SkillProjectileDefinition {
   id: string;
   name: string;
@@ -133,13 +152,14 @@ export interface SkillProjectileDefinition {
   visualId: string;
   audioId: string;
   projectile: ProjectileDefinition;
-  onHitStatuses?: Array<{ statusId: string; durationTicks: number }>;
+  onHitStatuses?: Array<{ statusId: string; durationTicks: number; stacks?: number }>;
+  statusInteraction?: ProjectileStatusInteraction;
 }
 
 export type ProjectileSourceDefinition = Pick<
   PrimaryAttackDefinition,
   'id' | 'name' | 'form' | 'behavior' | 'damage' | 'knockback' | 'friendlyFire' | 'visualId' | 'audioId' | 'projectile' | 'onHitStatuses'
->;
+> & { statusInteraction?: ProjectileStatusInteraction };
 
 export type AiMovementStyle = 'chase' | 'orbit' | 'kite' | 'charger';
 export type AiTargetingStyle = 'nearest' | 'lowest-health' | 'largest' | 'clustered';
@@ -155,6 +175,11 @@ export interface AiAbilityUseRule {
   priority?: number;
   /** Optional density requirement for area skills. */
   minimumTargets?: number;
+  /** Combo-aware gate used by AI without embedding fighter ids in controller code. */
+  targetStatusId?: string;
+  minimumTargetStatusStacks?: number;
+  maximumTargetStatusStacks?: number;
+  priorityPerTargetStatusStack?: number;
 }
 
 export interface AiProfile {
@@ -192,20 +217,22 @@ export interface AbilityActivationProfile {
 
 export type AbilityCondition =
   | { type: 'IMPACT_ABOVE'; value: number }
-  | { type: 'SELF_HAS_STATUS'; statusId: string }
+  | { type: 'SELF_HAS_STATUS'; statusId: string; minimumStacks?: number }
+  | { type: 'TARGET_HAS_STATUS'; statusId: string; minimumStacks?: number; maximumStacks?: number }
   | { type: 'SELF_HEALTH_BELOW'; ratio: number };
 
 export type AbilityAction =
-  | { type: 'APPLY_IMPULSE_SELF'; magnitude: number }
+  | { type: 'APPLY_IMPULSE_SELF'; magnitude: number; direction?: 'forward' | 'backward' | 'left' | 'right' }
   | { type: 'DEAL_DAMAGE_TARGET'; amount: number; element: Element }
-  | { type: 'APPLY_STATUS_SELF'; statusId: string; durationTicks: number }
-  | { type: 'APPLY_STATUS_TARGET'; statusId: string; durationTicks: number }
+  | { type: 'APPLY_STATUS_SELF'; statusId: string; durationTicks: number; stacks?: number }
+  | { type: 'APPLY_STATUS_TARGET'; statusId: string; durationTicks: number; stacks?: number }
   | { type: 'REMOVE_STATUS_SELF'; statusId: string }
+  | { type: 'REMOVE_STATUS_TARGET'; statusId: string; stacks?: number | 'all' }
   | { type: 'APPLY_KNOCKBACK_TARGET'; magnitude: number }
   | { type: 'RADIAL_IMPULSE'; radius: number; magnitude: number; enemiesOnly: boolean; direction: 'push' | 'pull' }
   | { type: 'RADIAL_DAMAGE'; radius: number; amount: number; element: Element; enemiesOnly: boolean }
   | { type: 'DIRECTIONAL_DAMAGE'; range: number; arcDegrees: number; amount: number; knockback: number; element: Element; enemiesOnly: boolean }
-  | { type: 'RADIAL_STATUS'; radius: number; statusId: string; durationTicks: number; enemiesOnly: boolean }
+  | { type: 'RADIAL_STATUS'; radius: number; statusId: string; durationTicks: number; stacks?: number; enemiesOnly: boolean }
   | { type: 'EXPLODE'; kind: BlastKind; radius: number; damage: number; impulse: number; element: Element; enemiesOnly: boolean }
   | { type: 'EXPLODE_AT_TARGET'; kind: BlastKind; radius: number; damage: number; impulse: number; element: Element; enemiesOnly: boolean }
   | {
@@ -235,6 +262,90 @@ export interface AbilityDefinition {
   }>;
 }
 
+export type PassiveTriggerEvent = 'ON_PRIMARY_HIT' | 'ON_ABILITY_RESOLVED' | 'ON_BATTLE_START';
+
+export interface PassiveDefinition {
+  id: string;
+  name: string;
+  description: string;
+  triggers: Array<{
+    event: PassiveTriggerEvent;
+    conditions: AbilityCondition[];
+    actions: AbilityAction[];
+  }>;
+}
+
+export type MountedAttachmentKind = 'targeting-drone' | 'missile-pod' | 'deflector-plate' | 'thruster';
+export type MountedAttachmentPoint = 'front' | 'rear' | 'left' | 'right' | 'top' | 'orbit';
+export type MountedAttachmentRotation = 'body' | 'target' | 'counter-rotate' | 'orbit';
+
+/**
+ * Declarative visual placement for a physical component supplied by a module.
+ * Gameplay remains in the module modifiers; the renderer only consumes this
+ * immutable presentation recipe.
+ */
+export interface MountedAttachmentDefinition {
+  id: string;
+  kind: MountedAttachmentKind;
+  mountPoint: MountedAttachmentPoint;
+  rotationMode: MountedAttachmentRotation;
+  /** Forward offset measured in fighter-radius units. */
+  forward?: number;
+  /** Lateral offset measured in fighter-radius units. Negative is screen-left. */
+  lateral?: number;
+  scale?: number;
+  primaryColor: number;
+  accentColor: number;
+  glowColor?: number;
+  orbitRadius?: number;
+  orbitSpeed?: number;
+  hideInMassBattle?: boolean;
+}
+
+export interface FighterModuleDefinition {
+  id: string;
+  name: string;
+  description: string;
+  slot: ModuleSlot;
+  compatibleFighterIds: string[];
+  /** Zero or more visible components mounted by this module. */
+  attachments?: MountedAttachmentDefinition[];
+  modifiers: {
+    primaryDamageMultiplier?: number;
+    primaryKnockbackMultiplier?: number;
+    primaryCooldownMultiplier?: number;
+    primaryProjectileBounce?: number;
+    primaryProjectileMaxWallBounces?: number;
+    primaryProjectilePenetration?: number;
+    statusDurationMultiplier?: Record<string, number>;
+    skillProjectileHomingMultiplier?: number;
+    skillProjectileDamageMultiplier?: number;
+    incomingDamageMultiplier?: number;
+    incomingKnockbackMultiplier?: number;
+    moveAccelerationMultiplier?: number;
+    maxSpeedMultiplier?: number;
+  };
+}
+
+export interface ResolvedFighterLoadout {
+  moduleIds: string[];
+  modules: FighterModuleDefinition[];
+  mountedAttachments: MountedAttachmentDefinition[];
+  primaryDamageMultiplier: number;
+  primaryKnockbackMultiplier: number;
+  primaryCooldownMultiplier: number;
+  primaryProjectileBounce: number;
+  primaryProjectileMaxWallBounces: number;
+  primaryProjectilePenetration: number;
+  statusDurationMultiplier: Record<string, number>;
+  skillProjectileHomingMultiplier: number;
+  skillProjectileDamageMultiplier: number;
+  incomingDamageMultiplier: number;
+  incomingKnockbackMultiplier: number;
+  moveAccelerationMultiplier: number;
+  maxSpeedMultiplier: number;
+}
+
 export interface StatusDefinition {
   id: string;
   periodicDamage?: number;
@@ -242,6 +353,8 @@ export interface StatusDefinition {
   element?: Element;
   speedMultiplier?: number;
   massMultiplier?: number;
+  maxStacks?: number;
+  refreshMode?: 'refresh' | 'extend' | 'replace';
 }
 
 export interface ArenaSpawnZoneDefinition {
@@ -346,6 +459,7 @@ export const fighterSchema = z.object({
     moveAcceleration: z.number().positive()
   }),
   aiProfileId: z.string().nullable(),
+  passiveIds: z.array(z.string()).default([]),
   abilitySlots: z.object({
     basic: z.string().nullable().optional(),
     skill1: z.string().nullable().optional(),
@@ -353,6 +467,13 @@ export const fighterSchema = z.object({
     skill3: z.string().nullable().optional(),
     ultimate: z.string().nullable().optional()
   }),
+  moduleSlots: z.object({
+    offense: z.array(z.string()).optional(),
+    defense: z.array(z.string()).optional(),
+    mobility: z.array(z.string()).optional(),
+    utility: z.array(z.string()).optional()
+  }).default({}),
+  defaultModuleIds: z.array(z.string()).default([]),
   resistances: z.partialRecord(elementSchema, z.number().positive()).default({}),
   visualRecipeId: z.string(),
   animationRecipeId: z.string(),
@@ -383,13 +504,18 @@ export const aiProfileSchema = z.object({
     maxDistance: z.number().positive().default(99999),
     healthBelow: z.number().min(0).max(1).optional(),
     priority: z.number().min(-100).max(100).optional(),
-    minimumTargets: z.number().int().positive().optional()
+    minimumTargets: z.number().int().positive().optional(),
+    targetStatusId: z.string().optional(),
+    minimumTargetStatusStacks: z.number().int().nonnegative().optional(),
+    maximumTargetStatusStacks: z.number().int().nonnegative().optional(),
+    priorityPerTargetStatusStack: z.number().min(-100).max(100).optional()
   })).default([])
 });
 
 const conditionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('IMPACT_ABOVE'), value: z.number().nonnegative() }),
-  z.object({ type: z.literal('SELF_HAS_STATUS'), statusId: z.string() }),
+  z.object({ type: z.literal('SELF_HAS_STATUS'), statusId: z.string(), minimumStacks: z.number().int().positive().optional() }),
+  z.object({ type: z.literal('TARGET_HAS_STATUS'), statusId: z.string(), minimumStacks: z.number().int().nonnegative().optional(), maximumStacks: z.number().int().nonnegative().optional() }),
   z.object({ type: z.literal('SELF_HEALTH_BELOW'), ratio: z.number().min(0).max(1) })
 ]);
 
@@ -411,11 +537,12 @@ const projectileDefinitionSchema = z.object({
 });
 
 const actionSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('APPLY_IMPULSE_SELF'), magnitude: z.number().positive() }),
+  z.object({ type: z.literal('APPLY_IMPULSE_SELF'), magnitude: z.number().positive(), direction: z.enum(['forward', 'backward', 'left', 'right']).optional() }),
   z.object({ type: z.literal('DEAL_DAMAGE_TARGET'), amount: z.number().nonnegative(), element: elementSchema }),
-  z.object({ type: z.literal('APPLY_STATUS_SELF'), statusId: z.string(), durationTicks: z.number().int().positive() }),
-  z.object({ type: z.literal('APPLY_STATUS_TARGET'), statusId: z.string(), durationTicks: z.number().int().positive() }),
+  z.object({ type: z.literal('APPLY_STATUS_SELF'), statusId: z.string(), durationTicks: z.number().int().positive(), stacks: z.number().int().positive().optional() }),
+  z.object({ type: z.literal('APPLY_STATUS_TARGET'), statusId: z.string(), durationTicks: z.number().int().positive(), stacks: z.number().int().positive().optional() }),
   z.object({ type: z.literal('REMOVE_STATUS_SELF'), statusId: z.string() }),
+  z.object({ type: z.literal('REMOVE_STATUS_TARGET'), statusId: z.string(), stacks: z.union([z.number().int().positive(), z.literal('all')]).optional() }),
   z.object({ type: z.literal('APPLY_KNOCKBACK_TARGET'), magnitude: z.number().positive() }),
   z.object({
     type: z.literal('RADIAL_IMPULSE'), radius: z.number().positive(), magnitude: z.number().positive(),
@@ -426,7 +553,7 @@ const actionSchema = z.discriminatedUnion('type', [
     type: z.literal('DIRECTIONAL_DAMAGE'), range: z.number().positive(), arcDegrees: z.number().min(1).max(360),
     amount: z.number().nonnegative(), knockback: z.number().nonnegative().default(0), element: elementSchema, enemiesOnly: z.boolean().default(true)
   }),
-  z.object({ type: z.literal('RADIAL_STATUS'), radius: z.number().positive(), statusId: z.string(), durationTicks: z.number().int().positive(), enemiesOnly: z.boolean().default(true) }),
+  z.object({ type: z.literal('RADIAL_STATUS'), radius: z.number().positive(), statusId: z.string(), durationTicks: z.number().int().positive(), stacks: z.number().int().positive().optional(), enemiesOnly: z.boolean().default(true) }),
   z.object({
     type: z.literal('EXPLODE'), kind: z.enum(['explosion', 'wave']), radius: z.number().positive(),
     damage: z.number().nonnegative(), impulse: z.number().nonnegative(), element: elementSchema, enemiesOnly: z.boolean().default(true)
@@ -480,7 +607,9 @@ export const statusSchema = z.object({
   periodTicks: z.number().int().positive().optional(),
   element: elementSchema.optional(),
   speedMultiplier: z.number().positive().optional(),
-  massMultiplier: z.number().positive().optional()
+  massMultiplier: z.number().positive().optional(),
+  maxStacks: z.number().int().positive().optional(),
+  refreshMode: z.enum(['refresh', 'extend', 'replace']).optional()
 });
 
 const spawnZoneSchema = z.object({

@@ -1,27 +1,27 @@
 import type { CSSProperties } from 'react';
-import { getAbility, getPrimaryAttack, type FighterDefinition } from '@kinetic/content';
+import { getAbility, getPassive, getPrimaryAttack, listCompatibleModules, type FighterDefinition } from '@kinetic/content';
 import type { PlayerProfile } from '@kinetic/meta';
 import { getSkillPresentation, getVisualRecipe } from '@kinetic/visual-engine';
 import { NeonButton } from './ui/NeonUI';
 
-export function RosterView({ fighters, profile, onPlayAs, onSetOpponent, onOpenCreator }: {
+export function RosterView({ fighters, profile, onPlayAs, onSetOpponent }: {
   fighters: FighterDefinition[];
   profile: PlayerProfile;
   onPlayAs: (fighterId: string) => void;
   onSetOpponent: (fighterId: string) => void;
-  onOpenCreator: () => void;
 }) {
   const unlocked = new Set(profile.unlockedFighterIds);
   return (
     <section className="roster-view">
       <div className="roster-heading">
-        <div><p className="eyebrow">Core roster</p><h2>Choose a combat language, not just a stat block</h2><p>Each fighter combines different mass, bounce, AI behavior, elemental interactions and a five-slot skill presentation.</p></div>
-        <NeonButton tone="random" size="large" onClick={onOpenCreator}>Create custom fighter</NeonButton>
+        <div><p className="eyebrow">Core roster</p><h2>Choose a combat language, not just a stat block</h2><p>Each fighter has a developer-authored combat identity: weapon, optional passive, combo-focused skills, AI behavior and a controlled set of compatible modules.</p></div>
       </div>
       <div className="release-roster-grid">
         {fighters.map((fighter) => {
           const visual = getVisualRecipe(fighter.visualRecipeId);
           const locked = !fighter.classification.traits.includes('custom') && !unlocked.has(fighter.id);
+          const passives = (fighter.passiveIds ?? []).map((passiveId) => getPassive(passiveId));
+          const compatibleModules = listCompatibleModules(fighter);
           return (
             <article className={`release-fighter-card ${locked ? 'locked' : ''}`} key={fighter.id} style={{ '--fighter-color': hex(visual.bodyColor), '--fighter-dark': hex(visual.bodyDarkColor), '--fighter-core': hex(visual.coreColor), '--fighter-aura': hex(visual.auraColor) } as CSSProperties}>
               <div className="release-fighter-portrait"><span className={`portrait-body shape-${visual.shape}`}><i /></span>{locked && <b>LOCKED</b>}</div>
@@ -45,6 +45,12 @@ export function RosterView({ fighters, profile, onPlayAs, onSetOpponent, onOpenC
                   return <span className={`roster-skill ${slot === 'ultimate' ? 'ultimate' : ''}`} key={slot} title={`${ability.name} · ${(ability.cooldownTicks / 60).toFixed(1)}s`} style={{ '--skill-color': hex(recipe.color) } as CSSProperties}><b>{recipe.icon}</b><small>{recipe.shortName}</small></span>;
                 })}
               </div>
+              {(passives.length > 0 || compatibleModules.length > 0) && (
+                <div className="fighter-identity-summary">
+                  {passives.map((passive) => <div key={passive.id}><span>Passive</span><strong>{passive.name}</strong><small>{passive.description}</small></div>)}
+                  {compatibleModules.length > 0 && <div><span>Approved modules</span><strong>{compatibleModules.map((module) => module.name).join(' · ')}</strong><small>Selected in Battle Setup; modules adjust this fighter's authored kit rather than replacing it.</small></div>}
+                </div>
+              )}
               <div className="release-fighter-actions"><NeonButton tone="success" disabled={locked} onClick={() => onPlayAs(fighter.id)}>Play as</NeonButton><NeonButton tone="utility" disabled={locked} onClick={() => onSetOpponent(fighter.id)}>Set as opponent</NeonButton></div>
               {locked && <p className="unlock-hint">Unlock through achievements, or use the developer unlock inside Profile while evaluating v1.0.</p>}
             </article>

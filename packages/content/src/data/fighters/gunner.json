@@ -25,10 +25,10 @@
   },
   "aiProfileId": "ranged-gunner",
   "abilitySlots": {
-    "skill1": "combat-roll",
+    "skill1": "tactical-slide",
     "skill2": "suppressive-fire",
-    "skill3": "grenade-launcher",
-    "ultimate": "overdrive-barrage"
+    "skill3": "pinning-round",
+    "ultimate": "kill-zone"
   },
   "resistances": {
     "metal": 0.8,
@@ -38,5 +38,25 @@
   "visualRecipeId": "gunner",
   "animationRecipeId": "gunner-mobile",
   "audioProfileId": "automatic-rifle",
-  "primaryAttackId": "automatic-rifle"
+  "primaryAttackId": "automatic-rifle",
+  "passiveIds": [
+    "combat-analysis"
+  ],
+  "moduleSlots": {
+    "offense": [
+      "ricochet-chamber",
+      "piercing-barrel",
+      "shoulder-missile-pod"
+    ],
+    "defense": [
+      "deflector-plate"
+    ],
+    "mobility": [
+      "recoil-thrusters"
+    ],
+    "utility": [
+      "targeting-drone"
+    ]
+  },
+  "defaultModuleIds": []
 }

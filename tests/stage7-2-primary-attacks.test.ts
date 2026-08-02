@@ -116,38 +116,6 @@ describe('v1.1 Stage 7.2 primary attack and fighter identity redesign', () => {
     expect(events.some((event) => event.type === 'weaponAttackStarted')).toBe(false);
   });
 
-  it('centers Grenade Launcher damage on its target instead of the Gunner', () => {
-    const runner = new LocalSimulationRunner({
-      seed: 7207,
-      arenaId: 'training-grid',
-      modeId: 'training',
-      participants: [
-        { fighterId: 'gunner', team: 1, controller: 'player', x: 180, y: 360 },
-        { fighterId: 'mech-bruiser', team: 2, controller: 'player', x: 560, y: 360 },
-        { fighterId: 'water-shaper', team: 2, controller: 'player', x: 700, y: 390 }
-      ],
-      rules: {
-        friendlyFire: false,
-        teamCollision: 'ghost',
-        maxBattleTicks: 1_200,
-        training: { enabled: true, damageEnabled: true, cooldownsEnabled: true, suppressVictory: true }
-      }
-    });
-    const snapshot = runner.getSnapshot();
-    const gunner = snapshot.entities.find((entity) => entity.team === 1)!;
-    const target = snapshot.entities.find((entity) => entity.team === 2 && entity.fighterId === 'mech-bruiser')!;
-    const events = run(runner, 28, {
-      type: 'activateAbility', entityId: gunner.id, slot: 'skill3', targetId: target.id, direction: { x: 1, y: 0 }
-    });
-    const blast = events.find((event) => event.type === 'blast' && event.abilityId === 'grenade-launcher');
-    expect(blast?.type).toBe('blast');
-    const targetDamage = events.find((event) => event.type === 'damage' && event.targetId === target.id);
-    expect(targetDamage?.type).toBe('damage');
-    if (blast?.type === 'blast' && targetDamage?.type === 'damage' && targetDamage.position) {
-      expect(Math.hypot(blast.position.x - targetDamage.position.x, blast.position.y - targetDamage.position.y)).toBeLessThan(1);
-    }
-    expect(events.some((event) => event.type === 'damage' && event.targetId === gunner.id)).toBe(false);
-  });
 
   it('repeats primary attack timing and outcome deterministically', () => {
     const execute = () => {

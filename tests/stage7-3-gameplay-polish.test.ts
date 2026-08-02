@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  CONTENT_VERSION,
   getAiProfile,
   getFighter,
   getPrimaryAttack,
@@ -34,7 +33,6 @@ function run(runner: LocalSimulationRunner, ticks: number, first?: SimulationCom
 
 describe('v1.1 Stage 7.3 combat polish and missile artillery', () => {
   it('registers Rocket Vanguard and the tuned primary attacks', () => {
-    expect(CONTENT_VERSION).toBe('1.1.6-stage7.5');
     expect(getFighter('rocket-vanguard').primaryAttackId).toBe('guided-rocket');
     expect(getProjectileSource('micro-missile').projectile?.homingStrength).toBeGreaterThan(0);
     expect(getPrimaryAttack('automatic-rifle').damage).toBeLessThanOrEqual(4);

@@ -218,6 +218,16 @@ validation/                executable headless validation scenarios
 - Keeps adaptive quality presentation-only: fighters, AI, physics, damage and winners are unchanged
 - Fixes Battle → Ability Lab → Battle by reattaching, showing, resizing and refitting the retained Pixi canvas
 
+## Stage 8.1 mounted loadouts
+
+- Developer-approved offense, defense, mobility and utility modules
+- Optional data-driven physical attachments on any module
+- Front, rear, side, top and orbit mount recipes with body, target, counter-rotation and orbit modes
+- Generic missile pod, deflector plate, thruster and targeting-drone rendering
+- Spawn-time movement modifiers plus centralized incoming-damage, incoming-knockback and skill-projectile modifiers
+- Loadout-aware FighterView pooling and Army-LOD attachment suppression
+- No player-authored fighter/module creation in the main game
+
 ## Stage 6 functionality retained
 
 - Layered arena, fighter, weapon, projectile and screen-relative VFX

@@ -251,6 +251,9 @@ export function selectAbilityAction(
     const abilityTarget = resolvedTarget.target;
     const distance = abilityTarget ? Math.hypot(abilityTarget.x - entity.x, abilityTarget.y - entity.y) : fallbackDistance;
     const targetCount = resolvedTarget.targetCount;
+    const targetStatusStacks = rule.targetStatusId && abilityTarget
+      ? abilityTarget.statuses.find((status) => status.statusId === rule.targetStatusId)?.stacks ?? 0
+      : 0;
     let valid = true;
     let reason = 'skill ready';
 
@@ -271,6 +274,12 @@ export function selectAbilityAction(
       reason = distance < minRange
         ? `target too close (${Math.round(distance)} < ${Math.round(minRange)})`
         : `target out of range (${Math.round(distance)} > ${Math.round(maxRange)})`;
+    } else if (rule.targetStatusId && targetStatusStacks < (rule.minimumTargetStatusStacks ?? 0)) {
+      valid = false;
+      reason = `needs ${rule.minimumTargetStatusStacks ?? 0} ${rule.targetStatusId} stack${(rule.minimumTargetStatusStacks ?? 0) === 1 ? '' : 's'}`;
+    } else if (rule.targetStatusId && targetStatusStacks > (rule.maximumTargetStatusStacks ?? Number.POSITIVE_INFINITY)) {
+      valid = false;
+      reason = `${rule.targetStatusId} already at ${targetStatusStacks} stacks`;
     } else if (abilityTarget && !resolvedTarget.predictedInRange) {
       valid = false;
       reason = 'target predicted to leave valid range during cast';
@@ -300,7 +309,8 @@ export function selectAbilityAction(
       + (activation.intent === 'defensive' ? missingHealth * 55 : 0)
       + (activation.targeting === 'area' ? Math.min(7, targetCount) * 7 : 0)
       + rangeUtility * 8
-      + cadenceUtility;
+      + cadenceUtility
+      + targetStatusStacks * (rule.priorityPerTargetStatusStack ?? 0);
 
     if (collectDebug) {
       candidates.push({

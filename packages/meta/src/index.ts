@@ -273,6 +273,8 @@ export interface SavedBattlePreset {
   name: string;
   fighterAId: string;
   fighterBId: string;
+  moduleIdsA: string[];
+  moduleIdsB: string[];
   controllerA: ControllerKind;
   controllerB: ControllerKind;
   arenaId: string;
@@ -561,6 +563,8 @@ function sanitizeBattlePreset(input: unknown): SavedBattlePreset | null {
     name: raw.name.slice(0, 32),
     fighterAId: raw.fighterAId,
     fighterBId: raw.fighterBId,
+    moduleIdsA: Array.isArray(raw.moduleIdsA) ? raw.moduleIdsA.filter((id): id is string => typeof id === 'string').slice(0, 4) : [],
+    moduleIdsB: Array.isArray(raw.moduleIdsB) ? raw.moduleIdsB.filter((id): id is string => typeof id === 'string').slice(0, 4) : [],
     controllerA,
     controllerB,
     arenaId: raw.arenaId,

@@ -17,12 +17,14 @@ import {
   getAbility,
   getAbilityActivationProfile,
   getFighter,
+  getFighterModule,
   getPrimaryAttack,
   getPrimaryAttackActivationProfile,
   isCustomFighter,
   listAbilities,
   listAiProfiles,
   listArenas,
+  listCompatibleModules,
   listFighters,
   listGameModes,
   listPrimaryAttacks,
@@ -54,7 +56,7 @@ import {
   type ProgressionNotice,
   type SavedBattlePreset
 } from '@kinetic/meta';
-import type { AbilitySlot, AbilityStateSnapshot, ControllerKind, Element, EntitySnapshot, Vec2 } from '@kinetic/protocol';
+import type { AbilitySlot, AbilityStateSnapshot, ControllerKind, Element, EntitySnapshot, ModuleSlot, Vec2 } from '@kinetic/protocol';
 import {
   applyQualityPreset,
   detectDeviceCapabilities,
@@ -86,6 +88,8 @@ import { ReleaseHome, type ReleaseView } from './ReleaseHome';
 import { RosterView } from './RosterView';
 import { TrainingLabView } from './TrainingLabView';
 import { AppNavigation, DrawerHeader, DrawerScrim, NeonButton } from './ui/NeonUI';
+import { BattleIntroOverlay } from './BattleIntroOverlay';
+import { battleIntroDurationMs, battleLaunchPausesSimulation, initialLaunchPhase, type BattleLaunchPhase } from './ui/battleLaunch';
 import {
   aggregateActiveCasts,
   formatModeCapacity,
@@ -175,6 +179,8 @@ const initialDiagnostics: RuntimeDiagnostics = {
 const DEFAULT_SETUP: BattleSetup = {
   fighterAId: 'gunner',
   fighterBId: 'bomber',
+  moduleIdsA: [],
+  moduleIdsB: [],
   controllerA: 'player',
   controllerB: 'ai',
   arenaId: 'iron-pit',
@@ -302,6 +308,7 @@ export default function App() {
   const [bootAttempt, setBootAttempt] = useState(0);
   const [pausedBySystem, setPausedBySystem] = useState(false);
   const [pausedByUser, setPausedByUser] = useState(false);
+  const [battleLaunchPhase, setBattleLaunchPhase] = useState<BattleLaunchPhase>('ready');
   const [draft, setDraft] = useState<FighterBundle>(() => customBundles[0] ?? createStarterBundle());
   const [creatorMessage, setCreatorMessage] = useState('Edit the recipe, validate it, then save or test the fighter.');
   const [importText, setImportText] = useState('');
@@ -320,8 +327,14 @@ export default function App() {
   const playerEntity = diagnostics.entities.find((entity) => entity.controller === 'player');
   const configuredArena = arenas.find((arena) => arena.id === setup.arenaId) ?? arenas[0];
   const configuredMode = gameModes.find((mode) => mode.id === setup.modeId) ?? gameModes[0];
+  const configuredFighterA = getFighter(setup.fighterAId);
+  const configuredFighterB = getFighter(setup.fighterBId);
   const activeArena = arenas.find((arena) => arena.id === activeSetup.arenaId) ?? configuredArena;
   const activeMode = gameModes.find((mode) => mode.id === activeSetup.modeId) ?? configuredMode;
+  const introSetup = battleLaunchPhase === 'ready' ? setup : activeSetup;
+  const introFighterA = getFighter(introSetup.fighterAId);
+  const introFighterB = getFighter(introSetup.fighterBId);
+  const introMode = gameModes.find((mode) => mode.id === introSetup.modeId) ?? configuredMode;
   const setupDirty = !sameBattleSetup(setup, activeSetup);
   const activeSkillEntries = activeCasts.map(({ entity, ability }) => {
     const presentation = activityPresentation(ability.abilityId, ability.source === 'primaryAttack');
@@ -358,7 +371,9 @@ export default function App() {
   const skillActivity = aggregateActiveCasts([...activeSkillEntries, ...recentSkillEntries], diagnostics.entities.length > 24 ? 2 : 3);
   const resultPresentation = describeBattleResult(diagnostics, activeMode);
   const eliminationProgress = useMemo(() => resolveEliminationProgress(diagnostics.teams), [diagnostics.teams]);
-  const battlePaused = shouldPauseBattle(pausedByUser, pausedBySystem) || view !== 'battle';
+  const battlePaused = shouldPauseBattle(pausedByUser, pausedBySystem)
+    || battleLaunchPausesSimulation(battleLaunchPhase)
+    || view !== 'battle';
   const touchControlsVisible = shouldShowTouchControls(settings.touchControls, deviceCapabilities);
 
   useEffect(() => {
@@ -568,6 +583,15 @@ export default function App() {
   }, [battlePaused]);
 
   useEffect(() => {
+    if (view !== 'battle' || battleLaunchPhase !== 'intro') return;
+    const timer = window.setTimeout(
+      () => setBattleLaunchPhase('running'),
+      battleIntroDurationMs(settings.reducedMotion)
+    );
+    return () => window.clearTimeout(timer);
+  }, [battleLaunchPhase, settings.reducedMotion, view]);
+
+  useEffect(() => {
     const runtime = runtimeRef.current;
     if (!runtime) return;
     if (view !== 'battle') {
@@ -675,7 +699,7 @@ export default function App() {
     };
     const isTyping = (target: EventTarget | null) => target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (isTyping(event.target) || view !== 'battle') return;
+      if (isTyping(event.target) || view !== 'battle' || battleLaunchPhase !== 'running') return;
       const key = event.key.toLowerCase();
       if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
         if (settings.movementMode === 'wasd') {
@@ -707,7 +731,7 @@ export default function App() {
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', stop);
     };
-  }, [settings.movementMode, view]);
+  }, [battleLaunchPhase, settings.movementMode, view]);
 
   const restartBattleWhenReady = (seed: number, nextSetup: BattleSetup) => {
     const runtime = runtimeRef.current;
@@ -718,21 +742,30 @@ export default function App() {
     runtime.restart(seed, nextSetup);
   };
 
-  const resumeForBattleStart = () => {
-    setPausedByUser(false);
-    runtimeRef.current?.setPaused(pausedBySystem);
-  };
-  const replaySameBattle = () => {
-    resumeForBattleStart();
-    restartBattleWhenReady(Number(seedText) || 1, activeSetup);
-  };
-  const startNewBattle = (nextSetup: BattleSetup = setup) => {
-    const seed = generateRandomSeed();
+  const prepareBattleForStart = (seed: number, nextSetup: BattleSetup) => {
     setSeedText(String(seed));
     setActiveSetup(nextSetup);
-    resumeForBattleStart();
+    setPausedByUser(false);
+    setBattleLaunchPhase('ready');
     restartBattleWhenReady(seed, nextSetup);
   };
+
+  const launchBattle = (seed: number, nextSetup: BattleSetup) => {
+    setSeedText(String(seed));
+    setActiveSetup(nextSetup);
+    setPausedByUser(false);
+    restartBattleWhenReady(seed, nextSetup);
+    setBattleLaunchPhase(initialLaunchPhase(settings.showBattleIntros));
+  };
+
+  const replaySameBattle = () => {
+    launchBattle(Number(seedText) || 1, activeSetup);
+  };
+
+  const startNewBattle = (nextSetup: BattleSetup = setup) => {
+    launchBattle(generateRandomSeed(), nextSetup);
+  };
+
   const startRandomMatchup = () => {
     const available = fighters.filter((fighter) => isCustomFighter(fighter.id) || profile.unlockedFighterIds.includes(fighter.id));
     const randomSeed = generateRandomSeed();
@@ -742,14 +775,13 @@ export default function App() {
       ...setup,
       fighterAId: pick(1) ?? setup.fighterAId,
       fighterBId: pick(2) ?? setup.fighterBId,
+      moduleIdsA: [],
+      moduleIdsB: [],
       arenaId: compatibleArenas[(randomSeed >>> 8) % Math.max(1, compatibleArenas.length)]?.id ?? setup.arenaId
     };
     if (next.fighterAId === next.fighterBId && available.length > 1) next.fighterBId = pick(3) ?? next.fighterBId;
     setSetup(next);
-    setSeedText(String(randomSeed));
-    setActiveSetup(next);
-    resumeForBattleStart();
-    restartBattleWhenReady(randomSeed, next);
+    launchBattle(randomSeed, next);
   };
   const returnToSetup = () => {
     setSetupPanelOpen(true);
@@ -783,14 +815,25 @@ export default function App() {
     }
   };
 
+  const setFighter = (side: 'A' | 'B', fighterId: string) => {
+    if (side === 'A') updateSetup({ fighterAId: fighterId, moduleIdsA: [] });
+    else updateSetup({ fighterBId: fighterId, moduleIdsB: [] });
+  };
+
+  const setFighterModule = (side: 'A' | 'B', slot: ModuleSlot, moduleId: string) => {
+    const currentIds = side === 'A' ? setup.moduleIdsA : setup.moduleIdsB;
+    const nextIds = currentIds.filter((id) => safeModuleSlot(id) !== slot);
+    if (moduleId) nextIds.push(moduleId);
+    if (side === 'A') updateSetup({ moduleIdsA: nextIds });
+    else updateSetup({ moduleIdsB: nextIds });
+  };
+
   const applyTypedSeed = () => {
-    setActiveSetup(setup);
-    resumeForBattleStart();
-    restartBattleWhenReady(Number(seedText) || 1, setup);
+    launchBattle(Number(seedText) || 1, setup);
   };
 
   const toggleBattlePaused = () => {
-    if (diagnostics.battleEnded) return;
+    if (diagnostics.battleEnded || battleLaunchPhase !== 'running') return;
     setPausedByUser((current) => !current);
   };
 
@@ -852,13 +895,18 @@ export default function App() {
     }
   };
 
+  const openPreparedBattle = (next: BattleSetup) => {
+    const seed = generateRandomSeed();
+    setSetup(next);
+    prepareBattleForStart(seed, next);
+    setView('battle');
+  };
+
   const testDraft = () => {
     const saved = saveDraft();
     if (!saved) return;
-    const next: BattleSetup = { ...setup, fighterAId: saved.fighter.id, controllerA: 'player', controllerB: 'ai' };
-    setSetup(next);
-    setView('battle');
-    startNewBattle(next);
+    const next: BattleSetup = { ...setup, fighterAId: saved.fighter.id, moduleIdsA: [], controllerA: 'player', controllerB: 'ai' };
+    openPreparedBattle(next);
   };
 
   const exportDraft = () => {
@@ -907,7 +955,9 @@ export default function App() {
     const nextSetup: BattleSetup = {
       ...setup,
       fighterAId: setup.fighterAId === id ? 'water-shaper' : setup.fighterAId,
-      fighterBId: setup.fighterBId === id ? 'bomber' : setup.fighterBId
+      fighterBId: setup.fighterBId === id ? 'bomber' : setup.fighterBId,
+      moduleIdsA: setup.fighterAId === id ? [] : setup.moduleIdsA,
+      moduleIdsB: setup.fighterBId === id ? [] : setup.moduleIdsB
     };
     removeCustomFighter(id);
     removeCustomVisualRecipe(draft.visualRecipe.id);
@@ -915,7 +965,7 @@ export default function App() {
     setCustomBundles((current) => current.filter((item) => item.fighter.id !== id));
     setFighterRevision((value) => value + 1);
     setSetup(nextSetup);
-    startNewBattle(nextSetup);
+    prepareBattleForStart(generateRandomSeed(), nextSetup);
     setDraft(createStarterBundle());
     setCreatorMessage(`Deleted custom fighter ${id}.`);
   };
@@ -939,6 +989,8 @@ export default function App() {
     const next: BattleSetup = {
       fighterAId: preset.fighterAId,
       fighterBId: preset.fighterBId,
+      moduleIdsA: [...preset.moduleIdsA],
+      moduleIdsB: [...preset.moduleIdsB],
       controllerA: preset.controllerA,
       controllerB: preset.controllerB,
       arenaId: preset.arenaId,
@@ -950,9 +1002,7 @@ export default function App() {
       difficulty: preset.difficulty
     };
     setProfile((current) => ({ ...current, difficulty: preset.difficulty, selectedLoadoutId: preset.id, updatedAt: Date.now() }));
-    setSetup(next);
-    setView('battle');
-    startNewBattle(next);
+    openPreparedBattle(next);
   };
 
   const importProfile = (json: string) => {
@@ -976,19 +1026,17 @@ export default function App() {
     setProgressNotices([]);
     setToastNotices([]);
     appendNotices([{ kind: 'battle', title: 'Progression reset', description: 'A fresh local profile was created.' }]);
-    setView('battle');
-    startNewBattle(next);
+    openPreparedBattle(next);
   };
 
   const launchReleaseBattle = (next: BattleSetup) => {
-    setSetup(next);
-    setView('battle');
-    startNewBattle(next);
+    openPreparedBattle(next);
   };
 
   const playAsFighter = (fighterId: string) => launchReleaseBattle({
     ...setup,
     fighterAId: fighterId,
+    moduleIdsA: [],
     controllerA: 'player',
     controllerB: 'ai',
     modeId: 'duel',
@@ -1000,6 +1048,7 @@ export default function App() {
   const setRosterOpponent = (fighterId: string) => launchReleaseBattle({
     ...setup,
     fighterBId: fighterId,
+    moduleIdsB: [],
     controllerA: 'player',
     controllerB: 'ai',
     modeId: 'duel',
@@ -1009,13 +1058,14 @@ export default function App() {
   });
 
   const movePlayer = (direction: Vec2) => {
+    if (battleLaunchPhase !== 'running') return;
     runtimeRef.current?.setPlayerMovement(direction);
     // On touch, the analog stick is the only input, so it drives facing/aim too.
     if (touchControlsVisible && (Math.abs(direction.x) > 0.001 || Math.abs(direction.y) > 0.001)) {
       runtimeRef.current?.setPlayerAim(direction);
     }
   };
-  const activate = (slot: AbilitySlot) => { runtimeRef.current?.activatePlayerAbility(slot); };
+  const activate = (slot: AbilitySlot) => { if (battleLaunchPhase === 'running') runtimeRef.current?.activatePlayerAbility(slot); };
   const previewAbility = (slot: AbilitySlot) => { runtimeRef.current?.previewPlayerAbility(slot); };
   const stopPlayerMovement = () => { runtimeRef.current?.setPlayerMovement({ x: 0, y: 0 }); };
   const attachBattleHost = useCallback((node: HTMLDivElement | null) => {
@@ -1023,6 +1073,7 @@ export default function App() {
     if (node) runtimeRef.current?.attachHost(node);
   }, []);
   const aimFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (battleLaunchPhase !== 'running') return;
     const target = event.target as HTMLElement;
     if (target.closest('.touch-controls')) return;
     // Touch devices steer and aim from the analog stick, so the arena stays
@@ -1058,9 +1109,9 @@ export default function App() {
     <main className={`app-shell view-${view} viewport-${viewportMetrics.viewportClass} orientation-${viewportMetrics.orientation} ${viewportMetrics.shortLandscape ? 'short-landscape' : ''} ${settings.fullscreenBattle ? 'battle-focus-mode' : ''} ${settings.highContrast ? 'high-contrast' : ''}`}>
       <section className="hero-panel">
         <div>
-          <p className="eyebrow">v1.1 Stage 7.5 · Final performance architecture</p>
+          <p className="eyebrow">v1.2 Stage 8.0 · Fighter identity and controlled loadouts</p>
           <h1>Kinetic Battle Engine</h1>
-          <p className="subtitle">Reliable battle navigation, preserved Gunner feel, unmistakable damage cues, stable missile barrages, stronger explosion knockback and deeper melee feedback.</p>
+          <p className="subtitle">Developer-authored fighters now support character-specific passives, setup-and-payoff skill combos, approved modules and visible attachments without branching the simulation per fighter.</p>
         </div>
       </section>
 
@@ -1072,7 +1123,6 @@ export default function App() {
           { id: 'battle', label: 'Fight', shortLabel: 'Fight' },
           { id: 'training', label: 'Lab', shortLabel: 'Lab' },
           { id: 'roster', label: 'Roster', shortLabel: 'Roster', badge: fighters.length },
-          { id: 'creator', label: 'Create', shortLabel: 'Create', badge: customBundles.length },
           { id: 'profile', label: 'Profile', shortLabel: 'Profile', badge: `Lv ${profile.level}` }
         ]}
       />
@@ -1094,7 +1144,7 @@ export default function App() {
           <ReleaseHome profile={profile} fighters={fighters} arenaCount={arenas.length} modeCount={gameModes.length} onNavigate={setView} onStart={launchReleaseBattle} />
         </div>
         <div className={view === 'roster' ? '' : 'view-hidden'}>
-          <RosterView fighters={fighters} profile={profile} onPlayAs={playAsFighter} onSetOpponent={setRosterOpponent} onOpenCreator={() => setView('creator')} />
+          <RosterView fighters={fighters} profile={profile} onPlayAs={playAsFighter} onSetOpponent={setRosterOpponent} />
         </div>
         <TrainingLabView fighters={fighters} settings={settings} active={view === 'training'} />
         <section className={`${view === 'battle' ? 'workspace' : 'workspace battle-workspace-dormant'} ${battleDrawerOpen ? 'battle-drawer-open' : ''}`}>
@@ -1112,9 +1162,15 @@ export default function App() {
               </summary>
               <div className="panel-content">
               <label className="field-label" htmlFor="fighter-a">Team 1 fighter</label>
-              <select id="fighter-a" value={setup.fighterAId} onChange={(event: ChangeEvent<HTMLSelectElement>) => updateSetup({ fighterAId: event.target.value })}>
+              <select id="fighter-a" value={setup.fighterAId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setFighter('A', event.target.value)}>
                 {fighters.map((fighter) => { const locked = !isCustomFighter(fighter.id) && !profile.unlockedFighterIds.includes(fighter.id); return <option value={fighter.id} key={fighter.id} disabled={locked}>{fighter.name}{isCustomFighter(fighter.id) ? ' · custom' : locked ? ' · locked' : ''}</option>; })}
               </select>
+              <FighterModuleSelectors
+                fighter={configuredFighterA}
+                selectedModuleIds={setup.moduleIdsA}
+                side="A"
+                onChange={setFighterModule}
+              />
               <label className="field-label stacked-label" htmlFor="controller-a">Team 1 controller</label>
               <select id="controller-a" value={setup.controllerA} onChange={(event: ChangeEvent<HTMLSelectElement>) => setController('A', event.target.value as ControllerKind)}>
                 <option value="player">Player</option>
@@ -1122,9 +1178,15 @@ export default function App() {
               </select>
 
               <label className="field-label stacked-label" htmlFor="fighter-b">Team 2 fighter</label>
-              <select id="fighter-b" value={setup.fighterBId} onChange={(event: ChangeEvent<HTMLSelectElement>) => updateSetup({ fighterBId: event.target.value })}>
+              <select id="fighter-b" value={setup.fighterBId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setFighter('B', event.target.value)}>
                 {fighters.map((fighter) => { const locked = !isCustomFighter(fighter.id) && !profile.unlockedFighterIds.includes(fighter.id); return <option value={fighter.id} key={fighter.id} disabled={locked}>{fighter.name}{isCustomFighter(fighter.id) ? ' · custom' : locked ? ' · locked' : ''}</option>; })}
               </select>
+              <FighterModuleSelectors
+                fighter={configuredFighterB}
+                selectedModuleIds={setup.moduleIdsB}
+                side="B"
+                onChange={setFighterModule}
+              />
               <label className="field-label stacked-label" htmlFor="controller-b">Team 2 controller</label>
               <select id="controller-b" value={setup.controllerB} onChange={(event: ChangeEvent<HTMLSelectElement>) => setController('B', event.target.value as ControllerKind)}>
                 <option value="ai">AI</option>
@@ -1245,6 +1307,10 @@ export default function App() {
               <RangeField label={`Audio volume · ${Math.round(settings.masterVolume * 100)}%`} value={settings.masterVolume} min={0} max={1} step={0.05} onChange={(value) => updateAppSetting('masterVolume', value)} />
               <Toggle label="Adaptive quality" checked={settings.adaptiveQuality} onChange={(value) => updateAppSetting('adaptiveQuality', value)} />
               <Toggle label="Effects + telegraphs" checked={settings.effects} onChange={(value) => updateAppSetting('effects', value)} />
+              <Toggle label="Show mounted attachments" checked={settings.showMountedAttachments} onChange={(value) => updateAppSetting('showMountedAttachments', value)} />
+              <Toggle label="Show fighter HP rings" checked={settings.showFighterHealthRings} onChange={(value) => updateAppSetting('showFighterHealthRings', value)} />
+              <Toggle label="Show damage numbers" checked={settings.showDamageNumbers} onChange={(value) => updateAppSetting('showDamageNumbers', value)} />
+              <Toggle label="Show battle intros" checked={settings.showBattleIntros} onChange={(value) => updateAppSetting('showBattleIntros', value)} />
               <Toggle label="Neon arena background" checked={settings.arenaBackground} onChange={(value) => updateAppSetting('arenaBackground', value)} />
               <Toggle label="Trails" checked={settings.trails} onChange={(value) => updateAppSetting('trails', value)} />
               <Toggle label="Camera shake" checked={settings.cameraShake} onChange={(value) => updateAppSetting('cameraShake', value)} />
@@ -1286,7 +1352,7 @@ export default function App() {
                     tone={pausedByUser ? 'success' : 'pause'}
                     className={`playback-toggle ${pausedByUser ? 'paused' : ''}`}
                     onClick={toggleBattlePaused}
-                    disabled={diagnostics.battleEnded || pausedBySystem}
+                    disabled={diagnostics.battleEnded || pausedBySystem || battleLaunchPhase !== 'running'}
                     aria-pressed={pausedByUser}
                     title={pausedBySystem ? 'The app is paused while it is in the background' : pausedByUser ? 'Resume the current battle' : 'Pause the current battle'}
                   >
@@ -1319,6 +1385,18 @@ export default function App() {
                 <div className="arena-frame" ref={attachBattleHost} />
                 {!ready && !bootError && <div className="arena-loading" role="status"><span className="loading-spinner" /><strong>Preparing battle renderer…</strong><small>Loading arena, content recipes and mobile quality profile.</small></div>}
                 {bootError && <div className="arena-loading error" role="alert"><strong>Battle renderer failed</strong><small>{bootError}</small><button onClick={() => setBootAttempt((attempt) => attempt + 1)}>Retry renderer</button></div>}
+                {ready && battleLaunchPhase !== 'running' && (
+                  <BattleIntroOverlay
+                    phase={battleLaunchPhase}
+                    fighterA={introFighterA}
+                    fighterB={introFighterB}
+                    teamSizeA={introSetup.teamSizeA}
+                    teamSizeB={introSetup.teamSizeB}
+                    modeName={introMode?.name ?? 'Battle'}
+                    startDisabled={!ready || Boolean(bootError)}
+                    onStart={startConfiguredBattle}
+                  />
+                )}
                 {diagnostics.renderDiagnostics.contextLost && <div className="system-pause-badge renderer-recovery-badge">Graphics context interrupted · attempting recovery</div>}
                 {pausedBySystem && <div className="system-pause-badge">Paused while the app is in the background</div>}
                 {pausedByUser && !pausedBySystem && !diagnostics.battleEnded && <div className="system-pause-badge user-pause-badge">Battle paused · press Resume battle to continue</div>}
@@ -1342,7 +1420,7 @@ export default function App() {
                     </div>
                   </div>
                 )}
-              {playerEntity && !diagnostics.battleEnded && touchControlsVisible && (
+              {playerEntity && battleLaunchPhase === 'running' && !diagnostics.battleEnded && touchControlsVisible && (
                 <div className="touch-controls">
                   <DirectionPad onDirection={movePlayer} />
                   <div className="touch-skill-row">
@@ -1368,7 +1446,7 @@ export default function App() {
             {touchControlsVisible && (
               <div className="mobile-battle-dock" aria-label="Quick battle controls">
                 <NeonButton tone="random" size="small" onClick={startRandomMatchup}>Random</NeonButton>
-                <NeonButton tone={pausedByUser ? 'success' : 'pause'} size="small" onClick={toggleBattlePaused} disabled={diagnostics.battleEnded || pausedBySystem}>{pausedByUser ? 'Resume' : 'Pause'}</NeonButton>
+                <NeonButton tone={pausedByUser ? 'success' : 'pause'} size="small" onClick={toggleBattlePaused} disabled={diagnostics.battleEnded || pausedBySystem || battleLaunchPhase !== 'running'}>{pausedByUser ? 'Resume' : 'Pause'}</NeonButton>
                 <NeonButton tone="ghost" size="small" onClick={openBattleSetup} aria-controls="battle-setup-drawer" aria-expanded={battleDrawerOpen}>Setup</NeonButton>
                 <NeonButton tone="utility" size="small" onClick={() => void toggleFullscreenBattle()}>Fullscreen</NeonButton>
               </div>
@@ -1556,9 +1634,9 @@ export default function App() {
               <summary className="panel-summary"><span><small>Developer information</small><strong>Architecture & implementation proof</strong></span></summary>
               <div className="developer-notes-grid">
                 <div>
-                  {['Eight built-in fighters use the same modular content pipeline','Six arenas range from compact ricochet pits to mass-war fields','Player, AI, replay and future network control share one command protocol','Unique skill telegraphs, cast motion, resolve FX, cooldown UI and audio','Duel, teams, battle royale, boss raid, survival and mass skirmish modes','Achievements, challenges, unlocks, history and local profile persistence','Fighter Lab creates runtime combatants without simulation branches','Standard, minimal and debug render profiles with adaptive mobile quality','New battles randomize seed while explicit replay preserves exact inputs','Simulation remains headless, fixed-step and independent from PixiJS','Ability Lab reuses the real combat runner with deterministic training-only rules','Stage 7 pools live runtime snapshots and fighter views while preserving immutable diagnostic snapshots','Adaptive quality changes only presentation; simulation ticks, AI, damage and winners remain untouched'].map((item) => <div className="architecture-item" key={item}><span>✓</span>{item}</div>)}
+                  {['Built-in fighters use the same modular content pipeline','Six arenas range from compact ricochet pits to mass-war fields','Player, AI, replay and future network control share one command protocol','Unique skill telegraphs, cast motion, resolve FX, cooldown UI and audio','Duel, teams, battle royale, boss raid, survival and mass skirmish modes','Achievements, challenges, unlocks, history and local profile persistence','Developer Fighter Workshop remains an internal authoring tool; players choose only approved fighters and loadouts','Standard, minimal and debug render profiles with adaptive mobile quality','New battles randomize seed while explicit replay preserves exact inputs','Simulation remains headless, fixed-step and independent from PixiJS','Ability Lab reuses the real combat runner with deterministic training-only rules','Stage 7 pools live runtime snapshots and fighter views while preserving immutable diagnostic snapshots','Adaptive quality changes only presentation; simulation ticks, AI, damage and winners remain untouched'].map((item) => <div className="architecture-item" key={item}><span>✓</span>{item}</div>)}
                 </div>
-                <div className="note-card-inline"><strong>Architecture proof</strong><p>The release layers remain replaceable: content feeds a headless simulation, commands select the controller, semantic events drive visuals/audio/meta systems, and the browser/mobile app only wires those packages together.</p></div>
+                <div className="note-card-inline"><strong>Architecture proof</strong><p>The release layers remain replaceable: content feeds a headless simulation, commands select the controller, semantic events drive visuals/audio/meta systems, and the browser/mobile app only wires those packages together.</p><NeonButton tone="ghost" size="small" onClick={() => setView('creator')}>Open developer Fighter Workshop</NeonButton></div>
               </div>
             </details>
           </div>
@@ -1586,7 +1664,7 @@ export default function App() {
         <section className={view === 'creator' ? 'creator-workspace' : 'creator-workspace view-hidden'}>
           <aside className="creator-form-column">
             <div className="panel-section creator-source-row">
-              <h2>Start from a fighter</h2>
+              <h2>Developer Fighter Workshop</h2><p className="small-note">Internal authoring only. Player-facing fighter creation is intentionally disabled; publish only reviewed fighter definitions and approved modules.</p>
               <select value={sourceFighterId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setSourceFighterId(event.target.value)}>
                 {fighters.map((fighter) => <option key={fighter.id} value={fighter.id}>{fighter.name}</option>)}
               </select>
@@ -2157,9 +2235,59 @@ function uniqueCustomId(base: string, existing: string[]): string {
   return candidate;
 }
 
+function safeModuleSlot(moduleId: string): ModuleSlot | null {
+  try {
+    return getFighterModule(moduleId).slot;
+  } catch {
+    return null;
+  }
+}
+
+function FighterModuleSelectors({ fighter, selectedModuleIds, side, onChange }: {
+  fighter: FighterDefinition;
+  selectedModuleIds: readonly string[];
+  side: 'A' | 'B';
+  onChange(side: 'A' | 'B', slot: ModuleSlot, moduleId: string): void;
+}) {
+  const slots: readonly ModuleSlot[] = ['offense', 'defense', 'mobility', 'utility'];
+  const availableSlots = slots
+    .map((slot) => ({ slot, modules: listCompatibleModules(fighter, slot) }))
+    .filter((entry) => entry.modules.length > 0);
+  if (availableSlots.length === 0) return null;
+
+  return (
+    <div className="fighter-module-selectors" aria-label={`${fighter.name} modules`}>
+      {availableSlots.map(({ slot, modules }) => {
+        const selected = selectedModuleIds.find((id) => safeModuleSlot(id) === slot) ?? '';
+        const selectedModule = selected ? modules.find((module) => module.id === selected) : undefined;
+        const selectId = `fighter-${side.toLowerCase()}-${slot}-module`;
+        return (
+          <div className="fighter-module-field" key={slot}>
+            <label className="field-label stacked-label" htmlFor={selectId}>{slot} module</label>
+            <select id={selectId} value={selected} onChange={(event: ChangeEvent<HTMLSelectElement>) => onChange(side, slot, event.target.value)}>
+              <option value="">Standard configuration</option>
+              {modules.map((module) => (
+                <option value={module.id} key={module.id}>
+                  {module.name}{module.attachments?.length ? ' · mounted' : ''}
+                </option>
+              ))}
+            </select>
+            <small className="fighter-module-description">
+              <span>{selectedModule?.description ?? `Use ${fighter.name}'s standard developer-authored configuration.`}</span>
+              {(selectedModule?.attachments?.length ?? 0) > 0 && <strong className="mounted-module-badge">Mounted attachment</strong>}
+            </small>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function sameBattleSetup(a: BattleSetup, b: BattleSetup): boolean {
   return a.fighterAId === b.fighterAId
     && a.fighterBId === b.fighterBId
+    && sameStringList(a.moduleIdsA, b.moduleIdsA)
+    && sameStringList(a.moduleIdsB, b.moduleIdsB)
     && a.controllerA === b.controllerA
     && a.controllerB === b.controllerB
     && a.arenaId === b.arenaId
@@ -2169,6 +2297,10 @@ function sameBattleSetup(a: BattleSetup, b: BattleSetup): boolean {
     && a.friendlyFire === b.friendlyFire
     && a.teamCollision === b.teamCollision
     && a.difficulty === b.difficulty;
+}
+
+function sameStringList(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
 function describeBattleResult(diagnostics: RuntimeDiagnostics, mode: GameModeDefinition | undefined): { title: string; description: string; compact: string } {

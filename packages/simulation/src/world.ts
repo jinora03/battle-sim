@@ -1,6 +1,7 @@
-import { getAbility, getFighter, getPrimaryAttack, getStatus } from '@kinetic/content';
+import { getAbility, getFighter, getPrimaryAttack, getStatus, resolveFighterLoadout, type ResolvedFighterLoadout } from '@kinetic/content';
 import type { AbilitySlot, AbilityStateSnapshot, ArenaObstacleSnapshot, BattleObjectiveSnapshot, BattleParticipant, BattleResultSnapshot, ControllerKind, Element, EntityId, EntitySnapshot, ProjectileSnapshot, SimulationMetricsSnapshot, StatusStateSnapshot, TeamId, Vec2, WeaponAttackPhase, WeaponAttackStateSnapshot, WeaponCategory, WorldSnapshot } from '@kinetic/protocol';
 import type { SeededRng } from './rng';
+import { compareOrdinal } from './order';
 
 const SNAPSHOT_SKILL_SLOTS: readonly AbilitySlot[] = ['skill1', 'skill2', 'skill3', 'ultimate'];
 
@@ -40,6 +41,7 @@ export interface ActiveWeaponAttackState {
 export interface ActiveStatus {
   id: string;
   remainingTicks: number;
+  stacks: number;
   sourceId: EntityId | null;
   pulseCountdown: number;
 }
@@ -77,6 +79,7 @@ export class World {
   readonly maxHp: Float64Array;
 
   private readonly fighterId: Array<string | null>;
+  private readonly loadouts: Array<ResolvedFighterLoadout | null>;
   private readonly statuses = new Map<EntityId, Map<string, ActiveStatus>>();
   private readonly cooldownReadyTick = new Map<EntityId, Map<string, number>>();
   private readonly activeZoneIds = new Map<EntityId, Set<string>>();
@@ -134,6 +137,7 @@ export class World {
     this.hp = new Float64Array(maxEntities);
     this.maxHp = new Float64Array(maxEntities);
     this.fighterId = Array.from({ length: maxEntities }, () => null);
+    this.loadouts = Array.from({ length: maxEntities }, () => null);
   }
 
   spawn(participant: BattleParticipant, x: number, y: number, rng: SeededRng): EntityId {
@@ -154,16 +158,18 @@ export class World {
     this.vy[id] = startsMoving ? Math.sin(angle) * initialSpeed : 0;
     this.rotation[id] = angle;
     const scale = participant.statScale ?? {};
+    const loadout = resolveFighterLoadout(fighter, participant.loadout);
     this.radius[id] = fighter.physics.radius * (scale.radius ?? 1);
     this.mass[id] = fighter.physics.mass * (scale.mass ?? 1);
     this.restitution[id] = fighter.physics.restitution;
     this.damping[id] = fighter.physics.linearDamping;
-    this.maxSpeed[id] = fighter.physics.maxSpeed * (scale.speed ?? 1);
-    this.moveAcceleration[id] = fighter.stats.moveAcceleration * (scale.speed ?? 1);
+    this.maxSpeed[id] = fighter.physics.maxSpeed * (scale.speed ?? 1) * loadout.maxSpeedMultiplier;
+    this.moveAcceleration[id] = fighter.stats.moveAcceleration * (scale.speed ?? 1) * loadout.moveAccelerationMultiplier;
     this.damageScale[id] = scale.damage ?? 1;
     this.hp[id] = fighter.stats.maxHp * (scale.hp ?? 1);
     this.maxHp[id] = fighter.stats.maxHp * (scale.hp ?? 1);
     this.fighterId[id] = fighter.id;
+    this.loadouts[id] = loadout;
     this.statuses.set(id, new Map());
     this.cooldownReadyTick.set(id, new Map());
     this.activeZoneIds.set(id, new Set());
@@ -211,6 +217,12 @@ export class World {
     return value;
   }
 
+  getLoadout(id: EntityId): ResolvedFighterLoadout {
+    const value = this.loadouts[id];
+    if (!value) throw new Error(`Entity ${id} has no resolved loadout`);
+    return value;
+  }
+
   getTeam(id: EntityId): TeamId {
     return this.team[id] ?? 0;
   }
@@ -253,22 +265,46 @@ export class World {
     return map !== undefined && map.size > 0;
   }
 
-  applyStatus(id: EntityId, statusId: string, durationTicks: number, sourceId: EntityId | null): void {
-    if (!this.isAlive(id)) return;
+  applyStatus(id: EntityId, statusId: string, durationTicks: number, sourceId: EntityId | null, addedStacks = 1): ActiveStatus | null {
+    if (!this.isAlive(id)) return null;
     const def = getStatus(statusId);
     const map = this.statuses.get(id) ?? new Map<string, ActiveStatus>();
     const previous = map.get(statusId);
-    map.set(statusId, {
+    const maxStacks = Math.max(1, def.maxStacks ?? 1);
+    const stacks = Math.min(maxStacks, (previous?.stacks ?? 0) + Math.max(1, addedStacks));
+    const refreshMode = def.refreshMode ?? 'refresh';
+    const remainingTicks = !previous || refreshMode === 'replace'
+      ? durationTicks
+      : refreshMode === 'extend'
+        ? previous.remainingTicks + durationTicks
+        : Math.max(previous.remainingTicks, durationTicks);
+    const next: ActiveStatus = {
       id: statusId,
-      remainingTicks: Math.max(previous?.remainingTicks ?? 0, durationTicks),
+      remainingTicks,
+      stacks,
       sourceId,
-      pulseCountdown: def.periodTicks ?? 0
-    });
+      pulseCountdown: previous?.pulseCountdown ?? def.periodTicks ?? 0
+    };
+    map.set(statusId, next);
     this.statuses.set(id, map);
+    return next;
   }
 
   removeStatus(id: EntityId, statusId: string): void {
     this.statuses.get(id)?.delete(statusId);
+  }
+
+  removeStatusStacks(id: EntityId, statusId: string, stacks: number | 'all' = 'all'): number {
+    const status = this.statuses.get(id)?.get(statusId);
+    if (!status) return 0;
+    const removed = stacks === 'all' ? status.stacks : Math.min(status.stacks, Math.max(1, stacks));
+    status.stacks -= removed;
+    if (status.stacks <= 0) this.removeStatus(id, statusId);
+    return removed;
+  }
+
+  getStatusStacks(id: EntityId, statusId: string): number {
+    return this.statuses.get(id)?.get(statusId)?.stacks ?? 0;
   }
 
   getStatuses(id: EntityId): Map<string, ActiveStatus> {
@@ -423,14 +459,17 @@ export class World {
       const statuses = entity.statuses;
       let statusIndex = 0;
       for (const status of this.getStatuses(id).values()) {
-        const target = statuses[statusIndex] ?? ({ statusId: '', remainingTicks: 0 } satisfies StatusStateSnapshot);
+        const target = statuses[statusIndex] ?? ({ statusId: '', remainingTicks: 0, stacks: 1 } satisfies StatusStateSnapshot);
         target.statusId = status.id;
         target.remainingTicks = status.remainingTicks;
+        target.stacks = status.stacks;
         statuses[statusIndex] = target;
         statusIndex += 1;
       }
       statuses.length = statusIndex;
-      statuses.sort((a, b) => a.statusId.localeCompare(b.statusId));
+      statuses.sort((a, b) => compareOrdinal(a.statusId, b.statusId));
+      entity.moduleIds.length = 0;
+      entity.moduleIds.push(...this.getLoadout(id).moduleIds);
 
       const primaryReadyTick = this.getPrimaryAttackReadyTick(id, primaryAttack.id);
       const primaryCooldownRemaining = Math.max(0, primaryReadyTick - tick);
@@ -442,7 +481,7 @@ export class World {
       primaryAbility.abilityId = primaryAttack.id;
       primaryAbility.phase = primaryState?.phase === 'windup' ? 'casting' : primaryCooldownRemaining > 0 ? 'cooldown' : 'ready';
       primaryAbility.cooldownRemainingTicks = primaryCooldownRemaining;
-      primaryAbility.cooldownTotalTicks = primaryAttack.cooldownTicks;
+      primaryAbility.cooldownTotalTicks = Math.max(1, Math.round(primaryAttack.cooldownTicks * this.getLoadout(id).primaryCooldownMultiplier));
       primaryAbility.castRemainingTicks = primaryState?.phase === 'windup' ? primaryState.remainingTicks : 0;
       primaryAbility.castTotalTicks = primaryAttack.windupTicks;
       if (primaryState) {
@@ -551,6 +590,7 @@ export class World {
           abilities,
           activeZoneIds: [],
           statuses: [],
+          moduleIds: [],
           primaryAttackId: '',
           weaponId: null,
           weaponAttack: null
@@ -630,7 +670,7 @@ export class World {
         abilityId: primaryAttack.id,
         phase: primaryState?.phase === 'windup' ? 'casting' as const : primaryCooldownRemaining > 0 ? 'cooldown' as const : 'ready' as const,
         cooldownRemainingTicks: primaryCooldownRemaining,
-        cooldownTotalTicks: primaryAttack.cooldownTicks,
+        cooldownTotalTicks: Math.max(1, Math.round(primaryAttack.cooldownTicks * this.getLoadout(id).primaryCooldownMultiplier)),
         castRemainingTicks: primaryState?.phase === 'windup' ? primaryState.remainingTicks : 0,
         castTotalTicks: primaryAttack.windupTicks,
         castDirection: primaryState ? { ...primaryState.direction } : null,
@@ -682,8 +722,9 @@ export class World {
         abilities,
         activeZoneIds: [...this.getActiveZoneIds(id)].sort(),
         statuses: [...this.getStatuses(id).values()]
-          .map((status) => ({ statusId: status.id, remainingTicks: status.remainingTicks }))
-          .sort((a, b) => a.statusId.localeCompare(b.statusId)),
+          .map((status) => ({ statusId: status.id, remainingTicks: status.remainingTicks, stacks: status.stacks }))
+          .sort((a, b) => compareOrdinal(a.statusId, b.statusId)),
+        moduleIds: [...this.getLoadout(id).moduleIds],
         primaryAttackId: fighter.primaryAttackId,
         weaponId: fighter.primaryAttackId,
         weaponAttack: weaponAttack ? {

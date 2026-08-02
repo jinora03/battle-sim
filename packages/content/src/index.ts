@@ -54,8 +54,11 @@ import gravityWellRaw from './data/abilities/gravity-well.json';
 import voidBurstRaw from './data/abilities/void-burst.json';
 import singularityRaw from './data/abilities/singularity.json';
 import combatRollRaw from './data/abilities/combat-roll.json';
+import tacticalSlideRaw from './data/abilities/tactical-slide.json';
 import suppressiveFireRaw from './data/abilities/suppressive-fire.json';
 import grenadeLauncherRaw from './data/abilities/grenade-launcher.json';
+import pinningRoundRaw from './data/abilities/pinning-round.json';
+import killZoneRaw from './data/abilities/kill-zone.json';
 import overdriveBarrageRaw from './data/abilities/overdrive-barrage.json';
 import rocketSalvoRaw from './data/abilities/rocket-salvo.json';
 import blastJumpRaw from './data/abilities/blast-jump.json';
@@ -82,6 +85,9 @@ import rootedRaw from './data/statuses/rooted.json';
 import barkskinRaw from './data/statuses/barkskin.json';
 import phasedRaw from './data/statuses/phased.json';
 import voidMarkRaw from './data/statuses/void-mark.json';
+import targetLockRaw from './data/statuses/target-lock.json';
+import suppressedRaw from './data/statuses/suppressed.json';
+import pinnedRaw from './data/statuses/pinned.json';
 
 import ironPitRaw from './data/arenas/iron-pit.json';
 import pillarCourtRaw from './data/arenas/pillar-court.json';
@@ -120,10 +126,14 @@ import {
   type ProjectileSourceDefinition
 } from './schemas';
 import type { Element } from '@kinetic/protocol';
+import { getPassive } from './passives';
+import { getFighterModule } from './loadouts';
 
 export * from './schemas';
+export * from './passives';
+export * from './loadouts';
 
-export const CONTENT_VERSION = '1.1.6-stage7.5';
+export const CONTENT_VERSION = '1.2.1-stage8.1';
 
 const fighters: FighterDefinition[] = [pyroRaw, mechRaw, waterRaw, bomberRaw, frostRaw, voltRaw, thornRaw, voidRaw, gunnerRaw, rocketRaw, solarSentinelRaw].map((raw) => fighterSchema.parse(raw) as FighterDefinition);
 const builtinFighterIds = new Set(fighters.map((fighter) => fighter.id));
@@ -138,7 +148,7 @@ const abilities: AbilityDefinition[] = [
   lightningDashRaw, arcBurstRaw, polarityPullRaw, thunderDomeRaw,
   brambleChargeRaw, seedBurstRaw, regenerateRaw, overgrowthRaw,
   phaseLungeRaw, gravityWellRaw, voidBurstRaw, singularityRaw,
-  combatRollRaw, suppressiveFireRaw, grenadeLauncherRaw, overdriveBarrageRaw,
+  combatRollRaw, tacticalSlideRaw, suppressiveFireRaw, grenadeLauncherRaw, pinningRoundRaw, killZoneRaw, overdriveBarrageRaw,
   rocketSalvoRaw, blastJumpRaw, siegeMarkerRaw, starburstRaw,
   solarRushRaw, thunderClapRaw, solarAegisRaw, solarLaserRaw
 ].map((raw) => abilitySchema.parse(raw) as AbilityDefinition);
@@ -263,9 +273,47 @@ const skillProjectiles: SkillProjectileDefinition[] = [
     id: 'micro-missile', name: 'Micro Missile', form: 'launcher', behavior: 'ranged', damage: 2.0, knockback: 2.5,
     friendlyFire: false, visualId: 'micro-missile', audioId: 'micro-missile',
     projectile: { speed: 11.1, radius: 6, lifetimeTicks: 180, fuseTicks: 0, gravity: 0, bounce: 0, explosionRadius: 72, explosionDamage: 4.8, explosionImpulse: 6.8, homingStrength: 0.17, homingDelayTicks: 24, homingRange: 900, homingTurnRadians: 0.072, trailStyle: 'smoke' }
+  },
+  {
+    id: 'tactical-round', name: 'Tactical Round', form: 'rifle', behavior: 'ranged', damage: 3.2, knockback: 1.8,
+    friendlyFire: false, visualId: 'automatic-rifle', audioId: 'rifle-burst',
+    projectile: { speed: 23, radius: 4.5, lifetimeTicks: 58, fuseTicks: 0, gravity: 0, bounce: 0, explosionRadius: 0, explosionDamage: 0, explosionImpulse: 0 },
+    onHitStatuses: [{ statusId: 'target-lock', durationTicks: 180, stacks: 1 }]
+  },
+  {
+    id: 'suppressive-round', name: 'Suppressive Round', form: 'rifle', behavior: 'automatic', damage: 2.7, knockback: 1.3,
+    friendlyFire: false, visualId: 'automatic-rifle', audioId: 'rifle-burst',
+    projectile: { speed: 21.5, radius: 4.3, lifetimeTicks: 64, fuseTicks: 0, gravity: 0, bounce: 0, explosionRadius: 0, explosionDamage: 0, explosionImpulse: 0 },
+    onHitStatuses: [
+      { statusId: 'target-lock', durationTicks: 180, stacks: 1 },
+      { statusId: 'suppressed', durationTicks: 54, stacks: 1 }
+    ]
+  },
+  {
+    id: 'pinning-round-projectile', name: 'Pinning Round', form: 'rifle', behavior: 'ranged', damage: 10, knockback: 4,
+    friendlyFire: false, visualId: 'automatic-rifle', audioId: 'rifle-burst',
+    projectile: { speed: 27, radius: 6, lifetimeTicks: 66, fuseTicks: 0, gravity: 0, bounce: 0, explosionRadius: 0, explosionDamage: 0, explosionImpulse: 0 },
+    statusInteraction: {
+      statusId: 'target-lock',
+      bonusDamagePerStack: 4.2,
+      bonusKnockbackPerStack: 1.8,
+      consumeStacks: 'all',
+      applyStatusAtStacks: { minimumStacks: 3, statusId: 'pinned', durationTicks: 72 }
+    }
+  },
+  {
+    id: 'kill-zone-missile', name: 'Kill Zone Missile', form: 'launcher', behavior: 'ranged', damage: 2.4, knockback: 2.8,
+    friendlyFire: false, visualId: 'micro-missile', audioId: 'micro-missile',
+    projectile: { speed: 12.4, radius: 6, lifetimeTicks: 190, fuseTicks: 0, gravity: 0, bounce: 0, explosionRadius: 76, explosionDamage: 5.2, explosionImpulse: 7.2, homingStrength: 0.18, homingDelayTicks: 16, homingRange: 920, homingTurnRadians: 0.078, trailStyle: 'smoke' },
+    statusInteraction: {
+      statusId: 'target-lock',
+      bonusDamagePerStack: 1.6,
+      bonusKnockbackPerStack: 0.5,
+      homingStrengthPerStack: 0.025
+    }
   }
 ];
-const statuses: StatusDefinition[] = [burnRaw, moltenGuardStatusRaw, fortifiedStatusRaw, magmaStatusRaw, overdriveStatusRaw, wetRaw, surgeRaw, blastDashStatusRaw, frozenRaw, cryoGuardRaw, shockedRaw, overchargedRaw, rootedRaw, barkskinRaw, phasedRaw, voidMarkRaw]
+const statuses: StatusDefinition[] = [burnRaw, moltenGuardStatusRaw, fortifiedStatusRaw, magmaStatusRaw, overdriveStatusRaw, wetRaw, surgeRaw, blastDashStatusRaw, frozenRaw, cryoGuardRaw, shockedRaw, overchargedRaw, rootedRaw, barkskinRaw, phasedRaw, voidMarkRaw, targetLockRaw, suppressedRaw, pinnedRaw]
   .map((raw) => statusSchema.parse(raw) as StatusDefinition);
 const arenas: ArenaDefinition[] = [ironPitRaw, pillarCourtRaw, elementalFoundryRaw, warBasinRaw, cryoRingRaw, arcCrucibleRaw, trainingGridRaw].map((raw) => arenaSchema.parse(raw) as ArenaDefinition);
 const gameModes: GameModeDefinition[] = [duelRaw, teamBattleRaw, battleRoyaleRaw, bossRaidRaw, survivalRaw, massSkirmishRaw, trainingRaw]
@@ -299,6 +347,12 @@ export const getAbility = (id: string) => requireFromMap(abilityMap, id, 'abilit
 export const getStatus = (id: string) => requireFromMap(statusMap, id, 'status');
 export const getPrimaryAttack = (id: string) => requireFromMap(primaryAttackMap, id, 'primary attack');
 export const getSkillProjectile = (id: string) => requireFromMap(skillProjectileMap, id, 'skill projectile');
+
+/** Resolves either a fighter primary attack or a skill-owned projectile. */
+export function getAttackSource(id: string): PrimaryAttackDefinition | SkillProjectileDefinition {
+  return primaryAttackMap.get(id) ?? getSkillProjectile(id);
+}
+
 export function getProjectileSource(id: string): ProjectileSourceDefinition {
   const primary = primaryAttackMap.get(id);
   if (primary?.projectile) return primary;
@@ -457,6 +511,21 @@ export function validateFighterReferences(fighter: FighterDefinition): string[] 
   if (fighter.aiProfileId && !aiMap.has(fighter.aiProfileId)) errors.push(`Unknown AI profile: ${fighter.aiProfileId}`);
   for (const [slot, abilityId] of Object.entries(fighter.abilitySlots)) {
     if (abilityId && !abilityMap.has(abilityId)) errors.push(`Unknown ability in ${slot}: ${abilityId}`);
+  }
+  for (const passiveId of fighter.passiveIds ?? []) {
+    try { getPassive(passiveId); } catch { errors.push(`Unknown passive: ${passiveId}`); }
+  }
+  for (const [slot, moduleIds] of Object.entries(fighter.moduleSlots ?? {})) {
+    for (const moduleId of moduleIds ?? []) {
+      try {
+        const module = getFighterModule(moduleId);
+        if (module.slot !== slot) errors.push(`Module ${moduleId} is not a ${slot} module`);
+        if (!module.compatibleFighterIds.includes(fighter.id)) errors.push(`Module ${moduleId} is incompatible with ${fighter.id}`);
+      } catch { errors.push(`Unknown module: ${moduleId}`); }
+    }
+  }
+  for (const moduleId of fighter.defaultModuleIds ?? []) {
+    if (!Object.values(fighter.moduleSlots ?? {}).some((ids) => ids?.includes(moduleId))) errors.push(`Default module is not allowed: ${moduleId}`);
   }
   if (!primaryAttackMap.has(fighter.primaryAttackId)) errors.push(`Unknown primary attack: ${fighter.primaryAttackId}`);
   return errors;

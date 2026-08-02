@@ -110,6 +110,8 @@ export interface RuntimeMetaCallbacks {
 export interface BattleSetup {
   fighterAId: string;
   fighterBId: string;
+  moduleIdsA: string[];
+  moduleIdsB: string[];
   controllerA: ControllerKind;
   controllerB: ControllerKind;
   arenaId: string;
@@ -124,6 +126,8 @@ export interface BattleSetup {
 const DEFAULT_SETUP: BattleSetup = {
   fighterAId: 'gunner',
   fighterBId: 'bomber',
+  moduleIdsA: [],
+  moduleIdsB: [],
   controllerA: 'player',
   controllerB: 'ai',
   arenaId: 'iron-pit',
@@ -259,6 +263,7 @@ export class BattleRuntime {
     this.renderer.setPerformanceScale(this.adaptiveQualityScale);
     this.audio.setVolume(this.settings.masterVolume);
     this.configureControllers();
+    this.renderCurrentSnapshot();
     this.emitDiagnostics();
     this.lastTime = performance.now();
     this.raf = requestAnimationFrame(this.frame);
@@ -325,6 +330,7 @@ export class BattleRuntime {
     };
     this.configureControllers();
     this.renderer.setActive(this.active);
+    this.renderCurrentSnapshot();
     this.emitDiagnostics();
   }
 
@@ -373,6 +379,7 @@ export class BattleRuntime {
     this.active = active;
     this.lastTime = performance.now();
     this.renderer.setActive(active);
+    if (active && this.latestSnapshot) this.renderCurrentSnapshot();
   }
 
   attachHost(host: HTMLElement): void {
@@ -631,6 +638,12 @@ export class BattleRuntime {
     }
   }
 
+  private renderCurrentSnapshot(): void {
+    if (!this.latestSnapshot || !this.active) return;
+    this.renderDiagnostics = this.renderer.render(this.latestSnapshot, 0, [], 0);
+    this.lastRenderAt = performance.now();
+  }
+
   private configureControllers(): void {
     this.fighterIdByEntityId.clear();
     for (const entity of this.latestSnapshot.entities) this.fighterIdByEntityId.set(entity.id, entity.fighterId);
@@ -742,35 +755,49 @@ export class BattleRuntime {
   private createBattle(seed: number): BattleDefinition {
     const mode = getGameMode(this.setup.modeId);
     const participants: BattleParticipant[] = [];
-    const addTeam = (fighterId: string, team: number, count: number, firstController: ControllerKind, statScale?: BattleParticipant['statScale']) => {
+    const addTeam = (
+      fighterId: string,
+      moduleIds: readonly string[],
+      team: number,
+      count: number,
+      firstController: ControllerKind,
+      statScale?: BattleParticipant['statScale']
+    ) => {
       for (let index = 0; index < count; index += 1) {
-        participants.push({ fighterId, team, controller: index === 0 ? firstController : 'ai', ...(statScale ? { statScale } : {}) });
+        participants.push({
+          fighterId,
+          team,
+          controller: index === 0 ? firstController : 'ai',
+          loadout: { moduleIds: [...moduleIds] },
+          ...(statScale ? { statScale } : {})
+        });
       }
     };
 
     if (mode.id === 'duel') {
-      addTeam(this.setup.fighterAId, 1, 1, this.setup.controllerA);
-      addTeam(this.setup.fighterBId, 2, 1, this.setup.controllerB);
+      addTeam(this.setup.fighterAId, this.setup.moduleIdsA, 1, 1, this.setup.controllerA);
+      addTeam(this.setup.fighterBId, this.setup.moduleIdsB, 2, 1, this.setup.controllerB);
     } else if (mode.id === 'team-battle' || mode.id === 'mass-skirmish') {
       const minTeamSize = mode.id === 'mass-skirmish' ? 5 : 2;
       const maxPerTeam = Math.floor(mode.maxUnits / 2);
-      addTeam(this.setup.fighterAId, 1, Math.max(minTeamSize, Math.min(maxPerTeam, this.setup.teamSizeA)), this.setup.controllerA);
-      addTeam(this.setup.fighterBId, 2, Math.max(minTeamSize, Math.min(maxPerTeam, this.setup.teamSizeB)), this.setup.controllerB);
+      addTeam(this.setup.fighterAId, this.setup.moduleIdsA, 1, Math.max(minTeamSize, Math.min(maxPerTeam, this.setup.teamSizeA)), this.setup.controllerA);
+      addTeam(this.setup.fighterBId, this.setup.moduleIdsB, 2, Math.max(minTeamSize, Math.min(maxPerTeam, this.setup.teamSizeB)), this.setup.controllerB);
     } else if (mode.id === 'battle-royale') {
       const total = Math.max(3, Math.min(mode.maxUnits, this.setup.teamSizeA + this.setup.teamSizeB));
       for (let index = 0; index < total; index += 1) {
         participants.push({
           fighterId: index % 2 === 0 ? this.setup.fighterAId : this.setup.fighterBId,
           team: index + 1,
-          controller: index === 0 ? this.setup.controllerA : 'ai'
+          controller: index === 0 ? this.setup.controllerA : 'ai',
+          loadout: { moduleIds: [...(index % 2 === 0 ? this.setup.moduleIdsA : this.setup.moduleIdsB)] }
         });
       }
     } else if (mode.id === 'boss-raid') {
-      addTeam(this.setup.fighterAId, 1, Math.max(1, Math.min(6, this.setup.teamSizeA)), this.setup.controllerA);
-      addTeam(this.setup.fighterBId, mode.bossTeam ?? 2, 1, this.setup.controllerB, { hp: 4.5, radius: 1.65, mass: 3.2, damage: 1.65, speed: 0.86 });
+      addTeam(this.setup.fighterAId, this.setup.moduleIdsA, 1, Math.max(1, Math.min(6, this.setup.teamSizeA)), this.setup.controllerA);
+      addTeam(this.setup.fighterBId, this.setup.moduleIdsB, mode.bossTeam ?? 2, 1, this.setup.controllerB, { hp: 4.5, radius: 1.65, mass: 3.2, damage: 1.65, speed: 0.86 });
     } else {
-      addTeam(this.setup.fighterAId, mode.survivorTeam ?? 1, 1, this.setup.controllerA, { hp: 1.35 });
-      addTeam(this.setup.fighterBId, 2, Math.max(2, Math.min(12, this.setup.teamSizeB)), this.setup.controllerB);
+      addTeam(this.setup.fighterAId, this.setup.moduleIdsA, mode.survivorTeam ?? 1, 1, this.setup.controllerA, { hp: 1.35 });
+      addTeam(this.setup.fighterBId, this.setup.moduleIdsB, 2, Math.max(2, Math.min(12, this.setup.teamSizeB)), this.setup.controllerB);
     }
 
     const playerTeam = participants.find((participant) => participant.controller === 'player')?.team ?? null;

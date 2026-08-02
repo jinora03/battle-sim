@@ -61,6 +61,8 @@ export function ReleaseHome({ profile, fighters, arenaCount, modeCount, onNaviga
     onStart({
       fighterAId: item.fighterAId,
       fighterBId: item.fighterBId,
+      moduleIdsA: [],
+      moduleIdsB: [],
       controllerA: item.controllerA,
       controllerB: item.controllerB,
       arenaId: item.arenaId,

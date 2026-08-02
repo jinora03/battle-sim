@@ -1,0 +1,39 @@
+{
+  "id": "kill-zone",
+  "name": "Kill Zone",
+  "slot": "ultimate",
+  "cooldownTicks": 600,
+  "castTicks": 34,
+  "castMovementMultiplier": 0.28,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "target",
+    "priority": 112,
+    "minRange": 120,
+    "maxRange": 820,
+    "requiresLineOfSight": true,
+    "minimumTargets": 1,
+    "collisionWindowTicks": 0,
+    "aimToleranceDegrees": 85
+  },
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [
+        { "type": "TARGET_HAS_STATUS", "statusId": "target-lock", "minimumStacks": 3 }
+      ],
+      "actions": [
+        { "type": "APPLY_STATUS_SELF", "statusId": "overdrive", "durationTicks": 150 },
+        {
+          "type": "LAUNCH_PROJECTILES",
+          "projectileId": "kill-zone-missile",
+          "count": 10,
+          "pattern": "fan",
+          "spreadDegrees": 36,
+          "targetMode": "distributed",
+          "intervalTicks": 3
+        }
+      ]
+    }
+  ]
+}

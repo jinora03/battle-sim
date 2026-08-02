@@ -55,14 +55,36 @@ describe('v0.9 platform and settings', () => {
     expect(next.largeTouchControls).toBe(true);
   });
 
-  it('migrates partial legacy settings into the v6 schema', () => {
+  it('migrates partial legacy settings into the v9 schema', () => {
     const migrated = normalizeAppSettings({ effects: false, audio: true, renderProfile: 'minimal' }, desktop);
-    expect(migrated.schemaVersion).toBe(6);
+    expect(migrated.schemaVersion).toBe(9);
     expect(migrated.effects).toBe(false);
     expect(migrated.audio).toBe(true);
     expect(migrated.renderProfile).toBe('minimal');
     expect(migrated.arenaBackground).toBe(true);
     expect(migrated.particleScale).toBeGreaterThanOrEqual(0);
+    expect(migrated.showMountedAttachments).toBe(true);
+    expect(migrated.showFighterHealthRings).toBe(true);
+    expect(migrated.showDamageNumbers).toBe(true);
+    expect(migrated.showBattleIntros).toBe(true);
+  });
+
+  it('preserves disabled fighter readability overlays and forwards them to the renderer', () => {
+    const migrated = normalizeAppSettings({
+      schemaVersion: 6,
+      showMountedAttachments: false,
+      showFighterHealthRings: false,
+      showDamageNumbers: false,
+      showBattleIntros: false
+    }, desktop);
+    const presentation = toPresentationSettings(migrated);
+    expect(migrated.showMountedAttachments).toBe(false);
+    expect(migrated.showFighterHealthRings).toBe(false);
+    expect(migrated.showDamageNumbers).toBe(false);
+    expect(migrated.showBattleIntros).toBe(false);
+    expect(presentation.showMountedAttachments).toBe(false);
+    expect(presentation.showFighterHealthRings).toBe(false);
+    expect(presentation.showDamageNumbers).toBe(false);
   });
 
   it('forces motion-heavy presentation features off in reduced-motion mode', () => {

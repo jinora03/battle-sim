@@ -290,7 +290,7 @@ export function TrainingLabView({ fighters, settings, active }: { fighters: Figh
               <div className="training-target-row" key={target.id}>
                 <div><strong>#{target.id} {getFighter(target.fighterId).name}</strong><span>{Math.ceil(target.hp)} / {Math.ceil(target.maxHp)} HP</span></div>
                 <div className="training-status-list">
-                  {target.statuses.length === 0 ? <em>No active status</em> : target.statuses.map((status) => <span key={status.statusId}>{status.statusId} · {status.remainingTicks}t</span>)}
+                  {target.statuses.length === 0 ? <em>No active status</em> : target.statuses.map((status) => <span key={status.statusId}>{status.statusId}{status.stacks > 1 ? ` ×${status.stacks}` : ''} · {status.remainingTicks}t</span>)}
                 </div>
               </div>
             ))}

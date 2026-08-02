@@ -74,7 +74,7 @@ describe('v1.1 Stage 8 mobile rendering policy', () => {
       targetRenderFps: 30,
       effects: true
     }, phone);
-    expect(migrated.schemaVersion).toBe(6);
+    expect(migrated.schemaVersion).toBe(9);
     expect(migrated.renderScale).toBeGreaterThanOrEqual(0.5);
     const presentation = toPresentationSettings(migrated);
     expect(presentation.renderScale).toBe(migrated.renderScale);

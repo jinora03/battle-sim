@@ -51,7 +51,7 @@ export interface CanvasResolution {
 }
 
 export interface AppSettings {
-  schemaVersion: 6;
+  schemaVersion: 9;
   qualityPreset: QualityPresetId;
   renderProfile: RenderProfileId;
   effects: boolean;
@@ -59,6 +59,10 @@ export interface AppSettings {
   trails: boolean;
   cameraShake: boolean;
   impactFreeze: boolean;
+  showMountedAttachments: boolean;
+  showFighterHealthRings: boolean;
+  showDamageNumbers: boolean;
+  showBattleIntros: boolean;
   cameraFollow: boolean;
   screenFlash: boolean;
   audio: boolean;
@@ -234,10 +238,14 @@ export function createDefaultAppSettings(capabilities = detectDeviceCapabilities
   const recommended = recommendQualityPreset(capabilities);
   const base = qualityPresets[recommended].values;
   return {
-    schemaVersion: 6,
+    schemaVersion: 9,
     qualityPreset: 'auto',
     ...base,
     cameraFollow: true,
+    showMountedAttachments: true,
+    showFighterHealthRings: true,
+    showDamageNumbers: true,
+    showBattleIntros: true,
     arenaBackground: true,
     audio: true,
     masterVolume: 0.32,
@@ -284,7 +292,7 @@ export function normalizeAppSettings(input: unknown, capabilities = detectDevice
     : defaults.aimAssist;
   return {
     ...seeded,
-    schemaVersion: 6,
+    schemaVersion: 9,
     qualityPreset: preset,
     renderProfile,
     effects: typeof raw.effects === 'boolean' ? raw.effects : seeded.effects,
@@ -292,6 +300,10 @@ export function normalizeAppSettings(input: unknown, capabilities = detectDevice
     trails: typeof raw.trails === 'boolean' ? raw.trails : seeded.trails,
     cameraShake: typeof raw.cameraShake === 'boolean' ? raw.cameraShake : seeded.cameraShake,
     impactFreeze: typeof raw.impactFreeze === 'boolean' ? raw.impactFreeze : seeded.impactFreeze,
+    showMountedAttachments: typeof raw.showMountedAttachments === 'boolean' ? raw.showMountedAttachments : true,
+    showFighterHealthRings: typeof raw.showFighterHealthRings === 'boolean' ? raw.showFighterHealthRings : true,
+    showDamageNumbers: typeof raw.showDamageNumbers === 'boolean' ? raw.showDamageNumbers : true,
+    showBattleIntros: typeof raw.showBattleIntros === 'boolean' ? raw.showBattleIntros : true,
     cameraFollow: typeof raw.cameraFollow === 'boolean' ? raw.cameraFollow : seeded.cameraFollow,
     screenFlash: typeof raw.screenFlash === 'boolean' ? raw.screenFlash : seeded.screenFlash,
     audio: (raw.schemaVersion ?? 0) < 3 ? true : typeof raw.audio === 'boolean' ? raw.audio : seeded.audio,
@@ -320,6 +332,9 @@ export function toPresentationSettings(settings: AppSettings): PresentationSetti
     trails: settings.trails,
     cameraShake: settings.cameraShake && !settings.reducedMotion,
     impactFreeze: settings.impactFreeze && !settings.reducedMotion,
+    showMountedAttachments: settings.showMountedAttachments,
+    showFighterHealthRings: settings.showFighterHealthRings,
+    showDamageNumbers: settings.showDamageNumbers,
     cameraFollow: settings.cameraFollow,
     screenFlash: settings.screenFlash && !settings.reducedMotion,
     audio: settings.audio,

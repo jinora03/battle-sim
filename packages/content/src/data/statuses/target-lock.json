@@ -1,0 +1,5 @@
+{
+  "id": "target-lock",
+  "maxStacks": 4,
+  "refreshMode": "refresh"
+}
