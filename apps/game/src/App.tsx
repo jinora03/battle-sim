@@ -5,7 +5,6 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type PointerEvent as ReactPointerEvent,
   type SyntheticEvent
 } from 'react';
 import {
@@ -41,13 +40,12 @@ import {
   type ProgressionNotice,
   type SavedBattlePreset
 } from '@kinetic/meta';
-import type { AbilitySlot, ControllerKind, ModuleSlot, Vec2 } from '@kinetic/protocol';
+import type { ControllerKind, ModuleSlot } from '@kinetic/protocol';
 import {
   applyQualityPreset,
   detectDeviceCapabilities,
   detectViewportMetrics,
   shouldShowTouchControls,
-  type AimAssistLevel,
   type AppSettings,
   type QualityPresetId
 } from '@kinetic/platform';
@@ -57,7 +55,7 @@ import {
   removeCustomMotionRecipe,
   removeCustomVisualRecipe
 } from '@kinetic/visual-engine';
-import { BattleRuntime, type BattleSetup, type RuntimeDiagnostics } from './runtime/BattleRuntime';
+import type { BattleSetup } from './runtime/BattleRuntime';
 import { ProfileView } from './ProfileView';
 import { loadPlayerProfile, savePlayerProfile } from './profile/ProfileStore';
 import { loadAppSettings, resetAppSettings, saveAppSettings } from './settings/SettingsStore';
@@ -66,12 +64,11 @@ import { RosterView } from './RosterView';
 import { TrainingLabView } from './TrainingLabView';
 import { AppNavigation, DrawerScrim, NeonButton } from './ui/NeonUI';
 import { BattleIntroOverlay } from './BattleIntroOverlay';
-import { battleIntroDurationMs, battleLaunchPausesSimulation, initialLaunchPhase, type BattleLaunchPhase } from './ui/battleLaunch';
+import { initialLaunchPhase, type BattleLaunchPhase } from './ui/battleLaunch';
 import {
   aggregateActiveCasts,
   noticeDurationMs,
   resolveEliminationProgress,
-  shouldPauseBattle,
   shouldSuppressNoticeOnCompactViewport,
   type TimedNotice
 } from './ui/presentation';
@@ -87,80 +84,10 @@ import {
   sameViewportMetrics
 } from './features/battle/battleUtils';
 import { DeveloperFighterWorkshop } from './features/creator/DeveloperFighterWorkshop';
+import { useBattleInput } from './hooks/useBattleInput';
+import { useBattleRuntime } from './hooks/useBattleRuntime';
 
 const STORAGE_KEY = 'kinetic.custom-fighter-bundles.v1';
-const initialDiagnostics: RuntimeDiagnostics = {
-  tick: 0,
-  checksum: '--------',
-  battleEnded: false,
-  winningTeam: null,
-  result: null,
-  entities: [],
-  obstacles: [],
-  objective: { kind: 'elimination', label: 'Last team standing', progress: 0, remainingTicks: null },
-  stats: {},
-  achievements: [],
-  replayFrames: 0,
-  replayCommands: 0,
-  replayStoredCommands: 0,
-  replayCompressionRatio: 0,
-  recentSkills: [],
-  recentArenaActivity: [],
-  playerEntityIds: [],
-  simulationMetrics: {
-    activeEntities: 0,
-    commandsProcessed: 0,
-    candidatePairs: 0,
-    contactsResolved: 0,
-    sameTeamContacts: 0,
-    occupiedBroadphaseCells: 0,
-    maxBroadphaseBucket: 0,
-    projectileEntityChecks: 0,
-    projectileObstacleChecks: 0,
-    invalidNumericStates: 0
-  },
-  renderDiagnostics: { lod: 'hero', fighterViews: 0, pooledFighterViews: 0, createdFighterViews: 0, reusedFighterViews: 0, particleScale: 1, activeParticles: 0, vfxQuality: 'high', groundMarks: 0, residualParticles: 0, weaponEffects: 0, projectileTrails: 0, qualityScale: 1, resolution: 1, devicePixelRatio: 1, renderScale: 1, cssWidth: 1, cssHeight: 1, pixelWidth: 1, pixelHeight: 1, orientation: 'landscape', resizeCount: 0, contextLost: false, renderTier: 'full', targetRenderFps: 60, presentationEvents: 0, projectileVisuals: 0 },
-  audioDiagnostics: { eventsConsidered: 0, eventsSelected: 0, activeVoices: 0, voiceLimit: 22 },
-  performance: {
-    simulationMs: 0,
-    aiMs: 0,
-    playerInputMs: 0,
-    replayMs: 0,
-    simulationCoreMs: 0,
-    snapshotMs: 0,
-    postSimulationMs: 0,
-    diagnosticsMs: 0,
-    renderMs: 0,
-    frameMs: 0,
-    simulationP95Ms: 0,
-    renderP95Ms: 0,
-    frameP95Ms: 0,
-    renderFps: 0,
-    qualityScale: 1,
-    slowFrames: 0,
-    droppedSimulationTicks: 0,
-    longFrameStreak: 0,
-    stepsLastFrame: 0,
-    pressure: 'healthy',
-    bottleneck: 'balanced'
-  },
-  teams: [],
-  aiDecisions: [],
-  aiWorkload: {
-    aiEntities: 0,
-    reactionRefreshes: 0,
-    attackEvaluations: 0,
-    aimRefreshes: 0,
-    clusterRefreshes: 0,
-    hostileQueries: 0,
-    areaCandidateChecks: 0,
-    reactionIntervalFloor: 1,
-    attackDecisionInterval: 1,
-    aimRefreshInterval: 1,
-    clusterRefreshInterval: 1
-  }
-};
-
 const DEFAULT_SETUP: BattleSetup = {
   fighterAId: 'gunner',
   fighterBId: 'bomber',
@@ -175,19 +102,6 @@ const DEFAULT_SETUP: BattleSetup = {
   friendlyFire: false,
   teamCollision: 'full',
   difficulty: 'standard'
-};
-
-const skillKeyMap: Record<string, AbilitySlot> = {
-  ' ': 'basic',
-  '1': 'basic',
-  q: 'skill1',
-  '2': 'skill1',
-  e: 'skill2',
-  '3': 'skill2',
-  r: 'skill3',
-  '4': 'skill3',
-  f: 'ultimate',
-  '5': 'ultimate'
 };
 
 function createStarterBundle(name = 'Arc Prototype', requestedId?: string): FighterBundle {
@@ -256,16 +170,10 @@ function restoreCustomBundles(): FighterBundle[] {
 }
 
 export default function App() {
-  const hostRef = useRef<HTMLDivElement | null>(null);
   const battleStageRef = useRef<HTMLElement | null>(null);
   const setupPanelRef = useRef<HTMLDetailsElement | null>(null);
   const toastTimersRef = useRef<number[]>([]);
   const toastCounterRef = useRef(0);
-  const runtimeRef = useRef<BattleRuntime | null>(null);
-  const runtimeBootRef = useRef<Promise<void> | null>(null);
-  const runtimeReadyRef = useRef(false);
-  const pendingBattleRef = useRef<{ seed: number; setup: BattleSetup } | null>(null);
-  const pressedKeysRef = useRef(new Set<string>());
   const appRenderCountRef = useRef(0);
   appRenderCountRef.current += 1;
   const [customBundles, setCustomBundles] = useState<FighterBundle[]>(restoreCustomBundles);
@@ -287,11 +195,6 @@ export default function App() {
   const [perfPanelOpen, setPerfPanelOpen] = useState(true);
   const [landscapeHintDismissed, setLandscapeHintDismissed] = useState(false);
   const [battleDrawerOpen, setBattleDrawerOpen] = useState(false);
-  const [diagnostics, setDiagnostics] = useState<RuntimeDiagnostics>(initialDiagnostics);
-  const [ready, setReady] = useState(false);
-  const [bootError, setBootError] = useState<string | null>(null);
-  const [bootAttempt, setBootAttempt] = useState(0);
-  const [pausedBySystem, setPausedBySystem] = useState(false);
   const [pausedByUser, setPausedByUser] = useState(false);
   const [battleLaunchPhase, setBattleLaunchPhase] = useState<BattleLaunchPhase>('ready');
   const [draft, setDraft] = useState<FighterBundle>(() => customBundles[0] ?? createStarterBundle());
@@ -302,6 +205,67 @@ export default function App() {
   const profileRef = useRef(profile);
   const [progressNotices, setProgressNotices] = useState<ProgressionNotice[]>([]);
   const [toastNotices, setToastNotices] = useState<TimedNotice[]>([]);
+  const appendNotices = useCallback((items: readonly ProgressionNotice[]) => {
+    if (items.length === 0) return;
+    setProgressNotices((current) => [...current, ...items].slice(-12));
+    const now = Date.now();
+    const viewportWidth = typeof window === 'undefined' ? 1280 : window.innerWidth;
+    const visible = items
+      .filter((notice) => !shouldSuppressNoticeOnCompactViewport(notice.kind, viewportWidth))
+      .map((notice) => {
+        const id = ++toastCounterRef.current;
+        const duration = noticeDurationMs(notice.kind);
+        return { ...notice, id, createdAt: now, expiresAt: now + duration };
+      });
+    if (visible.length === 0) return;
+    setToastNotices((current) => [...current, ...visible].slice(-4));
+    for (const notice of visible) {
+      const timer = window.setTimeout(() => {
+        setToastNotices((current) => current.filter((item) => item.id !== notice.id));
+      }, Math.max(500, notice.expiresAt - now));
+      toastTimersRef.current.push(timer);
+    }
+  }, []);
+  const onAchievementUnlocked = useCallback((unlock: AchievementUnlock) => {
+    const update = applyAchievementToProfile(profileRef.current, unlock);
+    profileRef.current = update.profile;
+    setProfile(update.profile);
+    appendNotices(update.notices);
+  }, [appendNotices]);
+  const onBattleCompleted = useCallback((summary: BattleCompletionSummary) => {
+    const update = recordBattleToProfile(profileRef.current, summary);
+    profileRef.current = update.profile;
+    setProfile(update.profile);
+    appendNotices(update.notices);
+  }, [appendNotices]);
+  const metaCallbacks = useMemo(
+    () => ({ onAchievementUnlocked, onBattleCompleted }),
+    [onAchievementUnlocked, onBattleCompleted]
+  );
+  const touchControlsVisible = shouldShowTouchControls(settings.touchControls, deviceCapabilities);
+  const {
+    runtimeRef,
+    diagnostics,
+    ready,
+    bootError,
+    pausedBySystem,
+    attachBattleHost,
+    restartBattleWhenReady,
+    retryBoot
+  } = useBattleRuntime({
+    initialSeed: Number(seedText) || 1,
+    settings,
+    setSettings,
+    view,
+    activeSetup,
+    difficulty: profile.difficulty,
+    unlockedAchievementIds: profile.unlockedAchievementIds,
+    touchControlsVisible,
+    pausedByUser,
+    battleLaunchPhase,
+    setBattleLaunchPhase,
+    metaCallbacks
+  });
 
   const validation = useMemo(() => validateFighterBundle(draft), [draft]);
   const activeCasts = diagnostics.entities.flatMap((entity) =>
@@ -310,6 +274,21 @@ export default function App() {
       .map((ability) => ({ entity, ability }))
   );
   const playerEntity = diagnostics.entities.find((entity) => entity.controller === 'player');
+  const {
+    movePlayer,
+    activate,
+    previewAbility,
+    aimFromPointer,
+    aimAndFireFromPointer,
+    handleArenaPointerLeave
+  } = useBattleInput({
+    runtimeRef,
+    view,
+    battleLaunchPhase,
+    movementMode: settings.movementMode,
+    touchControlsVisible,
+    hasPlayerEntity: Boolean(playerEntity)
+  });
   const configuredArena = arenas.find((arena) => arena.id === setup.arenaId) ?? arenas[0];
   const configuredMode = gameModes.find((mode) => mode.id === setup.modeId) ?? gameModes[0];
   const configuredFighterA = getFighter(setup.fighterAId);
@@ -356,10 +335,6 @@ export default function App() {
   const skillActivity = aggregateActiveCasts([...activeSkillEntries, ...recentSkillEntries], diagnostics.entities.length > 24 ? 2 : 3);
   const resultPresentation = describeBattleResult(diagnostics, activeMode);
   const eliminationProgress = useMemo(() => resolveEliminationProgress(diagnostics.teams), [diagnostics.teams]);
-  const battlePaused = shouldPauseBattle(pausedByUser, pausedBySystem)
-    || battleLaunchPausesSimulation(battleLaunchPhase)
-    || view !== 'battle';
-  const touchControlsVisible = shouldShowTouchControls(settings.touchControls, deviceCapabilities);
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(customBundles));
@@ -446,286 +421,6 @@ export default function App() {
     for (const timer of toastTimersRef.current) window.clearTimeout(timer);
     toastTimersRef.current = [];
   }, []);
-
-  const appendNotices = (items: readonly ProgressionNotice[]) => {
-    if (items.length === 0) return;
-    setProgressNotices((current) => [...current, ...items].slice(-12));
-    const now = Date.now();
-    const viewportWidth = typeof window === 'undefined' ? 1280 : window.innerWidth;
-    const visible = items
-      .filter((notice) => !shouldSuppressNoticeOnCompactViewport(notice.kind, viewportWidth))
-      .map((notice) => {
-        const id = ++toastCounterRef.current;
-        const duration = noticeDurationMs(notice.kind);
-        return { ...notice, id, createdAt: now, expiresAt: now + duration };
-      });
-    if (visible.length === 0) return;
-    setToastNotices((current) => [...current, ...visible].slice(-4));
-    for (const notice of visible) {
-      const timer = window.setTimeout(() => {
-        setToastNotices((current) => current.filter((item) => item.id !== notice.id));
-      }, Math.max(500, notice.expiresAt - now));
-      toastTimersRef.current.push(timer);
-    }
-  };
-
-  const onAchievementUnlocked = (unlock: AchievementUnlock) => {
-    const update = applyAchievementToProfile(profileRef.current, unlock);
-    profileRef.current = update.profile;
-    setProfile(update.profile);
-    appendNotices(update.notices);
-  };
-
-  const onBattleCompleted = (summary: BattleCompletionSummary) => {
-    const update = recordBattleToProfile(profileRef.current, summary);
-    profileRef.current = update.profile;
-    setProfile(update.profile);
-    appendNotices(update.notices);
-  };
-
-  useEffect(() => {
-    const host = hostRef.current;
-    if (!host) return;
-    const runtime = new BattleRuntime(
-      host,
-      Number(seedText) || 1,
-      settings,
-      setDiagnostics,
-      { ...activeSetup, difficulty: profile.difficulty },
-      { onAchievementUnlocked, onBattleCompleted },
-      profile.unlockedAchievementIds
-    );
-    runtimeRef.current = runtime;
-    runtime.setDetailedDiagnosticsEnabled(settings.showPerformanceHud);
-    return () => {
-      setReady(false);
-      runtimeBootRef.current = null;
-      runtimeReadyRef.current = false;
-      pendingBattleRef.current = null;
-      runtime.destroy();
-      runtimeRef.current = null;
-    };
-    // Runtime owns its lifetime. Updates use explicit methods below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    runtimeRef.current?.setSettings(settings);
-  }, [settings]);
-
-  useEffect(() => {
-    runtimeRef.current?.setDetailedDiagnosticsEnabled(settings.showPerformanceHud);
-  }, [settings.showPerformanceHud]);
-
-  useEffect(() => {
-    // Touch devices have no cursor: hide the aim crosshair and steer/aim from the stick.
-    runtimeRef.current?.setPointerAimEnabled(!touchControlsVisible);
-  }, [touchControlsVisible]);
-
-  useEffect(() => {
-    const strength: Record<AimAssistLevel, number> = { off: 0, light: 0.35, medium: 0.6, strong: 0.9 };
-    runtimeRef.current?.setAimAssist(strength[settings.aimAssist]);
-  }, [settings.aimAssist]);
-
-  useEffect(() => {
-    if (!settings.audio) return;
-    let unlocked = false;
-    const unlock = () => {
-      if (unlocked) return;
-      unlocked = true;
-      void runtimeRef.current?.enableAudio().catch(() => { unlocked = false; });
-    };
-    // Attempt immediately for browsers that permit it, then transparently
-    // retry on the first pointer or keyboard gesture when autoplay is blocked.
-    window.setTimeout(unlock, 0);
-    window.addEventListener('pointerdown', unlock, { capture: true, once: true });
-    window.addEventListener('keydown', unlock, { capture: true, once: true });
-    return () => {
-      window.removeEventListener('pointerdown', unlock, true);
-      window.removeEventListener('keydown', unlock, true);
-    };
-  }, [settings.audio]);
-
-  useEffect(() => {
-    const handleVisibility = () => setPausedBySystem(document.visibilityState !== 'visible');
-    const handlePageHide = () => setPausedBySystem(true);
-    const handlePageShow = () => setPausedBySystem(document.visibilityState !== 'visible');
-    const handleFullscreen = () => setSettings((current) => ({ ...current, fullscreenBattle: Boolean(document.fullscreenElement) }));
-    document.addEventListener('visibilitychange', handleVisibility);
-    document.addEventListener('fullscreenchange', handleFullscreen);
-    window.addEventListener('pagehide', handlePageHide);
-    window.addEventListener('pageshow', handlePageShow);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
-      document.removeEventListener('fullscreenchange', handleFullscreen);
-      window.removeEventListener('pagehide', handlePageHide);
-      window.removeEventListener('pageshow', handlePageShow);
-    };
-  }, []);
-
-  useEffect(() => {
-    runtimeRef.current?.setPaused(battlePaused);
-  }, [battlePaused]);
-
-  useEffect(() => {
-    if (view !== 'battle' || battleLaunchPhase !== 'intro') return;
-    const timer = window.setTimeout(
-      () => setBattleLaunchPhase('running'),
-      battleIntroDurationMs(settings.reducedMotion)
-    );
-    return () => window.clearTimeout(timer);
-  }, [battleLaunchPhase, settings.reducedMotion, view]);
-
-  useEffect(() => {
-    const runtime = runtimeRef.current;
-    if (!runtime) return;
-    if (view !== 'battle') {
-      runtime.setActive(false);
-      return;
-    }
-
-    let cancelled = false;
-    let layoutFrame = 0;
-    const afterVisibleLayout = () => new Promise<void>((resolve, reject) => {
-      const check = (attempt: number) => {
-        layoutFrame = window.requestAnimationFrame(() => {
-          if (cancelled) {
-            resolve();
-            return;
-          }
-          const host = hostRef.current;
-          const rect = host?.getBoundingClientRect();
-          const width = rect?.width || host?.clientWidth || 0;
-          const height = rect?.height || host?.clientHeight || 0;
-          if (host?.isConnected && width >= 32 && height >= 32) {
-            resolve();
-            return;
-          }
-          if (attempt >= 40) {
-            reject(new Error('The battle arena is still waiting for a visible layout.'));
-            return;
-          }
-          check(attempt + 1);
-        });
-      };
-      check(0);
-    });
-
-    const boot = async () => {
-      setReady(false);
-      setBootError(null);
-      await afterVisibleLayout();
-      if (cancelled) return;
-      const host = hostRef.current;
-      if (!host) throw new Error('Battle arena host is not available.');
-      runtime.attachHost(host);
-      runtime.setActive(true);
-      const bootPromise = runtimeBootRef.current ?? runtime.start();
-      runtimeBootRef.current = bootPromise;
-      await bootPromise;
-      if (cancelled) return;
-      const currentHost = hostRef.current;
-      if (currentHost) runtime.attachHost(currentHost);
-      runtime.setActive(true);
-      runtimeReadyRef.current = true;
-      const pending = pendingBattleRef.current;
-      if (pending) {
-        pendingBattleRef.current = null;
-        runtime.restart(pending.seed, pending.setup);
-      }
-      setReady(true);
-    };
-
-    void boot().catch((reason: unknown) => {
-      if (cancelled) return;
-      runtimeBootRef.current = null;
-      runtimeReadyRef.current = false;
-      setReady(false);
-      setBootError(reason instanceof Error ? reason.message : 'Battle renderer failed to start.');
-    });
-
-    return () => {
-      cancelled = true;
-      if (layoutFrame) window.cancelAnimationFrame(layoutFrame);
-      runtime.setActive(false);
-    };
-  }, [view, bootAttempt]);
-
-  // Auto-recover from a renderer boot failure (e.g. a landscape rotation where the
-  // arena layout wasn't ready yet): retry once the layout settles or resizes.
-  useEffect(() => {
-    if (!bootError) return;
-    let done = false;
-    const retry = () => { if (done) return; done = true; setBootAttempt((attempt) => attempt + 1); };
-    const timer = window.setTimeout(retry, 700);
-    window.addEventListener('resize', retry, { passive: true });
-    window.addEventListener('orientationchange', retry, { passive: true });
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener('resize', retry);
-      window.removeEventListener('orientationchange', retry);
-    };
-  }, [bootError]);
-
-  useEffect(() => {
-    runtimeRef.current?.setUnlockedAchievements(profile.unlockedAchievementIds);
-  }, [profile.unlockedAchievementIds]);
-
-  useEffect(() => {
-    const updateMovement = () => {
-      if (settings.movementMode !== 'wasd') {
-        runtimeRef.current?.setPlayerMovement({ x: 0, y: 0 });
-        return;
-      }
-      const keys = pressedKeysRef.current;
-      const x = (keys.has('d') || keys.has('arrowright') ? 1 : 0) - (keys.has('a') || keys.has('arrowleft') ? 1 : 0);
-      const y = (keys.has('s') || keys.has('arrowdown') ? 1 : 0) - (keys.has('w') || keys.has('arrowup') ? 1 : 0);
-      runtimeRef.current?.setPlayerMovement({ x, y });
-    };
-    const isTyping = (target: EventTarget | null) => target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (isTyping(event.target) || view !== 'battle' || battleLaunchPhase !== 'running') return;
-      const key = event.key.toLowerCase();
-      if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
-        if (settings.movementMode === 'wasd') {
-          event.preventDefault();
-          pressedKeysRef.current.add(key);
-          updateMovement();
-        }
-      }
-      const slot = skillKeyMap[key];
-      if (slot && !event.repeat) {
-        event.preventDefault();
-        runtimeRef.current?.activatePlayerAbility(slot);
-      }
-    };
-    const onKeyUp = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase();
-      pressedKeysRef.current.delete(key);
-      updateMovement();
-    };
-    const stop = () => {
-      pressedKeysRef.current.clear();
-      runtimeRef.current?.setPlayerMovement({ x: 0, y: 0 });
-    };
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-    window.addEventListener('blur', stop);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
-      window.removeEventListener('blur', stop);
-    };
-  }, [battleLaunchPhase, settings.movementMode, view]);
-
-  const restartBattleWhenReady = (seed: number, nextSetup: BattleSetup) => {
-    const runtime = runtimeRef.current;
-    if (!runtimeReadyRef.current || !runtime) {
-      pendingBattleRef.current = { seed, setup: nextSetup };
-      return;
-    }
-    runtime.restart(seed, nextSetup);
-  };
 
   const prepareBattleForStart = (seed: number, nextSetup: BattleSetup) => {
     setSeedText(String(seed));
@@ -1042,43 +737,6 @@ export default function App() {
     teamSizeB: 1
   });
 
-  const movePlayer = (direction: Vec2) => {
-    if (battleLaunchPhase !== 'running') return;
-    runtimeRef.current?.setPlayerMovement(direction);
-    // On touch, the analog stick is the only input, so it drives facing/aim too.
-    if (touchControlsVisible && (Math.abs(direction.x) > 0.001 || Math.abs(direction.y) > 0.001)) {
-      runtimeRef.current?.setPlayerAim(direction);
-    }
-  };
-  const activate = (slot: AbilitySlot) => { if (battleLaunchPhase === 'running') runtimeRef.current?.activatePlayerAbility(slot); };
-  const previewAbility = (slot: AbilitySlot) => { runtimeRef.current?.previewPlayerAbility(slot); };
-  const stopPlayerMovement = () => { runtimeRef.current?.setPlayerMovement({ x: 0, y: 0 }); };
-  const attachBattleHost = useCallback((node: HTMLDivElement | null) => {
-    hostRef.current = node;
-    if (node) runtimeRef.current?.attachHost(node);
-  }, []);
-  const aimFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (battleLaunchPhase !== 'running') return;
-    const target = event.target as HTMLElement;
-    if (target.closest('.touch-controls')) return;
-    // Touch devices steer and aim from the analog stick, so the arena stays
-    // inert to touch (which also lets drags over it scroll the page).
-    if (event.pointerType === 'touch') return;
-    if (settings.movementMode === 'mouse' && playerEntity && event.pointerType === 'mouse') {
-      runtimeRef.current?.setPlayerMouseDriveFromClient(event.clientX, event.clientY);
-      return;
-    }
-    runtimeRef.current?.setPlayerAimFromClient(event.clientX, event.clientY);
-  };
-  const aimAndFireFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
-    aimFromPointer(event);
-    if (event.pointerType === 'mouse' && event.button === 0 && playerEntity) activate('basic');
-  };
-  const handleArenaPointerLeave = () => {
-    if (settings.movementMode === 'mouse') stopPlayerMovement();
-  };
-
-
   const openBattleSetup = () => {
     setSetupPanelOpen(true);
     if (viewportMetrics.width <= 900) setBattleDrawerOpen(true);
@@ -1215,7 +873,7 @@ export default function App() {
               <div className="arena-wrap" onPointerMove={aimFromPointer} onPointerDown={aimAndFireFromPointer} onPointerLeave={handleArenaPointerLeave}>
                 <div className="arena-frame" ref={attachBattleHost} />
                 {!ready && !bootError && <div className="arena-loading" role="status"><span className="loading-spinner" /><strong>Preparing battle renderer…</strong><small>Loading arena, content recipes and mobile quality profile.</small></div>}
-                {bootError && <div className="arena-loading error" role="alert"><strong>Battle renderer failed</strong><small>{bootError}</small><button onClick={() => setBootAttempt((attempt) => attempt + 1)}>Retry renderer</button></div>}
+                {bootError && <div className="arena-loading error" role="alert"><strong>Battle renderer failed</strong><small>{bootError}</small><button onClick={retryBoot}>Retry renderer</button></div>}
                 {ready && battleLaunchPhase !== 'running' && (
                   <BattleIntroOverlay
                     phase={battleLaunchPhase}

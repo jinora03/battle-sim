@@ -71,7 +71,8 @@ describe('v1.1 Stage 7.5 final performance architecture', () => {
     const app = readFileSync(new URL('../apps/game/src/App.tsx', import.meta.url), 'utf8');
     const runtime = readFileSync(new URL('../apps/game/src/runtime/BattleRuntime.ts', import.meta.url), 'utf8');
     const renderer = readFileSync(new URL('../packages/renderer-pixi/src/index.ts', import.meta.url), 'utf8');
-    expect(app).toContain('host?.isConnected && width >= 32 && height >= 32');
+    const runtimeHook = readFileSync(new URL('../apps/game/src/hooks/useBattleRuntime.ts', import.meta.url), 'utf8');
+    expect(runtimeHook).toContain('host?.isConnected && width >= 32 && height >= 32');
     expect(app).toContain('Retry renderer');
     expect(runtime).toContain('private startPromise: Promise<void> | null = null');
     expect(renderer).toContain('private initPromise: Promise<void> | null = null');
