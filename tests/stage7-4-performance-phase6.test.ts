@@ -19,16 +19,16 @@ describe('v1.1 Stage 7.4 performance phase 6', () => {
   });
 
   it('guards viewport state and renderer resizing against no-op updates', () => {
-    const app = readFileSync(new URL('../apps/game/src/App.tsx', import.meta.url), 'utf8');
+    const appController = readFileSync(new URL('../apps/game/src/app/AppController.tsx', import.meta.url), 'utf8');
     const renderer = readFileSync(new URL('../packages/renderer-pixi/src/index.ts', import.meta.url), 'utf8');
-    expect(app).toContain('sameViewportMetrics(current, nextViewport) ? current : nextViewport');
+    expect(appController).toContain('sameViewportMetrics(current, nextViewport) ? current : nextViewport');
     expect(renderer).toContain('if (!sizeChanged && !resolutionChanged) return');
   });
 
   it('keeps the replay export centered and restores an explicit AI hitmarker path', () => {
-    const app = readFileSync(new URL('../apps/game/src/App.tsx', import.meta.url), 'utf8');
+    const workspace = readFileSync(new URL('../apps/game/src/app/AppWorkspace.tsx', import.meta.url), 'utf8');
     const audio = readFileSync(new URL('../packages/audio/src/index.ts', import.meta.url), 'utf8');
-    expect(app).toContain('className="debug-export-row"');
+    expect(workspace).toContain('className="debug-export-row"');
     expect(audio).toContain('this.playAiHitmarker(strongestAiHit)');
     expect(audio).toContain('aiEntityIds: readonly number[] = []');
   });
