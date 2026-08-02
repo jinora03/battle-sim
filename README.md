@@ -1,6 +1,22 @@
-# Kinetic Battle Engine — v1.1 Stage 7.5
+# Kinetic Battle Engine — v1.2.2 Stage 8.2A
 
 A browser/mobile-ready 2D physics battle game and modular fighter engine built with TypeScript, PixiJS, React, Vite and Capacitor.
+
+> **Stage 8.2A normalizes fighter scale for compact, readable battles.** Every built-in fighter now uses a minimum radius of 45, role-based size tiers, radius-aware spawn spacing, and larger white-outlined mounted attachments.
+
+## Stage 8.2A highlights
+
+- minimum built-in fighter radius of 45
+- readable role-based radius tiers from agile fighters through heavy guardians
+- radius-aware default spawn padding and spacing
+- Gunner missile pod, deflector plate, recoil thrusters and targeting drone enlarged
+- attachment size, offsets and white outline widths derived from fighter radius
+- fighter intro portraits reflect relative fighter size
+- Developer Fighter Workshop defaults and examples updated to the new baseline
+
+See `docs/V1_2_STAGE_8_2A_FIGHTER_SCALE_AND_ATTACHMENTS.md` for implementation notes.
+
+## Previous Stage 7.5 performance foundation
 
 > **Stage 7.5 is the consolidated final performance architecture pass.** It preserves deterministic simulation and replay behavior while reducing mass-battle AI area-query work, main-thread allocations and redundant obstacle redraws. It also hardens Fight-tab renderer startup, adds live team-health/elimination progress, left-aligns the matchup identity, and enables a distinct rate-limited AI hitmarker cue.
 

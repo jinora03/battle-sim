@@ -297,6 +297,10 @@ export interface MountedAttachmentDefinition {
   primaryColor: number;
   accentColor: number;
   glowColor?: number;
+  /** Outer silhouette color. Defaults to soft white for arena readability. */
+  outlineColor?: number;
+  /** Outline width measured in fighter-radius units. */
+  outlineWidthScale?: number;
   orbitRadius?: number;
   orbitSpeed?: number;
   hideInMassBattle?: boolean;

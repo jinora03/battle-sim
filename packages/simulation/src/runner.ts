@@ -48,7 +48,7 @@ import { World, type ActiveCastState, type ActiveWeaponAttackState, type ArmedAb
 import { resolveImpulseDirection, resolveProjectileStatusInteraction } from './combatModifiers';
 import { compareOrdinal } from './order';
 
-export const ENGINE_VERSION = '1.2.0-stage8.0';
+export const ENGINE_VERSION = '1.2.2-stage8.2a';
 export { CONTENT_VERSION };
 export const SIM_TICK_RATE = 60;
 export const SIM_TICK_MS = 1000 / SIM_TICK_RATE;
@@ -394,25 +394,31 @@ export class LocalSimulationRunner implements SimulationRunner {
     const teamZones = this.arena.spawnZones.filter((zone) => zone.team === participant.team);
     const genericZones = this.arena.spawnZones.filter((zone) => zone.team === undefined);
     const zone = requested ?? teamZones[index % Math.max(1, teamZones.length)] ?? genericZones[index % Math.max(1, genericZones.length)];
+    const fighter = getFighter(participant.fighterId);
+    const spawnRadius = fighter.physics.radius * (participant.statScale?.radius ?? 1);
     if (zone) {
       const usage = zoneUsage.get(zone.id) ?? 0;
       zoneUsage.set(zone.id, usage + 1);
-      const columns = Math.max(1, Math.floor(zone.width / 75));
+      const padding = spawnRadius + 10;
+      const spacing = spawnRadius * 2 + 18;
+      const usableWidth = Math.max(1, zone.width - padding * 2);
+      const columns = Math.max(1, Math.floor(usableWidth / spacing) + 1);
       const row = Math.floor(usage / columns);
       const column = usage % columns;
-      const jitterX = this.rng.range(-8, 8);
-      const jitterY = this.rng.range(-8, 8);
+      const jitterLimit = Math.min(6, Math.max(0, (spacing - spawnRadius * 2) * 0.25));
+      const jitterX = this.rng.range(-jitterLimit, jitterLimit);
+      const jitterY = this.rng.range(-jitterLimit, jitterLimit);
       return {
-        x: zone.x + Math.min(zone.width - 28, 28 + column * 70) + jitterX,
-        y: zone.y + Math.min(zone.height - 28, 28 + row * 70) + jitterY
+        x: zone.x + Math.min(zone.width - padding, padding + column * spacing) + jitterX,
+        y: zone.y + Math.min(zone.height - padding, padding + row * spacing) + jitterY
       };
     }
 
     const centerX = this.arena.width / 2;
     const centerY = this.arena.height / 2;
-    const radius = Math.min(this.arena.width, this.arena.height) * 0.32;
+    const orbitRadius = Math.max(spawnRadius + 8, Math.min(this.arena.width, this.arena.height) * 0.32 - spawnRadius);
     const angle = (index / Math.max(count, 1)) * Math.PI * 2 - Math.PI / 2;
-    return { x: centerX + Math.cos(angle) * radius, y: centerY + Math.sin(angle) * radius };
+    return { x: centerX + Math.cos(angle) * orbitRadius, y: centerY + Math.sin(angle) * orbitRadius };
   }
 
   private processCommands(commands: readonly SimulationCommand[], events: SimulationEvent[]): void {

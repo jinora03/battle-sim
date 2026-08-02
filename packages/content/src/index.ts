@@ -133,9 +133,15 @@ export * from './schemas';
 export * from './passives';
 export * from './loadouts';
 
-export const CONTENT_VERSION = '1.2.1-stage8.1';
+export const CONTENT_VERSION = '1.2.2-stage8.2a';
+export const MIN_FIGHTER_RADIUS = 45;
 
 const fighters: FighterDefinition[] = [pyroRaw, mechRaw, waterRaw, bomberRaw, frostRaw, voltRaw, thornRaw, voidRaw, gunnerRaw, rocketRaw, solarSentinelRaw].map((raw) => fighterSchema.parse(raw) as FighterDefinition);
+for (const fighter of fighters) {
+  if (fighter.physics.radius < MIN_FIGHTER_RADIUS) {
+    throw new Error(`Built-in fighter ${fighter.id} has radius ${fighter.physics.radius}; minimum is ${MIN_FIGHTER_RADIUS}.`);
+  }
+}
 const builtinFighterIds = new Set(fighters.map((fighter) => fighter.id));
 const customFighterIds = new Set<string>();
 const aiProfiles: AiProfile[] = [aggressiveRaw, heavyRaw, tidalRaw, demolitionRaw, frostAiRaw, voltAiRaw, thornAiRaw, voidAiRaw, gunnerAiRaw, rocketAiRaw].map((raw) => aiProfileSchema.parse(raw) as AiProfile);

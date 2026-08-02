@@ -10,7 +10,7 @@ const bundle: FighterBundle = {
     id: 'creator-test-fighter',
     name: 'Creator Test Fighter',
     classification: { archetype: 'striker', elements: ['electric'], traits: ['custom'] },
-    physics: { radius: 27, mass: 1.2, restitution: 0.92, linearDamping: 0.993, maxSpeed: 12 },
+    physics: { radius: 45, mass: 1.2, restitution: 0.92, linearDamping: 0.993, maxSpeed: 12 },
     stats: { maxHp: 210, moveAcceleration: 0.2 },
     aiProfileId: 'aggressive-brawler',
     primaryAttackId: 'arc-emitter',

@@ -7,7 +7,10 @@ import {
 } from '@kinetic/content';
 import type { BattleDefinition, SimulationCommand, SimulationEvent } from '@kinetic/protocol';
 import { LocalSimulationRunner, SeededRng, World } from '@kinetic/simulation';
-import { resolveMountedAttachmentPose } from '../packages/renderer-pixi/src/mountedAttachments';
+import {
+  resolveMountedAttachmentOutlineWidth,
+  resolveMountedAttachmentPose
+} from '../packages/renderer-pixi/src/mountedAttachments';
 
 function runTicks(
   runner: LocalSimulationRunner,
@@ -83,7 +86,7 @@ describe('Stage 8.1 data-driven mounted attachments', () => {
     const first = listMountedAttachments(['targeting-drone']);
     first[0]!.scale = 99;
     const second = listMountedAttachments(['targeting-drone']);
-    expect(second[0]?.scale).toBe(1.12);
+    expect(second[0]?.scale).toBe(1.36);
   });
 
   it('computes stable body and orbit mount poses without simulation state branches', () => {
@@ -91,7 +94,7 @@ describe('Stage 8.1 data-driven mounted attachments', () => {
     const [drone] = listMountedAttachments(['targeting-drone']);
     const context = {
       entityId: 4,
-      radius: 35,
+      radius: 48,
       elapsedSeconds: 1.5,
       counterRotation: -0.4,
       reducedMotion: false,
@@ -101,7 +104,25 @@ describe('Stage 8.1 data-driven mounted attachments', () => {
     const thrusterPose = resolveMountedAttachmentPose(thruster!, context);
     const dronePose = resolveMountedAttachmentPose(drone!, context);
     expect(thrusterPose.x).toBeLessThan(0);
-    expect(Math.hypot(dronePose.x, dronePose.y)).toBeCloseTo(35 * 1.9, 5);
+    expect(Math.hypot(dronePose.x, dronePose.y)).toBeCloseTo(48 * 2.14, 5);
+  });
+
+  it('scales Gunner attachments and their white outlines from fighter radius', () => {
+    const pod = listMountedAttachments(['shoulder-missile-pod'])[0]!;
+    const plate = listMountedAttachments(['deflector-plate'])[0]!;
+    const thrusters = listMountedAttachments(['recoil-thrusters']);
+    const drone = listMountedAttachments(['targeting-drone'])[0]!;
+
+    expect(pod.scale).toBeGreaterThanOrEqual(1.45);
+    expect(plate.scale).toBeGreaterThanOrEqual(1.4);
+    expect(thrusters.every((attachment) => (attachment.scale ?? 1) >= 1.2)).toBe(true);
+    expect(drone.scale).toBeGreaterThanOrEqual(1.35);
+    expect([pod, plate, ...thrusters, drone].every((attachment) => attachment.outlineColor === 0xf7fcff)).toBe(true);
+
+    const small = resolveMountedAttachmentOutlineWidth(pod, { radius: 48, lod: 'hero' });
+    const large = resolveMountedAttachmentOutlineWidth(pod, { radius: 60, lod: 'hero' });
+    expect(small).toBeGreaterThanOrEqual(2.5);
+    expect(large).toBeGreaterThan(small);
   });
 
   it('applies mobility modifiers once when the fighter spawns', () => {

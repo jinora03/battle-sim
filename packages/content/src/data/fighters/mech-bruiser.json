@@ -12,7 +12,7 @@
     ]
   },
   "physics": {
-    "radius": 50,
+    "radius": 57,
     "mass": 4.2,
     "restitution": 0.66,
     "linearDamping": 0.997,

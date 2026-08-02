@@ -213,7 +213,7 @@ function createStarterBundle(name = 'Arc Prototype', requestedId?: string): Figh
       id,
       name,
       classification: { archetype: 'striker', elements: ['electric'], traits: ['custom', 'experimental'] },
-      physics: { radius: 28, mass: 1.25, restitution: 0.94, linearDamping: 0.993, maxSpeed: 12.2 },
+      physics: { radius: 45, mass: 1.25, restitution: 0.94, linearDamping: 0.993, maxSpeed: 12.2 },
       stats: { maxHp: 225, moveAcceleration: 0.2 },
       aiProfileId: 'ranged-gunner',
       abilitySlots: {
@@ -1686,7 +1686,7 @@ export default function App() {
 
             <CreatorSection title="Physics & combat stats">
               <RangeField label="HP" value={draft.fighter.stats.maxHp} min={40} max={2000} step={5} onChange={(value) => updateFighterStats(setDraft, draft, 'maxHp', value)} />
-              <RangeField label="Radius" value={draft.fighter.physics.radius} min={12} max={100} step={1} onChange={(value) => updateFighterPhysics(setDraft, draft, 'radius', value)} />
+              <RangeField label="Radius" value={draft.fighter.physics.radius} min={45} max={100} step={1} onChange={(value) => updateFighterPhysics(setDraft, draft, 'radius', value)} />
               <RangeField label="Mass" value={draft.fighter.physics.mass} min={0.2} max={15} step={0.05} onChange={(value) => updateFighterPhysics(setDraft, draft, 'mass', value)} />
               <RangeField label="Bounce" value={draft.fighter.physics.restitution} min={0} max={1.2} step={0.01} onChange={(value) => updateFighterPhysics(setDraft, draft, 'restitution', value)} />
               <RangeField label="Damping" value={draft.fighter.physics.linearDamping} min={0.95} max={1} step={0.001} onChange={(value) => updateFighterPhysics(setDraft, draft, 'linearDamping', value)} />

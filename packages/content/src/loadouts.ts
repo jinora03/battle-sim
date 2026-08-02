@@ -49,12 +49,14 @@ const MODULES: readonly FighterModuleDefinition[] = [
         kind: 'missile-pod',
         mountPoint: 'top',
         rotationMode: 'target',
-        forward: 0.22,
-        lateral: -0.96,
-        scale: 1.18,
+        forward: 0.32,
+        lateral: -1.14,
+        scale: 1.48,
         primaryColor: 0x263645,
         accentColor: 0xffb347,
         glowColor: 0xffd76a,
+        outlineColor: 0xf7fcff,
+        outlineWidthScale: 0.072,
         hideInMassBattle: true
       }
     ],
@@ -75,11 +77,13 @@ const MODULES: readonly FighterModuleDefinition[] = [
         kind: 'deflector-plate',
         mountPoint: 'front',
         rotationMode: 'body',
-        forward: 1.12,
-        scale: 1.18,
+        forward: 1.3,
+        scale: 1.42,
         primaryColor: 0x31485d,
         accentColor: 0x7de5ff,
         glowColor: 0x65d8ff,
+        outlineColor: 0xf7fcff,
+        outlineWidthScale: 0.075,
         hideInMassBattle: true
       }
     ],
@@ -101,12 +105,14 @@ const MODULES: readonly FighterModuleDefinition[] = [
         kind: 'thruster',
         mountPoint: 'rear',
         rotationMode: 'body',
-        forward: -1.04,
-        lateral: -0.5,
-        scale: 0.96,
+        forward: -1.22,
+        lateral: -0.58,
+        scale: 1.24,
         primaryColor: 0x263645,
         accentColor: 0x65d8ff,
         glowColor: 0xffd76a,
+        outlineColor: 0xf7fcff,
+        outlineWidthScale: 0.068,
         hideInMassBattle: true
       },
       {
@@ -114,12 +120,14 @@ const MODULES: readonly FighterModuleDefinition[] = [
         kind: 'thruster',
         mountPoint: 'rear',
         rotationMode: 'body',
-        forward: -1.04,
-        lateral: 0.5,
-        scale: 0.96,
+        forward: -1.22,
+        lateral: 0.58,
+        scale: 1.24,
         primaryColor: 0x263645,
         accentColor: 0x65d8ff,
         glowColor: 0xffd76a,
+        outlineColor: 0xf7fcff,
+        outlineWidthScale: 0.068,
         hideInMassBattle: true
       }
     ],
@@ -141,11 +149,13 @@ const MODULES: readonly FighterModuleDefinition[] = [
         kind: 'targeting-drone',
         mountPoint: 'orbit',
         rotationMode: 'orbit',
-        scale: 1.12,
+        scale: 1.36,
         primaryColor: 0x1c3344,
         accentColor: 0xffd76a,
         glowColor: 0x65d8ff,
-        orbitRadius: 1.9,
+        outlineColor: 0xf7fcff,
+        outlineWidthScale: 0.07,
+        orbitRadius: 2.14,
         orbitSpeed: 1.9,
         hideInMassBattle: true
       }
@@ -168,6 +178,7 @@ function validateModuleCatalog(modules: readonly FighterModuleDefinition[]): voi
       attachmentIds.add(attachment.id);
       if ((attachment.scale ?? 1) <= 0) throw new Error(`Mounted attachment ${attachment.id} must have a positive scale`);
       if ((attachment.orbitRadius ?? 1) <= 0) throw new Error(`Mounted attachment ${attachment.id} must have a positive orbit radius`);
+      if ((attachment.outlineWidthScale ?? 0.065) <= 0) throw new Error(`Mounted attachment ${attachment.id} must have a positive outline width scale`);
     }
     for (const [name, value] of Object.entries(module.modifiers)) {
       if (name === 'primaryProjectileMaxWallBounces' || name === 'primaryProjectilePenetration') {
