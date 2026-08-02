@@ -20,9 +20,9 @@ describe('v1.1 Stage 7.4 performance phase 6', () => {
 
   it('guards viewport state and renderer resizing against no-op updates', () => {
     const appController = readFileSync(new URL('../apps/game/src/app/AppController.tsx', import.meta.url), 'utf8');
-    const renderer = readFileSync(new URL('../packages/renderer-pixi/src/index.ts', import.meta.url), 'utf8');
+    const lifecycle = readFileSync(new URL('../packages/renderer-pixi/src/runtime/RendererLifecycle.ts', import.meta.url), 'utf8');
     expect(appController).toContain('sameViewportMetrics(current, nextViewport) ? current : nextViewport');
-    expect(renderer).toContain('if (!sizeChanged && !resolutionChanged) return');
+    expect(lifecycle).toContain('if (!sizeChanged && !resolutionChanged) return');
   });
 
   it('keeps the replay export centered and restores an explicit AI hitmarker path', () => {
