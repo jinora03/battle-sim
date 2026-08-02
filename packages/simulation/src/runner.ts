@@ -763,13 +763,27 @@ export class LocalSimulationRunner implements SimulationRunner {
       const massB = this.world.getEffectiveMass(b);
       const invA = 1 / massA;
       const invB = 1 / massB;
-      const invTotal = invA + invB;
 
-      const correction = (overlap / invTotal) * physicalScale;
-      this.world.x[a] = ax - nx * correction * invA;
-      this.world.y[a] = ay - ny * correction * invA;
-      this.world.x[b] = bx + nx * correction * invB;
-      this.world.y[b] = by + ny * correction * invB;
+      // Abilities such as Mega Bomb explicitly guarantee a minimum number of
+      // arena-wall bounces. While that protected impulse is active, ordinary
+      // fighter contacts may move and receive momentum from the launched body,
+      // but they must not cancel or redirect its authored launch trajectory.
+      const externalA = this.externalImpulse.get(a);
+      const externalB = this.externalImpulse.get(b);
+      const protectedA = externalA !== undefined && externalA.wallBounces < externalA.minWallBounces;
+      const protectedB = externalB !== undefined && externalB.wallBounces < externalB.minWallBounces;
+      const preserveA = protectedA && !protectedB;
+      const preserveB = protectedB && !protectedA;
+
+      const responseInvA = preserveA ? 0 : invA;
+      const responseInvB = preserveB ? 0 : invB;
+      const responseInvTotal = responseInvA + responseInvB;
+      const correctionInvTotal = responseInvTotal > 0 ? responseInvTotal : invA + invB;
+      const correction = (overlap / correctionInvTotal) * physicalScale;
+      this.world.x[a] = ax - nx * correction * (responseInvTotal > 0 ? responseInvA : invA);
+      this.world.y[a] = ay - ny * correction * (responseInvTotal > 0 ? responseInvA : invA);
+      this.world.x[b] = bx + nx * correction * (responseInvTotal > 0 ? responseInvB : invB);
+      this.world.y[b] = by + ny * correction * (responseInvTotal > 0 ? responseInvB : invB);
 
       const rvx = (this.world.vx[b] ?? 0) - (this.world.vx[a] ?? 0);
       const rvy = (this.world.vy[b] ?? 0) - (this.world.vy[a] ?? 0);
@@ -777,15 +791,19 @@ export class LocalSimulationRunner implements SimulationRunner {
       const relativeSpeed = Math.hypot(rvx, rvy);
       const closingSpeed = Math.max(0, -velAlongNormal);
       let impulseMagnitude = 0;
-      if (velAlongNormal < 0) {
+      if (velAlongNormal < 0 && responseInvTotal > 0) {
         const restitution = Math.min(this.world.restitution[a] ?? 1, this.world.restitution[b] ?? 1);
-        impulseMagnitude = ((-(1 + restitution) * velAlongNormal) / invTotal) * physicalScale;
+        impulseMagnitude = ((-(1 + restitution) * velAlongNormal) / responseInvTotal) * physicalScale;
         const ix = impulseMagnitude * nx;
         const iy = impulseMagnitude * ny;
-        this.world.vx[a] = (this.world.vx[a] ?? 0) - ix * invA;
-        this.world.vy[a] = (this.world.vy[a] ?? 0) - iy * invA;
-        this.world.vx[b] = (this.world.vx[b] ?? 0) + ix * invB;
-        this.world.vy[b] = (this.world.vy[b] ?? 0) + iy * invB;
+        if (responseInvA > 0) {
+          this.world.vx[a] = (this.world.vx[a] ?? 0) - ix * responseInvA;
+          this.world.vy[a] = (this.world.vy[a] ?? 0) - iy * responseInvA;
+        }
+        if (responseInvB > 0) {
+          this.world.vx[b] = (this.world.vx[b] ?? 0) + ix * responseInvB;
+          this.world.vy[b] = (this.world.vy[b] ?? 0) + iy * responseInvB;
+        }
       }
 
       const magnitude = Math.max(impulseMagnitude, closingSpeed);

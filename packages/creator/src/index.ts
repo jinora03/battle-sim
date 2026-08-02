@@ -1,6 +1,7 @@
 import { z, type ZodError } from 'zod';
 import {
   fighterSchema,
+  MIN_FIGHTER_RADIUS,
   hasFighter,
   isCustomFighter,
   registerFighter,
@@ -91,7 +92,10 @@ export function migrateFighterBundle(input: unknown): { value: unknown; migrated
 
   const version = typeof bundle.schemaVersion === 'number' ? bundle.schemaVersion : 1;
   const hasPrimary = typeof fighter.primaryAttackId === 'string' && fighter.primaryAttackId.length > 0;
-  if (version === FIGHTER_BUNDLE_SCHEMA_VERSION && hasPrimary && !('weapon' in (visualRecipe ?? {}))) {
+  const physics = asRecord(fighter.physics);
+  const radius = typeof physics?.radius === 'number' ? physics.radius : null;
+  const hasMinimumRadius = radius !== null && radius >= MIN_FIGHTER_RADIUS;
+  if (version === FIGHTER_BUNDLE_SCHEMA_VERSION && hasPrimary && hasMinimumRadius && !('weapon' in (visualRecipe ?? {}))) {
     return { value: input, migrated: false };
   }
 
@@ -104,7 +108,15 @@ export function migrateFighterBundle(input: unknown): { value: unknown; migrated
 
   const migratedSlots = { ...abilitySlots };
   delete migratedSlots.basic;
-  const migratedFighter: Record<string, unknown> = { ...fighter, primaryAttackId, abilitySlots: migratedSlots };
+  const migratedPhysics = physics
+    ? { ...physics, radius: Math.max(MIN_FIGHTER_RADIUS, radius ?? MIN_FIGHTER_RADIUS) }
+    : physics;
+  const migratedFighter: Record<string, unknown> = {
+    ...fighter,
+    ...(migratedPhysics ? { physics: migratedPhysics } : {}),
+    primaryAttackId,
+    abilitySlots: migratedSlots
+  };
   delete migratedFighter.weaponId;
 
   const migratedVisual = visualRecipe ? { ...visualRecipe } : visualRecipe;
