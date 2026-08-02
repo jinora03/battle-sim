@@ -1,26 +1,26 @@
-import { Application, Container, Graphics, Point, Text } from 'pixi.js';
-import { calculateArenaFit, calculateCameraTarget } from './camera';
-import { classifyBlast, compactMissilePresentationEvents, compactMissileSecondaryPresentationEvents, isMissileCascadeAbility, isMissileCascadeFrame, isMissileWeapon, MissileCascadeTracker, resolveBlastFeedback, resolveUltimateFreezeMs, resolveWeaponHitFreezeMs, shouldPresentDamage } from './combatFeedback';
+import { Application, Container, Graphics, Point } from 'pixi.js';
+import { ArenaView } from './arena/ArenaView';
+import { BattleCamera } from './camera/BattleCamera';
+import { FxEngine, resolveCrowdFxResponse, type FxResponse } from './effects/FxEngine';
+import { PresentationEventRouter } from './effects/PresentationEventRouter';
+import { SkillTelegraphRenderer } from './effects/SkillTelegraphRenderer';
 import { LayeredVfxEngine } from './layeredVfx';
 import { DamageNumberLayer } from './effects/DamageNumberLayer';
 import { FighterView } from './fighters/FighterView';
 import type { VisualLod } from './fighters/types';
-import { budgetPresentationEvents, resolveMassBattleRenderPolicy, selectProjectileVisuals } from './massBattlePolicy';
 export * from './combatText';
 export * from './massBattlePolicy';
 export * from './mountedAttachments';
 import { evaluatePlayerAim, resolvePlayerTargetingPreview } from './playerTargeting';
-import { getAbility, getAbilityActivationProfile, getArena, getAttackSource, getFighter, getPrimaryAttack, getProjectileSource, type ArenaDefinition, type PrimaryAttackDefinition } from '@kinetic/content';
+import { getAbility, getAbilityActivationProfile, getArena, getFighter, getPrimaryAttack, getProjectileSource, type ArenaDefinition } from '@kinetic/content';
 import type { AbilitySlot, EntityId, EntitySnapshot, ProjectileSnapshot, SimulationEvent, Vec2, WorldSnapshot } from '@kinetic/protocol';
 import { resolveCanvasResolution } from '@kinetic/platform';
 import {
   elementColor,
   getRenderProfile,
   getSkillPresentation,
-  resolveImpactResponse,
   resolveVfxQuality,
-  type PresentationSettings,
-  type SkillPresentationRecipe
+  type PresentationSettings
 } from '@kinetic/visual-engine';
 
 
@@ -82,842 +82,9 @@ const DEFAULT_TRAINING_DEBUG: TrainingDebugOptions = {
   showDamageNumbers: false
 };
 
-function isProjectileBehavior(behavior: PrimaryAttackDefinition['behavior']): boolean {
-  return behavior === 'ranged' || behavior === 'automatic' || behavior === 'throwable' || behavior === 'beam';
-}
-
-function primaryAttackColor(attack: Pick<PrimaryAttackDefinition, 'form'>): number {
-  switch (attack.form) {
-    case 'fire': return 0xff7a35;
-    case 'water': return 0x72dcff;
-    case 'ice': return 0xc9f4ff;
-    case 'lightning': return 0xa6fbff;
-    case 'nature': return 0xa9e87e;
-    case 'void': return 0xc69cff;
-    case 'rifle': return 0xffe6a4;
-    case 'launcher': return 0xffb347;
-    case 'gauntlet': return 0xd3e1eb;
-    default: return 0xfff0bc;
-  }
-}
-
-interface ParticleState {
-  node: Graphics;
-  active: boolean;
-  vx: number;
-  vy: number;
-  life: number;
-  maxLife: number;
-  drag: number;
-  growth: number;
-}
-
-interface ShockwaveState {
-  node: Graphics;
-  active: boolean;
-  life: number;
-  maxLife: number;
-}
-
-interface FlashState {
-  node: Graphics;
-  active: boolean;
-  life: number;
-  maxLife: number;
-}
-
-interface FxResponse {
-  shake: number;
-  freezeMs: number;
-  screenFlash: number;
-}
-
-class FxEngine {
-  private readonly particles: ParticleState[] = [];
-  private readonly shockwaves: ShockwaveState[] = [];
-  private readonly flashes: FlashState[] = [];
-
-  constructor(private readonly container: Container) {
-    // Additive blending makes bright particles/flashes/shockwaves bloom and glow
-    // over the dark arena instead of looking like flat sprites.
-    for (let i = 0; i < 420; i += 1) {
-      const node = new Graphics();
-      node.visible = false;
-      node.blendMode = 'add';
-      container.addChild(node);
-      this.particles.push({ node, active: false, vx: 0, vy: 0, life: 0, maxLife: 1, drag: 0.96, growth: 0 });
-    }
-    for (let i = 0; i < 28; i += 1) {
-      const node = new Graphics();
-      node.visible = false;
-      node.blendMode = 'add';
-      container.addChild(node);
-      this.shockwaves.push({ node, active: false, life: 0, maxLife: 1 });
-    }
-    for (let i = 0; i < 14; i += 1) {
-      const node = new Graphics();
-      node.visible = false;
-      node.blendMode = 'add';
-      container.addChild(node);
-      this.flashes.push({ node, active: false, life: 0, maxLife: 1 });
-    }
-  }
-
-  consume(events: readonly SimulationEvent[], snapshot: WorldSnapshot, particleScale: number): FxResponse {
-    let shake = 0;
-    let freezeMs = 0;
-    let screenFlash = 0;
-    const entityMap = new Map(snapshot.entities.map((entity) => [entity.id, entity]));
-    const missileCascadeFrame = isMissileCascadeFrame(events);
-    let missileDamageFx = 0;
-    let missileHitFx = 0;
-    let missileBlastFx = 0;
-    let missileKnockbackFx = 0;
-
-    for (const event of events) {
-      if (missileCascadeFrame) {
-        // A 16-missile ultimate can emit well over 80 semantic events in one
-        // tick. Preserve a dense visual barrage without redrawing every
-        // duplicate damage/impulse payload and stalling the renderer.
-        if (event.type === 'damage' && ++missileDamageFx > 10) continue;
-        if (event.type === 'weaponHit' && isMissileWeapon(event.weaponId) && ++missileHitFx > 6) continue;
-        if (event.type === 'blast' && isMissileWeapon(event.abilityId ?? '') && ++missileBlastFx > 10) continue;
-        if (event.type === 'knockbackApplied' && ++missileKnockbackFx > 10) continue;
-      }
-      if (event.type === 'impact') {
-        const a = entityMap.get(event.a);
-        const color = elementColor(a?.elements[0] ?? 'neutral');
-        const response = resolveImpactResponse(event.magnitude);
-        this.burst(event.position.x, event.position.y, color, Math.round(response.particleCount * particleScale), response.particleSpeed, 1.5, 4.2, 0.16, 0.42, 0.955, 0.25);
-        if (response.shockwaveRadius > 0) this.shockwave(event.position.x, event.position.y, color, response.shockwaveRadius, 2.5, 0.28);
-        shake = Math.max(shake, response.shake);
-        freezeMs = Math.max(freezeMs, response.freezeMs);
-        screenFlash = Math.max(screenFlash, response.flash);
-      } else if (event.type === 'wallImpact') {
-        const entity = entityMap.get(event.entityId);
-        const color = elementColor(entity?.elements[0] ?? 'neutral');
-        const count = Math.round(Math.min(14, 3 + event.magnitude) * particleScale);
-        this.burst(event.position.x, event.position.y, color, count, 4.5, 1.2, 3.2, 0.12, 0.28, 0.94, 0.15);
-        if (event.magnitude >= 6.5) {
-          this.flash(event.position.x, event.position.y, 0xffffff, Math.min(25, 10 + event.magnitude), 0.08);
-          this.shockwave(event.position.x, event.position.y, color, Math.min(52, 18 + event.magnitude * 1.8), 3, 0.22);
-          freezeMs = Math.max(freezeMs, Math.min(28, 4 + event.magnitude * 1.2));
-        }
-        shake = Math.max(shake, Math.min(4.5, event.magnitude * 0.3));
-      } else if (event.type === 'obstacleImpact') {
-        const count = Math.round(Math.min(18, 4 + event.magnitude * 0.8) * particleScale);
-        this.burst(event.position.x, event.position.y, 0xc4b79a, count, 5.2, 1.4, 4.4, 0.16, 0.4, 0.95, 0.28);
-        shake = Math.max(shake, Math.min(7, event.magnitude * 0.18));
-      } else if (event.type === 'obstacleDamaged') {
-        this.burst(event.position.x, event.position.y, 0xe2b36d, Math.round(10 * particleScale), 5.8, 1.8, 4.6, 0.18, 0.4, 0.95, 0.35);
-      } else if (event.type === 'obstacleDestroyed') {
-        this.flash(event.position.x, event.position.y, 0xffe0a3, 34, 0.18);
-        this.burst(event.position.x, event.position.y, 0x9d7950, Math.round(34 * particleScale), 9, 2.4, 6.5, 0.25, 0.6, 0.95, 0.6);
-        this.shockwave(event.position.x, event.position.y, 0xffc46c, 58, 4, 0.34);
-        shake = Math.max(shake, 11);
-        freezeMs = Math.max(freezeMs, 36);
-      } else if (event.type === 'hazardTriggered') {
-        const color = event.kind === 'lava' ? 0xff5b25 : event.kind === 'electric' ? 0x89eaff : event.kind === 'wind' ? 0xd7f7ff : 0x72dfff;
-        this.burst(event.position.x, event.position.y, color, Math.round((event.damage > 0 ? 12 : 7) * particleScale), 5.5, 1.2, 3.6, 0.15, 0.35, 0.95, 0.16);
-        if (event.kind === 'electric') this.shockwave(event.position.x, event.position.y, color, 22, 2, 0.18);
-        shake = Math.max(shake, event.damage > 0 ? 3 : 1);
-      } else if (event.type === 'zoneEntered') {
-        const color = event.kind === 'ice' ? 0xbfeaff : event.kind === 'water' ? 0x5edcff : event.kind === 'lava' ? 0xff6b32 : event.kind === 'electric' ? 0xa3f4ff : 0xe1faff;
-        this.shockwave(event.position.x, event.position.y, color, 18, 2, 0.18);
-      } else if (event.type === 'blast') {
-        const color = elementColor(event.element);
-        const blastFeedback = resolveBlastFeedback(event, 'hero');
-        const microMissile = blastFeedback.classification === 'micro-missile';
-        const missileBarrage = blastFeedback.classification !== 'singular';
-        const intensity = Math.min(microMissile ? 0.72 : missileBarrage ? 1.02 : 1.6, 0.55 + event.radius / 260 + event.force / 28);
-        if (event.kind === 'explosion') {
-          this.flash(event.position.x, event.position.y, 0xfff1a8, Math.max(14, event.radius * (microMissile ? 0.14 : 0.22)), microMissile ? 0.08 : 0.15);
-          this.burst(event.position.x, event.position.y, 0xffef79, Math.round((microMissile ? 5 : missileBarrage ? 10 : 18) * intensity * particleScale), 8 * intensity, 2, 5.2, 0.13, 0.3, 0.94, 0.25);
-          this.burst(event.position.x, event.position.y, 0xff7a2b, Math.round((microMissile ? 7 : missileBarrage ? 15 : 28) * intensity * particleScale), 6.2 * intensity, 2.5, 6, 0.18, 0.42, 0.945, 0.38);
-          if (!microMissile) this.burst(event.position.x, event.position.y, 0x4f5561, Math.round((missileBarrage ? 7 : 15) * intensity * particleScale), 3.1 * intensity, 5, 10, 0.3, 0.68, 0.975, 1.05);
-          this.shockwave(event.position.x, event.position.y, 0xffa447, Math.max(24, event.radius * (microMissile ? 0.24 : 0.32)), microMissile ? 2.5 : 4, microMissile ? 0.2 : 0.36);
-          if (!microMissile) this.shockwave(event.position.x, event.position.y, 0xfff1b0, Math.max(18, event.radius * 0.17), 2, 0.22);
-          shake = Math.max(shake, blastFeedback.shake);
-          freezeMs = Math.max(freezeMs, blastFeedback.freezeMs);
-          screenFlash = Math.max(screenFlash, blastFeedback.screenFlash);
-        } else {
-          this.flash(event.position.x, event.position.y, 0xc8f8ff, Math.max(18, event.radius * 0.16), 0.12);
-          this.burst(event.position.x, event.position.y, color, Math.round(28 * intensity * particleScale), 6.5 * intensity, 1.8, 4.5, 0.2, 0.5, 0.96, 0.2);
-          this.burst(event.position.x, event.position.y, 0xc6f8ff, Math.round(12 * intensity * particleScale), 8.2 * intensity, 1.2, 3.2, 0.16, 0.38, 0.95, 0.1);
-          this.shockwave(event.position.x, event.position.y, color, Math.max(40, event.radius * 0.36), 4, 0.42);
-          this.shockwave(event.position.x, event.position.y, 0xcdf8ff, Math.max(24, event.radius * 0.22), 2, 0.28);
-          shake = Math.max(shake, Math.min(13, 4 + event.force * 0.45));
-          freezeMs = Math.max(freezeMs, Math.min(54, 18 + event.radius * 0.1));
-          screenFlash = Math.max(screenFlash, 0.18);
-        }
-      } else if (event.type === 'weaponAttackStarted') {
-        const attack = getPrimaryAttack(event.weaponId);
-        const color = primaryAttackColor(attack);
-        const nx = event.direction.x / (Math.hypot(event.direction.x, event.direction.y) || 1);
-        const ny = event.direction.y / (Math.hypot(event.direction.x, event.direction.y) || 1);
-        const projectileLike = isProjectileBehavior(attack.behavior);
-        this.directionalBurst(
-          event.position.x + nx * 18,
-          event.position.y + ny * 18,
-          nx,
-          ny,
-          color,
-          Math.round((projectileLike ? 7 : 4) * particleScale),
-          projectileLike ? 8 : 4
-        );
-      } else if (event.type === 'damage' && shouldPresentDamage(event)) {
-        const color = elementColor(event.element);
-        const radius = Math.min(24, 9 + event.amount * 0.38);
-        this.flash(event.position?.x ?? 0, event.position?.y ?? 0, color, radius, 0.085);
-        this.shardBurst(event.position?.x ?? 0, event.position?.y ?? 0, color, Math.round(Math.min(12, 3 + event.amount * 0.32) * particleScale), 3.8 + Math.min(4, event.amount * 0.12));
-      } else if (event.type === 'weaponHit') {
-        // weaponHit is emitted by both fighter primary attacks and skill-owned
-        // projectiles. Resolving only the primary registry throws on the first
-        // Tactical/Suppressive/Pinning/Kill Zone hit and stops the RAF loop.
-        const attack = getAttackSource(event.weaponId);
-        const color = primaryAttackColor(attack);
-        const count = Math.round(Math.min(24, 8 + event.damage * 0.55) * particleScale);
-        this.shardBurst(event.position.x, event.position.y, color, count, 6 + event.knockback * 0.35);
-        this.flash(event.position.x, event.position.y, color, Math.min(28, 12 + event.damage * 0.45), 0.1);
-        shake = Math.max(shake, Math.min(8, event.damage * 0.22 + event.knockback * 0.25));
-        freezeMs = Math.max(freezeMs, resolveWeaponHitFreezeMs(event));
-      } else if (event.type === 'projectileSpawned') {
-        const attack = getProjectileSource(event.weaponId);
-        const color = primaryAttackColor(attack);
-        if (isProjectileBehavior(attack.behavior)) {
-          this.flash(event.position.x, event.position.y, color, 12, 0.075);
-          this.directionalBurst(event.position.x, event.position.y, -event.velocity.x, -event.velocity.y, color, Math.round(5 * particleScale), 5.5);
-        } else {
-          this.burst(event.position.x, event.position.y, color, Math.round(4 * particleScale), 2.8, 1, 2.5, 0.1, 0.22, 0.94, 0.08);
-        }
-      } else if (event.type === 'projectileImpact') {
-        const attack = getProjectileSource(event.weaponId);
-        const explosive = (attack.projectile?.explosionRadius ?? 0) > 0;
-        if (!explosive && attack.id !== 'demolition-bomb') {
-          const color = primaryAttackColor(attack);
-          this.flash(event.position.x, event.position.y, color, 16, 0.09);
-          this.shardBurst(event.position.x, event.position.y, color, Math.round(9 * particleScale), 5.2);
-        }
-      } else if (event.type === 'knockbackApplied') {
-        const color = event.kind === 'explosion' ? 0xffb052 : 0xffffff;
-        const nx = event.direction.x / (Math.hypot(event.direction.x, event.direction.y) || 1);
-        const ny = event.direction.y / (Math.hypot(event.direction.x, event.direction.y) || 1);
-        this.directionalBurst(event.position.x, event.position.y, nx, ny, color, Math.round(Math.min(12, 3 + event.force * 0.35) * particleScale), 3.5 + event.force * 0.22);
-        if (event.force >= 8) this.shockwave(event.position.x, event.position.y, color, Math.min(42, 14 + event.force * 1.5), 2.5, 0.18);
-      } else if (event.type === 'abilityActivated') {
-        const recipe = getSkillPresentation(event.abilityId);
-        const amount = recipe.importance === 'ultimate' ? 18 : recipe.importance === 'skill' ? 7 : 3;
-        this.burst(event.position.x, event.position.y, recipe.color, Math.round(amount * particleScale), recipe.importance === 'ultimate' ? 4.8 : 2.8, 1, 3.2, 0.14, 0.3, 0.96, 0.08);
-        if (recipe.importance === 'ultimate') this.shockwave(event.position.x, event.position.y, recipe.accentColor, 32, 2, 0.26);
-      } else if (event.type === 'abilityResolved') {
-        const recipe = getSkillPresentation(event.abilityId);
-        this.skillResolve(event.position.x, event.position.y, event.direction.x, event.direction.y, recipe, particleScale);
-        if (recipe.importance === 'ultimate') {
-          const missileUltimate = isMissileCascadeAbility(event.abilityId);
-          shake = Math.max(shake, missileUltimate ? 7 : recipe.resolve === 'mega-bomb' ? 18 : 14);
-          freezeMs = Math.max(freezeMs, resolveUltimateFreezeMs(event, recipe.resolve));
-          screenFlash = Math.max(screenFlash, missileUltimate ? 0.16 : recipe.resolve === 'mega-bomb' ? 0.68 : 0.38);
-        }
-      } else if (event.type === 'death') {
-        this.flash(event.position.x, event.position.y, 0xffffff, 35, 0.16);
-        this.burst(event.position.x, event.position.y, 0xffffff, Math.round(38 * particleScale), 10, 2, 5, 0.22, 0.52, 0.95, 0.4);
-        this.shockwave(event.position.x, event.position.y, 0xffffff, 80, 4, 0.42);
-        shake = Math.max(shake, 13);
-        freezeMs = Math.max(freezeMs, missileCascadeFrame ? 8 : 55);
-        screenFlash = Math.max(screenFlash, 0.35);
-      }
-    }
-    return { shake, freezeMs, screenFlash };
-  }
-
-  update(dtSeconds: number): void {
-    for (const particle of this.particles) {
-      if (!particle.active) continue;
-      particle.life -= dtSeconds;
-      if (particle.life <= 0) {
-        particle.active = false;
-        particle.node.visible = false;
-        continue;
-      }
-      particle.node.x += particle.vx * dtSeconds * 60;
-      particle.node.y += particle.vy * dtSeconds * 60;
-      particle.vx *= particle.drag;
-      particle.vy *= particle.drag;
-      const ratio = particle.life / particle.maxLife;
-      particle.node.alpha = ratio;
-      particle.node.scale.set(0.55 + ratio * 0.55 + (1 - ratio) * particle.growth);
-    }
-
-    for (const wave of this.shockwaves) {
-      if (!wave.active) continue;
-      wave.life -= dtSeconds;
-      if (wave.life <= 0) {
-        wave.active = false;
-        wave.node.visible = false;
-        continue;
-      }
-      const progress = 1 - wave.life / wave.maxLife;
-      wave.node.scale.set(0.55 + progress * 3.1);
-      wave.node.alpha = (1 - progress) * 0.72;
-    }
-
-    for (const flash of this.flashes) {
-      if (!flash.active) continue;
-      flash.life -= dtSeconds;
-      if (flash.life <= 0) {
-        flash.active = false;
-        flash.node.visible = false;
-        continue;
-      }
-      const progress = 1 - flash.life / flash.maxLife;
-      flash.node.scale.set(0.65 + progress * 1.85);
-      flash.node.alpha = (1 - progress) * 0.78;
-    }
-  }
-
-  skillResolve(x: number, y: number, dirX: number, dirY: number, recipe: SkillPresentationRecipe, particleScale: number): void {
-    const amount = recipe.importance === 'ultimate' ? 34 : recipe.importance === 'skill' ? 18 : 9;
-    const speed = recipe.importance === 'ultimate' ? 9 : 5.8;
-    switch (recipe.resolve) {
-      case 'water-splash':
-        this.burst(x, y, recipe.color, Math.round(amount * particleScale), speed, 1.2, 4.2, 0.14, 0.38, 0.95, 0.12);
-        this.shockwave(x, y, recipe.accentColor, 22, 2, 0.2);
-        break;
-      case 'water-dash':
-        this.directionalBurst(x, y, -dirX, -dirY, recipe.color, Math.round(amount * particleScale), 7.5);
-        this.shockwave(x, y, recipe.accentColor, 28, 2, 0.22);
-        break;
-      case 'pressure-wave':
-        this.shockwave(x, y, recipe.color, 54, 5, 0.34);
-        this.shockwave(x, y, recipe.accentColor, 34, 2, 0.22);
-        this.burst(x, y, recipe.color, Math.round(amount * particleScale), 6.5, 1.4, 4, 0.18, 0.46, 0.96, 0.2);
-        break;
-      case 'undertow':
-        this.flash(x, y, 0x0a3e72, 34, 0.2);
-        this.shockwave(x, y, recipe.color, 72, 5, 0.44);
-        this.shockwave(x, y, recipe.accentColor, 42, 2, 0.31);
-        this.burst(x, y, recipe.accentColor, Math.round(amount * particleScale), 4.4, 1, 3.5, 0.2, 0.55, 0.97, 0.55);
-        break;
-      case 'tidal-cataclysm':
-        this.flash(x, y, 0xeaffff, 74, 0.22);
-        this.shockwave(x, y, recipe.color, 105, 8, 0.52);
-        this.shockwave(x, y, recipe.accentColor, 76, 3, 0.4);
-        this.shockwave(x, y, 0x1f87d6, 48, 5, 0.3);
-        this.burst(x, y, recipe.color, Math.round(amount * 1.4 * particleScale), 11, 1.5, 5.2, 0.2, 0.6, 0.95, 0.35);
-        break;
-      case 'contact-pop':
-        this.flash(x, y, recipe.accentColor, 22, 0.11);
-        this.burst(x, y, recipe.color, Math.round(amount * particleScale), 8, 1.2, 3.7, 0.12, 0.28, 0.94, 0.12);
-        break;
-      case 'rocket-burst':
-        this.directionalBurst(x, y, -dirX, -dirY, recipe.color, Math.round(amount * particleScale), 10);
-        this.flash(x, y, recipe.accentColor, 24, 0.12);
-        break;
-      case 'concussion':
-        this.flash(x, y, recipe.accentColor, 38, 0.15);
-        this.shockwave(x, y, recipe.color, 62, 7, 0.36);
-        this.shockwave(x, y, recipe.accentColor, 38, 2, 0.22);
-        break;
-      case 'shrapnel':
-        this.shardBurst(x, y, recipe.color, Math.round(amount * 1.5 * particleScale), 10.5);
-        this.shockwave(x, y, recipe.accentColor, 55, 3, 0.3);
-        break;
-      case 'mega-bomb':
-        this.flash(x, y, 0xffffff, 100, 0.24);
-        this.flash(x, y, recipe.accentColor, 62, 0.3);
-        this.shockwave(x, y, recipe.color, 120, 10, 0.62);
-        this.shockwave(x, y, recipe.accentColor, 88, 4, 0.5);
-        this.shockwave(x, y, 0xffffff, 48, 2, 0.32);
-        this.shardBurst(x, y, recipe.color, Math.round(amount * 2 * particleScale), 13);
-        break;
-      case 'magma-dash':
-        this.directionalBurst(x, y, -dirX, -dirY, 0xff542d, Math.round(amount * 1.4 * particleScale), 11);
-        this.flash(x, y, recipe.accentColor, 30, 0.14);
-        this.shockwave(x, y, recipe.color, 36, 3, 0.24);
-        break;
-      case 'inferno-collapse':
-        this.flash(x, y, 0xfff1a0, 92, 0.22);
-        this.shockwave(x, y, 0xff3c20, 112, 9, 0.56);
-        this.shockwave(x, y, 0xffd250, 74, 4, 0.4);
-        this.burst(x, y, 0xff5b2d, Math.round(amount * 1.8 * particleScale), 12, 2, 6, 0.2, 0.62, 0.94, 0.48);
-        break;
-      case 'kinetic-pulse':
-        this.flash(x, y, 0xeaffff, 48, 0.13);
-        this.shockwave(x, y, recipe.color, 82, 8, 0.42);
-        this.shockwave(x, y, recipe.accentColor, 52, 3, 0.29);
-        this.shardBurst(x, y, 0x9beaff, Math.round(amount * particleScale), 7.5);
-        break;
-      case 'reactor-overdrive':
-        this.flash(x, y, 0xffffff, 64, 0.18);
-        this.shockwave(x, y, recipe.color, 70, 6, 0.4);
-        this.shockwave(x, y, 0xffffff, 42, 2, 0.25);
-        this.burst(x, y, recipe.color, Math.round(amount * 1.25 * particleScale), 7.5, 1.5, 4.5, 0.2, 0.55, 0.96, 0.2);
-        break;
-      case 'solar-laser':
-        // The sustained beam is rendered from the live casting snapshot so it
-        // stays attached to the Sentinel and tracks its target. Resolution only
-        // adds a compact release flare instead of leaving a detached static beam.
-        this.flash(x, y, 0xfff5cf, 46, 0.16);
-        this.directionalBurst(x, y, -dirX, -dirY, 0xffd46a, Math.round(20 * particleScale), 8.5);
-        this.shockwave(x, y, 0xffdd7a, 54, 3, 0.18);
-        break;
-      default:
-        this.burst(x, y, recipe.color, Math.round(amount * particleScale), speed, 1.2, 4.2, 0.14, 0.38, 0.95, 0.12);
-        this.shockwave(x, y, recipe.accentColor, 34, 2, 0.24);
-    }
-  }
-
-  reset(): void {
-    for (const particle of this.particles) { particle.active = false; particle.node.visible = false; }
-    for (const wave of this.shockwaves) { wave.active = false; wave.node.visible = false; }
-    for (const flash of this.flashes) { flash.active = false; flash.node.visible = false; }
-  }
-
-  activeParticleCount(): number {
-    return this.particles.reduce((count, particle) => count + (particle.active ? 1 : 0), 0);
-  }
-
-  private laserBeam(x: number, y: number, dirX: number, dirY: number, length: number): void {
-    const flash = this.flashes.find((item) => !item.active);
-    if (!flash) return;
-    const magnitude = Math.hypot(dirX, dirY) || 1;
-    const nx = dirX / magnitude;
-    const ny = dirY / magnitude;
-    const px = -ny;
-    const py = nx;
-    const eyeOffset = 8;
-    flash.active = true;
-    flash.life = flash.maxLife = 5.15;
-    flash.node.clear();
-    // left eye beam
-    flash.node.moveTo(px * eyeOffset, py * eyeOffset).lineTo(px * eyeOffset + nx * length, py * eyeOffset + ny * length).stroke({ color: 0xff2f26, width: 22, alpha: 0.16 });
-    flash.node.moveTo(px * eyeOffset, py * eyeOffset).lineTo(px * eyeOffset + nx * length, py * eyeOffset + ny * length).stroke({ color: 0xff7258, width: 10, alpha: 0.78 });
-    flash.node.moveTo(px * eyeOffset, py * eyeOffset).lineTo(px * eyeOffset + nx * length, py * eyeOffset + ny * length).stroke({ color: 0xfff7dc, width: 3.5, alpha: 1 });
-    // right eye beam
-    flash.node.moveTo(-px * eyeOffset, -py * eyeOffset).lineTo(-px * eyeOffset + nx * length, -py * eyeOffset + ny * length).stroke({ color: 0xff2f26, width: 22, alpha: 0.16 });
-    flash.node.moveTo(-px * eyeOffset, -py * eyeOffset).lineTo(-px * eyeOffset + nx * length, -py * eyeOffset + ny * length).stroke({ color: 0xff7258, width: 10, alpha: 0.78 });
-    flash.node.moveTo(-px * eyeOffset, -py * eyeOffset).lineTo(-px * eyeOffset + nx * length, -py * eyeOffset + ny * length).stroke({ color: 0xfff7dc, width: 3.5, alpha: 1 });
-    flash.node.circle(px * eyeOffset, py * eyeOffset, 5).fill({ color: 0xffffff, alpha: 0.95 });
-    flash.node.circle(-px * eyeOffset, -py * eyeOffset, 5).fill({ color: 0xffffff, alpha: 0.95 });
-    flash.node.circle(0, 0, 18).stroke({ color: 0xffdb87, width: 2, alpha: 0.3 });
-    flash.node.x = x;
-    flash.node.y = y;
-    flash.node.scale.set(1);
-    flash.node.alpha = 1;
-    flash.node.visible = true;
-  }
-
-  private burst(
-    x: number,
-    y: number,
-    color: number,
-    count: number,
-    speed: number,
-    minSize: number,
-    maxSize: number,
-    minLife: number,
-    maxLife: number,
-    drag: number,
-    growth: number
-  ): void {
-    let created = 0;
-    for (const particle of this.particles) {
-      if (particle.active) continue;
-      const angle = Math.random() * Math.PI * 2;
-      const velocity = speed * (0.35 + Math.random() * 0.8);
-      const size = minSize + Math.random() * Math.max(0.1, maxSize - minSize);
-      particle.active = true;
-      particle.life = particle.maxLife = minLife + Math.random() * Math.max(0.01, maxLife - minLife);
-      particle.vx = Math.cos(angle) * velocity;
-      particle.vy = Math.sin(angle) * velocity;
-      particle.drag = drag;
-      particle.growth = growth;
-      particle.node.clear().circle(0, 0, size).fill({ color, alpha: 1 });
-      particle.node.x = x;
-      particle.node.y = y;
-      particle.node.alpha = 1;
-      particle.node.scale.set(1);
-      particle.node.visible = true;
-      created += 1;
-      if (created >= count) break;
-    }
-  }
-
-  private directionalBurst(x: number, y: number, dirX: number, dirY: number, color: number, count: number, speed: number): void {
-    const length = Math.hypot(dirX, dirY) || 1;
-    const base = Math.atan2(dirY / length, dirX / length);
-    let created = 0;
-    for (const particle of this.particles) {
-      if (particle.active) continue;
-      const angle = base + (Math.random() - 0.5) * 0.9;
-      const velocity = speed * (0.45 + Math.random() * 0.7);
-      particle.active = true;
-      particle.life = particle.maxLife = 0.18 + Math.random() * 0.28;
-      particle.vx = Math.cos(angle) * velocity;
-      particle.vy = Math.sin(angle) * velocity;
-      particle.drag = 0.95;
-      particle.growth = 0.12;
-      particle.node.clear().circle(0, 0, 1.5 + Math.random() * 3.5).fill({ color, alpha: 1 });
-      particle.node.x = x;
-      particle.node.y = y;
-      particle.node.alpha = 1;
-      particle.node.scale.set(1);
-      particle.node.visible = true;
-      if (++created >= count) break;
-    }
-  }
-
-  private shardBurst(x: number, y: number, color: number, count: number, speed: number): void {
-    let created = 0;
-    for (const particle of this.particles) {
-      if (particle.active) continue;
-      const angle = Math.random() * Math.PI * 2;
-      const velocity = speed * (0.55 + Math.random() * 0.7);
-      particle.active = true;
-      particle.life = particle.maxLife = 0.22 + Math.random() * 0.36;
-      particle.vx = Math.cos(angle) * velocity;
-      particle.vy = Math.sin(angle) * velocity;
-      particle.drag = 0.955;
-      particle.growth = 0.05;
-      particle.node.clear().rect(-1.2, -5, 2.4, 10).fill({ color, alpha: 1 });
-      particle.node.rotation = angle + Math.PI / 2;
-      particle.node.x = x;
-      particle.node.y = y;
-      particle.node.alpha = 1;
-      particle.node.scale.set(1);
-      particle.node.visible = true;
-      if (++created >= count) break;
-    }
-  }
-
-  private shockwave(x: number, y: number, color: number, radius: number, width: number, life: number): void {
-    const wave = this.shockwaves.find((item) => !item.active);
-    if (!wave) return;
-    wave.active = true;
-    wave.life = wave.maxLife = life;
-    wave.node.clear().circle(0, 0, radius).stroke({ color, width, alpha: 0.8 });
-    wave.node.x = x;
-    wave.node.y = y;
-    wave.node.scale.set(0.55);
-    wave.node.alpha = 0.8;
-    wave.node.visible = true;
-  }
-
-  private flash(x: number, y: number, color: number, radius: number, life: number): void {
-    const flash = this.flashes.find((item) => !item.active);
-    if (!flash) return;
-    flash.active = true;
-    flash.life = flash.maxLife = life;
-    flash.node.clear().circle(0, 0, radius).fill({ color, alpha: 0.72 });
-    flash.node.x = x;
-    flash.node.y = y;
-    flash.node.scale.set(0.65);
-    flash.node.alpha = 0.72;
-    flash.node.visible = true;
-  }
-}
-
-
-function resolveCrowdFxResponse(events: readonly SimulationEvent[]): FxResponse {
-  const missileCascadeFrame = isMissileCascadeFrame(events);
-  let shake = 0;
-  let freezeMs = 0;
-  let screenFlash = 0;
-  for (const event of events) {
-    if (event.type === 'death') {
-      shake = Math.max(shake, 7);
-      freezeMs = Math.max(freezeMs, missileCascadeFrame ? 5 : 18);
-      screenFlash = Math.max(screenFlash, missileCascadeFrame ? 0.06 : 0.12);
-    } else if (event.type === 'blast') {
-      const blastFeedback = resolveBlastFeedback(event, 'crowd');
-      shake = Math.max(shake, blastFeedback.shake);
-      freezeMs = Math.max(freezeMs, blastFeedback.freezeMs);
-      screenFlash = Math.max(screenFlash, blastFeedback.screenFlash);
-    } else if (event.type === 'obstacleDestroyed') {
-      shake = Math.max(shake, 6);
-      freezeMs = Math.max(freezeMs, 14);
-    } else if (event.type === 'weaponHit' && event.damage >= 18) {
-      shake = Math.max(shake, 2.5);
-    } else if (event.type === 'abilityResolved' && event.slot === 'ultimate') {
-      const missileUltimate = isMissileCascadeAbility(event.abilityId);
-      shake = Math.max(shake, missileUltimate ? 4 : 7);
-      if (!missileUltimate) freezeMs = Math.max(freezeMs, 18);
-      screenFlash = Math.max(screenFlash, missileUltimate ? 0.07 : 0.13);
-    }
-  }
-  return { shake, freezeMs, screenFlash };
-}
-
-class SkillTelegraphRenderer {
-  readonly container = new Container();
-  private readonly graphics = new Graphics();
-  private readonly labels = new Map<EntityId, Text>();
-
-  constructor() {
-    this.container.addChild(this.graphics);
-  }
-
-  render(snapshot: WorldSnapshot, elapsedSeconds: number, enabled: boolean): void {
-    this.graphics.clear();
-    const castingIds = new Set<EntityId>();
-    if (!enabled) {
-      for (const label of this.labels.values()) label.visible = false;
-      return;
-    }
-
-    const crowd = snapshot.entities.length > 40;
-    const massCrowd = snapshot.entities.length > 64;
-    const castingEntities = snapshot.entities
-      .flatMap((entity) => {
-        const cast = entity.abilities.find((ability) => ability.source === 'ability' && ability.phase === 'casting');
-        return cast ? [{ entity, cast, recipe: getSkillPresentation(cast.abilityId) }] : [];
-      })
-      .filter((item) => !crowd
-        || item.entity.controller === 'player'
-        || (massCrowd ? item.recipe.importance === 'ultimate' : item.recipe.importance !== 'basic'))
-      .sort((a, b) => Number(b.entity.controller === 'player') - Number(a.entity.controller === 'player')
-        || (b.recipe.importance === 'ultimate' ? 2 : b.recipe.importance === 'skill' ? 1 : 0) - (a.recipe.importance === 'ultimate' ? 2 : a.recipe.importance === 'skill' ? 1 : 0)
-        || a.entity.id - b.entity.id)
-      .slice(0, massCrowd ? 3 : crowd ? 6 : snapshot.entities.length > 20 ? 14 : 999);
-
-    for (const { entity, cast, recipe } of castingEntities) {
-      castingIds.add(entity.id);
-      const progress = cast.castTotalTicks > 0 ? 1 - cast.castRemainingTicks / cast.castTotalTicks : 1;
-      const pulse = 0.5 + 0.5 * Math.sin(elapsedSeconds * (recipe.importance === 'ultimate' ? 14 : 9));
-      this.drawTelegraph(entity, recipe, progress, pulse, cast.castDirection);
-      const label = this.labels.get(entity.id) ?? this.createLabel(entity.id);
-      label.visible = true;
-      label.text = `${recipe.importance === 'ultimate' ? 'ULT · ' : ''}${recipe.shortName}`;
-      label.style.fill = recipe.accentColor;
-      label.x = entity.x;
-      label.y = entity.y - entity.radius - 42;
-      label.anchor.set(0.5);
-      label.alpha = 0.82 + pulse * 0.18;
-    }
-
-    for (const [id, label] of this.labels) if (!castingIds.has(id)) label.visible = false;
-  }
-
-  reset(): void {
-    this.graphics.clear();
-    for (const label of this.labels.values()) label.visible = false;
-  }
-
-  destroy(): void {
-    for (const label of this.labels.values()) label.destroy();
-    this.labels.clear();
-    this.container.destroy({ children: true });
-  }
-
-  private createLabel(id: EntityId): Text {
-    const label = new Text({
-      text: '',
-      style: { fill: 0xffffff, fontSize: 13, fontWeight: '800', fontFamily: 'Inter, system-ui', stroke: { color: 0x07101b, width: 4 } }
-    });
-    this.labels.set(id, label);
-    this.container.addChild(label);
-    return label;
-  }
-
-  private drawTelegraph(entity: EntitySnapshot, recipe: SkillPresentationRecipe, progress: number, pulse: number, castDirection: Vec2 | null): void {
-    const x = entity.x;
-    const y = entity.y;
-    const radius = recipe.telegraphRadius;
-    const angle = castDirection ? Math.atan2(castDirection.y, castDirection.x) : entity.rotation;
-    const alpha = 0.22 + pulse * 0.24;
-
-    switch (recipe.telegraph) {
-      case 'directional-stream': {
-        const dx = Math.cos(angle);
-        const dy = Math.sin(angle);
-        if (recipe.abilityId === 'solar-laser') {
-          const px = -dy;
-          const py = dx;
-          const eyeOffset = Math.max(10, entity.radius * 0.34);
-          const forwardOffset = Math.max(7, entity.radius * 0.26);
-          const leftEyeX = x + dx * forwardOffset + px * eyeOffset;
-          const leftEyeY = y + dy * forwardOffset + py * eyeOffset;
-          const rightEyeX = x + dx * forwardOffset - px * eyeOffset;
-          const rightEyeY = y + dy * forwardOffset - py * eyeOffset;
-          const castTicks = Math.max(1, getAbility(recipe.abilityId).castTicks);
-          const elapsedTicks = progress * castTicks;
-          const elapsedSeconds = elapsedTicks / 60;
-          const eyeChargeEnd = 30;
-          const beamStart = 48;
-          const eyeChargeProgress = Math.min(1, elapsedTicks / eyeChargeEnd);
-          const lockProgress = Math.min(1, Math.max(0, elapsedTicks - eyeChargeEnd) / Math.max(1, beamStart - eyeChargeEnd));
-          const beamProgress = Math.min(1, Math.max(0, elapsedTicks - beamStart) / 18);
-          const eyePulse = 0.76 + pulse * 0.24;
-          const chargePulse = 0.5 + 0.5 * Math.sin(elapsedSeconds * 22);
-          const glowRadius = 10 + eyeChargeProgress * 13 + chargePulse * 3.5;
-          const eyePairs = [[leftEyeX, leftEyeY], [rightEyeX, rightEyeY]] as const;
-
-          // Stage 1: two unmistakable red eye cores charge above the fighter.
-          // A dark backing disc prevents the body/core colors from washing them out.
-          this.graphics.circle(x + dx * forwardOffset, y + dy * forwardOffset, entity.radius * 0.68)
-            .fill({ color: 0x090509, alpha: 0.20 + eyeChargeProgress * 0.12 });
-          this.graphics.moveTo(leftEyeX, leftEyeY).lineTo(rightEyeX, rightEyeY)
-            .stroke({ color: 0xff6f59, width: 1.3, alpha: 0.16 + eyeChargeProgress * 0.22 });
-
-          for (let eyeIndex = 0; eyeIndex < eyePairs.length; eyeIndex += 1) {
-            const [eyeX, eyeY] = eyePairs[eyeIndex]!;
-            this.graphics.circle(eyeX, eyeY, glowRadius + 11).fill({ color: 0xff1714, alpha: 0.12 + eyeChargeProgress * 0.16 });
-            this.graphics.circle(eyeX, eyeY, glowRadius + 4).fill({ color: 0xff3028, alpha: 0.26 + eyeChargeProgress * 0.30 });
-            this.graphics.circle(eyeX, eyeY, 7 + eyeChargeProgress * 3.2).fill({ color: 0xff2d24, alpha: 1 });
-            this.graphics.circle(eyeX, eyeY, 3.4 + eyeChargeProgress * 1.8).fill({ color: 0xffd6c7, alpha: eyePulse });
-            this.graphics.circle(eyeX, eyeY, 1.6 + chargePulse * 0.8).fill({ color: 0xffffff, alpha: 0.98 });
-            this.graphics.circle(eyeX, eyeY, glowRadius + 3).stroke({ color: 0xffa18b, width: 2.2, alpha: 0.24 + eyeChargeProgress * 0.34 });
-            this.graphics.moveTo(eyeX - px * (8 + eyeChargeProgress * 5), eyeY - py * (8 + eyeChargeProgress * 5))
-              .lineTo(eyeX + px * (8 + eyeChargeProgress * 5), eyeY + py * (8 + eyeChargeProgress * 5))
-              .stroke({ color: 0xffe0d6, width: 1.2, alpha: 0.18 + chargePulse * 0.28 });
-
-            for (let spark = 0; spark < 3; spark += 1) {
-              const sparkPhase = (eyeChargeProgress + spark / 3 + eyeIndex * 0.16) % 1;
-              const sparkAngle = elapsedSeconds * (eyeIndex === 0 ? 5.8 : -5.8) + spark * Math.PI * 2 / 3;
-              const sparkRadius = 28 - sparkPhase * 14;
-              this.graphics.circle(
-                eyeX + Math.cos(sparkAngle) * sparkRadius,
-                eyeY + Math.sin(sparkAngle) * sparkRadius,
-                1.5 + sparkPhase * 1.6
-              ).fill({ color: spark % 2 === 0 ? 0xff6a52 : 0xffd5c6, alpha: 0.20 + sparkPhase * 0.52 });
-            }
-          }
-          this.graphics.circle(x, y, entity.radius * (1.14 + chargePulse * 0.04)).stroke({ color: 0xff6f52, width: 2.5, alpha: 0.20 + eyeChargeProgress * 0.26 });
-
-          // Stage 2: a thin lock line appears, but it still deals no damage.
-          if (elapsedTicks >= eyeChargeEnd && elapsedTicks < beamStart) {
-            const lockLength = 80 + lockProgress * 300;
-            const lockEndX = x + dx * lockLength;
-            const lockEndY = y + dy * lockLength;
-            for (const [eyeX, eyeY] of [[leftEyeX, leftEyeY], [rightEyeX, rightEyeY]] as const) {
-              this.graphics.moveTo(eyeX, eyeY).lineTo(lockEndX, lockEndY).stroke({ color: 0xff705b, width: 3, alpha: 0.28 + lockProgress * 0.36 });
-            }
-            this.graphics.circle(lockEndX, lockEndY, 6 + pulse * 2.5).stroke({ color: 0xffb39d, width: 2, alpha: 0.34 + lockProgress * 0.34 });
-          }
-
-          // Stage 3: the full beam is live. Gameplay damage begins at the same tick.
-          if (elapsedTicks >= beamStart) {
-            const length = 1080;
-            const endX = x + dx * length;
-            const endY = y + dy * length;
-            const activeTicks = elapsedTicks - beamStart;
-            const ramp = activeTicks < 54 ? 0 : activeTicks < 108 ? 1 : 2;
-            const outerWidth = 18 + ramp * 5 + pulse * 3;
-            const middleWidth = 8 + ramp * 2;
-            const coreWidth = 2.8 + ramp * 0.8;
-            const beamAlpha = 0.58 + beamProgress * 0.32;
-
-            for (const [eyeX, eyeY] of [[leftEyeX, leftEyeY], [rightEyeX, rightEyeY]] as const) {
-              this.graphics.moveTo(eyeX, eyeY).lineTo(endX, endY).stroke({ color: 0xff3028, width: outerWidth, alpha: 0.13 + ramp * 0.025 });
-              this.graphics.moveTo(eyeX, eyeY).lineTo(endX, endY).stroke({ color: 0xff7258, width: middleWidth, alpha: beamAlpha });
-              this.graphics.moveTo(eyeX, eyeY).lineTo(endX, endY).stroke({ color: 0xfff7dc, width: coreWidth, alpha: 0.98 });
-            }
-            this.graphics.circle(endX, endY, 10 + ramp * 4 + pulse * 3).fill({ color: 0xffc66c, alpha: 0.22 });
-          }
-          break;
-        }
-        const length = 70 + progress * 70;
-        this.graphics.moveTo(x - dx * 24, y - dy * 24).lineTo(x + dx * length, y + dy * length)
-          .stroke({ color: recipe.color, width: 7, alpha: 0.22 + pulse * 0.15 });
-        this.graphics.circle(x, y, entity.radius * (1.12 + pulse * 0.08)).stroke({ color: recipe.accentColor, width: 3, alpha });
-        break;
-      }
-      case 'outward-rings':
-        for (let i = 0; i < 3; i += 1) {
-          const ringProgress = (progress + i * 0.22) % 1;
-          this.graphics.circle(x, y, 28 + ringProgress * radius).stroke({ color: i === 1 ? recipe.accentColor : recipe.color, width: 4 - i * 0.7, alpha: (1 - ringProgress) * 0.52 });
-        }
-        break;
-      case 'inward-vortex':
-        for (let i = 0; i < 4; i += 1) {
-          const ringProgress = (progress + i * 0.18) % 1;
-          const r = radius * (1 - ringProgress * 0.78);
-          this.graphics.circle(x, y, Math.max(30, r)).stroke({ color: i % 2 ? recipe.accentColor : recipe.color, width: 3, alpha: 0.18 + ringProgress * 0.34 });
-        }
-        for (let i = 0; i < 6; i += 1) {
-          const a = elapsedAngle(progress, i, -1);
-          this.graphics.circle(x + Math.cos(a) * radius * 0.58, y + Math.sin(a) * radius * 0.58, 4 + pulse * 2).fill({ color: recipe.accentColor, alpha: 0.65 });
-        }
-        break;
-      case 'tidal-gather':
-        this.graphics.circle(x, y, radius * (1 - progress * 0.62)).stroke({ color: recipe.accentColor, width: 7, alpha: 0.3 + progress * 0.5 });
-        this.graphics.circle(x, y, 36 + pulse * 9).fill({ color: recipe.color, alpha: 0.08 + progress * 0.22 });
-        for (let i = 0; i < 8; i += 1) {
-          const a = elapsedAngle(progress, i, 1);
-          const r = radius * (0.72 - progress * 0.36);
-          this.graphics.circle(x + Math.cos(a) * r, y + Math.sin(a) * r, 5 + progress * 4).fill({ color: i % 2 ? recipe.accentColor : recipe.color, alpha: 0.58 });
-        }
-        break;
-      case 'fuse-charge':
-      case 'rocket-charge': {
-        const backX = x - Math.cos(angle) * (entity.radius + 16);
-        const backY = y - Math.sin(angle) * (entity.radius + 16);
-        for (let i = 0; i < 4; i += 1) {
-          const spread = (i - 1.5) * 0.22;
-          const a = angle + Math.PI + spread;
-          this.graphics.moveTo(backX, backY).lineTo(backX + Math.cos(a) * (28 + pulse * 18), backY + Math.sin(a) * (28 + pulse * 18))
-            .stroke({ color: i % 2 ? recipe.accentColor : recipe.color, width: 4, alpha });
-        }
-        this.graphics.circle(x, y, entity.radius * (1.1 + pulse * 0.1)).stroke({ color: recipe.color, width: 3, alpha });
-        break;
-      }
-      case 'warning-ring':
-        this.graphics.circle(x, y, radius).stroke({ color: recipe.color, width: 4 + pulse * 3, alpha: 0.35 + pulse * 0.35 });
-        this.graphics.circle(x, y, radius * progress).stroke({ color: recipe.accentColor, width: 2, alpha: 0.62 });
-        break;
-      case 'shrapnel-lock':
-        this.graphics.circle(x, y, radius * (0.9 + pulse * 0.04)).stroke({ color: recipe.color, width: 3, alpha });
-        for (let i = 0; i < 12; i += 1) {
-          const a = (i / 12) * Math.PI * 2 + progress * Math.PI;
-          const inner = radius * 0.72;
-          const outer = radius * (0.92 + pulse * 0.05);
-          this.graphics.moveTo(x + Math.cos(a) * inner, y + Math.sin(a) * inner)
-            .lineTo(x + Math.cos(a) * outer, y + Math.sin(a) * outer)
-            .stroke({ color: i % 2 ? recipe.accentColor : recipe.color, width: 4, alpha: 0.52 });
-        }
-        break;
-      case 'mega-danger':
-        this.graphics.circle(x, y, radius).fill({ color: recipe.color, alpha: 0.025 + progress * 0.045 });
-        this.graphics.circle(x, y, radius).stroke({ color: recipe.color, width: 8 + pulse * 5, alpha: 0.45 + progress * 0.35 });
-        this.graphics.circle(x, y, radius * (1 - progress * 0.72)).stroke({ color: recipe.accentColor, width: 5, alpha: 0.75 });
-        for (let i = 0; i < 16; i += 1) {
-          const a = (i / 16) * Math.PI * 2;
-          const inner = radius * 0.78;
-          const outer = radius * 0.96;
-          this.graphics.moveTo(x + Math.cos(a) * inner, y + Math.sin(a) * inner)
-            .lineTo(x + Math.cos(a) * outer, y + Math.sin(a) * outer)
-            .stroke({ color: i % 2 ? recipe.accentColor : recipe.color, width: 6, alpha: 0.62 });
-        }
-        break;
-      case 'reactor-charge':
-        this.graphics.circle(x, y, radius * (0.62 + progress * 0.18)).stroke({ color: recipe.color, width: 5 + pulse * 3, alpha: 0.42 + progress * 0.36 });
-        this.graphics.circle(x, y, radius * (0.34 + progress * 0.12)).fill({ color: recipe.color, alpha: 0.05 + progress * 0.14 });
-        for (let i = 0; i < 8; i += 1) {
-          const a = (i / 8) * Math.PI * 2 - progress * Math.PI * 3;
-          const inner = radius * 0.42;
-          const outer = radius * 0.82;
-          this.graphics.moveTo(x + Math.cos(a) * inner, y + Math.sin(a) * inner)
-            .lineTo(x + Math.cos(a) * outer, y + Math.sin(a) * outer)
-            .stroke({ color: i % 2 ? recipe.accentColor : recipe.color, width: 4, alpha: 0.5 });
-        }
-        break;
-      case 'none':
-      default:
-        break;
-    }
-  }
-}
-
-function elapsedAngle(progress: number, index: number, direction: number): number {
-  return progress * Math.PI * 5 * direction + (index / 8) * Math.PI * 2;
-}
-
-
 export class PixiBattleRenderer {
   private readonly app = new Application();
-  private readonly cameraRoot = new Container();
-  private readonly shakeRoot = new Container();
-  private readonly worldRoot = new Container();
+  private readonly camera = new BattleCamera();
   private readonly arenaLayer = new Container();
   private readonly groundFxLayer = new Container();
   private readonly trailLayer = new Container();
@@ -932,8 +99,7 @@ export class PixiBattleRenderer {
   private readonly combatTextLayer = new Container();
   private readonly foregroundLayer = new Container();
   private readonly screenFxLayer = new Container();
-  private readonly arenaGraphics = new Graphics();
-  private readonly obstacleGraphics = new Graphics();
+  private readonly arenaView = new ArenaView();
   private readonly trailGraphics = new Graphics();
   private readonly projectileGraphics = new Graphics();
   private readonly trainingDebugGraphics = new Graphics();
@@ -941,8 +107,7 @@ export class PixiBattleRenderer {
   private readonly screenFlashGraphics = new Graphics();
   private readonly fighterViews = new Map<EntityId, FighterView>();
   private readonly activeEntityIds = new Set<EntityId>();
-  private readonly impactByEntity = new Map<EntityId, number>();
-  private readonly damageByEntity = new Map<EntityId, number>();
+  private readonly eventRouter = new PresentationEventRouter();
   private readonly entityByIdScratch = new Map<EntityId, EntitySnapshot>();
   private readonly trailHistory = new Map<EntityId, Array<{ x: number; y: number }>>();
   private readonly knockbackTrails = new Map<EntityId, KnockbackTrailState>();
@@ -958,21 +123,8 @@ export class PixiBattleRenderer {
   private arena!: ArenaDefinition;
   private settings!: PresentationSettings;
   private elapsedSeconds = 0;
-  private shake = 0;
   private freezeMs = 0;
-  private readonly missileCascadeTracker = new MissileCascadeTracker();
   private screenFlash = 0;
-  private baseX = 0;
-  private baseY = 0;
-  private baseScale = 1;
-  private cameraScale = 1;
-  private cameraX = 0;
-  private cameraY = 0;
-  private shakeOffsetX = 0;
-  private shakeOffsetY = 0;
-  private cameraNeedsSnap = true;
-  private focusEntityId: EntityId | null = null;
-  private lastFocusPosition: Vec2 | null = null;
   private host: HTMLElement | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private resizeRaf = 0;
@@ -988,15 +140,8 @@ export class PixiBattleRenderer {
   private pointerAimEnabled = true;
   private playerPreviewSlot: AbilitySlot = 'basic';
   private playerHitmarkerFlash = 0;
-  private readonly playerEntityIdsScratch = new Set<EntityId>();
   private createdFighterViews = 0;
   private reusedFighterViews = 0;
-  private obstacleCacheArenaId = '';
-  private obstacleCacheProfile = '';
-  private obstacleCacheLength = -1;
-  private readonly obstacleCacheIds: string[] = [];
-  private readonly obstacleCacheHp: number[] = [];
-  private readonly obstacleCacheAlive: boolean[] = [];
   private trainingDebug: TrainingDebugOptions = { ...DEFAULT_TRAINING_DEBUG };
   private diagnostics: RenderDiagnostics = {
     lod: 'hero', fighterViews: 0, pooledFighterViews: 0, createdFighterViews: 0, reusedFighterViews: 0, particleScale: 1, activeParticles: 0, vfxQuality: 'high', groundMarks: 0, residualParticles: 0, weaponEffects: 0, projectileTrails: 0, qualityScale: 1, resolution: 1,
@@ -1015,6 +160,10 @@ export class PixiBattleRenderer {
     }
     this.arena = getArena(arenaId);
     this.settings = { ...settings };
+    this.arenaView.setArena(this.arena);
+    this.arenaView.setSettings(this.settings);
+    this.camera.setArena(this.arena);
+    this.camera.setSettings(this.settings);
     this.host = host;
     if (this.initPromise) return this.initPromise;
     this.initPromise = this.initialize().then(() => {
@@ -1063,11 +212,9 @@ export class PixiBattleRenderer {
     mountHost.replaceChildren(this.app.canvas);
     this.app.canvas.style.display = 'block';
     this.app.canvas.style.visibility = this.active ? 'visible' : 'hidden';
-    this.app.stage.addChild(this.cameraRoot, this.screenFxLayer);
-    this.cameraRoot.addChild(this.shakeRoot);
-    this.shakeRoot.addChild(this.worldRoot);
-    this.worldRoot.addChild(this.arenaLayer, this.groundFxLayer, this.trailLayer, this.projectileFxLayer, this.projectileLayer, this.fighterFxLayer, this.fighterLayer, this.telegraphLayer, this.weaponFxLayer, this.fxLayer, this.trainingDebugLayer, this.combatTextLayer, this.foregroundLayer);
-    this.arenaLayer.addChild(this.arenaGraphics, this.obstacleGraphics);
+    this.app.stage.addChild(this.camera.root, this.screenFxLayer);
+    this.camera.worldRoot.addChild(this.arenaLayer, this.groundFxLayer, this.trailLayer, this.projectileFxLayer, this.projectileLayer, this.fighterFxLayer, this.fighterLayer, this.telegraphLayer, this.weaponFxLayer, this.fxLayer, this.trainingDebugLayer, this.combatTextLayer, this.foregroundLayer);
+    this.arenaLayer.addChild(this.arenaView.container);
     this.trailLayer.addChild(this.trailGraphics);
     this.projectileLayer.addChild(this.projectileGraphics);
     this.trainingDebugLayer.addChild(this.trainingDebugGraphics);
@@ -1090,11 +237,10 @@ export class PixiBattleRenderer {
     this.app.canvas.addEventListener('webglcontextlost', this.handleContextLost);
     this.app.canvas.addEventListener('webglcontextrestored', this.handleContextRestored);
     this.initialized = true;
-    this.invalidateObstacleCache();
     this.syncRendererSize(true);
-    this.drawArena();
-    this.fitWorld();
-    this.snapCameraToCurrentTarget();
+    this.arenaView.drawArena();
+    this.camera.fit(this.app.screen.width, this.app.screen.height);
+    this.camera.snap(this.app.screen.width, this.app.screen.height);
   }
 
   attachHost(host: HTMLElement): void {
@@ -1111,7 +257,7 @@ export class PixiBattleRenderer {
     this.app.canvas.style.visibility = this.active ? 'visible' : 'hidden';
     this.lastHostWidth = 0;
     this.lastHostHeight = 0;
-    this.cameraNeedsSnap = true;
+    this.camera.requestSnap();
     this.queueRendererResize(true);
     requestAnimationFrame(() => this.queueRendererResize(true));
   }
@@ -1146,7 +292,7 @@ export class PixiBattleRenderer {
     this.lastHostWidth = 0;
     this.lastHostHeight = 0;
     this.queueRendererResize(true);
-    this.cameraNeedsSnap = true;
+    this.camera.requestSnap();
     requestAnimationFrame(() => {
       if (!this.active) return;
       this.ensureCanvasMounted();
@@ -1162,21 +308,17 @@ export class PixiBattleRenderer {
   setArena(arenaId: string): void {
     if (this.arena?.id === arenaId) return;
     this.arena = getArena(arenaId);
-    this.invalidateObstacleCache();
+    this.arenaView.setArena(this.arena);
+    this.camera.setArena(this.arena);
     if (!this.initialized) return;
     this.layeredFx?.setArena(this.arena);
-    this.drawArena();
-    this.fitWorld();
-    this.lastFocusPosition = null;
-    this.cameraNeedsSnap = true;
-    this.snapCameraToCurrentTarget();
+    this.arenaView.drawArena();
+    this.camera.fit(this.app.screen.width, this.app.screen.height);
+    this.camera.snap(this.app.screen.width, this.app.screen.height);
   }
 
   setFocusEntity(entityId: EntityId | null): void {
-    if (this.focusEntityId === entityId) return;
-    this.focusEntityId = entityId;
-    this.lastFocusPosition = null;
-    this.cameraNeedsSnap = true;
+    this.camera.setFocusEntity(entityId);
   }
 
   clientToWorld(clientX: number, clientY: number): Vec2 {
@@ -1184,30 +326,40 @@ export class PixiBattleRenderer {
     if (rect.width <= 0 || rect.height <= 0) return { x: 0, y: 0 };
     const screenX = (clientX - rect.left) * (this.app.screen.width / rect.width);
     const screenY = (clientY - rect.top) * (this.app.screen.height / rect.height);
-    const world = this.worldRoot.toLocal(new Point(screenX, screenY));
+    const world = this.camera.worldRoot.toLocal(new Point(screenX, screenY));
     return { x: world.x, y: world.y };
   }
 
   setSettings(settings: PresentationSettings): void {
-    const profileChanged = this.settings?.renderProfile !== settings.renderProfile;
-    const arenaBackgroundChanged = this.settings?.arenaBackground !== settings.arenaBackground;
-    const resolutionChanged = this.settings?.maxDevicePixelRatio !== settings.maxDevicePixelRatio
-      || this.settings?.renderScale !== settings.renderScale
-      || this.settings?.adaptiveQuality !== settings.adaptiveQuality;
+    const profileChanged =
+      this.settings?.renderProfile !== settings.renderProfile;
+    const arenaBackgroundChanged =
+      this.settings?.arenaBackground !== settings.arenaBackground;
+    const resolutionChanged =
+      this.settings?.maxDevicePixelRatio !== settings.maxDevicePixelRatio ||
+      this.settings?.renderScale !== settings.renderScale ||
+      this.settings?.adaptiveQuality !== settings.adaptiveQuality;
     const followChanged = this.settings?.cameraFollow !== settings.cameraFollow;
     this.settings = { ...settings };
+    this.arenaView.setSettings(this.settings);
+    this.camera.setSettings(this.settings);
     if (!this.shouldShowDamageNumbers()) this.damageNumbers.clear();
     if (resolutionChanged && this.initialized) this.queueRendererResize(true);
     if (profileChanged) {
-      this.invalidateObstacleCache();
-      for (const view of this.fighterViews.values()) view.setProfile(settings.renderProfile);
+      for (const view of this.fighterViews.values())
+        view.setProfile(settings.renderProfile);
     }
     if (this.initialized && (profileChanged || arenaBackgroundChanged)) {
-      this.drawArena();
+      this.arenaView.drawArena();
     }
     if (followChanged) {
-      this.cameraNeedsSnap = true;
-      if (!settings.cameraFollow) this.snapCameraToCurrentTarget();
+      this.camera.requestSnap();
+
+      // Settings can be synchronized before Pixi Application.init() finishes.
+      // app.screen is unavailable until the renderer is initialized.
+      if (this.initialized && !settings.cameraFollow) {
+        this.camera.snap(this.app.screen.width, this.app.screen.height);
+      }
     }
   }
 
@@ -1231,19 +383,24 @@ export class PixiBattleRenderer {
     if (!this.settings || this.contextLost || !this.active) return this.diagnostics;
     this.ensureCanvasMounted();
     this.elapsedSeconds += Math.min(0.05, dtMs / 1000);
-    const playerEntityIds = this.playerEntityIdsScratch;
-    playerEntityIds.clear();
-    for (const entity of snapshot.entities) if (entity.controller === 'player') playerEntityIds.add(entity.id);
-    const renderPolicy = resolveMassBattleRenderPolicy(snapshot.entities.length, this.settings.targetRenderFps, this.performanceScale);
-    const missileCausalFrame = this.missileCascadeTracker.shouldSuppressFreeze(events, snapshot.tick);
-    const compactedEvents = compactMissilePresentationEvents(events);
     this.updateKnockbackTrailState(events, Math.min(0.05, dtMs / 1000));
-    const missileBarrageActive = missileCausalFrame || snapshot.projectiles.some((projectile) => isMissileWeapon(projectile.weaponId));
-    const unbudgetedPresentationEvents = missileBarrageActive
-      ? compactMissileSecondaryPresentationEvents(compactedEvents)
-      : compactedEvents;
-    const presentationEvents = budgetPresentationEvents(unbudgetedPresentationEvents, renderPolicy.maxPresentationEvents, playerEntityIds);
-    const visibleProjectiles = selectProjectileVisuals(snapshot.projectiles, renderPolicy.maxProjectileVisuals, playerEntityIds);
+    const frame = this.eventRouter.route(
+      snapshot,
+      events,
+      this.settings.targetRenderFps,
+      this.performanceScale
+    );
+    const {
+      playerEntityIds,
+      renderPolicy,
+      presentationEvents,
+      visibleProjectiles,
+      missileBarrageActive
+    } = frame;
+    this.playerHitmarkerFlash = Math.max(
+      this.playerHitmarkerFlash,
+      frame.playerHitmarkerFlash
+    );
     if (missileBarrageActive) {
       // A barrage is continuous presentation: missiles fly, hit, launch a
       // fighter, then cause body/wall/death events on later ticks. Hit-stop
@@ -1252,23 +409,11 @@ export class PixiBattleRenderer {
       this.freezeMs = 0;
     }
     this.syncRendererSize(false);
-    this.drawObstacles(snapshot);
+    this.arenaView.drawObstacles(snapshot);
     const profile = getRenderProfile(this.settings.renderProfile);
     const baseLod: VisualLod = snapshot.entities.length <= 12 ? 'hero' : snapshot.entities.length <= 36 ? 'standard' : 'army';
     const automaticLod: VisualLod = renderPolicy.tier === 'mass' || this.performanceScale < 0.5 ? 'army' : this.performanceScale < 0.78 && baseLod === 'hero' ? 'standard' : baseLod;
     const crowdParticleScale = snapshot.entities.length <= 12 ? 1 : snapshot.entities.length <= 28 ? 0.68 : snapshot.entities.length <= 55 ? 0.4 : 0.22;
-
-    for (const event of events) {
-      if (event.type === 'impact') {
-        this.impactByEntity.set(event.a, Math.max(this.impactByEntity.get(event.a) ?? 0, event.magnitude));
-        this.impactByEntity.set(event.b, Math.max(this.impactByEntity.get(event.b) ?? 0, event.magnitude));
-      } else if (event.type === 'damage' && shouldPresentDamage(event)) {
-        this.damageByEntity.set(event.targetId, Math.max(this.damageByEntity.get(event.targetId) ?? 0, event.amount));
-        if (event.sourceId !== undefined && playerEntityIds.has(event.sourceId) && !playerEntityIds.has(event.targetId)) {
-          this.playerHitmarkerFlash = Math.max(this.playerHitmarkerFlash, Math.min(1, 0.66 + event.amount / 28));
-        }
-      }
-    }
 
     this.activeEntityIds.clear();
     for (const entity of snapshot.entities) this.activeEntityIds.add(entity.id);
@@ -1328,7 +473,7 @@ export class PixiBattleRenderer {
       if (response) {
         if (this.settings.cameraShake) {
           const shake = missileBarrageActive ? Math.min(3, response.shake) : response.shake;
-          this.shake = Math.max(this.shake, shake * vfxQuality.shakeMultiplier);
+          this.camera.addShake(shake * vfxQuality.shakeMultiplier);
         }
         if (this.settings.impactFreeze && !missileBarrageActive) this.freezeMs = Math.max(this.freezeMs, response.freezeMs * vfxQuality.freezeMultiplier);
         const screenFlash = missileBarrageActive ? Math.min(0.14, response.screenFlash) : response.screenFlash;
@@ -1344,12 +489,12 @@ export class PixiBattleRenderer {
     if (!frozen) {
       for (const entity of snapshot.entities) {
         const view = this.fighterViews.get(entity.id)!;
-        const impact = this.impactByEntity.get(entity.id) ?? 0;
+        const impact = this.eventRouter.impactByEntity.get(entity.id) ?? 0;
         if (impact > 0) view.hit(impact);
-        this.impactByEntity.set(entity.id, impact * 0.72);
-        const damage = this.damageByEntity.get(entity.id) ?? 0;
+        this.eventRouter.impactByEntity.set(entity.id, impact * 0.72);
+        const damage = this.eventRouter.damageByEntity.get(entity.id) ?? 0;
         if (damage > 0) view.damage(damage);
-        this.damageByEntity.delete(entity.id);
+        this.eventRouter.damageByEntity.delete(entity.id);
         view.update(
           entity,
           alpha,
@@ -1377,7 +522,7 @@ export class PixiBattleRenderer {
 
     if (!this.legacyFxSuppressed) this.fx?.update(frozen ? 0 : Math.min(0.05, dtMs / 1000));
     this.drawScreenFlash(dtMs);
-    this.updateCamera(snapshot);
+    this.camera.update(snapshot, this.app.screen.width, this.app.screen.height);
     const cssWidth = Math.max(1, this.lastHostWidth || Math.round(this.app.screen.width));
     const cssHeight = Math.max(1, this.lastHostHeight || Math.round(this.app.screen.height));
     const layeredDiagnostics = this.layeredFx?.getDiagnostics() ?? { activeGroundMarks: 0, activeResiduals: 0, activeWeaponEffects: 0, projectileTrails: 0 };
@@ -1430,22 +575,17 @@ export class PixiBattleRenderer {
     this.projectileGraphics.clear();
     this.trainingDebugGraphics.clear();
     this.playerTargetingGraphics.clear();
-    this.obstacleGraphics.clear();
-    this.invalidateObstacleCache();
+    this.arenaView.resetObstacles();
     this.screenFlashGraphics.clear();
     this.fx?.reset();
     this.legacyFxSuppressed = false;
     this.layeredFx?.reset();
     this.telegraphs.reset();
-    this.shake = 0;
     this.freezeMs = 0;
-    this.missileCascadeTracker.reset();
+    this.eventRouter.reset();
     this.screenFlash = 0;
     this.playerHitmarkerFlash = 0;
-    this.shakeOffsetX = 0;
-    this.shakeOffsetY = 0;
-    this.shakeRoot.position.set(0, 0);
-    this.cameraNeedsSnap = true;
+    this.camera.reset();
   }
 
   destroy(): void {
@@ -1725,7 +865,7 @@ export class PixiBattleRenderer {
   private readonly handleContextRestored = (): void => {
     this.contextLost = false;
     this.diagnostics = { ...this.diagnostics, contextLost: false };
-    this.drawArena();
+    this.arenaView.drawArena();
     this.queueRendererResize(true);
   };
 
@@ -1866,137 +1006,9 @@ export class PixiBattleRenderer {
     this.app.renderer.resolution = resolution;
     this.app.renderer.resize(width, height);
     this.resizeCount += 1;
-    this.fitWorld();
-    this.cameraNeedsSnap = true;
-    this.snapCameraToCurrentTarget();
-  }
-
-  private drawArena(): void {
-    if (!this.arena || !this.settings) return;
-    this.arenaGraphics.clear();
-    const background = this.arena.theme === 'foundry' ? 0x120c0a : this.arena.theme === 'temple' ? 0x0b1115 : 0x090d16;
-    const border = this.arena.theme === 'foundry' ? 0x85543a : this.arena.theme === 'temple' ? 0x70828a : 0x526170;
-    this.arenaGraphics.rect(0, 0, this.arena.width, this.arena.height).fill({ color: background, alpha: 1 });
-
-    if (this.settings.arenaBackground && this.settings.renderProfile !== 'debug') {
-      const width = this.arena.width;
-      const height = this.arena.height;
-      const glowRadius = Math.max(width, height) * 0.48;
-      const themeA = this.arena.theme === 'foundry' ? 0xff5a38 : this.arena.theme === 'temple' ? 0x74e7ff : 0x5ab7ff;
-      const themeB = this.arena.theme === 'foundry' ? 0xffb04a : this.arena.theme === 'temple' ? 0xa07cff : 0xb05cff;
-      this.arenaGraphics.circle(width * 0.08, height * 0.12, glowRadius).fill({ color: themeA, alpha: 0.055 });
-      this.arenaGraphics.circle(width * 0.92, height * 0.88, glowRadius * 0.92).fill({ color: themeB, alpha: 0.05 });
-      this.arenaGraphics.circle(width * 0.52, height * 0.46, Math.min(width, height) * 0.34).fill({ color: 0x163b65, alpha: 0.035 });
-      const gridStep = Math.max(78, Math.round(Math.min(width, height) / 8));
-      for (let x = gridStep; x < width; x += gridStep) {
-        this.arenaGraphics.moveTo(x, 0).lineTo(x, height).stroke({ color: themeA, width: 1, alpha: 0.035 });
-      }
-      for (let y = gridStep; y < height; y += gridStep) {
-        this.arenaGraphics.moveTo(0, y).lineTo(width, y).stroke({ color: themeB, width: 1, alpha: 0.03 });
-      }
-      this.arenaGraphics.rect(18, 18, width - 36, height - 36).stroke({ color: themeA, width: 2, alpha: 0.12 });
-    }
-
-    for (const zone of this.arena.zones) {
-      const color = zone.kind === 'ice' ? 0x8bdcff : zone.kind === 'water' ? 0x157fc7 : zone.kind === 'lava' ? 0xe24920 : zone.kind === 'electric' ? 0x66eaff : 0xd9f4ff;
-      const alpha = zone.kind === 'wind' ? 0.055 : 0.16;
-      if (zone.shape === 'circle') {
-        this.arenaGraphics.circle(zone.x, zone.y, zone.radius).fill({ color, alpha });
-        this.arenaGraphics.circle(zone.x, zone.y, zone.radius).stroke({ color, width: 3, alpha: 0.42 });
-      } else {
-        this.arenaGraphics.rect(zone.x, zone.y, zone.width, zone.height).fill({ color, alpha });
-        this.arenaGraphics.rect(zone.x, zone.y, zone.width, zone.height).stroke({ color, width: 3, alpha: 0.36 });
-      }
-      if (zone.kind === 'wind') {
-        const step = 70;
-        for (let y = zone.y + 35; y < zone.y + zone.height; y += step) {
-          this.arenaGraphics.moveTo(zone.x + zone.width * 0.35, y - 18).lineTo(zone.x + zone.width * 0.5, y + 18).lineTo(zone.x + zone.width * 0.65, y - 18)
-            .stroke({ color, width: 2, alpha: 0.24 });
-        }
-      }
-    }
-
-    this.arenaGraphics.rect(0, 0, this.arena.width, this.arena.height).stroke({ color: border, width: 5, alpha: 0.92 });
-    if (this.settings.renderProfile === 'debug') {
-      for (let x = this.arena.spatialCellSize; x < this.arena.width; x += this.arena.spatialCellSize) {
-        this.arenaGraphics.moveTo(x, 0).lineTo(x, this.arena.height).stroke({ color: 0x34404d, width: 1, alpha: 0.45 });
-      }
-      for (let y = this.arena.spatialCellSize; y < this.arena.height; y += this.arena.spatialCellSize) {
-        this.arenaGraphics.moveTo(0, y).lineTo(this.arena.width, y).stroke({ color: 0x34404d, width: 1, alpha: 0.45 });
-      }
-      for (const zone of this.arena.spawnZones) {
-        this.arenaGraphics.rect(zone.x, zone.y, zone.width, zone.height).stroke({ color: zone.team === 1 ? 0x66a7ff : zone.team === 2 ? 0xff6e6e : 0xe9e472, width: 2, alpha: 0.55 });
-      }
-    } else {
-      const inset = 26;
-      this.arenaGraphics.rect(inset, inset, this.arena.width - inset * 2, this.arena.height - inset * 2).stroke({ color: 0x172332, width: 2, alpha: 0.8 });
-    }
-  }
-
-  private drawObstacles(snapshot: WorldSnapshot): void {
-    const obstacles = snapshot.obstacles;
-    let changed = this.obstacleCacheArenaId !== this.arena.id
-      || this.obstacleCacheProfile !== this.settings.renderProfile
-      || this.obstacleCacheLength !== obstacles.length;
-    if (!changed) {
-      for (let index = 0; index < obstacles.length; index += 1) {
-        const obstacle = obstacles[index];
-        if (!obstacle
-          || this.obstacleCacheIds[index] !== obstacle.id
-          || this.obstacleCacheHp[index] !== obstacle.hp
-          || this.obstacleCacheAlive[index] !== obstacle.alive) {
-          changed = true;
-          break;
-        }
-      }
-    }
-    if (!changed) return;
-
-    this.obstacleCacheArenaId = this.arena.id;
-    this.obstacleCacheProfile = this.settings.renderProfile;
-    this.obstacleCacheLength = obstacles.length;
-    this.obstacleCacheIds.length = obstacles.length;
-    this.obstacleCacheHp.length = obstacles.length;
-    this.obstacleCacheAlive.length = obstacles.length;
-    for (let index = 0; index < obstacles.length; index += 1) {
-      const obstacle = obstacles[index];
-      if (!obstacle) continue;
-      this.obstacleCacheIds[index] = obstacle.id;
-      this.obstacleCacheHp[index] = obstacle.hp;
-      this.obstacleCacheAlive[index] = obstacle.alive;
-    }
-
-    this.obstacleGraphics.clear();
-    for (const obstacle of snapshot.obstacles) {
-      if (!obstacle.alive) continue;
-      const color = obstacle.kind === 'reactor' ? 0xff8a3d : obstacle.kind === 'crate' ? 0x8d6744 : 0x61717a;
-      const accent = obstacle.kind === 'reactor' ? 0xffd165 : obstacle.kind === 'crate' ? 0xd9a467 : 0xaab9c0;
-      if (obstacle.shape === 'circle') {
-        this.obstacleGraphics.circle(obstacle.x, obstacle.y, obstacle.radius).fill({ color, alpha: 0.95 });
-        this.obstacleGraphics.circle(obstacle.x, obstacle.y, obstacle.radius * 0.72).stroke({ color: accent, width: 5, alpha: 0.65 });
-        if (obstacle.kind === 'reactor') this.obstacleGraphics.circle(obstacle.x, obstacle.y, obstacle.radius * 0.28).fill({ color: 0xfff0a0, alpha: 0.86 });
-      } else {
-        this.obstacleGraphics.rect(obstacle.x - obstacle.width / 2, obstacle.y - obstacle.height / 2, obstacle.width, obstacle.height).fill({ color, alpha: 0.94 });
-        this.obstacleGraphics.rect(obstacle.x - obstacle.width / 2 + 8, obstacle.y - obstacle.height / 2 + 8, obstacle.width - 16, obstacle.height - 16).stroke({ color: accent, width: 4, alpha: 0.72 });
-        this.obstacleGraphics.moveTo(obstacle.x - obstacle.width / 2 + 12, obstacle.y - obstacle.height / 2 + 12).lineTo(obstacle.x + obstacle.width / 2 - 12, obstacle.y + obstacle.height / 2 - 12).stroke({ color: accent, width: 3, alpha: 0.42 });
-      }
-      if (obstacle.destructible && obstacle.maxHp > 0 && this.settings.renderProfile === 'standard') {
-        const width = obstacle.shape === 'circle' ? obstacle.radius * 1.4 : obstacle.width * 0.78;
-        const top = obstacle.shape === 'circle' ? obstacle.y - obstacle.radius - 12 : obstacle.y - obstacle.height / 2 - 12;
-        const ratio = Math.max(0, obstacle.hp / obstacle.maxHp);
-        this.obstacleGraphics.rect(obstacle.x - width / 2, top, width, 5).fill({ color: 0x1b1510, alpha: 0.85 });
-        this.obstacleGraphics.rect(obstacle.x - width / 2, top, width * ratio, 5).fill({ color: ratio > 0.4 ? 0xffc86b : 0xff674f, alpha: 0.95 });
-      }
-    }
-  }
-
-  private invalidateObstacleCache(): void {
-    this.obstacleCacheArenaId = '';
-    this.obstacleCacheProfile = '';
-    this.obstacleCacheLength = -1;
-    this.obstacleCacheIds.length = 0;
-    this.obstacleCacheHp.length = 0;
-    this.obstacleCacheAlive.length = 0;
+    this.camera.fit(this.app.screen.width, this.app.screen.height);
+    this.camera.requestSnap();
+    this.camera.snap(this.app.screen.width, this.app.screen.height);
   }
 
   private drawScreenFlash(dtMs: number): void {
@@ -2009,72 +1021,5 @@ export class PixiBattleRenderer {
     this.screenFlash *= Math.pow(0.78, Math.max(1, dtMs / 16.67));
   }
 
-  private fitWorld(): void {
-    if (!this.arena) return;
-    const fit = calculateArenaFit(this.app.screen.width, this.app.screen.height, this.arena.width, this.arena.height);
-    this.baseScale = fit.scale;
-    this.baseX = fit.x;
-    this.baseY = fit.y;
-  }
-
-  private cameraTarget(focus: Vec2 | null): { scale: number; x: number; y: number } {
-    return calculateCameraTarget({
-      viewportWidth: this.app.screen.width,
-      viewportHeight: this.app.screen.height,
-      arenaWidth: this.arena.width,
-      arenaHeight: this.arena.height,
-      baseScale: this.baseScale,
-      focus,
-      follow: this.settings.cameraFollow,
-      reducedMotion: this.settings.reducedMotion
-    });
-  }
-
-  private snapCameraToCurrentTarget(): void {
-    if (!this.initialized || !this.arena || !this.settings) return;
-    const focus = this.settings.cameraFollow ? this.lastFocusPosition : null;
-    const target = this.cameraTarget(focus);
-    this.cameraScale = target.scale;
-    this.cameraX = target.x;
-    this.cameraY = target.y;
-    this.cameraRoot.scale.set(this.cameraScale);
-    this.cameraRoot.position.set(this.cameraX, this.cameraY);
-    this.shakeOffsetX = 0;
-    this.shakeOffsetY = 0;
-    this.shakeRoot.position.set(0, 0);
-    this.cameraNeedsSnap = false;
-  }
-
-  private updateCamera(snapshot: WorldSnapshot): void {
-    if (!this.settings.cameraShake || this.settings.reducedMotion) this.shake = 0;
-    const focusEntity = this.settings.cameraFollow && this.focusEntityId !== null
-      ? snapshot.entities.find((entity) => entity.id === this.focusEntityId)
-      : undefined;
-    this.lastFocusPosition = focusEntity ? { x: focusEntity.x, y: focusEntity.y } : null;
-    const target = this.cameraTarget(this.lastFocusPosition);
-
-    if (this.cameraNeedsSnap) {
-      this.cameraScale = target.scale;
-      this.cameraX = target.x;
-      this.cameraY = target.y;
-      this.cameraNeedsSnap = false;
-    } else {
-      this.cameraScale += (target.scale - this.cameraScale) * 0.08;
-      this.cameraX += (target.x - this.cameraX) * 0.1;
-      this.cameraY += (target.y - this.cameraY) * 0.1;
-    }
-
-    const amount = this.shake * this.cameraScale;
-    const screenOffsetX = amount > 0.05 ? (Math.random() * 2 - 1) * amount : 0;
-    const screenOffsetY = amount > 0.05 ? (Math.random() * 2 - 1) * amount : 0;
-    this.shakeOffsetX = screenOffsetX / Math.max(0.0001, this.cameraScale);
-    this.shakeOffsetY = screenOffsetY / Math.max(0.0001, this.cameraScale);
-    this.cameraRoot.scale.set(this.cameraScale);
-    this.cameraRoot.position.set(this.cameraX, this.cameraY);
-    this.shakeRoot.position.set(this.shakeOffsetX, this.shakeOffsetY);
-    this.worldRoot.position.set(0, 0);
-    this.worldRoot.scale.set(1);
-    this.shake *= 0.82;
-  }
 
 }

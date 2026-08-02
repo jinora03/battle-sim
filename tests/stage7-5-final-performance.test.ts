@@ -141,10 +141,10 @@ describe("v1.1 Stage 7.5 final performance architecture", () => {
       'private startPromise: Promise<void> | null = null'
     );
     expect(renderer).toContain(
-      'private initPromise: Promise<void> | null = null'
+      "private initPromise: Promise<void> | null = null",
     );
-    expect(renderer).toContain('if (!changed) return');
-  });
+    expect(readFileSync(new URL("../packages/renderer-pixi/src/arena/ArenaView.ts", import.meta.url, ), "utf8", ), ).toContain("if (!changed) return"); 
+   });
 
   it('renders left-aligned identity, live team lanes and an AI-specific cue', () => {
     const workspace = readFileSync(
