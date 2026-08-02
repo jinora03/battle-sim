@@ -12,8 +12,6 @@ import {
   type AbilityAction,
   type AbilityCondition,
   type AbilityDefinition,
-  type ArenaObstacleDefinition,
-  type ArenaZoneDefinition,
   type PassiveTriggerEvent,
   type PrimaryAttackDefinition,
   type ProjectileSourceDefinition
@@ -45,10 +43,12 @@ import { SeededRng } from './rng';
 import { SpatialHashGrid } from './spatialHash';
 import { World, type ActiveCastState, type ActiveWeaponAttackState, type ArmedAbilityState } from './world';
 import { resolveImpulseDirection, resolveProjectileStatusInteraction } from './combatModifiers';
-import { compareOrdinal } from './order';
 import { BattleResultSystem } from './systems/BattleResultSystem';
 import { CommandSystem } from './systems/CommandSystem';
 import { StatusSystem } from './systems/StatusSystem';
+import { ArenaCollisionSystem, type RuntimeObstacle } from './systems/ArenaCollisionSystem';
+import { ArenaZoneSystem } from './systems/ArenaZoneSystem';
+import type { ExternalImpulseState } from './systems/SimulationSystemTypes';
 
 export const ENGINE_VERSION = '1.2.2-stage8.2a';
 export { CONTENT_VERSION };
@@ -80,11 +80,6 @@ interface CollisionContext {
 
 type TriggerContext = { self: EntityId; target: EntityId | null; impact: number; normal: Vec2; abilityId: string };
 
-interface RuntimeObstacle {
-  definition: ArenaObstacleDefinition;
-  hp: number;
-  alive: boolean;
-}
 
 interface RuntimeProjectile {
   id: number;
@@ -120,19 +115,7 @@ interface PendingProjectileLaunch {
   targetId: EntityId | null;
 }
 
-interface EnvironmentModifiers {
-  steering: number;
-  damping: number | null;
-  maxSpeed: number;
-}
 
-interface ExternalImpulseState extends Vec2 {
-  retention: number;
-  maxSpeed: number;
-  minWallBounces: number;
-  wallBounces: number;
-  trailStrength: number;
-}
 
 interface ExternalImpulseOptions {
   retention?: number;
@@ -194,18 +177,13 @@ export class LocalSimulationRunner implements SimulationRunner {
   private readonly commandSystem: CommandSystem;
   private readonly statusSystem: StatusSystem;
   private readonly battleResultSystem: BattleResultSystem;
-  private readonly obstacles = new Map<string, RuntimeObstacle>();
-  private readonly obstacleList: RuntimeObstacle[] = [];
+  private readonly arenaZones: ArenaZoneSystem;
+  private readonly arenaCollisions: ArenaCollisionSystem;
   private readonly projectileCandidateIds: EntityId[] = [];
-  private readonly hazardReadyTick = new Map<string, number>();
   // Reusable active-id buffers for loops that can kill entities mid-iteration.
   // Each call site owns a dedicated buffer so the reuse can never alias a
   // concurrently-iterated one; none of these loops nest inside each other.
-  private readonly zoneIdScratch: EntityId[] = [];
-  private readonly obstacleIdScratch: EntityId[] = [];
   private readonly meleeIdScratch: EntityId[] = [];
-  private readonly zoneCurrentScratch = new Set<string>();
-  private readonly zoneById = new Map<string, ArenaZoneDefinition>();
   private readonly rules: ResolvedBattleRules;
   private trainingRules: ResolvedTrainingRules;
   private stepMetrics: SimulationMetricsSnapshot = createSimulationMetrics();
@@ -275,13 +253,27 @@ export class LocalSimulationRunner implements SimulationRunner {
       this.mode,
       this.rules.maxBattleTicks
     );
-    for (const definition of this.arena.obstacles) {
-      const obstacle = { definition, hp: definition.destructible ? definition.maxHp : 0, alive: true };
-      this.obstacles.set(definition.id, obstacle);
-      this.obstacleList.push(obstacle);
-    }
-    this.obstacleList.sort((a, b) => compareOrdinal(a.definition.id, b.definition.id));
-    for (const zone of this.arena.zones) this.zoneById.set(zone.id, zone);
+    this.arenaZones = new ArenaZoneSystem(
+      this.world,
+      this.arena,
+      {
+        getTick: () => this.tickValue,
+        applyStatus: (sourceId, targetId, statusId, durationTicks, events) =>
+          this.applyStatus(sourceId, targetId, statusId, durationTicks, events),
+        dealDamage: (sourceId, targetId, amount, element, events) =>
+          this.dealDamage(sourceId, targetId, amount, element, events)
+      }
+    );
+    this.arenaCollisions = new ArenaCollisionSystem(
+      this.world,
+      this.arena,
+      this.externalImpulse,
+      {
+        getTick: () => this.tickValue,
+        dealDamage: (sourceId, targetId, amount, element, events) =>
+          this.dealDamage(sourceId, targetId, amount, element, events)
+      }
+    );
     this.spawnInitialParticipants();
     for (const id of this.world.activeIdsView()) this.maxEntityRadius = Math.max(this.maxEntityRadius, this.world.radius[id] ?? 0);
   }
@@ -323,7 +315,7 @@ export class LocalSimulationRunner implements SimulationRunner {
    * Use getSnapshot() whenever immutable historical state is required.
    */
   getRuntimeSnapshot(): WorldSnapshot {
-    this.updateRuntimeObstacleSnapshots();
+    this.arenaCollisions.updateRuntimeSnapshots(this.runtimeObstacleSnapshots);
     this.updateRuntimeProjectileSnapshots();
     this.updateRuntimeObjectiveSnapshot();
     this.copyRuntimeMetrics();
@@ -358,7 +350,7 @@ export class LocalSimulationRunner implements SimulationRunner {
       this.activeCasts,
       this.armedAbilities,
       this.activeWeaponAttacks,
-      this.obstacleSnapshots(),
+      this.arenaCollisions.snapshots(),
       this.projectileSnapshots(),
       this.objectiveSnapshot(),
       this.stepMetrics
@@ -385,12 +377,12 @@ export class LocalSimulationRunner implements SimulationRunner {
     this.tickPendingProjectileLaunches(events);
     this.expireArmedAbilities();
     this.stepMetrics.commandsProcessed = this.commandSystem.process(commands, events);
-    this.updateArenaZones(events);
+    this.arenaZones.update(events);
     this.integrateMotion();
     this.rebuildSpatialIndex();
     this.updateProjectiles(events);
-    this.resolveArenaBounds(events);
-    this.resolveObstacleCollisions(events);
+    this.arenaCollisions.resolveBounds(events);
+    this.arenaCollisions.resolveObstacleCollisions(events);
     this.resolveEntityCollisions(events);
     this.enforceSolarLaserLocks();
     this.recoverInvalidNumericState();
@@ -468,7 +460,7 @@ export class LocalSimulationRunner implements SimulationRunner {
     const activePrimaryAttack = this.activeWeaponAttacks.get(id);
     const primaryMovementMultiplier = activePrimaryAttack && !getPrimaryAttack(activePrimaryAttack.weaponId).movementAllowed ? 0 : 1;
     const castMovementMultiplier = castAbility ? castAbility.castMovementMultiplier : 1;
-    const environment = this.environmentModifiers(id);
+    const environment = this.arenaZones.modifiersFor(id);
     const acceleration = (this.world.moveAcceleration[id] ?? 0) * speedMultiplier * castMovementMultiplier * primaryMovementMultiplier * environment.steering;
     this.world.vx[id] = (this.world.vx[id] ?? 0) + (direction.x / length) * acceleration;
     this.world.vy[id] = (this.world.vy[id] ?? 0) + (direction.y / length) * acceleration;
@@ -477,7 +469,7 @@ export class LocalSimulationRunner implements SimulationRunner {
   private integrateMotion(): void {
     // Read-only over the active set (moves entities, never adds/removes them).
     for (const id of this.world.activeIdsView()) {
-      const environment = this.environmentModifiers(id);
+      const environment = this.arenaZones.modifiersFor(id);
       const damping = environment.damping ?? (this.world.damping[id] ?? 1);
       const impulse = this.externalImpulse.get(id) ?? { x: 0, y: 0, retention: 0.92, maxSpeed: 48, minWallBounces: 0, wallBounces: 0, trailStrength: 0 };
       let locomotionX = ((this.world.vx[id] ?? 0) - impulse.x) * damping;
@@ -514,234 +506,6 @@ export class LocalSimulationRunner implements SimulationRunner {
       // fallback for replay/legacy commands that do not provide `facing`.
       if (speed > 0.05 && !this.explicitFacingThisTick.has(id)) this.world.rotation[id] = Math.atan2(vy, vx);
     }
-  }
-
-  private updateArenaZones(events: SimulationEvent[]): void {
-    if (this.arena.zones.length === 0) return;
-    // Zone hazards can kill mid-loop; iterate a stable copy. Zone membership is
-    // rebuilt into a reused Set and the containing zones are visited in arena
-    // order, preserving the original event order without per-entity allocations.
-    for (const id of this.world.copyActiveIdsInto(this.zoneIdScratch)) {
-      const previous = this.world.getActiveZoneIds(id);
-      const x = this.world.x[id] ?? 0;
-      const y = this.world.y[id] ?? 0;
-      const current = this.zoneCurrentScratch;
-      current.clear();
-
-      for (const zone of this.arena.zones) {
-        if (!this.zoneContains(zone, x, y)) continue;
-        current.add(zone.id);
-        if (!previous.has(zone.id)) {
-          events.push({ type: 'zoneEntered', tick: this.tickValue, entityId: id, zoneId: zone.id, kind: zone.kind, position: { x, y } });
-        }
-        this.applyZoneEffect(id, zone, events);
-      }
-      for (const zoneId of previous) {
-        if (current.has(zoneId)) continue;
-        const zone = this.zoneById.get(zoneId);
-        if (zone) events.push({ type: 'zoneExited', tick: this.tickValue, entityId: id, zoneId, kind: zone.kind, position: { x, y } });
-      }
-      this.world.setActiveZones(id, current);
-    }
-  }
-
-  private applyZoneEffect(id: EntityId, zone: ArenaZoneDefinition, events: SimulationEvent[]): void {
-    if (zone.kind === 'wind') {
-      const length = Math.hypot(zone.direction.x, zone.direction.y) || 1;
-      this.world.vx[id] = (this.world.vx[id] ?? 0) + (zone.direction.x / length) * zone.strength;
-      this.world.vy[id] = (this.world.vy[id] ?? 0) + (zone.direction.y / length) * zone.strength;
-      return;
-    }
-
-    const key = `${id}:${zone.id}`;
-    const readyTick = this.hazardReadyTick.get(key) ?? 0;
-    if (this.tickValue < readyTick) return;
-    this.hazardReadyTick.set(key, this.tickValue + zone.intervalTicks);
-
-    if (zone.statusId) this.applyStatus(id, id, zone.statusId, Math.max(zone.intervalTicks * 2, 60), events);
-    let damage = zone.damage;
-    let force = 0;
-    if (zone.kind === 'electric' && this.world.hasStatus(id, 'wet')) damage *= 1.75;
-    if (zone.kind === 'electric' && zone.strength > 0) {
-      const angle = ((id * 97 + this.tickValue * 13) % 360) * (Math.PI / 180);
-      force = zone.strength;
-      const invMass = 1 / this.world.getEffectiveMass(id);
-      this.world.vx[id] = (this.world.vx[id] ?? 0) + Math.cos(angle) * force * invMass;
-      this.world.vy[id] = (this.world.vy[id] ?? 0) + Math.sin(angle) * force * invMass;
-    }
-    if (damage > 0) this.dealDamage(null, id, damage, zone.kind === 'lava' ? 'fire' : zone.kind === 'electric' ? 'electric' : 'neutral', events);
-    if (damage > 0 || force > 0) {
-      events.push({
-        type: 'hazardTriggered', tick: this.tickValue, entityId: id, zoneId: zone.id, kind: zone.kind,
-        position: { x: this.world.x[id] ?? 0, y: this.world.y[id] ?? 0 }, damage, force
-      });
-    }
-  }
-
-  private environmentModifiers(id: EntityId): EnvironmentModifiers {
-    const active = this.world.getActiveZoneIds(id);
-    let steering = 1;
-    let damping: number | null = null;
-    let maxSpeed = 1;
-    for (const zoneId of active) {
-      const zone = this.zoneById.get(zoneId);
-      if (!zone) continue;
-      if (zone.kind === 'ice') {
-        steering *= Math.max(0.25, 1 - zone.strength);
-        damping = Math.max(damping ?? 0, 0.9992);
-        maxSpeed *= 1.08;
-      } else if (zone.kind === 'water') {
-        steering *= Math.max(0.45, zone.strength);
-        damping = Math.min(damping ?? 1, 0.988);
-        maxSpeed *= 0.82;
-      }
-    }
-    return { steering, damping, maxSpeed };
-  }
-
-  private resolveArenaBounds(events: SimulationEvent[]): void {
-    for (const id of this.world.activeIdsView()) {
-      const r = this.world.radius[id] ?? 0;
-      const baseRestitution = this.world.restitution[id] ?? 1;
-      let x = this.world.x[id] ?? 0;
-      let y = this.world.y[id] ?? 0;
-      let vx = this.world.vx[id] ?? 0;
-      let vy = this.world.vy[id] ?? 0;
-      const impulse = this.externalImpulse.get(id);
-      let impulseX = impulse?.x ?? 0;
-      let impulseY = impulse?.y ?? 0;
-      let magnitude = 0;
-      let hitWall = false;
-      const preservingBounces = impulse !== undefined && impulse.wallBounces < impulse.minWallBounces;
-      const restitution = preservingBounces ? Math.max(baseRestitution, 0.985) : baseRestitution;
-
-      if (x - r < 0) {
-        x = r; hitWall = true; magnitude = Math.max(magnitude, Math.abs(vx)); vx = Math.abs(vx) * restitution; impulseX = Math.abs(impulseX) * restitution;
-      } else if (x + r > this.arena.width) {
-        x = this.arena.width - r; hitWall = true; magnitude = Math.max(magnitude, Math.abs(vx)); vx = -Math.abs(vx) * restitution; impulseX = -Math.abs(impulseX) * restitution;
-      }
-      if (y - r < 0) {
-        y = r; hitWall = true; magnitude = Math.max(magnitude, Math.abs(vy)); vy = Math.abs(vy) * restitution; impulseY = Math.abs(impulseY) * restitution;
-      } else if (y + r > this.arena.height) {
-        y = this.arena.height - r; hitWall = true; magnitude = Math.max(magnitude, Math.abs(vy)); vy = -Math.abs(vy) * restitution; impulseY = -Math.abs(impulseY) * restitution;
-      }
-
-      this.world.x[id] = x;
-      this.world.y[id] = y;
-      this.world.vx[id] = vx;
-      this.world.vy[id] = vy;
-      if (impulse) {
-        const wallBounces = impulse.wallBounces + (hitWall ? 1 : 0);
-        this.externalImpulse.set(id, {
-          ...impulse,
-          x: impulseX,
-          y: impulseY,
-          wallBounces,
-          retention: wallBounces >= impulse.minWallBounces ? Math.min(impulse.retention, 0.92) : impulse.retention
-        });
-      }
-      if (magnitude > 1.5) events.push({ type: 'wallImpact', tick: this.tickValue, entityId: id, position: { x, y }, magnitude });
-    }
-  }
-
-  private resolveObstacleCollisions(events: SimulationEvent[]): void {
-    for (const id of this.world.copyActiveIdsInto(this.obstacleIdScratch)) {
-      for (const obstacle of this.obstacleList) {
-        if (!obstacle.alive) continue;
-        const contact = obstacle.definition.shape === 'circle'
-          ? this.circleObstacleContact(id, obstacle.definition)
-          : this.boxObstacleContact(id, obstacle.definition);
-        if (!contact) continue;
-
-        const { normal, overlap, position } = contact;
-        this.world.x[id] = (this.world.x[id] ?? 0) + normal.x * overlap;
-        this.world.y[id] = (this.world.y[id] ?? 0) + normal.y * overlap;
-        const vx = this.world.vx[id] ?? 0;
-        const vy = this.world.vy[id] ?? 0;
-        const velocityInto = vx * normal.x + vy * normal.y;
-        let magnitude = 0;
-        if (velocityInto < 0) {
-          magnitude = -velocityInto * this.world.getEffectiveMass(id);
-          const restitution = Math.min(this.world.restitution[id] ?? 1, obstacle.definition.restitution);
-          this.world.vx[id] = vx - (1 + restitution) * velocityInto * normal.x;
-          this.world.vy[id] = vy - (1 + restitution) * velocityInto * normal.y;
-          const impulse = this.externalImpulse.get(id);
-          if (impulse) {
-            const impulseInto = impulse.x * normal.x + impulse.y * normal.y;
-            if (impulseInto < 0) {
-              this.externalImpulse.set(id, {
-                ...impulse,
-                x: impulse.x - (1 + restitution) * impulseInto * normal.x,
-                y: impulse.y - (1 + restitution) * impulseInto * normal.y
-              });
-            }
-          }
-        }
-        if (magnitude <= 0.05) continue;
-        events.push({ type: 'obstacleImpact', tick: this.tickValue, entityId: id, obstacleId: obstacle.definition.id, position, magnitude });
-        if (obstacle.definition.contactDamage > 0 && magnitude > 2) {
-          this.dealDamage(null, id, obstacle.definition.contactDamage * Math.min(2, magnitude / 6), 'neutral', events);
-        }
-        if (obstacle.definition.destructible && magnitude >= obstacle.definition.breakImpulseThreshold) {
-          const amount = Math.max(0, (magnitude - obstacle.definition.breakImpulseThreshold) * obstacle.definition.impactDamageScale);
-          obstacle.hp = Math.max(0, obstacle.hp - amount);
-          events.push({ type: 'obstacleDamaged', tick: this.tickValue, sourceId: id, obstacleId: obstacle.definition.id, amount, hpAfter: obstacle.hp, position });
-          if (obstacle.hp <= 0) {
-            obstacle.alive = false;
-            events.push({ type: 'obstacleDestroyed', tick: this.tickValue, sourceId: id, obstacleId: obstacle.definition.id, position });
-          }
-        }
-      }
-    }
-  }
-
-  private circleObstacleContact(id: EntityId, obstacle: ArenaObstacleDefinition): { normal: Vec2; overlap: number; position: Vec2 } | null {
-    const dx = (this.world.x[id] ?? 0) - obstacle.x;
-    const dy = (this.world.y[id] ?? 0) - obstacle.y;
-    const combined = (this.world.radius[id] ?? 0) + obstacle.radius;
-    const distSq = dx * dx + dy * dy;
-    if (distSq >= combined * combined) return null;
-    const distance = Math.max(0.0001, Math.sqrt(distSq));
-    const normal = distance <= 0.0001 ? { x: 1, y: 0 } : { x: dx / distance, y: dy / distance };
-    return {
-      normal,
-      overlap: combined - distance,
-      position: { x: obstacle.x + normal.x * obstacle.radius, y: obstacle.y + normal.y * obstacle.radius }
-    };
-  }
-
-  private boxObstacleContact(id: EntityId, obstacle: ArenaObstacleDefinition): { normal: Vec2; overlap: number; position: Vec2 } | null {
-    const x = this.world.x[id] ?? 0;
-    const y = this.world.y[id] ?? 0;
-    const r = this.world.radius[id] ?? 0;
-    const halfW = obstacle.width / 2;
-    const halfH = obstacle.height / 2;
-    const minX = obstacle.x - halfW;
-    const maxX = obstacle.x + halfW;
-    const minY = obstacle.y - halfH;
-    const maxY = obstacle.y + halfH;
-    const closestX = Math.max(minX, Math.min(maxX, x));
-    const closestY = Math.max(minY, Math.min(maxY, y));
-    const dx = x - closestX;
-    const dy = y - closestY;
-    const distSq = dx * dx + dy * dy;
-    if (distSq >= r * r) return null;
-
-    if (distSq > 0.000001) {
-      const distance = Math.sqrt(distSq);
-      return { normal: { x: dx / distance, y: dy / distance }, overlap: r - distance, position: { x: closestX, y: closestY } };
-    }
-
-    let nearestValue = x - minX;
-    let normal: Vec2 = { x: -1, y: 0 };
-    let position: Vec2 = { x: minX, y };
-    const right = maxX - x;
-    if (right < nearestValue) { nearestValue = right; normal = { x: 1, y: 0 }; position = { x: maxX, y }; }
-    const top = y - minY;
-    if (top < nearestValue) { nearestValue = top; normal = { x: 0, y: -1 }; position = { x, y: minY }; }
-    const bottom = maxY - y;
-    if (bottom < nearestValue) { nearestValue = bottom; normal = { x: 0, y: 1 }; position = { x, y: maxY }; }
-    return { normal, overlap: r + nearestValue, position };
   }
 
   private resolveEntityCollisions(events: SimulationEvent[]): void {
@@ -1145,20 +909,12 @@ export class LocalSimulationRunner implements SimulationRunner {
   }
 
   private hasLineOfSight(self: EntityId, target: EntityId): boolean {
-    const ax = this.world.x[self] ?? 0;
-    const ay = this.world.y[self] ?? 0;
-    const bx = this.world.x[target] ?? 0;
-    const by = this.world.y[target] ?? 0;
-    for (const obstacle of this.obstacleList) {
-      if (!obstacle.alive) continue;
-      const definition = obstacle.definition;
-      if (definition.shape === 'circle') {
-        if (segmentIntersectsCircle(ax, ay, bx, by, definition.x, definition.y, definition.radius)) return false;
-      } else if (segmentIntersectsBox(ax, ay, bx, by, definition.x - definition.width / 2, definition.y - definition.height / 2, definition.width, definition.height)) {
-        return false;
-      }
-    }
-    return true;
+    return this.arenaCollisions.hasLineOfSight(
+      this.world.x[self] ?? 0,
+      this.world.y[self] ?? 0,
+      this.world.x[target] ?? 0,
+      this.world.y[target] ?? 0
+    );
   }
 
   private triggerBattleStartPassives(events: SimulationEvent[]): void {
@@ -1599,7 +1355,7 @@ export class LocalSimulationRunner implements SimulationRunner {
       }
 
       let obstacleHit: RuntimeObstacle | null = null;
-      for (const obstacle of this.obstacleList) {
+      for (const obstacle of this.arenaCollisions.activeObstacles()) {
         if (!obstacle.alive) continue;
         this.stepMetrics.projectileObstacleChecks += 1;
         const item = obstacle.definition;
@@ -1810,40 +1566,6 @@ export class LocalSimulationRunner implements SimulationRunner {
     this.runtimeProjectileSnapshots.length = index;
   }
 
-  private updateRuntimeObstacleSnapshots(): void {
-    let index = 0;
-    for (const { definition, hp, alive } of this.obstacleList) {
-      const target = this.runtimeObstacleSnapshots[index] ?? {
-        id: '',
-        kind: definition.kind,
-        shape: definition.shape,
-        x: 0,
-        y: 0,
-        radius: 0,
-        width: 0,
-        height: 0,
-        hp: 0,
-        maxHp: 0,
-        destructible: false,
-        alive: true
-      };
-      target.id = definition.id;
-      target.kind = definition.kind;
-      target.shape = definition.shape;
-      target.x = definition.x;
-      target.y = definition.y;
-      target.radius = definition.radius;
-      target.width = definition.width;
-      target.height = definition.height;
-      target.hp = hp;
-      target.maxHp = definition.maxHp;
-      target.destructible = definition.destructible;
-      target.alive = alive;
-      this.runtimeObstacleSnapshots[index] = target;
-      index += 1;
-    }
-    this.runtimeObstacleSnapshots.length = index;
-  }
 
   private updateRuntimeObjectiveSnapshot(): void {
     const target = this.runtimeObjectiveSnapshot;
@@ -2215,33 +1937,6 @@ export class LocalSimulationRunner implements SimulationRunner {
     return { x: vx / length, y: vy / length };
   }
 
-  private zoneContains(zone: ArenaZoneDefinition, x: number, y: number): boolean {
-    if (zone.shape === 'circle') {
-      const dx = x - zone.x;
-      const dy = y - zone.y;
-      return dx * dx + dy * dy <= zone.radius * zone.radius;
-    }
-    return x >= zone.x && x <= zone.x + zone.width && y >= zone.y && y <= zone.y + zone.height;
-  }
-
-  private obstacleSnapshots(): ArenaObstacleSnapshot[] {
-    // Match the stable ID-sorted order used by the pooled runtime snapshot.
-    // Keeping both snapshot paths in the same order preserves checksum parity.
-    return this.obstacleList.map(({ definition, hp, alive }) => ({
-      id: definition.id,
-      kind: definition.kind,
-      shape: definition.shape,
-      x: definition.x,
-      y: definition.y,
-      radius: definition.radius,
-      width: definition.width,
-      height: definition.height,
-      hp,
-      maxHp: definition.maxHp,
-      destructible: definition.destructible,
-      alive
-    }));
-  }
 
   private objectiveSnapshot(): BattleObjectiveSnapshot {
     if (this.mode.victory === 'DEFEAT_BOSS') {
