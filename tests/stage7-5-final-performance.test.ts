@@ -100,51 +100,47 @@ describe("v1.1 Stage 7.5 final performance architecture", () => {
     expect(progress.teams[1]?.hpRatio).toBeCloseTo(1 / 12);
   });
 
-  it('guards renderer startup and caches static obstacle drawing', () => {
+  it("guards renderer startup and caches static obstacle drawing", () => {
     const workspace = readFileSync(
-      new URL(
-        '../apps/game/src/app/AppWorkspace.tsx',
-        import.meta.url
-      ),
-      'utf8'
+      new URL("../apps/game/src/app/AppWorkspace.tsx", import.meta.url),
+      "utf8",
     );
 
     const runtimeHook = readFileSync(
-      new URL(
-        '../apps/game/src/hooks/useBattleRuntime.ts',
-        import.meta.url
-      ),
-      'utf8'
+      new URL("../apps/game/src/hooks/useBattleRuntime.ts", import.meta.url),
+      "utf8",
     );
 
     const runtime = readFileSync(
-      new URL(
-        '../apps/game/src/runtime/BattleRuntime.ts',
-        import.meta.url
-      ),
-      'utf8'
+      new URL("../apps/game/src/runtime/BattleRuntime.ts", import.meta.url),
+      "utf8",
     );
 
     const renderer = readFileSync(
-      new URL(
-        '../packages/renderer-pixi/src/index.ts',
-        import.meta.url
-      ),
-      'utf8'
+      new URL("../packages/renderer-pixi/src/index.ts", import.meta.url),
+      "utf8",
     );
 
     expect(runtimeHook).toContain(
-      'host?.isConnected && width >= 32 && height >= 32'
+      "host?.isConnected && width >= 32 && height >= 32",
     );
-    expect(workspace).toContain('Retry renderer');
+    expect(workspace).toContain("Retry renderer");
     expect(runtime).toContain(
-      'private startPromise: Promise<void> | null = null'
+      "private startPromise: Promise<void> | null = null",
     );
     expect(renderer).toContain(
       "private initPromise: Promise<void> | null = null",
     );
-    expect(readFileSync(new URL("../packages/renderer-pixi/src/arena/ArenaView.ts", import.meta.url, ), "utf8", ), ).toContain("if (!changed) return"); 
-   });
+    expect(
+      readFileSync(
+        new URL(
+          "../packages/renderer-pixi/src/arena/ArenaView.ts",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    ).toContain("if (!changed) return");
+  });
 
   it('renders left-aligned identity, live team lanes and an AI-specific cue', () => {
     const workspace = readFileSync(
