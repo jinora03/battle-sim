@@ -4,35 +4,20 @@ import {
   useMemo,
   useRef,
   useState,
-  type ChangeEvent,
   type CSSProperties,
-  type Dispatch,
   type PointerEvent as ReactPointerEvent,
-  type ReactNode,
-  type SetStateAction,
   type SyntheticEvent
 } from 'react';
 import {
-  ATTACK_FORM_BEHAVIORS,
-  getAbility,
-  getAbilityActivationProfile,
   getFighter,
-  getFighterModule,
-  getPrimaryAttack,
-  getPrimaryAttackActivationProfile,
   isCustomFighter,
   listAbilities,
   listAiProfiles,
   listArenas,
-  listCompatibleModules,
   listFighters,
   listGameModes,
   listPrimaryAttacks,
-  removeCustomFighter,
-  type AttackForm,
-  type FighterDefinition,
-  type PrimaryAttackDefinition,
-  type GameModeDefinition
+  removeCustomFighter
 } from '@kinetic/content';
 import {
   parseFighterBundle,
@@ -56,54 +41,54 @@ import {
   type ProgressionNotice,
   type SavedBattlePreset
 } from '@kinetic/meta';
-import type { AbilitySlot, AbilityStateSnapshot, ControllerKind, Element, EntitySnapshot, ModuleSlot, Vec2 } from '@kinetic/protocol';
+import type { AbilitySlot, ControllerKind, ModuleSlot, Vec2 } from '@kinetic/protocol';
 import {
   applyQualityPreset,
   detectDeviceCapabilities,
   detectViewportMetrics,
-  qualityPresets,
   shouldShowTouchControls,
+  type AimAssistLevel,
   type AppSettings,
-  type DeviceCapabilities,
-  type ViewportMetrics,
-  type QualityPresetId,
-  type TouchControlMode,
-  type MovementMode,
-  type AimAssistLevel
+  type QualityPresetId
 } from '@kinetic/platform';
 import {
   getMotionRecipe,
-  getSkillPresentation,
   getVisualRecipe,
   removeCustomMotionRecipe,
-  removeCustomVisualRecipe,
-  type MotionRecipe,
-  type VisualRecipe
+  removeCustomVisualRecipe
 } from '@kinetic/visual-engine';
-import { BattleRuntime, type BattleSetup, type RecentSkillActivity, type RuntimeDiagnostics } from './runtime/BattleRuntime';
+import { BattleRuntime, type BattleSetup, type RuntimeDiagnostics } from './runtime/BattleRuntime';
 import { ProfileView } from './ProfileView';
 import { loadPlayerProfile, savePlayerProfile } from './profile/ProfileStore';
 import { loadAppSettings, resetAppSettings, saveAppSettings } from './settings/SettingsStore';
 import { ReleaseHome, type ReleaseView } from './ReleaseHome';
 import { RosterView } from './RosterView';
 import { TrainingLabView } from './TrainingLabView';
-import { AppNavigation, DrawerHeader, DrawerScrim, NeonButton } from './ui/NeonUI';
+import { AppNavigation, DrawerScrim, NeonButton } from './ui/NeonUI';
 import { BattleIntroOverlay } from './BattleIntroOverlay';
 import { battleIntroDurationMs, battleLaunchPausesSimulation, initialLaunchPhase, type BattleLaunchPhase } from './ui/battleLaunch';
 import {
   aggregateActiveCasts,
-  formatModeCapacity,
   noticeDurationMs,
   resolveEliminationProgress,
   shouldPauseBattle,
   shouldSuppressNoticeOnCompactViewport,
   type TimedNotice
 } from './ui/presentation';
+import { Metric, hexColor } from './ui/FormControls';
+import { BattleSetupDrawer } from './features/battle/BattleSetupDrawer';
+import { safeModuleSlot } from './features/battle/FighterModuleSelectors';
+import { DirectionPad, FighterCard, SkillIndicator, activityPresentation } from './features/battle/BattleFighterControls';
+import {
+  describeBattleResult,
+  generateRandomSeed,
+  sameBattleSetup,
+  sameDeviceCapabilities,
+  sameViewportMetrics
+} from './features/battle/battleUtils';
+import { DeveloperFighterWorkshop } from './features/creator/DeveloperFighterWorkshop';
 
 const STORAGE_KEY = 'kinetic.custom-fighter-bundles.v1';
-const ELEMENTS: Element[] = ['neutral', 'fire', 'water', 'ice', 'electric', 'metal', 'nature', 'void'];
-const SKILL_SLOTS: AbilitySlot[] = ['skill1', 'skill2', 'skill3', 'ultimate'];
-
 const initialDiagnostics: RuntimeDiagnostics = {
   tick: 0,
   checksum: '--------',
@@ -1148,194 +1133,40 @@ export default function App() {
         </div>
         <TrainingLabView fighters={fighters} settings={settings} active={view === 'training'} />
         <section className={`${view === 'battle' ? 'workspace' : 'workspace battle-workspace-dormant'} ${battleDrawerOpen ? 'battle-drawer-open' : ''}`}>
-          <aside className={`control-panel ui-mobile-drawer ${battleDrawerOpen ? 'open' : ''}`} id="battle-setup-drawer" aria-label="Battle configuration and settings">
-            <DrawerHeader eyebrow="Battle Lab" title="Setup & settings" onClose={() => setBattleDrawerOpen(false)} />
-            <details
-              ref={setupPanelRef}
-              className="panel-section collapsible-panel battle-setup-panel"
-              open={setupPanelOpen}
-              onToggle={(event: SyntheticEvent<HTMLDetailsElement>) => setSetupPanelOpen(event.currentTarget.open)}
-            >
-              <summary className="panel-summary">
-                <span><small>Configure</small><strong>Battle setup</strong></span>
-                <em>{setupDirty ? 'Changes ready' : formatModeCapacity(configuredMode)}</em>
-              </summary>
-              <div className="panel-content">
-              <label className="field-label" htmlFor="fighter-a">Team 1 fighter</label>
-              <select id="fighter-a" value={setup.fighterAId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setFighter('A', event.target.value)}>
-                {fighters.map((fighter) => { const locked = !isCustomFighter(fighter.id) && !profile.unlockedFighterIds.includes(fighter.id); return <option value={fighter.id} key={fighter.id} disabled={locked}>{fighter.name}{isCustomFighter(fighter.id) ? ' · custom' : locked ? ' · locked' : ''}</option>; })}
-              </select>
-              <FighterModuleSelectors
-                fighter={configuredFighterA}
-                selectedModuleIds={setup.moduleIdsA}
-                side="A"
-                onChange={setFighterModule}
-              />
-              <label className="field-label stacked-label" htmlFor="controller-a">Team 1 controller</label>
-              <select id="controller-a" value={setup.controllerA} onChange={(event: ChangeEvent<HTMLSelectElement>) => setController('A', event.target.value as ControllerKind)}>
-                <option value="player">Player</option>
-                <option value="ai">AI</option>
-              </select>
-
-              <label className="field-label stacked-label" htmlFor="fighter-b">Team 2 fighter</label>
-              <select id="fighter-b" value={setup.fighterBId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setFighter('B', event.target.value)}>
-                {fighters.map((fighter) => { const locked = !isCustomFighter(fighter.id) && !profile.unlockedFighterIds.includes(fighter.id); return <option value={fighter.id} key={fighter.id} disabled={locked}>{fighter.name}{isCustomFighter(fighter.id) ? ' · custom' : locked ? ' · locked' : ''}</option>; })}
-              </select>
-              <FighterModuleSelectors
-                fighter={configuredFighterB}
-                selectedModuleIds={setup.moduleIdsB}
-                side="B"
-                onChange={setFighterModule}
-              />
-              <label className="field-label stacked-label" htmlFor="controller-b">Team 2 controller</label>
-              <select id="controller-b" value={setup.controllerB} onChange={(event: ChangeEvent<HTMLSelectElement>) => setController('B', event.target.value as ControllerKind)}>
-                <option value="ai">AI</option>
-                <option value="player">Player</option>
-              </select>
-
-              <label className="field-label stacked-label" htmlFor="mode">Game mode</label>
-              <select id="mode" value={setup.modeId} onChange={(event: ChangeEvent<HTMLSelectElement>) => updateSetup({ modeId: event.target.value })}>
-                {gameModes.map((mode) => <option value={mode.id} key={mode.id}>{mode.name} · {formatModeCapacity(mode)}</option>)}
-              </select>
-              <label className="field-label stacked-label" htmlFor="arena">Arena</label>
-              <select id="arena" value={setup.arenaId} onChange={(event: ChangeEvent<HTMLSelectElement>) => updateSetup({ arenaId: event.target.value })}>
-                {arenas.map((arena) => <option value={arena.id} key={arena.id}>{arena.name} · {arena.size}{arena.allowedModes.includes(setup.modeId) ? '' : ' · incompatible'}</option>)}
-              </select>
-              {setup.modeId !== 'duel' && (
-                <div className="team-size-grid">
-                  <CreatorField label={setup.modeId === 'boss-raid' ? 'Raiders' : setup.modeId === 'survival' ? 'Survivors' : 'Fighter A count'}>
-                    <input type="number" min={1} max={50} value={setup.teamSizeA} onChange={(event: ChangeEvent<HTMLInputElement>) => updateSetup({ teamSizeA: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })} />
-                  </CreatorField>
-                  {setup.modeId !== 'boss-raid' && (
-                    <CreatorField label={setup.modeId === 'survival' ? 'Enemy count' : 'Fighter B count'}>
-                      <input type="number" min={1} max={50} value={setup.teamSizeB} onChange={(event: ChangeEvent<HTMLInputElement>) => updateSetup({ teamSizeB: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })} />
-                    </CreatorField>
-                  )}
-                </div>
-              )}
-              <div className="compatibility-note">
-                <strong>{configuredMode?.name} · {formatModeCapacity(configuredMode)}</strong>
-                <span>{configuredMode?.description}</span>
-                <strong>{configuredArena?.name}</strong>
-                <span>{configuredArena?.width} × {configuredArena?.height} · recommended {configuredArena?.recommendedUnits.min}–{configuredArena?.recommendedUnits.max} units</span>
-                <span>{configuredArena?.obstacles.length ?? 0} obstacles · {configuredArena?.zones.length ?? 0} environmental zones</span>
-              </div>
-              <label className="field-label stacked-label" htmlFor="difficulty">Difficulty</label>
-              <select id="difficulty" value={profile.difficulty} onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-                const difficulty = event.target.value as PlayerProfile['difficulty'];
-                setProfile((current) => ({ ...current, difficulty, updatedAt: Date.now() }));
-                updateSetup({ difficulty });
-              }}>
-                <option value="relaxed">Relaxed</option>
-                <option value="standard">Standard</option>
-                <option value="intense">Intense</option>
-              </select>
-              <div className="battle-rule-grid">
-                <label className="field-label" htmlFor="team-collision">Ally collision</label>
-                <select id="team-collision" value={setup.teamCollision} onChange={(event: ChangeEvent<HTMLSelectElement>) => updateSetup({ teamCollision: event.target.value as BattleSetup['teamCollision'] })}>
-                  <option value="full">Full</option>
-                  <option value="soft">Soft crowd collision</option>
-                  <option value="ghost">Ghost through allies</option>
-                </select>
-                <Toggle label="Friendly fire" checked={setup.friendlyFire} onChange={(value) => updateSetup({ friendlyFire: value })} />
-              </div>
-
-              <details className="advanced-seed-panel">
-                <summary>Advanced seed / debugging</summary>
-                <label className="field-label seed-label" htmlFor="seed">Current seed</label>
-                <div className="seed-row">
-                  <input id="seed" value={seedText} onChange={(event: ChangeEvent<HTMLInputElement>) => setSeedText(event.target.value.replace(/\D/g, ''))} />
-                  <div className="seed-actions">
-                    <NeonButton tone="utility" size="small" onClick={applyTypedSeed}>Apply</NeonButton>
-                    <NeonButton tone="random" size="small" onClick={() => setSeedText(String(generateRandomSeed()))}>Random unique</NeonButton>
-                  </div>
-                </div>
-                <p className="small-note">New battles already use a fresh cryptographic seed. Use Apply only when reproducing a battle exactly.</p>
-              </details>
-              </div>
-            </details>
-
-            <details className="panel-section collapsible-panel controls-card" open>
-              <summary className="panel-summary"><span><small>Input</small><strong>Player controls</strong></span></summary>
-              <div className="panel-content">
-              <p className="eyebrow">Active controller</p>
-              <h2>{playerEntity ? getFighter(playerEntity.fighterId).name : 'No player fighter'}</h2>
-              <div className="control-help">{settings.movementMode === 'mouse' ? <><kbd>Mouse</kbd><span>move + aim</span><kbd>Left click</kbd><span>basic</span><kbd>Q E R F</kbd><span>skills</span><kbd>1–5</kbd><span>all slots</span></> : <><kbd>WASD</kbd><span>move</span><kbd>Mouse</kbd><span>aim</span><kbd>Q E R F</kbd><span>skills</span><kbd>1–5</kbd><span>all slots</span></>}</div>
-              <label className="field-label stacked-label" htmlFor="movement-mode">Movement mode</label>
-              <select id="movement-mode" value={settings.movementMode} onChange={(event: ChangeEvent<HTMLSelectElement>) => updateAppSetting('movementMode', event.target.value as MovementMode)}>
-                <option value="wasd">WASD / arrows move</option>
-                <option value="mouse">Mouse move + aim</option>
-              </select>
-              <label className="field-label stacked-label" htmlFor="aim-assist">Aim assist</label>
-              <select id="aim-assist" value={settings.aimAssist} onChange={(event: ChangeEvent<HTMLSelectElement>) => updateAppSetting('aimAssist', event.target.value as AimAssistLevel)}>
-                <option value="off">Off</option>
-                <option value="light">Light</option>
-                <option value="medium">Medium</option>
-                <option value="strong">Strong</option>
-              </select>
-              <p className="small-note">Aim assist pulls your aim toward the nearest enemy in your aiming direction. Stronger levels widen the cone and pull harder. Applies to player fighters only.</p>
-              <p className="small-note">Custom fighters use the same controller, cooldown, command and replay systems as built-in fighters.</p>
-              </div>
-            </details>
-
-            <details className="panel-section collapsible-panel release-settings">
-              <summary className="panel-summary"><span><small>Display</small><strong>Quality & accessibility</strong></span></summary>
-              <div className="panel-content">
-              <label className="field-label" htmlFor="quality-preset">Quality preset</label>
-              <select id="quality-preset" value={settings.qualityPreset} onChange={(event: ChangeEvent<HTMLSelectElement>) => selectQualityPreset(event.target.value as QualityPresetId)}>
-                <option value="auto">Auto · recommended for this device</option>
-                <option value="battery">{qualityPresets.battery.label}</option>
-                <option value="balanced">{qualityPresets.balanced.label}</option>
-                <option value="high">{qualityPresets.high.label}</option>
-                <option value="custom">Custom</option>
-              </select>
-              <p className="small-note">Auto resolves from device memory, CPU threads, data-saver and reduced-motion preferences.</p>
-              <label className="field-label stacked-label" htmlFor="render-profile">Visual style</label>
-              <select id="render-profile" value={settings.renderProfile} onChange={(event: ChangeEvent<HTMLSelectElement>) => updateAppSetting('renderProfile', event.target.value as AppSettings['renderProfile'])}>
-                <option value="standard">Standard characters</option>
-                <option value="minimal">Minimal shapes</option>
-                <option value="debug">Debug renderer</option>
-              </select>
-              <label className="field-label stacked-label" htmlFor="target-fps">Render target</label>
-              <select id="target-fps" value={settings.targetRenderFps} onChange={(event: ChangeEvent<HTMLSelectElement>) => updateAppSetting('targetRenderFps', Number(event.target.value) === 30 ? 30 : 60)}>
-                <option value={60}>60 FPS</option>
-                <option value={30}>30 FPS · battery saver</option>
-              </select>
-              <RangeField label={`Internal render scale · ${Math.round(settings.renderScale * 100)}%`} value={settings.renderScale} min={0.5} max={1} step={0.05} onChange={(value) => updateAppSetting('renderScale', value)} />
-              <RangeField label={`Device pixel ratio cap · ${settings.maxDevicePixelRatio.toFixed(2)}×`} value={settings.maxDevicePixelRatio} min={0.75} max={3} step={0.25} onChange={(value) => updateAppSetting('maxDevicePixelRatio', value)} />
-              <RangeField label={`Particle density · ${Math.round(settings.particleScale * 100)}%`} value={settings.particleScale} min={0} max={1.5} step={0.05} onChange={(value) => updateAppSetting('particleScale', value)} />
-              <RangeField label={`Audio volume · ${Math.round(settings.masterVolume * 100)}%`} value={settings.masterVolume} min={0} max={1} step={0.05} onChange={(value) => updateAppSetting('masterVolume', value)} />
-              <Toggle label="Adaptive quality" checked={settings.adaptiveQuality} onChange={(value) => updateAppSetting('adaptiveQuality', value)} />
-              <Toggle label="Effects + telegraphs" checked={settings.effects} onChange={(value) => updateAppSetting('effects', value)} />
-              <Toggle label="Show mounted attachments" checked={settings.showMountedAttachments} onChange={(value) => updateAppSetting('showMountedAttachments', value)} />
-              <Toggle label="Show fighter HP rings" checked={settings.showFighterHealthRings} onChange={(value) => updateAppSetting('showFighterHealthRings', value)} />
-              <Toggle label="Show damage numbers" checked={settings.showDamageNumbers} onChange={(value) => updateAppSetting('showDamageNumbers', value)} />
-              <Toggle label="Show battle intros" checked={settings.showBattleIntros} onChange={(value) => updateAppSetting('showBattleIntros', value)} />
-              <Toggle label="Neon arena background" checked={settings.arenaBackground} onChange={(value) => updateAppSetting('arenaBackground', value)} />
-              <Toggle label="Trails" checked={settings.trails} onChange={(value) => updateAppSetting('trails', value)} />
-              <Toggle label="Camera shake" checked={settings.cameraShake} onChange={(value) => updateAppSetting('cameraShake', value)} />
-              <Toggle label="Follow player" checked={settings.cameraFollow} onChange={(value) => updateAppSetting('cameraFollow', value)} />
-              <label className="field-label stacked-label" htmlFor="touch-controls-mode">Touch controls</label>
-              <select id="touch-controls-mode" value={settings.touchControls} onChange={(event: ChangeEvent<HTMLSelectElement>) => updateAppSetting('touchControls', event.target.value as TouchControlMode)}>
-                <option value="auto">Auto · touch-first devices</option>
-                <option value="always">Always show</option>
-                <option value="never">Always hide</option>
-              </select>
-              <Toggle label="Impact freeze" checked={settings.impactFreeze} onChange={(value) => updateAppSetting('impactFreeze', value)} />
-              <Toggle label="Screen flashes" checked={settings.screenFlash} onChange={(value) => updateAppSetting('screenFlash', value)} />
-              <Toggle label="Reduced motion" checked={settings.reducedMotion} onChange={(value) => updateAppSetting('reducedMotion', value)} />
-              <Toggle label="High contrast UI" checked={settings.highContrast} onChange={(value) => updateAppSetting('highContrast', value)} />
-              <Toggle label="Large touch controls" checked={settings.largeTouchControls} onChange={(value) => updateAppSetting('largeTouchControls', value)} />
-              <Toggle label="Developer metrics panel" checked={settings.showPerformanceHud} onChange={(value) => updateAppSetting('showPerformanceHud', value)} />
-              <Toggle label="Audio" checked={settings.audio} onChange={(value) => updateAppSetting('audio', value)} />
-              <div className="settings-action-row">
-                <NeonButton tone="utility" fullWidth onClick={() => void toggleFullscreenBattle()}>Fullscreen arena</NeonButton>
-                <button className="text-button settings-reset-button" onClick={restoreRecommendedSettings}>Reset recommended</button>
-              </div>
-              </div>
-            </details>
-
-          </aside>
+          <BattleSetupDrawer
+            open={battleDrawerOpen}
+            onClose={() => setBattleDrawerOpen(false)}
+            setupPanelRef={setupPanelRef}
+            setupPanelOpen={setupPanelOpen}
+            onSetupPanelToggle={setSetupPanelOpen}
+            setupDirty={setupDirty}
+            setup={setup}
+            fighters={fighters}
+            arenas={arenas}
+            gameModes={gameModes}
+            profile={profile}
+            configuredFighterA={configuredFighterA}
+            configuredFighterB={configuredFighterB}
+            configuredMode={configuredMode}
+            configuredArena={configuredArena}
+            playerEntity={playerEntity}
+            settings={settings}
+            seedText={seedText}
+            onSeedTextChange={setSeedText}
+            onApplySeed={applyTypedSeed}
+            onFighterChange={setFighter}
+            onModuleChange={setFighterModule}
+            onControllerChange={setController}
+            onSetupChange={updateSetup}
+            onDifficultyChange={(difficulty) => {
+              setProfile((current) => ({ ...current, difficulty, updatedAt: Date.now() }));
+              updateSetup({ difficulty });
+            }}
+            onQualityPresetChange={selectQualityPreset}
+            onSettingChange={updateAppSetting}
+            onToggleFullscreen={() => void toggleFullscreenBattle()}
+            onRestoreSettings={restoreRecommendedSettings}
+          />
           <DrawerScrim open={battleDrawerOpen} onClose={() => setBattleDrawerOpen(false)} label="Close battle setup" className="battle-drawer-scrim" />
 
           <div className="arena-column">
@@ -1661,561 +1492,38 @@ export default function App() {
             onResetProfile={resetProfile}
           />
         </div>
-        <section className={view === 'creator' ? 'creator-workspace' : 'creator-workspace view-hidden'}>
-          <aside className="creator-form-column">
-            <div className="panel-section creator-source-row">
-              <h2>Developer Fighter Workshop</h2><p className="small-note">Internal authoring only. Player-facing fighter creation is intentionally disabled; publish only reviewed fighter definitions and approved modules.</p>
-              <select value={sourceFighterId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setSourceFighterId(event.target.value)}>
-                {fighters.map((fighter) => <option key={fighter.id} value={fighter.id}>{fighter.name}</option>)}
-              </select>
-              <button className="secondary" onClick={duplicateFighter}>Duplicate into editable recipe</button>
-              <button className="ghost-button" onClick={() => { setDraft(createStarterBundle()); setCreatorMessage('Started a clean Arc Prototype recipe.'); }}>New blank prototype</button>
-            </div>
-
-            <CreatorSection title="Identity & classification">
-              <CreatorField label="Name"><input value={draft.fighter.name} onChange={(event: ChangeEvent<HTMLInputElement>) => syncIdentity(event.target.value)} /></CreatorField>
-              <CreatorField label="ID"><input value={draft.fighter.id} onChange={(event: ChangeEvent<HTMLInputElement>) => syncIdentity(draft.fighter.name, event.target.value)} /></CreatorField>
-              <CreatorField label="Archetype"><input value={draft.fighter.classification.archetype} onChange={(event: ChangeEvent<HTMLInputElement>) => setDraft((current) => ({ ...current, fighter: { ...current.fighter, classification: { ...current.fighter.classification, archetype: event.target.value } } }))} /></CreatorField>
-              <CreatorField label="Primary element">
-                <select value={draft.fighter.classification.elements[0]} onChange={(event: ChangeEvent<HTMLSelectElement>) => setDraft((current) => ({ ...current, fighter: { ...current.fighter, classification: { ...current.fighter.classification, elements: [event.target.value as Element] } } }))}>
-                  {ELEMENTS.map((element) => <option key={element} value={element}>{element}</option>)}
-                </select>
-              </CreatorField>
-              <CreatorField label="Traits"><input value={draft.fighter.classification.traits.join(', ')} onChange={(event: ChangeEvent<HTMLInputElement>) => setDraft((current) => ({ ...current, fighter: { ...current.fighter, classification: { ...current.fighter.classification, traits: splitTags(event.target.value) } } }))} /></CreatorField>
-            </CreatorSection>
-
-            <CreatorSection title="Physics & combat stats">
-              <RangeField label="HP" value={draft.fighter.stats.maxHp} min={40} max={2000} step={5} onChange={(value) => updateFighterStats(setDraft, draft, 'maxHp', value)} />
-              <RangeField label="Radius" value={draft.fighter.physics.radius} min={45} max={100} step={1} onChange={(value) => updateFighterPhysics(setDraft, draft, 'radius', value)} />
-              <RangeField label="Mass" value={draft.fighter.physics.mass} min={0.2} max={15} step={0.05} onChange={(value) => updateFighterPhysics(setDraft, draft, 'mass', value)} />
-              <RangeField label="Bounce" value={draft.fighter.physics.restitution} min={0} max={1.2} step={0.01} onChange={(value) => updateFighterPhysics(setDraft, draft, 'restitution', value)} />
-              <RangeField label="Damping" value={draft.fighter.physics.linearDamping} min={0.95} max={1} step={0.001} onChange={(value) => updateFighterPhysics(setDraft, draft, 'linearDamping', value)} />
-              <RangeField label="Max speed" value={draft.fighter.physics.maxSpeed} min={2} max={30} step={0.1} onChange={(value) => updateFighterPhysics(setDraft, draft, 'maxSpeed', value)} />
-              <RangeField label="Acceleration" value={draft.fighter.stats.moveAcceleration} min={0.02} max={0.8} step={0.01} onChange={(value) => updateFighterStats(setDraft, draft, 'moveAcceleration', value)} />
-            </CreatorSection>
-
-            <CreatorSection title="Primary attack identity">
-              {(() => {
-                const attack = getPrimaryAttack(draft.fighter.primaryAttackId);
-                const forms = [...new Set(primaryAttacks.map((item) => item.form))];
-                const behaviors = ATTACK_FORM_BEHAVIORS[attack.form];
-                const selectAttack = (nextAttack: PrimaryAttackDefinition) => {
-                  setDraft((current) => ({ ...current, fighter: { ...current.fighter, primaryAttackId: nextAttack.id } }));
-                };
-                return (
-                  <>
-                    <CreatorField label="Attack source / form">
-                      <select value={attack.form} onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-                        const form = event.target.value as AttackForm;
-                        const next = primaryAttacks.find((item) => item.form === form) ?? attack;
-                        selectAttack(next);
-                      }}>
-                        {forms.map((form) => <option key={form} value={form}>{form}</option>)}
-                      </select>
-                    </CreatorField>
-                    <CreatorField label="Attack behavior">
-                      <select value={attack.behavior} onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-                        const behavior = event.target.value as PrimaryAttackDefinition['behavior'];
-                        const next = primaryAttacks.find((item) => item.form === attack.form && item.behavior === behavior);
-                        if (next) selectAttack(next);
-                      }}>
-                        {behaviors.map((behavior) => {
-                          const available = primaryAttacks.some((item) => item.form === attack.form && item.behavior === behavior);
-                          return <option key={behavior} value={behavior} disabled={!available}>{behavior}{available ? '' : ' · add definition first'}</option>;
-                        })}
-                      </select>
-                    </CreatorField>
-                    <CreatorField label="Primary attack">
-                      <select value={attack.id} onChange={(event: ChangeEvent<HTMLSelectElement>) => selectAttack(getPrimaryAttack(event.target.value))}>
-                        {primaryAttacks.filter((item) => item.form === attack.form && item.behavior === attack.behavior).map((item) => (
-                          <option key={item.id} value={item.id}>{item.name}</option>
-                        ))}
-                      </select>
-                    </CreatorField>
-                    <div className="weapon-spec-grid">
-                      <Metric label="Form" value={attack.form} />
-                      <Metric label="Behavior" value={attack.behavior} />
-                      <Metric label="Range" value={`${attack.minRange}–${attack.range}`} />
-                      <Metric label="Damage" value={attack.damage.toFixed(1)} />
-                      <Metric label="Visual scale" value={`${attack.visualScale.toFixed(2)}×`} />
-                      <Metric label="Cadence" value={attack.burstCount && attack.burstCount > 1 ? `${attack.burstCount}-round burst` : `${attack.cooldownTicks} ticks`} />
-                    </div>
-                    <p className="small-note">The primary attack is the fighter’s Basic and the only weapon or elemental source rendered on the body. Melee stays still while idle; only Spin and Orbit behaviors rotate during an active attack.</p>
-                  </>
-                );
-              })()}
-            </CreatorSection>
-
-            <CreatorSection title="AI & skill loadout">
-              <CreatorField label="AI profile">
-                <select value={draft.fighter.aiProfileId ?? ''} onChange={(event: ChangeEvent<HTMLSelectElement>) => setDraft((current) => ({ ...current, fighter: { ...current.fighter, aiProfileId: event.target.value || null } }))}>
-                  <option value="">No AI profile</option>
-                  {aiProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.id} · {profile.movementStyle}</option>)}
-                </select>
-              </CreatorField>
-              <CreatorField label="Basic">
-                <div className="primary-basic-summary"><small>Basic</small><strong>{getPrimaryAttack(draft.fighter.primaryAttackId).name}</strong><span>Generated from the primary attack</span></div>
-              </CreatorField>
-              {SKILL_SLOTS.map((slot) => (
-                <CreatorField label={slot === 'ultimate' ? 'Ultimate' : `Skill ${slot.slice(-1)}`} key={slot}>
-                  <select value={draft.fighter.abilitySlots[slot] ?? ''} onChange={(event: ChangeEvent<HTMLSelectElement>) => setDraft((current) => ({ ...current, fighter: { ...current.fighter, abilitySlots: { ...current.fighter.abilitySlots, [slot]: event.target.value || null } } }))}>
-                    <option value="">Empty</option>
-                    {abilities.filter((ability) => ability.slot === slot).map((ability) => <option key={ability.id} value={ability.id}>{ability.name}</option>)}
-                  </select>
-                </CreatorField>
-              ))}
-            </CreatorSection>
-          </aside>
-
-          <div className="creator-preview-column">
-            <div className="creator-preview-card">
-              <div className="creator-preview-heading">
-                <div><p className="eyebrow">Live recipe preview</p><h2>{draft.fighter.name || 'Unnamed Fighter'}</h2></div>
-                <span className={`validation-badge ${validation.success ? 'valid' : 'invalid'}`}>{validation.success ? 'VALID' : `${validation.errors.length} ISSUES`}</span>
-              </div>
-              <FighterRecipePreview fighter={draft.fighter} visual={draft.visualRecipe} motion={draft.motionRecipe} />
-              <div className="creator-summary-grid">
-                <Metric label="HP" value={String(draft.fighter.stats.maxHp)} />
-                <Metric label="Radius" value={draft.fighter.physics.radius.toFixed(0)} />
-                <Metric label="Mass" value={draft.fighter.physics.mass.toFixed(2)} />
-                <Metric label="Speed" value={draft.fighter.physics.maxSpeed.toFixed(1)} />
-                <Metric label="Primary attack" value={getPrimaryAttack(draft.fighter.primaryAttackId).name} />
-              </div>
-              <div className="creator-skill-summary">
-                <span><small>basic</small><strong>{getPrimaryAttack(draft.fighter.primaryAttackId).name}</strong></span>
-                {SKILL_SLOTS.map((slot) => {
-                  const abilityId = draft.fighter.abilitySlots[slot];
-                  const ability = abilityId ? abilities.find((item) => item.id === abilityId) : null;
-                  return <span key={slot}><small>{slot}</small><strong>{ability?.name ?? 'Empty'}</strong></span>;
-                })}
-              </div>
-            </div>
-
-            <CreatorSection title="Visual recipe">
-              <div className="creator-grid two-column">
-                <CreatorField label="Body template">
-                  <select value={draft.visualRecipe.shape} onChange={(event: ChangeEvent<HTMLSelectElement>) => updateVisual(setDraft, draft, { shape: event.target.value as VisualRecipe['shape'] })}>
-                    <option value="orb">Orb</option><option value="mech">Mech</option><option value="water">Water</option><option value="bomber">Bomber</option>
-                  </select>
-                </CreatorField>
-                <ColorField label="Body" value={draft.visualRecipe.bodyColor} onChange={(value) => updateVisual(setDraft, draft, { bodyColor: value })} />
-                <ColorField label="Body dark" value={draft.visualRecipe.bodyDarkColor} onChange={(value) => updateVisual(setDraft, draft, { bodyDarkColor: value })} />
-                <ColorField label="Core" value={draft.visualRecipe.coreColor} onChange={(value) => updateVisual(setDraft, draft, { coreColor: value })} />
-                <ColorField label="Aura" value={draft.visualRecipe.auraColor} onChange={(value) => updateVisual(setDraft, draft, { auraColor: value })} />
-                <ColorField label="Accent" value={draft.visualRecipe.accentColor} onChange={(value) => updateVisual(setDraft, draft, { accentColor: value })} />
-                <Toggle label="Horns" checked={draft.visualRecipe.horns} onChange={(value) => updateVisual(setDraft, draft, { horns: value })} />
-              </div>
-            </CreatorSection>
-
-            <CreatorSection title="Motion recipe">
-              <RangeField label="Speed stretch" value={draft.motionRecipe.speedStretch} min={0} max={0.5} step={0.01} onChange={(value) => updateMotion(setDraft, draft, 'speedStretch', value)} />
-              <RangeField label="Impact squash" value={draft.motionRecipe.impactSquash} min={0} max={0.5} step={0.01} onChange={(value) => updateMotion(setDraft, draft, 'impactSquash', value)} />
-              <RangeField label="Lean" value={draft.motionRecipe.lean} min={0} max={0.5} step={0.01} onChange={(value) => updateMotion(setDraft, draft, 'lean', value)} />
-              <RangeField label="Idle pulse" value={draft.motionRecipe.pulseAmount} min={0} max={0.15} step={0.005} onChange={(value) => updateMotion(setDraft, draft, 'pulseAmount', value)} />
-              <RangeField label="Pulse speed" value={draft.motionRecipe.pulseSpeed} min={0} max={8} step={0.1} onChange={(value) => updateMotion(setDraft, draft, 'pulseSpeed', value)} />
-              <RangeField label="Weapon spin" value={draft.motionRecipe.weaponSpin} min={0} max={12} step={0.1} onChange={(value) => updateMotion(setDraft, draft, 'weaponSpin', value)} />
-            </CreatorSection>
-          </div>
-
-          <aside className="creator-output-column">
-            <div className="panel-section creator-actions">
-              <p className="eyebrow">Content pipeline</p>
-              <h2>Validate, save, test</h2>
-              <p className="creator-message">{creatorMessage}</p>
-              <button onClick={saveDraft} disabled={!validation.success}>Save to engine</button>
-              <button className="accent-button" onClick={testDraft} disabled={!validation.success}>Save & test fight</button>
-              <button className="secondary" onClick={exportDraft} disabled={!validation.success}>Export fighter JSON</button>
-              <button className="danger-button" onClick={deleteDraft} disabled={!isCustomFighter(draft.fighter.id)}>Delete custom fighter</button>
-            </div>
-
-            <div className="panel-section">
-              <h2>Validation</h2>
-              {validation.success ? <div className="validation-ok">✓ Schema and content references are valid.</div> : validation.errors.map((error) => <div className="validation-error" key={error}>• {error}</div>)}
-            </div>
-
-            <div className="panel-section">
-              <h2>Import bundle</h2>
-              <textarea className="import-textarea" value={importText} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setImportText(event.target.value)} placeholder="Paste a .fighter.json bundle here" />
-              <button className="secondary" onClick={importBundle}>Load into editor</button>
-              <label className="file-import-button">Choose JSON file<input type="file" accept="application/json,.json" onChange={(event: ChangeEvent<HTMLInputElement>) => void readImportFile(event, setImportText, setCreatorMessage)} /></label>
-            </div>
-
-            <div className="panel-section custom-library">
-              <h2>Custom library</h2>
-              {customBundles.length === 0 ? <p className="small-note">No saved custom fighters yet.</p> : customBundles.map((bundle) => (
-                <button className="custom-library-item" key={bundle.fighter.id} onClick={() => { setDraft(bundle); setCreatorMessage(`${bundle.fighter.name} loaded from the local library.`); }}>
-                  <span style={{ background: hexColor(bundle.visualRecipe.bodyColor) }} />
-                  <strong>{bundle.fighter.name}</strong>
-                  <small>{bundle.fighter.id}</small>
-                </button>
-              ))}
-            </div>
-
-            <details className="panel-section json-preview">
-              <summary>Generated JSON</summary>
-              <pre>{serializeFighterBundle(draft)}</pre>
-            </details>
-          </aside>
-        </section>
+        <DeveloperFighterWorkshop
+          active={view === 'creator'}
+          fighters={fighters}
+          customBundles={customBundles}
+          draft={draft}
+          setDraft={setDraft}
+          validation={validation}
+          creatorMessage={creatorMessage}
+          setCreatorMessage={setCreatorMessage}
+          importText={importText}
+          setImportText={setImportText}
+          sourceFighterId={sourceFighterId}
+          setSourceFighterId={setSourceFighterId}
+          primaryAttacks={primaryAttacks}
+          abilities={abilities}
+          aiProfiles={aiProfiles}
+          onDuplicate={duplicateFighter}
+          onCreateBlank={() => {
+            setDraft(createStarterBundle());
+            setCreatorMessage('Started a clean Arc Prototype recipe.');
+          }}
+          onSave={() => { void saveDraft(); }}
+          onTest={testDraft}
+          onExport={exportDraft}
+          onDelete={deleteDraft}
+          onImport={importBundle}
+          onSyncIdentity={syncIdentity}
+        />
       </>
 
     </main>
   );
-}
-
-function DirectionPad({ onDirection }: { onDirection: (direction: Vec2) => void }) {
-  const padRef = useRef<HTMLDivElement | null>(null);
-  const knobRef = useRef<HTMLDivElement | null>(null);
-  const pointerIdRef = useRef<number | null>(null);
-  const onDirectionRef = useRef(onDirection);
-  const targetStickRef = useRef<Vec2>({ x: 0, y: 0 });
-  const currentStickRef = useRef<Vec2>({ x: 0, y: 0 });
-  const targetDirectionRef = useRef<Vec2>({ x: 0, y: 0 });
-  const currentDirectionRef = useRef<Vec2>({ x: 0, y: 0 });
-
-  useEffect(() => {
-    onDirectionRef.current = onDirection;
-  }, [onDirection]);
-
-  useEffect(() => {
-    let frame = 0;
-    const animate = () => {
-      const currentStick = currentStickRef.current;
-      const targetStick = targetStickRef.current;
-      const currentDirection = currentDirectionRef.current;
-      const targetDirection = targetDirectionRef.current;
-      const stickResponse = pointerIdRef.current === null ? 0.22 : 0.34;
-      const movementResponse = pointerIdRef.current === null ? 0.18 : 0.26;
-
-      currentStick.x += (targetStick.x - currentStick.x) * stickResponse;
-      currentStick.y += (targetStick.y - currentStick.y) * stickResponse;
-      currentDirection.x += (targetDirection.x - currentDirection.x) * movementResponse;
-      currentDirection.y += (targetDirection.y - currentDirection.y) * movementResponse;
-
-      if (Math.abs(currentStick.x) < 0.02) currentStick.x = 0;
-      if (Math.abs(currentStick.y) < 0.02) currentStick.y = 0;
-      if (Math.abs(currentDirection.x) < 0.002) currentDirection.x = 0;
-      if (Math.abs(currentDirection.y) < 0.002) currentDirection.y = 0;
-
-      const intensity = Math.min(1, Math.hypot(currentDirection.x, currentDirection.y));
-      if (knobRef.current) {
-        knobRef.current.style.transform = `translate(${currentStick.x.toFixed(2)}px, ${currentStick.y.toFixed(2)}px) scale(${(1 + intensity * 0.06).toFixed(3)})`;
-      }
-      if (padRef.current) {
-        padRef.current.style.setProperty('--stick-intensity', intensity.toFixed(3));
-        padRef.current.style.setProperty('--stick-border-alpha', (0.16 + intensity * 0.18).toFixed(3));
-        padRef.current.style.setProperty('--stick-inset-alpha', (0.07 + intensity * 0.08).toFixed(3));
-        padRef.current.style.setProperty('--stick-glow-alpha', (0.05 + intensity * 0.11).toFixed(3));
-        padRef.current.style.setProperty('--stick-halo-size', `${(10 + intensity * 18).toFixed(1)}px`);
-        padRef.current.style.setProperty('--stick-guide-opacity', (0.34 + intensity * 0.28).toFixed(3));
-        padRef.current.style.setProperty('--stick-ring-alpha', (0.18 + intensity * 0.18).toFixed(3));
-        padRef.current.style.setProperty('--stick-ring-scale', (1 + intensity * 0.025).toFixed(3));
-        padRef.current.style.setProperty('--stick-core-opacity', (0.72 - intensity * 0.26).toFixed(3));
-        padRef.current.style.setProperty('--stick-core-scale', (1 - intensity * 0.18).toFixed(3));
-        padRef.current.style.setProperty('--stick-knob-core-opacity', (0.68 + intensity * 0.28).toFixed(3));
-        if (intensity > 0.03) {
-          const angle = Math.atan2(currentDirection.y, currentDirection.x) * 180 / Math.PI;
-          padRef.current.style.setProperty('--stick-angle', `${angle.toFixed(1)}deg`);
-        }
-        padRef.current.style.setProperty('--stick-arrow-opacity', Math.min(1, Math.max(0, (intensity - 0.03) * 1.7)).toFixed(3));
-        padRef.current.dataset.active = pointerIdRef.current === null ? 'false' : 'true';
-      }
-      onDirectionRef.current({ ...currentDirection });
-      frame = window.requestAnimationFrame(animate);
-    };
-    frame = window.requestAnimationFrame(animate);
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
-
-  const updateFromClient = (clientX: number, clientY: number) => {
-    const rect = padRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const rawX = clientX - centerX;
-    const rawY = clientY - centerY;
-    const visualRadius = rect.width * 0.31;
-    const inputRadius = rect.width * 0.42;
-    const length = Math.hypot(rawX, rawY);
-    const safeLength = Math.max(0.001, length);
-    const clampedScale = length > visualRadius ? visualRadius / safeLength : 1;
-    targetStickRef.current = { x: rawX * clampedScale, y: rawY * clampedScale };
-
-    const deadzone = Math.max(7, rect.width * 0.065);
-    if (length <= deadzone) {
-      targetDirectionRef.current = { x: 0, y: 0 };
-      return;
-    }
-    const normalized = { x: rawX / safeLength, y: rawY / safeLength };
-    const linear = Math.max(0, Math.min(1, (length - deadzone) / Math.max(1, inputRadius - deadzone)));
-    const eased = linear * linear * (3 - 2 * linear);
-    targetDirectionRef.current = { x: normalized.x * eased, y: normalized.y * eased };
-  };
-
-  const stop = () => {
-    pointerIdRef.current = null;
-    targetStickRef.current = { x: 0, y: 0 };
-    targetDirectionRef.current = { x: 0, y: 0 };
-  };
-
-  const start = (event: ReactPointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    pointerIdRef.current = event.pointerId;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    updateFromClient(event.clientX, event.clientY);
-  };
-
-  const move = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (pointerIdRef.current !== event.pointerId) return;
-    event.preventDefault();
-    updateFromClient(event.clientX, event.clientY);
-  };
-
-  return (
-    <div
-      ref={padRef}
-      className="analog-pad"
-      aria-label="Touch movement controls"
-      onPointerDown={start}
-      onPointerMove={move}
-      onPointerUp={stop}
-      onPointerCancel={stop}
-      onLostPointerCapture={stop}
-    >
-      <div className="analog-pad-ring" />
-      <div className="analog-pad-axis analog-pad-axis-horizontal" />
-      <div className="analog-pad-axis analog-pad-axis-vertical" />
-      <div className="analog-pad-arrow" aria-hidden="true" />
-      <div className="analog-pad-core" />
-      <div ref={knobRef} className="analog-pad-knob"><i /></div>
-    </div>
-  );
-}
-
-function FighterCard({ entity, tick, stats, recentSkills, onActivate, onPreview }: {
-  entity: EntitySnapshot;
-  tick: number;
-  stats: RuntimeDiagnostics['stats'][number] | undefined;
-  recentSkills: RecentSkillActivity[];
-  onActivate?: ((slot: AbilitySlot) => void) | undefined;
-  onPreview?: ((slot: AbilitySlot) => void) | undefined;
-}) {
-  const fighter = getFighter(entity.fighterId);
-  const hpRatio = Math.max(0, entity.hp / Math.max(1, entity.maxHp));
-  return (
-    <article className={`fighter-card team-${entity.team} ${entity.controller === 'player' ? 'player-controlled' : ''}`}>
-      <div className={`fighter-icon ${fighterIconClass(fighter)}`}>{entity.id + 1}</div>
-      <div className="fighter-card-copy">
-        <div className="fighter-card-heading">
-          <strong>{fighter.name} <em>{entity.controller === 'player' ? 'PLAYER' : 'AI'}</em>{isCustomFighter(fighter.id) && <b>CUSTOM</b>}</strong>
-          <span>{Math.ceil(entity.hp)} / {Math.ceil(entity.maxHp)} HP</span>
-        </div>
-        <div className="hp-track"><i style={{ width: `${hpRatio * 100}%` }} /></div>
-        <span className="fighter-telemetry">{stats ? `${stats.damageDealt.toFixed(0)} dmg · ${stats.abilitiesUsed} skills · ${stats.blasts} blasts · ${stats.obstaclesDestroyed} wrecked` : 'collecting telemetry…'}</span>
-        {entity.activeZoneIds.length > 0 && (
-          <div className="active-zone-tags">
-            {entity.activeZoneIds.map((zoneId) => <span key={`${entity.id}-${zoneId}`}>{zoneId.replaceAll('-', ' ')}</span>)}
-          </div>
-        )}
-        <div className="skill-grid">
-          {entity.abilities.map((ability) => (
-            <SkillIndicator
-              key={`${entity.id}-${ability.slot}`}
-              state={ability}
-              entityId={entity.id}
-              tick={tick}
-              recentSkills={recentSkills}
-              controllable={entity.controller === 'player'}
-              onPreview={onPreview ? () => onPreview(ability.slot) : undefined}
-              onActivate={onActivate ? () => onActivate(ability.slot) : undefined}
-            />
-          ))}
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function SkillIndicator({ state, entityId, tick, recentSkills, controllable = false, compact = false, onActivate, onPreview }: {
-  state: AbilityStateSnapshot;
-  entityId: number;
-  tick: number;
-  recentSkills: RecentSkillActivity[];
-  controllable?: boolean;
-  compact?: boolean;
-  onActivate?: (() => void) | undefined;
-  onPreview?: (() => void) | undefined;
-}) {
-  const touchActivatedRef = useRef(false);
-  const primary = state.source === 'primaryAttack' ? getPrimaryAttack(state.abilityId) : null;
-  const ability = primary ? null : getAbility(state.abilityId);
-  const skillRecipe = primary ? null : getSkillPresentation(state.abilityId);
-  const activation = primary ? getPrimaryAttackActivationProfile(primary) : getAbilityActivationProfile(ability!);
-  const color = primary ? primaryAttackUiColor(primary.form) : skillRecipe!.color;
-  const importance = primary ? 'basic' : skillRecipe!.importance;
-  const icon = primary ? primaryAttackIcon(primary) : skillRecipe!.icon;
-  const shortName = primary ? primary.name : skillRecipe!.shortName;
-  const recent = [...recentSkills].reverse().find((item) => item.entityId === entityId && item.abilityId === state.abilityId);
-  const recentlyResolved = recent?.phase === 'resolved' && tick - recent.tick <= 180;
-  const cooldownRatio = state.cooldownTotalTicks > 0 ? state.cooldownRemainingTicks / state.cooldownTotalTicks : 0;
-  const castRatio = state.castTotalTicks > 0 ? 1 - state.castRemainingTicks / state.castTotalTicks : 0;
-  const seconds = (state.cooldownRemainingTicks / 60).toFixed(1);
-  const slot = state.slot === 'ultimate' ? 'ULT' : state.slot === 'basic' ? 'B' : `S${state.slot.slice(-1)}`;
-  const activatable = activation.intent !== 'reactive';
-  const enabled = controllable && activatable && state.phase === 'ready';
-  const armedRatio = state.armedTotalTicks > 0 ? state.armedRemainingTicks / state.armedTotalTicks : 0;
-  const cooldownTicks = primary?.cooldownTicks ?? ability?.cooldownTicks ?? 0;
-
-  return (
-    <button
-      type="button"
-      className={`skill-indicator ${state.phase} ${importance} ${recentlyResolved ? 'just-resolved' : ''} ${compact ? 'compact' : ''} ${controllable ? 'interactive' : ''}`}
-      title={`${shortName} · ${activation.intent} · ${(cooldownTicks / 60).toFixed(1)}s cooldown`}
-      style={{ '--skill-color': hexColor(color), '--cooldown-cover': `${cooldownRatio * 100}%` } as CSSProperties}
-      disabled={!enabled}
-      onPointerEnter={onPreview}
-      onPointerDown={(event) => {
-        onPreview?.();
-        // Activate on pointer-down for touch/pen so a second finger works even
-        // while the analog stick is held (browsers drop the synthetic click
-        // during multi-touch). Mouse keeps click activation below.
-        if (event.pointerType === 'touch' || event.pointerType === 'pen') {
-          touchActivatedRef.current = true;
-          onActivate?.();
-        }
-      }}
-      onFocus={onPreview}
-      onClick={() => {
-        if (touchActivatedRef.current) { touchActivatedRef.current = false; return; }
-        onActivate?.();
-      }}
-    >
-      <span className="skill-slot">{slot}</span>
-      <strong className="skill-icon-text">{icon}</strong>
-      {!activatable && <span className="passive-mark">AUTO</span>}
-      {state.phase === 'armed' && <span className="armed-mark">ARMED</span>}
-      {state.phase === 'cooldown' && <span className="cooldown-number">{seconds}</span>}
-      {state.phase === 'casting' && <span className="cast-fill" style={{ width: `${castRatio * 100}%` }} />}
-      {state.phase === 'armed' && <span className="armed-fill" style={{ width: `${armedRatio * 100}%` }} />}
-      <span className="cooldown-shade" />
-    </button>
-  );
-}
-
-function activityPresentation(attackOrAbilityId: string, primary: boolean): {
-  shortName: string;
-  icon: string;
-  color: number;
-  importance: 'basic' | 'skill' | 'ultimate';
-} {
-  if (primary) {
-    const attack = getPrimaryAttack(attackOrAbilityId);
-    return {
-      shortName: attack.name,
-      icon: primaryAttackIcon(attack),
-      color: primaryAttackUiColor(attack.form),
-      importance: 'basic'
-    };
-  }
-  return getSkillPresentation(attackOrAbilityId);
-}
-
-function primaryAttackIcon(attack: PrimaryAttackDefinition): string {
-  if (attack.behavior === 'spin') return 'SP';
-  if (attack.behavior === 'automatic') return 'AR';
-  if (attack.behavior === 'throwable') return 'TH';
-  if (attack.behavior === 'slam') return 'SL';
-  return attack.form.slice(0, 2).toUpperCase();
-}
-
-function primaryAttackUiColor(form: AttackForm): number {
-  if (form === 'fire') return 0xff7433;
-  if (form === 'water') return 0x63dfff;
-  if (form === 'ice') return 0xc9f6ff;
-  if (form === 'lightning') return 0xffef65;
-  if (form === 'nature') return 0x9de277;
-  if (form === 'void') return 0xbe82ff;
-  return 0xffe2a3;
-}
-
-function FighterRecipePreview({ fighter, visual, motion }: { fighter: FighterDefinition; visual: VisualRecipe; motion: MotionRecipe }) {
-  const style = {
-    '--preview-body': hexColor(visual.bodyColor),
-    '--preview-dark': hexColor(visual.bodyDarkColor),
-    '--preview-core': hexColor(visual.coreColor),
-    '--preview-aura': hexColor(visual.auraColor),
-    '--preview-accent': hexColor(visual.accentColor),
-    '--preview-pulse': `${Math.max(0.45, 2.4 / Math.max(0.2, motion.pulseSpeed))}s`,
-    '--preview-radius': `${Math.max(54, Math.min(112, fighter.physics.radius * 1.65))}px`,
-    '--preview-spin': `${Math.max(0.5, 6 / Math.max(0.2, motion.weaponSpin))}s`
-  } as CSSProperties;
-  return (
-    <div className="recipe-preview-stage" style={style}>
-      <div className={`recipe-fighter shape-${visual.shape}`}>
-        <span className="recipe-aura" />
-        <span className="recipe-body">
-          {visual.shape === 'mech' && <><i className="mech-horizontal" /><i className="mech-vertical" /></>}
-          {visual.shape === 'water' && <><i className="water-bubble one" /><i className="water-bubble two" /></>}
-          {visual.shape === 'bomber' && <i className="bomber-rivets" />}
-        </span>
-        <span className="recipe-core" />
-        {visual.horns && <><span className="recipe-horn left" /><span className="recipe-horn right" /></>}
-        <span className={`recipe-primary primary-${getPrimaryAttack(fighter.primaryAttackId).form} behavior-${getPrimaryAttack(fighter.primaryAttackId).behavior}`} />
-      </div>
-      <div className="preview-label"><strong>{fighter.classification.elements[0]}</strong><span>{fighter.classification.archetype}</span></div>
-    </div>
-  );
-}
-
-function CreatorSection({ title, children }: { title: string; children: ReactNode }) {
-  return <section className="panel-section creator-section"><h2>{title}</h2>{children}</section>;
-}
-
-function CreatorField({ label, children }: { label: string; children: ReactNode }) {
-  return <label className="creator-field"><span>{label}</span>{children}</label>;
-}
-
-function RangeField({ label, value, min, max, step, onChange }: { label: string; value: number; min: number; max: number; step: number; onChange: (value: number) => void }) {
-  return <label className="range-field"><span>{label}<strong>{formatNumber(value, step)}</strong></span><input type="range" value={value} min={min} max={max} step={step} onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(Number(event.target.value))} /></label>;
-}
-
-function ColorField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
-  return <label className="color-field"><span>{label}</span><input type="color" value={hexColor(value)} onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(Number.parseInt(event.target.value.slice(1), 16))} /><code>{hexColor(value)}</code></label>;
-}
-
-function fighterIconClass(fighter: FighterDefinition): string {
-  const element = fighter.classification.elements[0] ?? 'neutral';
-  if (['water', 'fire', 'electric', 'ice', 'nature', 'void'].includes(element)) return element;
-  if (fighter.id.includes('bomber')) return 'bomber';
-  return 'mech';
-}
-
-function updateFighterPhysics<K extends keyof FighterDefinition['physics']>(setter: Dispatch<SetStateAction<FighterBundle>>, draft: FighterBundle, key: K, value: FighterDefinition['physics'][K]) {
-  setter({ ...draft, fighter: { ...draft.fighter, physics: { ...draft.fighter.physics, [key]: value } } });
-}
-
-function updateFighterStats<K extends keyof FighterDefinition['stats']>(setter: Dispatch<SetStateAction<FighterBundle>>, draft: FighterBundle, key: K, value: FighterDefinition['stats'][K]) {
-  setter({ ...draft, fighter: { ...draft.fighter, stats: { ...draft.fighter.stats, [key]: value } } });
-}
-
-function updateVisual(setter: Dispatch<SetStateAction<FighterBundle>>, draft: FighterBundle, patch: Partial<VisualRecipe>) {
-  setter({ ...draft, visualRecipe: { ...draft.visualRecipe, ...patch } });
-}
-
-function updateMotion<K extends keyof Omit<MotionRecipe, 'id'>>(setter: Dispatch<SetStateAction<FighterBundle>>, draft: FighterBundle, key: K, value: MotionRecipe[K]) {
-  setter({ ...draft, motionRecipe: { ...draft.motionRecipe, [key]: value } });
-}
-
-async function readImportFile(event: ChangeEvent<HTMLInputElement>, setText: (value: string) => void, setMessage: (value: string) => void): Promise<void> {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  try {
-    setText(await file.text());
-    setMessage(`${file.name} loaded. Click “Load into editor” to validate it.`);
-  } catch {
-    setMessage('Could not read that file.');
-  }
-  event.target.value = '';
 }
 
 function downloadText(text: string, filename: string): void {
@@ -2233,175 +1541,4 @@ function uniqueCustomId(base: string, existing: string[]): string {
   let suffix = 2;
   while (existing.includes(candidate)) candidate = `${slugifyFighterId(base)}-${suffix++}`;
   return candidate;
-}
-
-function safeModuleSlot(moduleId: string): ModuleSlot | null {
-  try {
-    return getFighterModule(moduleId).slot;
-  } catch {
-    return null;
-  }
-}
-
-function FighterModuleSelectors({ fighter, selectedModuleIds, side, onChange }: {
-  fighter: FighterDefinition;
-  selectedModuleIds: readonly string[];
-  side: 'A' | 'B';
-  onChange(side: 'A' | 'B', slot: ModuleSlot, moduleId: string): void;
-}) {
-  const slots: readonly ModuleSlot[] = ['offense', 'defense', 'mobility', 'utility'];
-  const availableSlots = slots
-    .map((slot) => ({ slot, modules: listCompatibleModules(fighter, slot) }))
-    .filter((entry) => entry.modules.length > 0);
-  if (availableSlots.length === 0) return null;
-
-  return (
-    <div className="fighter-module-selectors" aria-label={`${fighter.name} modules`}>
-      {availableSlots.map(({ slot, modules }) => {
-        const selected = selectedModuleIds.find((id) => safeModuleSlot(id) === slot) ?? '';
-        const selectedModule = selected ? modules.find((module) => module.id === selected) : undefined;
-        const selectId = `fighter-${side.toLowerCase()}-${slot}-module`;
-        return (
-          <div className="fighter-module-field" key={slot}>
-            <label className="field-label stacked-label" htmlFor={selectId}>{slot} module</label>
-            <select id={selectId} value={selected} onChange={(event: ChangeEvent<HTMLSelectElement>) => onChange(side, slot, event.target.value)}>
-              <option value="">Standard configuration</option>
-              {modules.map((module) => (
-                <option value={module.id} key={module.id}>
-                  {module.name}{module.attachments?.length ? ' · mounted' : ''}
-                </option>
-              ))}
-            </select>
-            <small className="fighter-module-description">
-              <span>{selectedModule?.description ?? `Use ${fighter.name}'s standard developer-authored configuration.`}</span>
-              {(selectedModule?.attachments?.length ?? 0) > 0 && <strong className="mounted-module-badge">Mounted attachment</strong>}
-            </small>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function sameBattleSetup(a: BattleSetup, b: BattleSetup): boolean {
-  return a.fighterAId === b.fighterAId
-    && a.fighterBId === b.fighterBId
-    && sameStringList(a.moduleIdsA, b.moduleIdsA)
-    && sameStringList(a.moduleIdsB, b.moduleIdsB)
-    && a.controllerA === b.controllerA
-    && a.controllerB === b.controllerB
-    && a.arenaId === b.arenaId
-    && a.modeId === b.modeId
-    && a.teamSizeA === b.teamSizeA
-    && a.teamSizeB === b.teamSizeB
-    && a.friendlyFire === b.friendlyFire
-    && a.teamCollision === b.teamCollision
-    && a.difficulty === b.difficulty;
-}
-
-function sameStringList(a: readonly string[], b: readonly string[]): boolean {
-  return a.length === b.length && a.every((value, index) => value === b[index]);
-}
-
-function describeBattleResult(diagnostics: RuntimeDiagnostics, mode: GameModeDefinition | undefined): { title: string; description: string; compact: string } {
-  const result = diagnostics.result;
-  if (!result) return { title: 'Battle in progress', description: '', compact: `${diagnostics.entities.length} active` };
-  if (result.reason === 'draw' || result.winningTeam === null) {
-    return { title: 'Draw', description: `No side secured the objective after ${Math.max(1, Math.round(result.endedAtTick / 60))} seconds.`, compact: 'Draw' };
-  }
-  if (result.reason === 'boss-defeated') {
-    return { title: 'Boss Defeated', description: `Team ${result.winningTeam} destroyed the boss and completed the raid.`, compact: 'Boss defeated' };
-  }
-  if (result.reason === 'survival-complete') {
-    return { title: 'Survival Complete', description: `Team ${result.winningTeam} survived the full trial.`, compact: `Team ${result.winningTeam} survived` };
-  }
-  if (mode?.id === 'duel' && result.winnerEntityIds.length === 1) {
-    const winner = diagnostics.entities.find((entity) => entity.id === result.winnerEntityIds[0]);
-    const name = winner ? getFighter(winner.fighterId).name : `Team ${result.winningTeam}`;
-    return { title: `${name} Wins`, description: `Victory was declared at ${Math.max(1, Math.round(result.endedAtTick / 60))} seconds.`, compact: `${name} won` };
-  }
-  return {
-    title: `Team ${result.winningTeam} Wins`,
-    description: result.reason === 'timeout' ? 'Time expired; the team with the stronger surviving force wins.' : 'The opposing force has been eliminated.',
-    compact: `Team ${result.winningTeam} won`
-  };
-}
-
-let seedNonce = 0;
-
-function sameDeviceCapabilities(a: DeviceCapabilities, b: DeviceCapabilities): boolean {
-  return a.mobile === b.mobile
-    && a.coarsePointer === b.coarsePointer
-    && a.anyCoarsePointer === b.anyCoarsePointer
-    && a.hoverCapable === b.hoverCapable
-    && a.touchPoints === b.touchPoints
-    && a.touchFirst === b.touchFirst
-    && a.reducedMotion === b.reducedMotion
-    && a.hardwareConcurrency === b.hardwareConcurrency
-    && a.deviceMemoryGb === b.deviceMemoryGb
-    && a.saveData === b.saveData
-    && Math.abs(a.devicePixelRatio - b.devicePixelRatio) < 0.01;
-}
-
-function sameViewportMetrics(a: ViewportMetrics, b: ViewportMetrics): boolean {
-  return a.width === b.width
-    && a.height === b.height
-    && a.layoutWidth === b.layoutWidth
-    && a.layoutHeight === b.layoutHeight
-    && a.orientation === b.orientation
-    && a.viewportClass === b.viewportClass
-    && a.compact === b.compact
-    && a.shortLandscape === b.shortLandscape
-    && a.standalone === b.standalone
-    && a.fullscreen === b.fullscreen;
-}
-
-function generateRandomSeed(): number {
-  seedNonce = (seedNonce + 1) >>> 0;
-
-  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
-    const values = new Uint32Array(2);
-    crypto.getRandomValues(values);
-
-    const first = values[0] ?? 0;
-    const second = values[1] ?? 0;
-
-    const mixed = (
-      first
-      ^ second
-      ^ (Date.now() >>> 0)
-      ^ ((seedNonce * 2654435761) >>> 0)
-    ) >>> 0;
-
-    return mixed || 1;
-  }
-
-  return (
-    Date.now()
-    ^ Math.floor(performance.now() * 1000)
-    ^ ((seedNonce * 2654435761) >>> 0)
-  ) >>> 0 || 1;
-}
-
-function splitTags(value: string): string[] {
-  return value.split(',').map((item) => item.trim()).filter(Boolean);
-}
-
-function formatNumber(value: number, step: number): string {
-  if (step >= 1) return value.toFixed(0);
-  if (step >= 0.1) return value.toFixed(1);
-  if (step >= 0.01) return value.toFixed(2);
-  return value.toFixed(3);
-}
-
-function hexColor(value: number): string {
-  return `#${value.toString(16).padStart(6, '0')}`;
-}
-
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
-  return <label className="toggle"><input type="checkbox" checked={checked} onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.checked)} /><span>{label}</span></label>;
-}
-
-function Metric({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
-  return <div className="metric"><span>{label}</span><strong className={mono ? 'mono' : ''}>{value}</strong></div>;
 }
