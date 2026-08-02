@@ -1,30 +1,18 @@
 import {
   CONTENT_VERSION,
-  getAbility,
-  getAbilityActivationProfile,
   getArena,
-  getElementMultiplier,
   getFighter,
   getGameMode,
-  getPassive,
   getPrimaryAttack,
-  getProjectileSource,
-  type AbilityAction,
-  type AbilityCondition,
-  type AbilityDefinition,
-  type PassiveTriggerEvent,
   type PrimaryAttackDefinition
 } from '@kinetic/content';
 import type {
-  AbilitySlot,
-  ActivateAbilityCommand,
   ActivatePrimaryAttackCommand,
   BattleDefinition,
   BattleEndReason,
   BattleResultSnapshot,
   BattleRules,
   BattleParticipant,
-  DamageEvent,
   Element,
   EntityId,
   SimulationCommand,
@@ -38,16 +26,18 @@ import type {
 import { SeededRng } from './rng';
 import { SpatialHashGrid } from './spatialHash';
 import { World, type ActiveCastState, type ActiveWeaponAttackState, type ArmedAbilityState } from './world';
-import { resolveImpulseDirection } from './combatModifiers';
 import { BattleResultSystem } from './systems/BattleResultSystem';
 import { CommandSystem } from './systems/CommandSystem';
 import { StatusSystem } from './systems/StatusSystem';
 import { ArenaCollisionSystem } from './systems/ArenaCollisionSystem';
 import { ArenaZoneSystem } from './systems/ArenaZoneSystem';
 import type { ExternalImpulseState } from './systems/SimulationSystemTypes';
+import { DamageSystem } from './systems/DamageSystem';
+import { KnockbackSystem } from './systems/KnockbackSystem';
 import { MovementSystem } from './systems/MovementSystem';
 import { CooldownSystem } from './systems/CooldownSystem';
 import { ProjectileSystem } from './systems/ProjectileSystem';
+import { AbilitySystem } from './systems/AbilitySystem';
 import { SnapshotSystem, type SnapshotContext } from './snapshots/SnapshotSystem';
 
 export const ENGINE_VERSION = '1.2.2-stage8.2a';
@@ -55,37 +45,11 @@ export { CONTENT_VERSION };
 export const SIM_TICK_RATE = 60;
 export const SIM_TICK_MS = 1000 / SIM_TICK_RATE;
 
-const SOLAR_LASER_ABILITY_ID = 'solar-laser';
-const SOLAR_LASER_EYE_CHARGE_TICKS = 30;
-const SOLAR_LASER_LOCK_TICKS = 18;
-const SOLAR_LASER_WARMUP_TICKS = SOLAR_LASER_EYE_CHARGE_TICKS + SOLAR_LASER_LOCK_TICKS;
-const SOLAR_LASER_DAMAGE_INTERVAL_TICKS = 6;
-const SOLAR_LASER_RAMP_STAGE_TICKS = 54;
-const SOLAR_LASER_RANGE = 1080;
-const SOLAR_LASER_HALF_WIDTH = 9;
-
 export interface SimulationRunner {
   readonly tick: number;
   getSnapshot(): WorldSnapshot;
   getRuntimeSnapshot(): WorldSnapshot;
   step(commands: readonly SimulationCommand[]): SimulationEvent[];
-}
-
-interface CollisionContext {
-  self: EntityId;
-  target: EntityId;
-  impact: number;
-  normal: Vec2;
-}
-
-type TriggerContext = { self: EntityId; target: EntityId | null; impact: number; normal: Vec2; abilityId: string };
-
-
-interface ExternalImpulseOptions {
-  retention?: number;
-  maxSpeed?: number;
-  minWallBounces?: number;
-  trailStrength?: number;
 }
 
 type ResolvedBattleRules = Required<Pick<BattleRules, 'friendlyFire' | 'teamCollision' | 'teamCollisionScale' | 'maxBattleTicks'>>;
@@ -97,11 +61,6 @@ type ResolvedTrainingRules = {
   invulnerableTeams: Set<TeamId>;
   suppressVictory: boolean;
 };
-
-function normalizeVector(vector: Vec2): Vec2 {
-  const length = Math.hypot(vector.x, vector.y) || 1;
-  return { x: vector.x / length, y: vector.y / length };
-}
 
 function createSimulationMetrics(activeEntities = 0): SimulationMetricsSnapshot {
   return {
@@ -133,6 +92,9 @@ export class LocalSimulationRunner implements SimulationRunner {
   private readonly cooldownSystem: CooldownSystem;
   private readonly snapshotSystem: SnapshotSystem;
   private readonly projectileSystem: ProjectileSystem;
+  private readonly abilitySystem: AbilitySystem;
+  private readonly damageSystem: DamageSystem;
+  private readonly knockbackSystem: KnockbackSystem;
   // Reusable active-id buffers for loops that can kill entities mid-iteration.
   // Each call site owns a dedicated buffer so the reuse can never alias a
   // concurrently-iterated one; none of these loops nest inside each other.
@@ -174,23 +136,41 @@ export class LocalSimulationRunner implements SimulationRunner {
     this.rng = new SeededRng(battle.seed);
     this.world = new World(maxEntities);
     this.spatial = new SpatialHashGrid(this.arena.width, this.arena.height, this.arena.spatialCellSize);
+    this.knockbackSystem = new KnockbackSystem(
+      this.world,
+      this.externalImpulse,
+      () => this.tickValue
+    );
+    this.damageSystem = new DamageSystem(this.world, {
+      getTick: () => this.tickValue,
+      friendlyFireEnabled: () => this.rules.friendlyFire,
+      damageIsPrevented: (targetId) => this.trainingRules.enabled
+        && (!this.trainingRules.damageEnabled
+          || this.trainingRules.invulnerableTeams.has(this.world.getTeam(targetId))),
+      clearExternalImpulse: (targetId) =>
+        this.knockbackSystem.removeExternalImpulse(targetId)
+    });
     this.commandSystem = new CommandSystem({
       isAlive: (entityId) => this.world.isAlive(entityId),
-      isChanneling: (entityId) => this.isSolarLaserChanneling(entityId),
+      isChanneling: (entityId) => this.abilitySystem.isSolarLaserChanneling(entityId),
       applyMove: (entityId, direction, facing) => this.movementSystem.applyMove(entityId, direction, facing),
-      lockChannel: (entityId) => this.lockSolarLaserCaster(entityId),
+      lockChannel: (entityId) => this.abilitySystem.lockSolarLaserCaster(entityId),
       stop: (entityId) => {
         const impulse = this.externalImpulse.get(entityId);
         this.world.vx[entityId] = impulse?.x ?? 0;
         this.world.vy[entityId] = impulse?.y ?? 0;
       },
       activatePrimaryAttack: (command, events) => this.activatePrimaryAttack(command, events),
-      activateAbility: (command, events) => this.activateAbility(command, events)
+      activateAbility: (command, events) => this.abilitySystem.activate(
+        command,
+        this.activeWeaponAttacks.has(command.entityId),
+        events
+      )
     });
     this.statusSystem = new StatusSystem(
       this.world,
       (sourceId, targetId, amount, element, events) =>
-        this.dealDamage(sourceId, targetId, amount, element, events)
+        this.damageSystem.dealDamage(sourceId, targetId, amount, element, events)
     );
     this.battleResultSystem = new BattleResultSystem(
       this.world,
@@ -205,7 +185,7 @@ export class LocalSimulationRunner implements SimulationRunner {
         applyStatus: (sourceId, targetId, statusId, durationTicks, events) =>
           this.applyStatus(sourceId, targetId, statusId, durationTicks, events),
         dealDamage: (sourceId, targetId, amount, element, events) =>
-          this.dealDamage(sourceId, targetId, amount, element, events)
+          this.damageSystem.dealDamage(sourceId, targetId, amount, element, events)
       }
     );
     this.arenaCollisions = new ArenaCollisionSystem(
@@ -215,7 +195,7 @@ export class LocalSimulationRunner implements SimulationRunner {
       {
         getTick: () => this.tickValue,
         dealDamage: (sourceId, targetId, amount, element, events) =>
-          this.dealDamage(sourceId, targetId, amount, element, events)
+          this.damageSystem.dealDamage(sourceId, targetId, amount, element, events)
       }
     );
     this.movementSystem = new MovementSystem(
@@ -247,9 +227,9 @@ export class LocalSimulationRunner implements SimulationRunner {
         getMaxEntityRadius: () => this.maxEntityRadius,
         primaryElement: (sourceId) => this.primaryElement(sourceId),
         dealDamage: (sourceId, targetId, amount, element, events) =>
-          this.dealDamage(sourceId, targetId, amount, element, events),
+          this.damageSystem.dealDamage(sourceId, targetId, amount, element, events),
         applyKnockback: (sourceId, targetId, magnitude, events, kind) =>
-          this.applyKnockback(sourceId, targetId, magnitude, events, kind),
+          this.knockbackSystem.applyKnockback(sourceId, targetId, magnitude, events, kind),
         applyKnockbackFromPoint: (
           sourceId,
           origin,
@@ -259,7 +239,7 @@ export class LocalSimulationRunner implements SimulationRunner {
           kind,
           fallbackDirection,
           impulseOptions
-        ) => this.applyKnockbackFromPoint(
+        ) => this.knockbackSystem.applyKnockbackFromPoint(
           sourceId,
           origin,
           targetId,
@@ -278,16 +258,59 @@ export class LocalSimulationRunner implements SimulationRunner {
           normal,
           abilityId,
           events
-        ) => this.triggerPassives(
+        ) => this.abilitySystem.triggerPassives(
           sourceId,
           'ON_PRIMARY_HIT',
           { self: sourceId, target: targetId, impact, normal, abilityId },
           events
         ),
         damageScaledImpulse: (baseImpulse, damage) =>
-          this.damageScaledImpulse(baseImpulse, damage),
+          this.knockbackSystem.damageScaledImpulse(baseImpulse, damage),
         explosionImpulseOptions: (damage, abilityId) =>
-          this.explosionImpulseOptions(damage, abilityId)
+          this.knockbackSystem.explosionImpulseOptions(damage, abilityId)
+      }
+    );
+    this.abilitySystem = new AbilitySystem(
+      this.world,
+      this.arenaCollisions,
+      this.cooldownSystem,
+      this.projectileSystem,
+      this.activeCasts,
+      this.armedAbilities,
+      {
+        getTick: () => this.tickValue,
+        dealDamage: (sourceId, targetId, amount, element, events) =>
+          this.damageSystem.dealDamage(sourceId, targetId, amount, element, events),
+        applyStatus: (sourceId, targetId, statusId, durationTicks, events, stacks) =>
+          this.applyStatus(sourceId, targetId, statusId, durationTicks, events, stacks),
+        applyKnockback: (sourceId, targetId, magnitude, events, kind, options) =>
+          this.knockbackSystem.applyKnockback(sourceId, targetId, magnitude, events, kind, options),
+        applyKnockbackFromPoint: (
+          sourceId,
+          origin,
+          targetId,
+          magnitude,
+          events,
+          kind,
+          fallbackDirection,
+          options
+        ) => this.knockbackSystem.applyKnockbackFromPoint(
+          sourceId,
+          origin,
+          targetId,
+          magnitude,
+          events,
+          kind,
+          fallbackDirection,
+          options
+        ),
+        addExternalImpulse: (targetId, x, y, options) =>
+          this.knockbackSystem.addExternalImpulse(targetId, x, y, options),
+        removeExternalImpulse: (entityId) => this.knockbackSystem.removeExternalImpulse(entityId),
+        damageScaledImpulse: (baseImpulse, damage) =>
+          this.knockbackSystem.damageScaledImpulse(baseImpulse, damage),
+        explosionImpulseOptions: (damage, abilityId) =>
+          this.knockbackSystem.explosionImpulseOptions(damage, abilityId)
       }
     );
     this.spawnInitialParticipants();
@@ -368,16 +391,16 @@ export class LocalSimulationRunner implements SimulationRunner {
     const events: SimulationEvent[] = [];
     if (!this.passivesInitialized) {
       this.passivesInitialized = true;
-      this.triggerBattleStartPassives(events);
+      this.abilitySystem.triggerBattleStartPassives(events);
     }
     this.world.copyPreviousTransforms();
     this.explicitFacingThisTick.clear();
 
     this.statusSystem.tick(events);
     this.tickWeaponAttacks(events);
-    this.tickAbilityCasts(events);
+    this.abilitySystem.tickCasts(events);
     this.projectileSystem.tickPendingLaunches(events);
-    this.expireArmedAbilities();
+    this.abilitySystem.expireArmedAbilities();
     this.stepMetrics.commandsProcessed = this.commandSystem.process(commands, events);
     this.arenaZones.update(events);
     this.movementSystem.integrate();
@@ -386,7 +409,7 @@ export class LocalSimulationRunner implements SimulationRunner {
     this.arenaCollisions.resolveBounds(events);
     this.arenaCollisions.resolveObstacleCollisions(events);
     this.resolveEntityCollisions(events);
-    this.enforceSolarLaserLocks();
+    this.abilitySystem.enforceSolarLaserLocks();
     this.recoverInvalidNumericState();
     const battleEnd = this.battleResultSystem.evaluate(
       this.tickValue,
@@ -525,8 +548,8 @@ export class LocalSimulationRunner implements SimulationRunner {
       // declared gameplay source such as a projectile, blast, weapon, or hazard.
       const hostileContact = !sameTeam || this.rules.friendlyFire;
       if (hostileContact && magnitude > 0.05 && this.world.isAlive(a) && this.world.isAlive(b)) {
-        this.triggerCollisionAbilities({ self: a, target: b, impact: magnitude, normal: { x: nx, y: ny } }, events);
-        this.triggerCollisionAbilities({ self: b, target: a, impact: magnitude, normal: { x: -nx, y: -ny } }, events);
+        this.abilitySystem.triggerCollisionAbilities({ self: a, target: b, impact: magnitude, normal: { x: nx, y: ny } }, events);
+        this.abilitySystem.triggerCollisionAbilities({ self: b, target: a, impact: magnitude, normal: { x: -nx, y: -ny } }, events);
       }
     });
   }
@@ -537,7 +560,7 @@ export class LocalSimulationRunner implements SimulationRunner {
     const attack = getPrimaryAttack(fighter.primaryAttackId);
     if (!this.cooldownSystem.isPrimaryReady(command.entityId, attack.id)) return;
     const target = command.targetId !== undefined && this.world.isAlive(command.targetId) ? command.targetId : null;
-    const direction = this.resolveAbilityDirection(command.entityId, target, command.direction);
+    const direction = this.abilitySystem.resolveDirection(command.entityId, target, command.direction);
     if (!this.primaryAttackIsValid(command.entityId, attack, target, direction)) return;
     this.cooldownSystem.startPrimary(command.entityId, attack);
     const position = { x: this.world.x[command.entityId] ?? 0, y: this.world.y[command.entityId] ?? 0 };
@@ -576,7 +599,7 @@ export class LocalSimulationRunner implements SimulationRunner {
       ? (this.world.radius[self] ?? 0) + attack.range + (this.world.radius[target] ?? 0)
       : attack.range;
     if (distance < attack.minRange || distance > effectiveMaximum) return false;
-    if (['ranged', 'automatic', 'throwable', 'beam'].includes(attack.behavior) && !this.hasLineOfSight(self, target)) return false;
+    if (['ranged', 'automatic', 'throwable', 'beam'].includes(attack.behavior) && !this.abilitySystem.hasLineOfSight(self, target)) return false;
     if (!areaBehavior && attack.attackAngleDegrees < 320) {
       const length = distance || 1;
       const dot = Math.max(-1, Math.min(1, direction.x * (dx / length) + direction.y * (dy / length)));
@@ -591,452 +614,6 @@ export class LocalSimulationRunner implements SimulationRunner {
       ? Math.max(1, ((attack.burstCount ?? 1) - 1) * Math.max(1, attack.burstIntervalTicks ?? 1) + 1)
       : 1;
     return Math.max(1, attack.activeTicks, burstTicks);
-  }
-
-  private activateAbility(command: ActivateAbilityCommand, events: SimulationEvent[]): void {
-    if (this.activeCasts.has(command.entityId) || this.activeWeaponAttacks.has(command.entityId)) return;
-    const fighter = getFighter(this.world.getFighterId(command.entityId));
-    const abilityId = fighter.abilitySlots[command.slot];
-    if (!abilityId) return;
-    const ability = getAbility(abilityId);
-    if (!this.cooldownSystem.isAbilityReady(command.entityId, ability.id)) return;
-
-    const target = command.targetId !== undefined && this.world.isAlive(command.targetId) ? command.targetId : null;
-    const direction = this.resolveAbilityDirection(command.entityId, target, command.direction);
-    if (!this.activationIsValid(command.entityId, ability, target, direction)) return;
-
-    const castTicks = ability.castTicks;
-    this.cooldownSystem.startAbility(command.entityId, ability);
-    events.push({
-      type: 'abilityActivated', tick: this.tickValue, entityId: command.entityId, abilityId: ability.id, slot: command.slot,
-      position: { x: this.world.x[command.entityId] ?? 0, y: this.world.y[command.entityId] ?? 0 }, direction, castTicks
-    });
-    if (castTicks <= 0) {
-      this.resolveActivatedAbility(command.entityId, ability, command.slot, target, direction, events);
-      return;
-    }
-
-    this.activeCasts.set(command.entityId, {
-      abilityId: ability.id,
-      slot: command.slot,
-      targetId: target,
-      direction,
-      remainingTicks: castTicks,
-      totalTicks: castTicks,
-      anchorX: this.world.x[command.entityId] ?? 0,
-      anchorY: this.world.y[command.entityId] ?? 0
-    });
-  }
-
-  private tickAbilityCasts(events: SimulationEvent[]): void {
-    const ids = [...this.activeCasts.keys()].sort((a, b) => a - b);
-    for (const entityId of ids) {
-      const cast = this.activeCasts.get(entityId);
-      if (!cast) continue;
-      if (!this.world.isAlive(entityId)) {
-        this.activeCasts.delete(entityId);
-        continue;
-      }
-
-      if (cast.abilityId === SOLAR_LASER_ABILITY_ID) {
-        this.tickSolarLaserCast(entityId, cast, events);
-      }
-
-      cast.remainingTicks -= 1;
-      if (cast.remainingTicks > 0) continue;
-      this.activeCasts.delete(entityId);
-      const ability = getAbility(cast.abilityId);
-      const target = cast.targetId !== null && this.world.isAlive(cast.targetId) ? cast.targetId : null;
-      this.resolveActivatedAbility(entityId, ability, cast.slot, target, cast.direction, events);
-    }
-  }
-
-  private tickSolarLaserCast(entityId: EntityId, cast: ActiveCastState, events: SimulationEvent[]): void {
-    let targetId = cast.targetId;
-    if (targetId === null || !this.world.isAlive(targetId) || this.world.getTeam(targetId) === this.world.getTeam(entityId)) {
-      targetId = this.hostileTargetsByDistance(entityId)[0] ?? null;
-      cast.targetId = targetId;
-    }
-
-    if (targetId !== null) {
-      const dx = (this.world.x[targetId] ?? 0) - (this.world.x[entityId] ?? 0);
-      const dy = (this.world.y[targetId] ?? 0) - (this.world.y[entityId] ?? 0);
-      const distance = Math.hypot(dx, dy);
-      if (distance > 0.0001) {
-        cast.direction = { x: dx / distance, y: dy / distance };
-        this.world.rotation[entityId] = Math.atan2(cast.direction.y, cast.direction.x);
-      }
-
-      const elapsedTicks = cast.totalTicks - cast.remainingTicks;
-      const beamTicks = elapsedTicks - SOLAR_LASER_WARMUP_TICKS;
-      const beamActive = beamTicks >= 0;
-      const damagePulse = beamActive && beamTicks % SOLAR_LASER_DAMAGE_INTERVAL_TICKS === 0;
-      if (damagePulse && this.solarLaserHitsTarget(entityId, targetId, cast.direction)) {
-        const rampStage = beamTicks < SOLAR_LASER_RAMP_STAGE_TICKS
-          ? 0
-          : beamTicks < SOLAR_LASER_RAMP_STAGE_TICKS * 2
-            ? 1
-            : 2;
-        const damage = rampStage === 0 ? 2.2 : rampStage === 1 ? 3.5 : 5.2;
-        this.dealDamage(entityId, targetId, damage, 'fire', events);
-      }
-    }
-
-    this.lockSolarLaserCaster(entityId);
-  }
-
-  private isSolarLaserChanneling(entityId: EntityId): boolean {
-    return this.activeCasts.get(entityId)?.abilityId === SOLAR_LASER_ABILITY_ID;
-  }
-
-  private solarLaserHitsTarget(entityId: EntityId, targetId: EntityId, direction: Vec2): boolean {
-    if (!this.world.isAlive(entityId) || !this.world.isAlive(targetId)) return false;
-    if (!this.hasLineOfSight(entityId, targetId)) return false;
-
-    const originX = this.world.x[entityId] ?? 0;
-    const originY = this.world.y[entityId] ?? 0;
-    const targetX = this.world.x[targetId] ?? 0;
-    const targetY = this.world.y[targetId] ?? 0;
-    const beamDirection = normalizeVector(direction);
-    const offsetX = targetX - originX;
-    const offsetY = targetY - originY;
-    const projection = offsetX * beamDirection.x + offsetY * beamDirection.y;
-    const targetRadius = this.world.radius[targetId] ?? 0;
-
-    if (projection < -targetRadius || projection > SOLAR_LASER_RANGE + targetRadius) return false;
-
-    const closestX = originX + beamDirection.x * Math.max(0, projection);
-    const closestY = originY + beamDirection.y * Math.max(0, projection);
-    const perpendicularX = targetX - closestX;
-    const perpendicularY = targetY - closestY;
-    const hitRadius = targetRadius + SOLAR_LASER_HALF_WIDTH;
-    return perpendicularX * perpendicularX + perpendicularY * perpendicularY <= hitRadius * hitRadius;
-  }
-
-  private lockSolarLaserCaster(entityId: EntityId): void {
-    const cast = this.activeCasts.get(entityId);
-    if (!cast || cast.abilityId !== SOLAR_LASER_ABILITY_ID) return;
-    this.world.x[entityId] = cast.anchorX;
-    this.world.y[entityId] = cast.anchorY;
-    this.world.prevX[entityId] = cast.anchorX;
-    this.world.prevY[entityId] = cast.anchorY;
-    this.world.vx[entityId] = 0;
-    this.world.vy[entityId] = 0;
-    if (cast.targetId !== null && this.world.isAlive(cast.targetId)) {
-      const dx = (this.world.x[cast.targetId] ?? 0) - cast.anchorX;
-      const dy = (this.world.y[cast.targetId] ?? 0) - cast.anchorY;
-      if (Math.hypot(dx, dy) > 0.0001) {
-        cast.direction = normalizeVector({ x: dx, y: dy });
-        this.world.rotation[entityId] = Math.atan2(cast.direction.y, cast.direction.x);
-      }
-    }
-    this.externalImpulse.delete(entityId);
-  }
-
-  private enforceSolarLaserLocks(): void {
-    for (const entityId of this.activeCasts.keys()) {
-      if (this.isSolarLaserChanneling(entityId)) this.lockSolarLaserCaster(entityId);
-    }
-  }
-
-  private resolveActivatedAbility(entityId: EntityId, ability: AbilityDefinition, slot: AbilitySlot, target: EntityId | null, direction: Vec2, events: SimulationEvent[]): void {
-    if (!this.world.isAlive(entityId)) return;
-    const hasCollisionTrigger = ability.triggers.some((trigger) => trigger.event === 'ON_COLLISION');
-    this.executeTriggers(ability, 'ON_ACTIVATE', { self: entityId, target, impact: 0, normal: direction, abilityId: ability.id }, events);
-
-    if (hasCollisionTrigger) {
-      this.armCollisionAbility(entityId, ability);
-      return;
-    }
-
-    events.push({
-      type: 'abilityResolved', tick: this.tickValue, entityId, abilityId: ability.id, slot,
-      position: { x: this.world.x[entityId] ?? 0, y: this.world.y[entityId] ?? 0 }, direction
-    });
-    this.triggerPassives(entityId, 'ON_ABILITY_RESOLVED', { self: entityId, target, impact: 0, normal: direction, abilityId: ability.id }, events);
-  }
-
-  private armCollisionAbility(entityId: EntityId, ability: AbilityDefinition): void {
-    const activation = getAbilityActivationProfile(ability, this.world.getFighterId(entityId));
-    if (activation.collisionWindowTicks <= 0) return;
-    const armed = this.armedAbilities.get(entityId) ?? new Map<string, ArmedAbilityState>();
-    armed.set(ability.id, {
-      abilityId: ability.id,
-      expiresTick: this.tickValue + activation.collisionWindowTicks,
-      totalTicks: activation.collisionWindowTicks
-    });
-    this.armedAbilities.set(entityId, armed);
-  }
-
-  private expireArmedAbilities(): void {
-    for (const [entityId, armed] of this.armedAbilities) {
-      if (!this.world.isAlive(entityId)) {
-        this.armedAbilities.delete(entityId);
-        continue;
-      }
-      for (const [abilityId, state] of armed) if (state.expiresTick <= this.tickValue) armed.delete(abilityId);
-      if (armed.size === 0) this.armedAbilities.delete(entityId);
-    }
-  }
-
-  private triggerCollisionAbilities(context: CollisionContext, events: SimulationEvent[]): void {
-    const armed = this.armedAbilities.get(context.self);
-    if (!armed || armed.size === 0) return;
-    const fighter = getFighter(this.world.getFighterId(context.self));
-    const slotByAbility = new Map<string, AbilitySlot>();
-    for (const slot of ['basic', 'skill1', 'skill2', 'skill3', 'ultimate'] as AbilitySlot[]) {
-      const abilityId = fighter.abilitySlots[slot];
-      if (abilityId) slotByAbility.set(abilityId, slot);
-    }
-
-    for (const abilityId of [...armed.keys()].sort()) {
-      const state = armed.get(abilityId);
-      if (!state || state.expiresTick <= this.tickValue) continue;
-      const slot = slotByAbility.get(abilityId);
-      if (!slot) continue;
-      const ability = getAbility(abilityId);
-      const triggerContext: TriggerContext = { ...context, abilityId: ability.id };
-      const fired = this.executeTriggers(ability, 'ON_COLLISION', triggerContext, events);
-      if (!fired) continue;
-      armed.delete(abilityId);
-      const position = { x: this.world.x[context.self] ?? 0, y: this.world.y[context.self] ?? 0 };
-      events.push({ type: 'abilityResolved', tick: this.tickValue, entityId: context.self, abilityId: ability.id, slot, position, direction: context.normal });
-      this.triggerPassives(context.self, 'ON_ABILITY_RESOLVED', triggerContext, events);
-    }
-    if (armed.size === 0) this.armedAbilities.delete(context.self);
-  }
-
-  private activationIsValid(self: EntityId, ability: AbilityDefinition, target: EntityId | null, direction: Vec2): boolean {
-    const activation = getAbilityActivationProfile(ability, this.world.getFighterId(self));
-    if (activation.targeting !== 'self' && target === null && activation.targeting !== 'direction') return false;
-
-    if (target !== null) {
-      if (!this.world.isAlive(target) || this.world.getTeam(target) === this.world.getTeam(self)) return false;
-      const dx = (this.world.x[target] ?? 0) - (this.world.x[self] ?? 0);
-      const dy = (this.world.y[target] ?? 0) - (this.world.y[self] ?? 0);
-      const distance = Math.hypot(dx, dy);
-      if (distance < activation.minRange || distance > activation.maxRange) return false;
-      if (activation.requiresLineOfSight && !this.hasLineOfSight(self, target)) return false;
-      if (activation.aimToleranceDegrees < 180) {
-        const length = distance || 1;
-        const dot = Math.max(-1, Math.min(1, direction.x * (dx / length) + direction.y * (dy / length)));
-        const angle = Math.acos(dot) * 180 / Math.PI;
-        if (angle > activation.aimToleranceDegrees) return false;
-      }
-    }
-
-    if (activation.targeting === 'area' && activation.minimumTargets > 0) {
-      const nearby = this.world.activeIds().filter((id) => {
-        if (id === self || this.world.getTeam(id) === this.world.getTeam(self)) return false;
-        const dx = (this.world.x[id] ?? 0) - (this.world.x[self] ?? 0);
-        const dy = (this.world.y[id] ?? 0) - (this.world.y[self] ?? 0);
-        return dx * dx + dy * dy <= activation.maxRange * activation.maxRange;
-      }).length;
-      if (nearby < activation.minimumTargets) return false;
-    }
-    const activateTriggers = ability.triggers.filter((trigger) => trigger.event === 'ON_ACTIVATE');
-    if (activateTriggers.length > 0) {
-      const context: TriggerContext = { self, target, impact: 0, normal: direction, abilityId: ability.id };
-      if (!activateTriggers.some((trigger) => trigger.conditions.every((condition) => this.conditionPasses(condition, context)))) return false;
-    }
-    return true;
-  }
-
-  private hasLineOfSight(self: EntityId, target: EntityId): boolean {
-    return this.arenaCollisions.hasLineOfSight(
-      this.world.x[self] ?? 0,
-      this.world.y[self] ?? 0,
-      this.world.x[target] ?? 0,
-      this.world.y[target] ?? 0
-    );
-  }
-
-  private triggerBattleStartPassives(events: SimulationEvent[]): void {
-    for (const entityId of this.world.activeIdsView()) {
-      this.triggerPassives(entityId, 'ON_BATTLE_START', {
-        self: entityId,
-        target: null,
-        impact: 0,
-        normal: { x: 1, y: 0 },
-        abilityId: 'battle-start'
-      }, events);
-    }
-  }
-
-  private triggerPassives(entityId: EntityId, event: PassiveTriggerEvent, context: TriggerContext, events: SimulationEvent[]): void {
-    if (!this.world.isAlive(entityId)) return;
-    const fighter = getFighter(this.world.getFighterId(entityId));
-    for (const passiveId of fighter.passiveIds ?? []) {
-      const passive = getPassive(passiveId);
-      let fired = false;
-      for (const trigger of passive.triggers) {
-        if (trigger.event !== event) continue;
-        if (!trigger.conditions.every((condition) => this.conditionPasses(condition, context))) continue;
-        fired = true;
-        for (const action of trigger.actions) this.executeAction(action, { ...context, abilityId: passive.id }, events);
-      }
-      if (fired) {
-        events.push({
-          type: 'passiveTriggered',
-          tick: this.tickValue,
-          entityId,
-          passiveId,
-          ...(context.target !== null ? { targetId: context.target } : {})
-        });
-      }
-    }
-  }
-
-  private executeTriggers(ability: AbilityDefinition, event: 'ON_ACTIVATE' | 'ON_COLLISION' | 'ON_HEALTH_BELOW', context: TriggerContext, events: SimulationEvent[]): boolean {
-    let fired = false;
-    for (const trigger of ability.triggers) {
-      if (trigger.event !== event) continue;
-      if (!trigger.conditions.every((condition) => this.conditionPasses(condition, context))) continue;
-      fired = true;
-      for (const action of trigger.actions) this.executeAction(action, context, events);
-    }
-    return fired;
-  }
-
-  private conditionPasses(condition: AbilityCondition, context: { self: EntityId; target: EntityId | null; impact: number }): boolean {
-    if (condition.type === 'IMPACT_ABOVE') return context.impact >= condition.value;
-    if (condition.type === 'SELF_HAS_STATUS') return this.world.getStatusStacks(context.self, condition.statusId) >= (condition.minimumStacks ?? 1);
-    if (condition.type === 'TARGET_HAS_STATUS') {
-      if (context.target === null) return false;
-      const stacks = this.world.getStatusStacks(context.target, condition.statusId);
-      return stacks >= (condition.minimumStacks ?? 1) && stacks <= (condition.maximumStacks ?? Number.POSITIVE_INFINITY);
-    }
-    return (this.world.hp[context.self] ?? 0) / Math.max(1, this.world.maxHp[context.self] ?? 1) <= condition.ratio;
-  }
-
-  private executeAction(action: AbilityAction, context: TriggerContext, events: SimulationEvent[]): void {
-    const { self, target } = context;
-    if (!this.world.isAlive(self)) return;
-
-    switch (action.type) {
-      case 'APPLY_IMPULSE_SELF': {
-        const impulseDirection = resolveImpulseDirection(context.normal, action.direction);
-        this.addExternalImpulse(self, impulseDirection.x * action.magnitude, impulseDirection.y * action.magnitude);
-        break;
-      }
-      case 'DEAL_DAMAGE_TARGET':
-        if (target !== null) this.dealDamage(self, target, action.amount, action.element, events);
-        break;
-      case 'APPLY_STATUS_SELF':
-        this.applyStatus(self, self, action.statusId, action.durationTicks, events, action.stacks ?? 1);
-        break;
-      case 'APPLY_STATUS_TARGET':
-        if (target !== null) this.applyStatus(self, target, action.statusId, action.durationTicks, events, action.stacks ?? 1);
-        break;
-      case 'REMOVE_STATUS_SELF':
-        this.world.removeStatus(self, action.statusId);
-        break;
-      case 'REMOVE_STATUS_TARGET':
-        if (target !== null) this.world.removeStatusStacks(target, action.statusId, action.stacks ?? 'all');
-        break;
-      case 'APPLY_KNOCKBACK_TARGET':
-        if (target !== null && this.world.isAlive(target)) this.applyKnockback(self, target, action.magnitude, events, 'ability');
-        break;
-      case 'RADIAL_IMPULSE': {
-        const sign = action.direction === 'pull' ? -1 : 1;
-        this.forEachInRadius(self, action.radius, action.enemiesOnly, (other) => this.applyKnockback(self, other, action.magnitude * sign, events, 'ability'));
-        break;
-      }
-      case 'RADIAL_DAMAGE':
-        this.forEachInRadius(self, action.radius, action.enemiesOnly, (other) => this.dealDamage(self, other, action.amount, action.element, events));
-        break;
-      case 'DIRECTIONAL_DAMAGE':
-        this.forEachInCone(self, action.range, action.arcDegrees, action.enemiesOnly, context.normal, (other) => {
-          this.dealDamage(self, other, action.amount, action.element, events);
-          if (action.knockback > 0 && this.world.isAlive(other)) this.applyKnockback(self, other, action.knockback, events, 'ability');
-        });
-        break;
-      case 'RADIAL_STATUS':
-        this.forEachInRadius(self, action.radius, action.enemiesOnly, (other) => this.applyStatus(self, other, action.statusId, action.durationTicks, events, action.stacks ?? 1));
-        break;
-      case 'EXPLODE': {
-        const position = { x: this.world.x[self] ?? 0, y: this.world.y[self] ?? 0 };
-        this.forEachInRadius(self, action.radius, action.enemiesOnly, (other) => {
-          if (action.damage > 0) this.dealDamage(self, other, action.damage, action.element, events);
-          if (action.impulse > 0 && this.world.isAlive(other)) this.applyKnockback(self, other, this.damageScaledImpulse(action.impulse, action.damage), events, 'explosion', this.explosionImpulseOptions(action.damage, context.abilityId));
-        });
-        events.push({
-          type: 'blast', tick: this.tickValue, sourceId: self, abilityId: context.abilityId, kind: action.kind, position,
-          radius: action.radius, force: this.damageScaledImpulse(action.impulse, action.damage), damage: action.damage, element: action.element
-        });
-        break;
-      }
-      case 'EXPLODE_AT_TARGET': {
-        if (target === null || !this.world.isAlive(target)) break;
-        const position = { x: this.world.x[target] ?? 0, y: this.world.y[target] ?? 0 };
-        this.forEachAroundPoint(self, position, action.radius, action.enemiesOnly, (other) => {
-          if (action.damage > 0) this.dealDamage(self, other, action.damage, action.element, events);
-          if (action.impulse > 0 && this.world.isAlive(other)) {
-            const fallback = {
-              x: (this.world.x[other] ?? 0) - (this.world.x[self] ?? 0),
-              y: (this.world.y[other] ?? 0) - (this.world.y[self] ?? 0)
-            };
-            this.applyKnockbackFromPoint(self, position, other, this.damageScaledImpulse(action.impulse, action.damage), events, 'explosion', fallback, this.explosionImpulseOptions(action.damage, context.abilityId));
-          }
-        });
-        events.push({
-          type: 'blast', tick: this.tickValue, sourceId: self, abilityId: context.abilityId, kind: action.kind, position,
-          radius: action.radius, force: this.damageScaledImpulse(action.impulse, action.damage), damage: action.damage, element: action.element
-        });
-        break;
-      }
-      case 'LAUNCH_PROJECTILES': {
-        const projectile = getProjectileSource(action.projectileId);
-        const candidates = this.hostileTargetsByDistance(self);
-        const selectedTarget = target !== null && this.world.isAlive(target) && this.world.getTeam(target) !== this.world.getTeam(self)
-          ? target
-          : null;
-        const baseDirection = normalizeVector(context.normal);
-        const count = Math.max(1, action.count);
-        const intervalTicks = Math.max(0, action.intervalTicks ?? 0);
-        for (let index = 0; index < count; index += 1) {
-          const targetId = action.targetMode === 'selected'
-            ? selectedTarget
-            : action.targetMode === 'nearest'
-              ? (selectedTarget ?? candidates[0] ?? null)
-              : (candidates.length > 0 ? candidates[index % candidates.length] ?? null : selectedTarget);
-          let direction = baseDirection;
-          if (action.pattern === 'radial') {
-            const angle = Math.atan2(baseDirection.y, baseDirection.x) + (index / count) * Math.PI * 2;
-            direction = { x: Math.cos(angle), y: Math.sin(angle) };
-          } else if (action.pattern === 'fan' && count > 1) {
-            const spread = action.spreadDegrees * Math.PI / 180;
-            const angle = Math.atan2(baseDirection.y, baseDirection.x) + ((index / (count - 1)) - 0.5) * spread;
-            direction = { x: Math.cos(angle), y: Math.sin(angle) };
-          } else if (targetId !== null) {
-            direction = normalizeVector({
-              x: (this.world.x[targetId] ?? 0) - (this.world.x[self] ?? 0),
-              y: (this.world.y[targetId] ?? 0) - (this.world.y[self] ?? 0)
-            });
-          }
-
-          const delayTicks = index * intervalTicks;
-          if (delayTicks === 0) {
-            this.projectileSystem.spawn(self, projectile, direction, events, 0, 1, targetId);
-          } else {
-            this.projectileSystem.schedule(
-              self,
-              action.projectileId,
-              direction,
-              targetId,
-              this.tickValue + delayTicks
-            );
-          }
-        }
-        break;
-      }
-      case 'USE_WEAPON':
-        // Deprecated. Skills cannot execute the fighter's primary attack in Stage 7.2.
-        break;
-      case 'HEAL_SELF':
-        this.world.hp[self] = Math.min(this.world.maxHp[self] ?? 0, (this.world.hp[self] ?? 0) + action.amount);
-        break;
-    }
   }
 
   private tickWeaponAttacks(events: SimulationEvent[]): void {
@@ -1121,208 +698,15 @@ export class LocalSimulationRunner implements SimulationRunner {
       const loadout = this.world.getLoadout(source);
       const damage = weapon.damage * loadout.primaryDamageMultiplier;
       const knockback = weapon.knockback * loadout.primaryKnockbackMultiplier;
-      this.dealDamage(source, target, damage, this.primaryElement(source), events);
+      this.damageSystem.dealDamage(source, target, damage, this.primaryElement(source), events);
       if (this.world.isAlive(target)) {
-        this.applyKnockback(source, target, knockback, events, 'weapon');
+        this.knockbackSystem.applyKnockback(source, target, knockback, events, 'weapon');
         for (const status of weapon.onHitStatuses ?? []) this.applyStatus(source, target, status.statusId, status.durationTicks, events, status.stacks ?? 1);
       }
       events.push({ type: 'weaponHit', tick: this.tickValue, sourceId: source, targetId: target, weaponId: weapon.id, position: { x: this.world.x[target] ?? 0, y: this.world.y[target] ?? 0 }, damage, knockback });
-      this.triggerPassives(source, 'ON_PRIMARY_HIT', { self: source, target, impact: knockback, normal: direction, abilityId: weapon.id }, events);
+      this.abilitySystem.triggerPassives(source, 'ON_PRIMARY_HIT', { self: source, target, impact: knockback, normal: direction, abilityId: weapon.id }, events);
       if (!['spin', 'continuous', 'orbit', 'slam'].includes(weapon.behavior)) break;
     }
-  }
-
-  private hostileTargetsByDistance(source: EntityId): EntityId[] {
-    const sx = this.world.x[source] ?? 0;
-    const sy = this.world.y[source] ?? 0;
-    const team = this.world.getTeam(source);
-    return this.world.activeIds()
-      .filter((id) => id !== source && this.world.getTeam(id) !== team)
-      .sort((a, b) => {
-        const adx = (this.world.x[a] ?? 0) - sx;
-        const ady = (this.world.y[a] ?? 0) - sy;
-        const bdx = (this.world.x[b] ?? 0) - sx;
-        const bdy = (this.world.y[b] ?? 0) - sy;
-        return adx * adx + ady * ady - (bdx * bdx + bdy * bdy) || a - b;
-      });
-  }
-
-  private damageScaledImpulse(baseImpulse: number, damage: number): number {
-    if (baseImpulse <= 0) return 0;
-    const safeDamage = Math.min(120, Math.max(0, damage));
-    // High-damage explosions must create clearly stronger displacement, not
-    // merely a slightly larger number. The curve keeps micro-missiles modest
-    // while making Bomber's MEGA BOMB capable of launching targets into walls.
-    const damageRatio = safeDamage / 18;
-    const multiplier = Math.max(0.86, 0.7 + Math.pow(damageRatio, 1.12) * 0.72);
-    return baseImpulse * multiplier;
-  }
-
-
-  private explosionImpulseOptions(damage: number, abilityId?: string): ExternalImpulseOptions {
-    if (abilityId === 'mega-bomb') {
-      return { retention: 0.997, maxSpeed: 72, minWallBounces: 3, trailStrength: 1 };
-    }
-    if (damage >= 24) {
-      return {
-        retention: Math.min(0.982, 0.95 + (damage - 24) * 0.0015),
-        maxSpeed: Math.min(64, 52 + (damage - 24) * 0.5),
-        trailStrength: Math.min(1, damage / 40)
-      };
-    }
-    return { retention: 0.92, maxSpeed: 48, trailStrength: Math.min(0.7, damage / 32) };
-  }
-
-  private forEachInRadius(source: EntityId, radius: number, enemiesOnly: boolean, callback: (id: EntityId) => void): void {
-    this.forEachAroundPoint(source, { x: this.world.x[source] ?? 0, y: this.world.y[source] ?? 0 }, radius, enemiesOnly, callback);
-  }
-
-  private forEachAroundPoint(source: EntityId, center: Vec2, radius: number, enemiesOnly: boolean, callback: (id: EntityId) => void): void {
-    const team = this.world.getTeam(source);
-    for (const id of this.world.activeIds()) {
-      if (id === source) continue;
-      if (enemiesOnly && this.world.getTeam(id) === team) continue;
-      const dx = (this.world.x[id] ?? 0) - center.x;
-      const dy = (this.world.y[id] ?? 0) - center.y;
-      if (dx * dx + dy * dy <= radius * radius) callback(id);
-    }
-  }
-
-  private forEachInCone(source: EntityId, range: number, arcDegrees: number, enemiesOnly: boolean, direction: Vec2, callback: (id: EntityId) => void): void {
-    const sx = this.world.x[source] ?? 0;
-    const sy = this.world.y[source] ?? 0;
-    const team = this.world.getTeam(source);
-    const directionLength = Math.hypot(direction.x, direction.y) || 1;
-    const nx = direction.x / directionLength;
-    const ny = direction.y / directionLength;
-    const halfArc = arcDegrees * Math.PI / 360;
-    for (const id of this.world.activeIds()) {
-      if (id === source) continue;
-      if (enemiesOnly && this.world.getTeam(id) === team) continue;
-      const dx = (this.world.x[id] ?? 0) - sx;
-      const dy = (this.world.y[id] ?? 0) - sy;
-      const distance = Math.hypot(dx, dy);
-      if (distance <= 0.0001 || distance > range + (this.world.radius[id] ?? 0)) continue;
-      const dot = Math.max(-1, Math.min(1, (dx / distance) * nx + (dy / distance) * ny));
-      if (Math.acos(dot) <= halfArc) callback(id);
-    }
-  }
-
-  private applyKnockback(
-    source: EntityId,
-    target: EntityId,
-    magnitude: number,
-    events: SimulationEvent[],
-    kind: 'weapon' | 'explosion' | 'ability',
-    impulseOptions?: ExternalImpulseOptions
-  ): void {
-    const direction = {
-      x: (this.world.x[target] ?? 0) - (this.world.x[source] ?? 0),
-      y: (this.world.y[target] ?? 0) - (this.world.y[source] ?? 0)
-    };
-    this.applyKnockbackVector(source, target, direction, magnitude, events, kind, undefined, impulseOptions);
-  }
-
-  private applyKnockbackFromPoint(
-    source: EntityId | undefined,
-    origin: Vec2,
-    target: EntityId,
-    magnitude: number,
-    events: SimulationEvent[],
-    kind: 'weapon' | 'explosion' | 'ability',
-    fallbackDirection?: Vec2,
-    impulseOptions?: ExternalImpulseOptions
-  ): void {
-    const direction = {
-      x: (this.world.x[target] ?? 0) - origin.x,
-      y: (this.world.y[target] ?? 0) - origin.y
-    };
-    this.applyKnockbackVector(source, target, direction, magnitude, events, kind, fallbackDirection, impulseOptions);
-  }
-
-  private applyKnockbackVector(
-    source: EntityId | undefined,
-    target: EntityId,
-    direction: Vec2,
-    magnitude: number,
-    events: SimulationEvent[],
-    kind: 'weapon' | 'explosion' | 'ability',
-    fallbackDirection?: Vec2,
-    impulseOptions?: ExternalImpulseOptions
-  ): void {
-    if (magnitude === 0 || !this.world.isAlive(target)) return;
-    let dx = direction.x;
-    let dy = direction.y;
-    let length = Math.hypot(dx, dy);
-    if (length < 0.001 && fallbackDirection) {
-      dx = fallbackDirection.x;
-      dy = fallbackDirection.y;
-      length = Math.hypot(dx, dy);
-    }
-    if (length < 0.001) {
-      const fallbackAngle = (((source ?? 0) * 37 + target * 17) % 360) * Math.PI / 180;
-      dx = Math.cos(fallbackAngle);
-      dy = Math.sin(fallbackAngle);
-      length = 1;
-    }
-    const nx = dx / length;
-    const ny = dy / length;
-    const incomingKnockbackMultiplier = this.world.getLoadout(target).incomingKnockbackMultiplier;
-    const resolvedMagnitude = magnitude * incomingKnockbackMultiplier;
-    const invMass = 1 / this.world.getEffectiveMass(target);
-    const velocityDelta = resolvedMagnitude * invMass;
-    this.addExternalImpulse(target, nx * velocityDelta, ny * velocityDelta, impulseOptions);
-    const visualForce = Math.abs(resolvedMagnitude);
-    // Keep the event stream bounded in mass battles. Tiny recoil still affects
-    // physics, while meaningful displacement receives explicit presentation.
-    if (kind === 'explosion' || visualForce >= 2.4) {
-      const sign = resolvedMagnitude < 0 ? -1 : 1;
-      events.push({
-        type: 'knockbackApplied',
-        tick: this.tickValue,
-        ...(source !== undefined ? { sourceId: source } : {}),
-        targetId: target,
-        position: { x: this.world.x[target] ?? 0, y: this.world.y[target] ?? 0 },
-        direction: { x: nx * sign, y: ny * sign },
-        force: visualForce,
-        kind
-      });
-    }
-  }
-
-  private addExternalImpulse(target: EntityId, x: number, y: number, options: ExternalImpulseOptions = {}): void {
-    if (!Number.isFinite(x) || !Number.isFinite(y) || !this.world.isAlive(target)) return;
-    const current = this.externalImpulse.get(target) ?? {
-      x: 0,
-      y: 0,
-      retention: 0.92,
-      maxSpeed: 48,
-      minWallBounces: 0,
-      wallBounces: 0,
-      trailStrength: 0
-    };
-    const maxImpulseSpeed = Math.max(current.maxSpeed, options.maxSpeed ?? 48);
-    let nextX = current.x + x;
-    let nextY = current.y + y;
-    const nextMagnitude = Math.hypot(nextX, nextY);
-    if (nextMagnitude > maxImpulseSpeed) {
-      const scale = maxImpulseSpeed / nextMagnitude;
-      nextX *= scale;
-      nextY *= scale;
-    }
-    const appliedX = nextX - current.x;
-    const appliedY = nextY - current.y;
-    this.externalImpulse.set(target, {
-      x: nextX,
-      y: nextY,
-      retention: Math.max(current.retention, options.retention ?? 0.92),
-      maxSpeed: maxImpulseSpeed,
-      minWallBounces: Math.max(current.minWallBounces, options.minWallBounces ?? 0),
-      wallBounces: current.wallBounces,
-      trailStrength: Math.max(current.trailStrength, options.trailStrength ?? 0)
-    });
-    this.world.vx[target] = (this.world.vx[target] ?? 0) + appliedX;
-    this.world.vy[target] = (this.world.vy[target] ?? 0) + appliedY;
   }
 
   private applyStatus(sourceId: EntityId, targetId: EntityId, statusId: string, durationTicks: number, events: SimulationEvent[], stacks = 1): void {
@@ -1337,52 +721,9 @@ export class LocalSimulationRunner implements SimulationRunner {
     events.push({ type: 'statusApplied', tick: this.tickValue, sourceId, targetId, statusId, durationTicks: resolvedDuration, stacks: applied.stacks });
   }
 
-  private dealDamage(sourceId: EntityId | null, targetId: EntityId, rawAmount: number, element: Element, events: SimulationEvent[]): void {
-    if (!this.world.isAlive(targetId) || rawAmount <= 0) return;
-    if (sourceId !== null && sourceId !== targetId && this.world.getTeam(sourceId) === this.world.getTeam(targetId) && !this.rules.friendlyFire) return;
-    const target = getFighter(this.world.getFighterId(targetId));
-    const resistance = target.resistances[element] ?? 1;
-    const elementMultiplier = getElementMultiplier(element, target.classification.elements);
-    const sourceDamageScale = sourceId !== null
-      ? (this.world.damageScale[sourceId] ?? 1)
-      : 1;
-    const incomingDamageMultiplier = this.world.getLoadout(targetId).incomingDamageMultiplier;
-    const amount = Math.max(0, rawAmount * sourceDamageScale * resistance * elementMultiplier * incomingDamageMultiplier);
-    const prevented = this.trainingRules.enabled && (!this.trainingRules.damageEnabled || this.trainingRules.invulnerableTeams.has(this.world.getTeam(targetId)));
-    if (!prevented) this.world.hp[targetId] = Math.max(0, (this.world.hp[targetId] ?? 0) - amount);
-    const damageEvent: DamageEvent = {
-      type: 'damage', tick: this.tickValue, targetId, amount, element, hpAfter: this.world.hp[targetId] ?? 0,
-      position: { x: this.world.x[targetId] ?? 0, y: this.world.y[targetId] ?? 0 },
-      ...(sourceId !== null ? { sourceId } : {}),
-      ...(prevented ? { prevented: true } : {})
-    };
-    events.push(damageEvent);
-    if (!prevented && (this.world.hp[targetId] ?? 0) <= 0) {
-      const position = { x: this.world.x[targetId] ?? 0, y: this.world.y[targetId] ?? 0 };
-      this.world.kill(targetId);
-      this.externalImpulse.delete(targetId);
-      events.push({ type: 'death', tick: this.tickValue, entityId: targetId, position, ...(sourceId !== null ? { killerId: sourceId } : {}) });
-    }
-  }
-
   private primaryElement(id: EntityId): Element {
     return getFighter(this.world.getFighterId(id)).classification.elements[0] ?? 'neutral';
   }
-
-  private resolveAbilityDirection(self: EntityId, target: EntityId | null, requested?: Vec2): Vec2 {
-    if (requested && Math.hypot(requested.x, requested.y) > 0.001) return requested;
-    if (target !== null) {
-      const dx = (this.world.x[target] ?? 0) - (this.world.x[self] ?? 0);
-      const dy = (this.world.y[target] ?? 0) - (this.world.y[self] ?? 0);
-      const length = Math.hypot(dx, dy) || 1;
-      return { x: dx / length, y: dy / length };
-    }
-    const vx = this.world.vx[self] ?? 0;
-    const vy = this.world.vy[self] ?? 0;
-    const length = Math.hypot(vx, vy) || 1;
-    return { x: vx / length, y: vy / length };
-  }
-
 
   private recoverInvalidNumericState(): void {
     for (const id of this.world.activeIdsView()) {
