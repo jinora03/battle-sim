@@ -9,7 +9,6 @@ import {
   getPassive,
   getPrimaryAttack,
   getProjectileSource,
-  getStatus,
   type AbilityAction,
   type AbilityCondition,
   type AbilityDefinition,
@@ -47,6 +46,9 @@ import { SpatialHashGrid } from './spatialHash';
 import { World, type ActiveCastState, type ActiveWeaponAttackState, type ArmedAbilityState } from './world';
 import { resolveImpulseDirection, resolveProjectileStatusInteraction } from './combatModifiers';
 import { compareOrdinal } from './order';
+import { BattleResultSystem } from './systems/BattleResultSystem';
+import { CommandSystem } from './systems/CommandSystem';
+import { StatusSystem } from './systems/StatusSystem';
 
 export const ENGINE_VERSION = '1.2.2-stage8.2a';
 export { CONTENT_VERSION };
@@ -189,6 +191,9 @@ export class LocalSimulationRunner implements SimulationRunner {
   private readonly arena;
   private readonly mode;
   private readonly spatial: SpatialHashGrid;
+  private readonly commandSystem: CommandSystem;
+  private readonly statusSystem: StatusSystem;
+  private readonly battleResultSystem: BattleResultSystem;
   private readonly obstacles = new Map<string, RuntimeObstacle>();
   private readonly obstacleList: RuntimeObstacle[] = [];
   private readonly projectileCandidateIds: EntityId[] = [];
@@ -196,7 +201,6 @@ export class LocalSimulationRunner implements SimulationRunner {
   // Reusable active-id buffers for loops that can kill entities mid-iteration.
   // Each call site owns a dedicated buffer so the reuse can never alias a
   // concurrently-iterated one; none of these loops nest inside each other.
-  private readonly statusIdScratch: EntityId[] = [];
   private readonly zoneIdScratch: EntityId[] = [];
   private readonly obstacleIdScratch: EntityId[] = [];
   private readonly meleeIdScratch: EntityId[] = [];
@@ -248,6 +252,29 @@ export class LocalSimulationRunner implements SimulationRunner {
     this.rng = new SeededRng(battle.seed);
     this.world = new World(maxEntities);
     this.spatial = new SpatialHashGrid(this.arena.width, this.arena.height, this.arena.spatialCellSize);
+    this.commandSystem = new CommandSystem({
+      isAlive: (entityId) => this.world.isAlive(entityId),
+      isChanneling: (entityId) => this.isSolarLaserChanneling(entityId),
+      applyMove: (entityId, direction, facing) => this.applyMove(entityId, direction, facing),
+      lockChannel: (entityId) => this.lockSolarLaserCaster(entityId),
+      stop: (entityId) => {
+        const impulse = this.externalImpulse.get(entityId);
+        this.world.vx[entityId] = impulse?.x ?? 0;
+        this.world.vy[entityId] = impulse?.y ?? 0;
+      },
+      activatePrimaryAttack: (command, events) => this.activatePrimaryAttack(command, events),
+      activateAbility: (command, events) => this.activateAbility(command, events)
+    });
+    this.statusSystem = new StatusSystem(
+      this.world,
+      (sourceId, targetId, amount, element, events) =>
+        this.dealDamage(sourceId, targetId, amount, element, events)
+    );
+    this.battleResultSystem = new BattleResultSystem(
+      this.world,
+      this.mode,
+      this.rules.maxBattleTicks
+    );
     for (const definition of this.arena.obstacles) {
       const obstacle = { definition, hp: definition.destructible ? definition.maxHp : 0, alive: true };
       this.obstacles.set(definition.id, obstacle);
@@ -352,12 +379,12 @@ export class LocalSimulationRunner implements SimulationRunner {
     this.world.copyPreviousTransforms();
     this.explicitFacingThisTick.clear();
 
-    this.tickStatuses(events);
+    this.statusSystem.tick(events);
     this.tickWeaponAttacks(events);
     this.tickAbilityCasts(events);
     this.tickPendingProjectileLaunches(events);
     this.expireArmedAbilities();
-    this.processCommands(commands, events);
+    this.stepMetrics.commandsProcessed = this.commandSystem.process(commands, events);
     this.updateArenaZones(events);
     this.integrateMotion();
     this.rebuildSpatialIndex();
@@ -367,7 +394,11 @@ export class LocalSimulationRunner implements SimulationRunner {
     this.resolveEntityCollisions(events);
     this.enforceSolarLaserLocks();
     this.recoverInvalidNumericState();
-    this.checkVictory(events);
+    const battleEnd = this.battleResultSystem.evaluate(
+      this.tickValue,
+      this.trainingRules.enabled && this.trainingRules.suppressVictory
+    );
+    if (battleEnd) this.endBattle(battleEnd.winningTeam, battleEnd.reason, events);
     return events;
   }
 
@@ -419,29 +450,6 @@ export class LocalSimulationRunner implements SimulationRunner {
     const orbitRadius = Math.max(spawnRadius + 8, Math.min(this.arena.width, this.arena.height) * 0.32 - spawnRadius);
     const angle = (index / Math.max(count, 1)) * Math.PI * 2 - Math.PI / 2;
     return { x: centerX + Math.cos(angle) * orbitRadius, y: centerY + Math.sin(angle) * orbitRadius };
-  }
-
-  private processCommands(commands: readonly SimulationCommand[], events: SimulationEvent[]): void {
-    const ordered = [...commands].sort((a, b) => a.entityId - b.entityId || compareOrdinal(a.type, b.type));
-    this.stepMetrics.commandsProcessed = ordered.length;
-    for (const command of ordered) {
-      if (!this.world.isAlive(command.entityId)) continue;
-      if (command.type === 'move') {
-        if (!this.isSolarLaserChanneling(command.entityId)) this.applyMove(command.entityId, command.direction, command.facing);
-      } else if (command.type === 'stop') {
-        if (this.isSolarLaserChanneling(command.entityId)) {
-          this.lockSolarLaserCaster(command.entityId);
-        } else {
-          const impulse = this.externalImpulse.get(command.entityId);
-          this.world.vx[command.entityId] = impulse?.x ?? 0;
-          this.world.vy[command.entityId] = impulse?.y ?? 0;
-        }
-      } else if (command.type === 'activatePrimaryAttack') this.activatePrimaryAttack(command, events);
-      else if (command.slot === 'basic') {
-        // Replay/custom-content migration: Basic is now the fighter's authoritative primary attack.
-        this.activatePrimaryAttack({ type: 'activatePrimaryAttack', entityId: command.entityId, ...(command.targetId !== undefined ? { targetId: command.targetId } : {}), ...(command.direction ? { direction: command.direction } : {}) }, events);
-      } else this.activateAbility(command, events);
-    }
   }
 
   private applyMove(id: EntityId, direction: Vec2, facing?: Vec2): void {
@@ -2161,26 +2169,6 @@ export class LocalSimulationRunner implements SimulationRunner {
     events.push({ type: 'statusApplied', tick: this.tickValue, sourceId, targetId, statusId, durationTicks: resolvedDuration, stacks: applied.stacks });
   }
 
-  private tickStatuses(events: SimulationEvent[]): void {
-    // Periodic damage can kill the entity mid-loop, so iterate a stable copy.
-    for (const id of this.world.copyActiveIdsInto(this.statusIdScratch)) {
-      if (!this.world.hasAnyStatus(id)) continue;
-      const statuses = this.world.getStatuses(id);
-      for (const [statusId, status] of [...statuses.entries()]) {
-        const definition = getStatus(statusId);
-        status.remainingTicks -= 1;
-        if (definition.periodicDamage && definition.periodTicks) {
-          status.pulseCountdown -= 1;
-          if (status.pulseCountdown <= 0) {
-            this.dealDamage(status.sourceId, id, definition.periodicDamage, definition.element ?? 'neutral', events);
-            status.pulseCountdown = definition.periodTicks;
-          }
-        }
-        if (status.remainingTicks <= 0) statuses.delete(statusId);
-      }
-    }
-  }
-
   private dealDamage(sourceId: EntityId | null, targetId: EntityId, rawAmount: number, element: Element, events: SimulationEvent[]): void {
     if (!this.world.isAlive(targetId) || rawAmount <= 0) return;
     if (sourceId !== null && sourceId !== targetId && this.world.getTeam(sourceId) === this.world.getTeam(targetId) && !this.rules.friendlyFire) return;
@@ -2299,58 +2287,6 @@ export class LocalSimulationRunner implements SimulationRunner {
       projectile.alive = false;
       this.stepMetrics.invalidNumericStates += 1;
     }
-  }
-
-  private checkVictory(events: SimulationEvent[]): void {
-    if (this.trainingRules.enabled && this.trainingRules.suppressVictory) return;
-    const aliveIds = this.world.activeIdsView();
-    const teams = new Set<TeamId>(aliveIds.map((id) => this.world.getTeam(id)));
-
-    if (this.mode.victory === 'DEFEAT_BOSS') {
-      const bossTeam = this.mode.bossTeam ?? 2;
-      const bossAlive = aliveIds.some((id) => this.world.getTeam(id) === bossTeam);
-      const raiderTeams = [...teams].filter((team) => team !== bossTeam).sort((a, b) => a - b);
-      if (!bossAlive) this.endBattle(raiderTeams[0] ?? null, 'boss-defeated', events);
-      else if (raiderTeams.length === 0) this.endBattle(bossTeam, 'elimination', events);
-      return;
-    }
-
-    if (this.mode.victory === 'SURVIVE_TICKS') {
-      const survivorTeam = this.mode.survivorTeam ?? 1;
-      const survivorAlive = aliveIds.some((id) => this.world.getTeam(id) === survivorTeam);
-      const enemyTeams = [...teams].filter((team) => team !== survivorTeam);
-      if (!survivorAlive) this.endBattle(enemyTeams.sort((a, b) => a - b)[0] ?? null, 'elimination', events);
-      else if (enemyTeams.length === 0 || this.tickValue >= (this.mode.durationTicks ?? 2700)) this.endBattle(survivorTeam, 'survival-complete', events);
-      return;
-    }
-
-    if (teams.size <= 1) {
-      const winner = teams.size === 1 ? [...teams][0] ?? null : null;
-      this.endBattle(winner, winner === null ? 'draw' : 'elimination', events);
-      return;
-    }
-    if (this.tickValue >= this.rules.maxBattleTicks) {
-      const winner = this.leadingTeamAtTimeout(aliveIds);
-      this.endBattle(winner, winner === null ? 'draw' : 'timeout', events);
-    }
-  }
-
-  private leadingTeamAtTimeout(aliveIds: readonly EntityId[]): TeamId | null {
-    const scores = new Map<TeamId, { alive: number; hpRatio: number }>();
-    for (const id of aliveIds) {
-      const team = this.world.getTeam(id);
-      const current = scores.get(team) ?? { alive: 0, hpRatio: 0 };
-      current.alive += 1;
-      current.hpRatio += (this.world.hp[id] ?? 0) / Math.max(1, this.world.maxHp[id] ?? 1);
-      scores.set(team, current);
-    }
-    const ranked = [...scores.entries()]
-      .sort((a, b) => b[1].alive - a[1].alive || b[1].hpRatio - a[1].hpRatio || a[0] - b[0]);
-    const first = ranked[0];
-    const second = ranked[1];
-    if (!first) return null;
-    if (second && first[1].alive === second[1].alive && Math.abs(first[1].hpRatio - second[1].hpRatio) < 0.000001) return null;
-    return first[0];
   }
 
   private endBattle(winningTeam: TeamId | null, reason: BattleEndReason, events: SimulationEvent[]): void {
