@@ -133,7 +133,7 @@ export * from './schemas';
 export * from './passives';
 export * from './loadouts';
 
-export const CONTENT_VERSION = '1.2.1-stage8.1';
+export const CONTENT_VERSION = '1.2.2-stage8.2a';
 
 const fighters: FighterDefinition[] = [pyroRaw, mechRaw, waterRaw, bomberRaw, frostRaw, voltRaw, thornRaw, voidRaw, gunnerRaw, rocketRaw, solarSentinelRaw].map((raw) => fighterSchema.parse(raw) as FighterDefinition);
 const builtinFighterIds = new Set(fighters.map((fighter) => fighter.id));

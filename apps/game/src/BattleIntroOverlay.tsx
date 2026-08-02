@@ -21,6 +21,7 @@ interface IntroStyle extends CSSProperties {
   '--intro-core': string;
   '--intro-aura': string;
   '--intro-accent': string;
+  '--intro-size-scale': number;
 }
 
 function color(value: number): string {
@@ -34,7 +35,8 @@ function introStyle(fighter: FighterDefinition): IntroStyle {
     '--intro-dark': color(recipe.bodyDarkColor),
     '--intro-core': color(recipe.coreColor),
     '--intro-aura': color(recipe.auraColor),
-    '--intro-accent': color(recipe.accentColor)
+    '--intro-accent': color(recipe.accentColor),
+    '--intro-size-scale': Math.max(0.94, Math.min(1.2, fighter.physics.radius / 48))
   };
 }
 

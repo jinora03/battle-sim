@@ -297,6 +297,10 @@ export interface MountedAttachmentDefinition {
   primaryColor: number;
   accentColor: number;
   glowColor?: number;
+  /** Outer silhouette color. Defaults to soft white for arena readability. */
+  outlineColor?: number;
+  /** Outline width measured in fighter-radius units. */
+  outlineWidthScale?: number;
   orbitRadius?: number;
   orbitSpeed?: number;
   hideInMassBattle?: boolean;
@@ -436,6 +440,8 @@ export interface ElementInteraction {
   multiplier: number;
 }
 
+export const MIN_FIGHTER_RADIUS = 45;
+
 const elementSchema = z.enum(['neutral', 'fire', 'water', 'ice', 'electric', 'metal', 'nature', 'void']);
 const abilitySlotSchema = z.enum(['basic', 'skill1', 'skill2', 'skill3', 'ultimate']);
 
@@ -448,7 +454,7 @@ export const fighterSchema = z.object({
     traits: z.array(z.string())
   }),
   physics: z.object({
-    radius: z.number().positive(),
+    radius: z.number().min(MIN_FIGHTER_RADIUS),
     mass: z.number().positive(),
     restitution: z.number().min(0).max(1.25),
     linearDamping: z.number().min(0).max(1),

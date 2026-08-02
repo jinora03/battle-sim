@@ -69,7 +69,7 @@ function runCustom(seed:number) {
     fighter: {
       id: 'headless-arc-prototype', name: 'Headless Arc Prototype',
       classification: { archetype: 'striker', elements: ['electric'], traits: ['custom','validation'] },
-      physics: { radius: 28, mass: 1.25, restitution: 0.94, linearDamping: 0.993, maxSpeed: 12.2 },
+      physics: { radius: 45, mass: 1.25, restitution: 0.94, linearDamping: 0.993, maxSpeed: 12.2 },
       stats: { maxHp: 225, moveAcceleration: 0.2 },
       aiProfileId: 'aggressive-brawler',
       abilitySlots: { basic:'blast-contact', skill1:'surge-dash', skill2:'kinetic-pulse', skill3:'undertow', ultimate:'reactor-overdrive' },

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CONTENT_VERSION,
+  MIN_FIGHTER_RADIUS,
   getAbility,
   getArena,
   getFighter,
@@ -21,6 +22,13 @@ describe('content definitions', () => {
     expect(listFighters().map((fighter) => fighter.id)).toEqual(
       expect.arrayContaining(['pyro-brawler', 'mech-bruiser', 'water-shaper', 'bomber', 'frost-warden', 'volt-striker', 'thorn-colossus', 'void-reaper', 'gunner'])
     );
+  });
+
+  it('keeps every built-in fighter at or above the readable radius baseline', () => {
+    expect(MIN_FIGHTER_RADIUS).toBe(45);
+    for (const fighter of listFighters()) {
+      expect(fighter.physics.radius, fighter.id).toBeGreaterThanOrEqual(MIN_FIGHTER_RADIUS);
+    }
   });
 
   it('gives every built-in fighter one primary attack plus four presented skills', () => {
@@ -47,7 +55,7 @@ describe('content definitions', () => {
   });
 
   it('registers the current roster, arena and mode catalog', () => {
-    expect(CONTENT_VERSION).toBe('1.2.1-stage8.1');
+    expect(CONTENT_VERSION).toBe('1.2.2-stage8.2a');
     expect(listFighters().length).toBeGreaterThanOrEqual(9);
     expect(listArenas().map((arena) => arena.id)).toEqual(
       expect.arrayContaining(['iron-pit', 'pillar-court', 'elemental-foundry', 'war-basin', 'cryo-ring', 'arc-crucible', 'training-grid'])

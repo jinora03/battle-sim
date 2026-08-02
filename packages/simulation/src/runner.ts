@@ -48,7 +48,7 @@ import { World, type ActiveCastState, type ActiveWeaponAttackState, type ArmedAb
 import { resolveImpulseDirection, resolveProjectileStatusInteraction } from './combatModifiers';
 import { compareOrdinal } from './order';
 
-export const ENGINE_VERSION = '1.2.0-stage8.0';
+export const ENGINE_VERSION = '1.2.2-stage8.2a';
 export { CONTENT_VERSION };
 export const SIM_TICK_RATE = 60;
 export const SIM_TICK_MS = 1000 / SIM_TICK_RATE;
@@ -394,25 +394,31 @@ export class LocalSimulationRunner implements SimulationRunner {
     const teamZones = this.arena.spawnZones.filter((zone) => zone.team === participant.team);
     const genericZones = this.arena.spawnZones.filter((zone) => zone.team === undefined);
     const zone = requested ?? teamZones[index % Math.max(1, teamZones.length)] ?? genericZones[index % Math.max(1, genericZones.length)];
+    const fighter = getFighter(participant.fighterId);
+    const spawnRadius = fighter.physics.radius * (participant.statScale?.radius ?? 1);
     if (zone) {
       const usage = zoneUsage.get(zone.id) ?? 0;
       zoneUsage.set(zone.id, usage + 1);
-      const columns = Math.max(1, Math.floor(zone.width / 75));
+      const padding = spawnRadius + 10;
+      const spacing = spawnRadius * 2 + 18;
+      const usableWidth = Math.max(1, zone.width - padding * 2);
+      const columns = Math.max(1, Math.floor(usableWidth / spacing) + 1);
       const row = Math.floor(usage / columns);
       const column = usage % columns;
-      const jitterX = this.rng.range(-8, 8);
-      const jitterY = this.rng.range(-8, 8);
+      const jitterLimit = Math.min(6, Math.max(0, (spacing - spawnRadius * 2) * 0.25));
+      const jitterX = this.rng.range(-jitterLimit, jitterLimit);
+      const jitterY = this.rng.range(-jitterLimit, jitterLimit);
       return {
-        x: zone.x + Math.min(zone.width - 28, 28 + column * 70) + jitterX,
-        y: zone.y + Math.min(zone.height - 28, 28 + row * 70) + jitterY
+        x: zone.x + Math.min(zone.width - padding, padding + column * spacing) + jitterX,
+        y: zone.y + Math.min(zone.height - padding, padding + row * spacing) + jitterY
       };
     }
 
     const centerX = this.arena.width / 2;
     const centerY = this.arena.height / 2;
-    const radius = Math.min(this.arena.width, this.arena.height) * 0.32;
+    const orbitRadius = Math.max(spawnRadius + 8, Math.min(this.arena.width, this.arena.height) * 0.32 - spawnRadius);
     const angle = (index / Math.max(count, 1)) * Math.PI * 2 - Math.PI / 2;
-    return { x: centerX + Math.cos(angle) * radius, y: centerY + Math.sin(angle) * radius };
+    return { x: centerX + Math.cos(angle) * orbitRadius, y: centerY + Math.sin(angle) * orbitRadius };
   }
 
   private processCommands(commands: readonly SimulationCommand[], events: SimulationEvent[]): void {
@@ -757,13 +763,27 @@ export class LocalSimulationRunner implements SimulationRunner {
       const massB = this.world.getEffectiveMass(b);
       const invA = 1 / massA;
       const invB = 1 / massB;
-      const invTotal = invA + invB;
 
-      const correction = (overlap / invTotal) * physicalScale;
-      this.world.x[a] = ax - nx * correction * invA;
-      this.world.y[a] = ay - ny * correction * invA;
-      this.world.x[b] = bx + nx * correction * invB;
-      this.world.y[b] = by + ny * correction * invB;
+      // Abilities such as Mega Bomb explicitly guarantee a minimum number of
+      // arena-wall bounces. While that protected impulse is active, ordinary
+      // fighter contacts may move and receive momentum from the launched body,
+      // but they must not cancel or redirect its authored launch trajectory.
+      const externalA = this.externalImpulse.get(a);
+      const externalB = this.externalImpulse.get(b);
+      const protectedA = externalA !== undefined && externalA.wallBounces < externalA.minWallBounces;
+      const protectedB = externalB !== undefined && externalB.wallBounces < externalB.minWallBounces;
+      const preserveA = protectedA && !protectedB;
+      const preserveB = protectedB && !protectedA;
+
+      const responseInvA = preserveA ? 0 : invA;
+      const responseInvB = preserveB ? 0 : invB;
+      const responseInvTotal = responseInvA + responseInvB;
+      const correctionInvTotal = responseInvTotal > 0 ? responseInvTotal : invA + invB;
+      const correction = (overlap / correctionInvTotal) * physicalScale;
+      this.world.x[a] = ax - nx * correction * (responseInvTotal > 0 ? responseInvA : invA);
+      this.world.y[a] = ay - ny * correction * (responseInvTotal > 0 ? responseInvA : invA);
+      this.world.x[b] = bx + nx * correction * (responseInvTotal > 0 ? responseInvB : invB);
+      this.world.y[b] = by + ny * correction * (responseInvTotal > 0 ? responseInvB : invB);
 
       const rvx = (this.world.vx[b] ?? 0) - (this.world.vx[a] ?? 0);
       const rvy = (this.world.vy[b] ?? 0) - (this.world.vy[a] ?? 0);
@@ -771,15 +791,19 @@ export class LocalSimulationRunner implements SimulationRunner {
       const relativeSpeed = Math.hypot(rvx, rvy);
       const closingSpeed = Math.max(0, -velAlongNormal);
       let impulseMagnitude = 0;
-      if (velAlongNormal < 0) {
+      if (velAlongNormal < 0 && responseInvTotal > 0) {
         const restitution = Math.min(this.world.restitution[a] ?? 1, this.world.restitution[b] ?? 1);
-        impulseMagnitude = ((-(1 + restitution) * velAlongNormal) / invTotal) * physicalScale;
+        impulseMagnitude = ((-(1 + restitution) * velAlongNormal) / responseInvTotal) * physicalScale;
         const ix = impulseMagnitude * nx;
         const iy = impulseMagnitude * ny;
-        this.world.vx[a] = (this.world.vx[a] ?? 0) - ix * invA;
-        this.world.vy[a] = (this.world.vy[a] ?? 0) - iy * invA;
-        this.world.vx[b] = (this.world.vx[b] ?? 0) + ix * invB;
-        this.world.vy[b] = (this.world.vy[b] ?? 0) + iy * invB;
+        if (responseInvA > 0) {
+          this.world.vx[a] = (this.world.vx[a] ?? 0) - ix * responseInvA;
+          this.world.vy[a] = (this.world.vy[a] ?? 0) - iy * responseInvA;
+        }
+        if (responseInvB > 0) {
+          this.world.vx[b] = (this.world.vx[b] ?? 0) + ix * responseInvB;
+          this.world.vy[b] = (this.world.vy[b] ?? 0) + iy * responseInvB;
+        }
       }
 
       const magnitude = Math.max(impulseMagnitude, closingSpeed);

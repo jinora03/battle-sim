@@ -10,7 +10,7 @@ const bundle: FighterBundle = {
     id: 'creator-test-fighter',
     name: 'Creator Test Fighter',
     classification: { archetype: 'striker', elements: ['electric'], traits: ['custom'] },
-    physics: { radius: 27, mass: 1.2, restitution: 0.92, linearDamping: 0.993, maxSpeed: 12 },
+    physics: { radius: 45, mass: 1.2, restitution: 0.92, linearDamping: 0.993, maxSpeed: 12 },
     stats: { maxHp: 210, moveAcceleration: 0.2 },
     aiProfileId: 'aggressive-brawler',
     primaryAttackId: 'arc-emitter',
@@ -64,14 +64,19 @@ describe('fighter creator content pipeline', () => {
     fighter.weaponId = 'arc-rifle';
     delete fighter.primaryAttackId;
     fighter.abilitySlots = { basic: 'static-strike', skill1: 'surge-dash', skill2: 'kinetic-pulse', skill3: 'undertow', ultimate: 'reactor-overdrive' };
+    (fighter.physics as Record<string, unknown>).radius = 27;
     const visual = legacy.visualRecipe as Record<string, unknown>;
     visual.weapon = 'rifle';
 
     const migration = migrateFighterBundle(legacy);
-    const migrated = migration.value as { fighter: { primaryAttackId: string; abilitySlots: Record<string, unknown> }; visualRecipe: Record<string, unknown> };
+    const migrated = migration.value as {
+      fighter: { primaryAttackId: string; abilitySlots: Record<string, unknown>; physics: { radius: number } };
+      visualRecipe: Record<string, unknown>;
+    };
     expect(migration.migrated).toBe(true);
     expect(migrated.fighter.primaryAttackId).toBe('arc-emitter');
     expect(migrated.fighter.abilitySlots.basic).toBeUndefined();
+    expect(migrated.fighter.physics.radius).toBe(45);
     expect(migrated.visualRecipe.weapon).toBeUndefined();
     expect(validateFighterBundle(migration.value).success).toBe(true);
   });

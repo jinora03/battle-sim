@@ -100,7 +100,7 @@
 
 .battle-intro-avatar {
   position: relative;
-  width: clamp(106px, 16vw, 178px);
+  width: clamp(106px, calc(16vw * var(--intro-size-scale)), 204px);
   aspect-ratio: 1;
   display: grid;
   place-items: center;
@@ -299,7 +299,7 @@
   }
 
   .battle-intro-avatar {
-    width: clamp(82px, 26vw, 122px);
+    width: clamp(82px, calc(26vw * var(--intro-size-scale)), 142px);
   }
 
   .battle-intro-nameplate strong {
@@ -318,7 +318,7 @@
 
 @media (max-height: 560px) and (orientation: landscape) {
   .battle-intro-content { gap: 8px; }
-  .battle-intro-avatar { width: min(24vh, 112px); }
+  .battle-intro-avatar { width: min(calc(24vh * var(--intro-size-scale)), 132px); }
   .battle-intro-nameplate strong { font-size: 0.94rem; }
   .battle-intro-nameplate small { font-size: 0.54rem; }
   .battle-intro-kicker { font-size: 0.62rem; }
