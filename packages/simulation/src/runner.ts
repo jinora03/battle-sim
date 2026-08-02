@@ -20,11 +20,9 @@ import type {
   AbilitySlot,
   ActivateAbilityCommand,
   ActivatePrimaryAttackCommand,
-  ArenaObstacleSnapshot,
   BattleDefinition,
   BattleEndReason,
   BattleResultSnapshot,
-  BattleObjectiveSnapshot,
   BattleRules,
   BattleParticipant,
   DamageEvent,
@@ -32,7 +30,6 @@ import type {
   EntityId,
   SimulationCommand,
   SimulationEvent,
-  ProjectileSnapshot,
   SimulationMetricsSnapshot,
   TeamId,
   TrainingBattleRules,
@@ -49,6 +46,9 @@ import { StatusSystem } from './systems/StatusSystem';
 import { ArenaCollisionSystem, type RuntimeObstacle } from './systems/ArenaCollisionSystem';
 import { ArenaZoneSystem } from './systems/ArenaZoneSystem';
 import type { ExternalImpulseState } from './systems/SimulationSystemTypes';
+import { MovementSystem } from './systems/MovementSystem';
+import { CooldownSystem } from './systems/CooldownSystem';
+import { SnapshotSystem, type SnapshotContext, type SnapshotProjectileState } from './snapshots/SnapshotSystem';
 
 export const ENGINE_VERSION = '1.2.2-stage8.2a';
 export { CONTENT_VERSION };
@@ -81,20 +81,9 @@ interface CollisionContext {
 type TriggerContext = { self: EntityId; target: EntityId | null; impact: number; normal: Vec2; abilityId: string };
 
 
-interface RuntimeProjectile {
-  id: number;
-  sourceId: EntityId;
-  team: TeamId;
-  weapon: ProjectileSourceDefinition;
-  targetId: EntityId | null;
+interface RuntimeProjectile extends SnapshotProjectileState {
   isPrimaryAttack: boolean;
-  x: number; y: number; prevX: number; prevY: number;
-  vx: number; vy: number;
-  radius: number;
   remainingTicks: number;
-  totalTicks: number;
-  ageTicks: number;
-  fuseRemainingTicks: number;
   damageMultiplier: number;
   knockbackMultiplier: number;
   bounceRetention: number;
@@ -103,7 +92,6 @@ interface RuntimeProjectile {
   penetrationRemaining: number;
   hitTargetIds: EntityId[];
   homingStrength: number;
-  alive: boolean;
 }
 
 interface PendingProjectileLaunch {
@@ -179,6 +167,9 @@ export class LocalSimulationRunner implements SimulationRunner {
   private readonly battleResultSystem: BattleResultSystem;
   private readonly arenaZones: ArenaZoneSystem;
   private readonly arenaCollisions: ArenaCollisionSystem;
+  private readonly movementSystem: MovementSystem;
+  private readonly cooldownSystem: CooldownSystem;
+  private readonly snapshotSystem: SnapshotSystem;
   private readonly projectileCandidateIds: EntityId[] = [];
   // Reusable active-id buffers for loops that can kill entities mid-iteration.
   // Each call site owns a dedicated buffer so the reuse can never alias a
@@ -187,11 +178,6 @@ export class LocalSimulationRunner implements SimulationRunner {
   private readonly rules: ResolvedBattleRules;
   private trainingRules: ResolvedTrainingRules;
   private stepMetrics: SimulationMetricsSnapshot = createSimulationMetrics();
-  private snapshotCache: WorldSnapshot | null = null;
-  private readonly runtimeObstacleSnapshots: ArenaObstacleSnapshot[] = [];
-  private readonly runtimeProjectileSnapshots: ProjectileSnapshot[] = [];
-  private readonly runtimeObjectiveSnapshot: BattleObjectiveSnapshot = { kind: 'elimination', label: 'Last team standing', progress: 0, remainingTicks: null };
-  private readonly runtimeMetricsSnapshot: SimulationMetricsSnapshot = createSimulationMetrics();
   private maxEntityRadius = 0;
   private tickValue = 0;
   private battleEndedValue = false;
@@ -233,7 +219,7 @@ export class LocalSimulationRunner implements SimulationRunner {
     this.commandSystem = new CommandSystem({
       isAlive: (entityId) => this.world.isAlive(entityId),
       isChanneling: (entityId) => this.isSolarLaserChanneling(entityId),
-      applyMove: (entityId, direction, facing) => this.applyMove(entityId, direction, facing),
+      applyMove: (entityId, direction, facing) => this.movementSystem.applyMove(entityId, direction, facing),
       lockChannel: (entityId) => this.lockSolarLaserCaster(entityId),
       stop: (entityId) => {
         const impulse = this.externalImpulse.get(entityId);
@@ -274,6 +260,24 @@ export class LocalSimulationRunner implements SimulationRunner {
           this.dealDamage(sourceId, targetId, amount, element, events)
       }
     );
+    this.movementSystem = new MovementSystem(
+      this.world,
+      this.arenaZones,
+      this.activeCasts,
+      this.activeWeaponAttacks,
+      this.externalImpulse,
+      this.explicitFacingThisTick
+    );
+    this.cooldownSystem = new CooldownSystem(
+      this.world,
+      () => this.tickValue,
+      () => this.trainingRules.cooldownsEnabled
+    );
+    this.snapshotSystem = new SnapshotSystem(
+      this.world,
+      this.mode,
+      this.arenaCollisions
+    );
     this.spawnInitialParticipants();
     for (const id of this.world.activeIdsView()) this.maxEntityRadius = Math.max(this.maxEntityRadius, this.world.radius[id] ?? 0);
   }
@@ -305,8 +309,8 @@ export class LocalSimulationRunner implements SimulationRunner {
       suppressVictory: this.trainingRules.suppressVictory
     };
     this.trainingRules = resolveTrainingRules({ ...current, ...patch });
-    if (!this.trainingRules.cooldownsEnabled) this.world.clearAbilityCooldowns();
-    this.snapshotCache = null;
+    if (!this.trainingRules.cooldownsEnabled) this.cooldownSystem.clearAll();
+    this.snapshotSystem.invalidate();
   }
 
   /**
@@ -315,52 +319,38 @@ export class LocalSimulationRunner implements SimulationRunner {
    * Use getSnapshot() whenever immutable historical state is required.
    */
   getRuntimeSnapshot(): WorldSnapshot {
-    this.arenaCollisions.updateRuntimeSnapshots(this.runtimeObstacleSnapshots);
-    this.updateRuntimeProjectileSnapshots();
-    this.updateRuntimeObjectiveSnapshot();
-    this.copyRuntimeMetrics();
-    return this.world.runtimeSnapshot(
-      this.tickValue,
-      this.battle.seed,
-      this.arena.id,
-      this.mode.id,
-      this.battleEndedValue,
-      this.winningTeamValue,
-      this.resultValue,
-      this.activeCasts,
-      this.armedAbilities,
-      this.activeWeaponAttacks,
-      this.runtimeObstacleSnapshots,
-      this.runtimeProjectileSnapshots,
-      this.runtimeObjectiveSnapshot,
-      this.runtimeMetricsSnapshot
+    return this.snapshotSystem.getRuntimeSnapshot(
+      this.snapshotContext(),
+      this.projectiles
     );
   }
 
   getSnapshot(): WorldSnapshot {
-    if (this.snapshotCache) return this.snapshotCache;
-    this.snapshotCache = this.world.snapshot(
-      this.tickValue,
-      this.battle.seed,
-      this.arena.id,
-      this.mode.id,
-      this.battleEndedValue,
-      this.winningTeamValue,
-      this.resultValue,
-      this.activeCasts,
-      this.armedAbilities,
-      this.activeWeaponAttacks,
-      this.arenaCollisions.snapshots(),
-      this.projectileSnapshots(),
-      this.objectiveSnapshot(),
-      this.stepMetrics
+    return this.snapshotSystem.getSnapshot(
+      this.snapshotContext(),
+      this.projectiles
     );
-    return this.snapshotCache;
+  }
+
+  private snapshotContext(): SnapshotContext {
+    return {
+      tick: this.tickValue,
+      seed: this.battle.seed,
+      arenaId: this.arena.id,
+      modeId: this.mode.id,
+      battleEnded: this.battleEndedValue,
+      winningTeam: this.winningTeamValue,
+      result: this.resultValue,
+      activeCasts: this.activeCasts,
+      armedAbilities: this.armedAbilities,
+      activeWeaponAttacks: this.activeWeaponAttacks,
+      metrics: this.stepMetrics
+    };
   }
 
   step(commands: readonly SimulationCommand[]): SimulationEvent[] {
     if (this.battleEndedValue) return [];
-    this.snapshotCache = null;
+    this.snapshotSystem.invalidate();
     this.tickValue += 1;
     this.stepMetrics = createSimulationMetrics(this.world.activeCount());
     const events: SimulationEvent[] = [];
@@ -378,7 +368,7 @@ export class LocalSimulationRunner implements SimulationRunner {
     this.expireArmedAbilities();
     this.stepMetrics.commandsProcessed = this.commandSystem.process(commands, events);
     this.arenaZones.update(events);
-    this.integrateMotion();
+    this.movementSystem.integrate();
     this.rebuildSpatialIndex();
     this.updateProjectiles(events);
     this.arenaCollisions.resolveBounds(events);
@@ -442,70 +432,6 @@ export class LocalSimulationRunner implements SimulationRunner {
     const orbitRadius = Math.max(spawnRadius + 8, Math.min(this.arena.width, this.arena.height) * 0.32 - spawnRadius);
     const angle = (index / Math.max(count, 1)) * Math.PI * 2 - Math.PI / 2;
     return { x: centerX + Math.cos(angle) * orbitRadius, y: centerY + Math.sin(angle) * orbitRadius };
-  }
-
-  private applyMove(id: EntityId, direction: Vec2, facing?: Vec2): void {
-    if (facing) {
-      const facingLength = Math.hypot(facing.x, facing.y);
-      if (facingLength > 0.0001) {
-        this.world.rotation[id] = Math.atan2(facing.y, facing.x);
-        this.explicitFacingThisTick.add(id);
-      }
-    }
-    const length = Math.hypot(direction.x, direction.y);
-    if (length < 0.0001) return;
-    const speedMultiplier = this.world.getSpeedMultiplier(id);
-    const activeCast = this.activeCasts.get(id);
-    const castAbility = activeCast ? getAbility(activeCast.abilityId) : null;
-    const activePrimaryAttack = this.activeWeaponAttacks.get(id);
-    const primaryMovementMultiplier = activePrimaryAttack && !getPrimaryAttack(activePrimaryAttack.weaponId).movementAllowed ? 0 : 1;
-    const castMovementMultiplier = castAbility ? castAbility.castMovementMultiplier : 1;
-    const environment = this.arenaZones.modifiersFor(id);
-    const acceleration = (this.world.moveAcceleration[id] ?? 0) * speedMultiplier * castMovementMultiplier * primaryMovementMultiplier * environment.steering;
-    this.world.vx[id] = (this.world.vx[id] ?? 0) + (direction.x / length) * acceleration;
-    this.world.vy[id] = (this.world.vy[id] ?? 0) + (direction.y / length) * acceleration;
-  }
-
-  private integrateMotion(): void {
-    // Read-only over the active set (moves entities, never adds/removes them).
-    for (const id of this.world.activeIdsView()) {
-      const environment = this.arenaZones.modifiersFor(id);
-      const damping = environment.damping ?? (this.world.damping[id] ?? 1);
-      const impulse = this.externalImpulse.get(id) ?? { x: 0, y: 0, retention: 0.92, maxSpeed: 48, minWallBounces: 0, wallBounces: 0, trailStrength: 0 };
-      let locomotionX = ((this.world.vx[id] ?? 0) - impulse.x) * damping;
-      let locomotionY = ((this.world.vy[id] ?? 0) - impulse.y) * damping;
-      const locomotionSpeed = Math.hypot(locomotionX, locomotionY);
-      const maxSpeed = (this.world.maxSpeed[id] ?? 1) * this.world.getSpeedMultiplier(id) * environment.maxSpeed;
-      if (locomotionSpeed > maxSpeed) {
-        const scale = maxSpeed / locomotionSpeed;
-        locomotionX *= scale;
-        locomotionY *= scale;
-      }
-
-      // External impacts decay independently and are intentionally not clamped to
-      // walking speed. Ice preserves slides; water damps displacement faster.
-      const environmentalRetention = environment.damping !== null
-        ? environment.damping >= 0.999 ? 0.965 : 0.875
-        : 0.92;
-      const impulseRetention = Math.max(environmentalRetention, impulse.retention ?? 0.92);
-      const impulseX = impulse.x * impulseRetention;
-      const impulseY = impulse.y * impulseRetention;
-      if (Math.hypot(impulseX, impulseY) > 0.035) {
-        this.externalImpulse.set(id, { ...impulse, x: impulseX, y: impulseY });
-      } else this.externalImpulse.delete(id);
-
-      const vx = locomotionX + impulseX;
-      const vy = locomotionY + impulseY;
-      const speed = Math.hypot(vx, vy);
-      this.world.vx[id] = vx;
-      this.world.vy[id] = vy;
-      this.world.x[id] = (this.world.x[id] ?? 0) + vx;
-      this.world.y[id] = (this.world.y[id] ?? 0) + vy;
-      // Movement no longer overrides explicit look direction every tick. Controllers
-      // can face a target while orbiting or retreating. Velocity remains the
-      // fallback for replay/legacy commands that do not provide `facing`.
-      if (speed > 0.05 && !this.explicitFacingThisTick.has(id)) this.world.rotation[id] = Math.atan2(vy, vx);
-    }
   }
 
   private resolveEntityCollisions(events: SimulationEvent[]): void {
@@ -597,14 +523,11 @@ export class LocalSimulationRunner implements SimulationRunner {
     if (this.activeCasts.has(command.entityId) || this.activeWeaponAttacks.has(command.entityId)) return;
     const fighter = getFighter(this.world.getFighterId(command.entityId));
     const attack = getPrimaryAttack(fighter.primaryAttackId);
-    if (this.trainingRules.cooldownsEnabled && !this.world.isPrimaryAttackReady(command.entityId, attack.id, this.tickValue)) return;
+    if (!this.cooldownSystem.isPrimaryReady(command.entityId, attack.id)) return;
     const target = command.targetId !== undefined && this.world.isAlive(command.targetId) ? command.targetId : null;
     const direction = this.resolveAbilityDirection(command.entityId, target, command.direction);
     if (!this.primaryAttackIsValid(command.entityId, attack, target, direction)) return;
-    if (this.trainingRules.cooldownsEnabled) {
-      const cooldownMultiplier = this.world.getLoadout(command.entityId).primaryCooldownMultiplier;
-      this.world.setPrimaryAttackCooldown(command.entityId, attack.id, this.tickValue + Math.max(1, Math.round(attack.cooldownTicks * cooldownMultiplier)));
-    }
+    this.cooldownSystem.startPrimary(command.entityId, attack);
     const position = { x: this.world.x[command.entityId] ?? 0, y: this.world.y[command.entityId] ?? 0 };
     const windupTicks = Math.max(0, attack.windupTicks);
     this.activeWeaponAttacks.set(command.entityId, {
@@ -664,15 +587,14 @@ export class LocalSimulationRunner implements SimulationRunner {
     const abilityId = fighter.abilitySlots[command.slot];
     if (!abilityId) return;
     const ability = getAbility(abilityId);
-    if (this.trainingRules.cooldownsEnabled && !this.world.isAbilityReady(command.entityId, ability.id, this.tickValue)) return;
+    if (!this.cooldownSystem.isAbilityReady(command.entityId, ability.id)) return;
 
     const target = command.targetId !== undefined && this.world.isAlive(command.targetId) ? command.targetId : null;
     const direction = this.resolveAbilityDirection(command.entityId, target, command.direction);
     if (!this.activationIsValid(command.entityId, ability, target, direction)) return;
 
     const castTicks = ability.castTicks;
-    const cooldownTicks = ability.cooldownTicks;
-    if (this.trainingRules.cooldownsEnabled) this.world.setAbilityCooldown(command.entityId, ability.id, this.tickValue + cooldownTicks);
+    this.cooldownSystem.startAbility(command.entityId, ability);
     events.push({
       type: 'abilityActivated', tick: this.tickValue, entityId: command.entityId, abilityId: ability.id, slot: command.slot,
       position: { x: this.world.x[command.entityId] ?? 0, y: this.world.y[command.entityId] ?? 0 }, direction, castTicks
@@ -1513,135 +1435,6 @@ export class LocalSimulationRunner implements SimulationRunner {
     events.push({ type: 'blast', tick: this.tickValue, sourceId: projectile.sourceId, abilityId: projectile.weapon.id, kind: 'explosion', position: { x: projectile.x, y: projectile.y }, radius: definition.explosionRadius, force: blastForce, damage: blastDamage, element: this.primaryElement(projectile.sourceId) });
   }
 
-  private updateRuntimeProjectileSnapshots(): void {
-    let index = 0;
-    for (const projectile of this.projectiles) {
-      if (!projectile.alive) continue;
-      const definition = projectile.weapon.projectile!;
-      const progress = Math.max(0, Math.min(1, projectile.ageTicks / Math.max(1, projectile.totalTicks)));
-      const arcHeight = projectile.weapon.behavior === 'throwable'
-        ? Math.sin(Math.min(1, progress * 1.55) * Math.PI) * Math.max(18, definition.gravity * 720)
-        : 0;
-      const target = this.runtimeProjectileSnapshots[index] ?? {
-        id: 0,
-        sourceId: 0,
-        team: 0,
-        weaponId: '',
-        category: 'melee',
-        x: 0,
-        y: 0,
-        prevX: 0,
-        prevY: 0,
-        vx: 0,
-        vy: 0,
-        radius: 0,
-        alive: true,
-        fuseRemainingTicks: 0,
-        arcHeight: 0,
-        rotation: 0
-      };
-      target.id = projectile.id;
-      target.sourceId = projectile.sourceId;
-      target.team = projectile.team;
-      target.weaponId = projectile.weapon.id;
-      target.category = projectile.weapon.behavior;
-      target.x = projectile.x;
-      target.y = projectile.y;
-      target.prevX = projectile.prevX;
-      target.prevY = projectile.prevY;
-      target.vx = projectile.vx;
-      target.vy = projectile.vy;
-      target.radius = projectile.radius;
-      target.alive = true;
-      target.fuseRemainingTicks = projectile.fuseRemainingTicks;
-      target.arcHeight = arcHeight;
-      target.rotation = Math.atan2(projectile.vy, projectile.vx) + projectile.ageTicks * (projectile.weapon.behavior === 'throwable' ? 0.18 : 0);
-      if (projectile.targetId !== null) target.targetId = projectile.targetId;
-      else delete target.targetId;
-      if (definition.trailStyle) target.trailStyle = definition.trailStyle;
-      else delete target.trailStyle;
-      this.runtimeProjectileSnapshots[index] = target;
-      index += 1;
-    }
-    this.runtimeProjectileSnapshots.length = index;
-  }
-
-
-  private updateRuntimeObjectiveSnapshot(): void {
-    const target = this.runtimeObjectiveSnapshot;
-    if (this.mode.victory === 'DEFEAT_BOSS') {
-      const bossTeam = this.mode.bossTeam ?? 2;
-      let bossMax = 0;
-      let bossHp = 0;
-      for (const id of this.world.activeIdsView()) {
-        if (this.world.getTeam(id) !== bossTeam) continue;
-        bossMax += this.world.maxHp[id] ?? 0;
-        bossHp += this.world.hp[id] ?? 0;
-      }
-      target.kind = 'boss';
-      target.label = 'Destroy the boss';
-      target.progress = bossMax > 0 ? 1 - bossHp / bossMax : 1;
-      target.remainingTicks = null;
-      return;
-    }
-    if (this.mode.victory === 'SURVIVE_TICKS') {
-      const duration = this.mode.durationTicks ?? 2700;
-      target.kind = 'survival';
-      target.label = 'Survive the foundry';
-      target.progress = Math.min(1, this.tickValue / duration);
-      target.remainingTicks = Math.max(0, duration - this.tickValue);
-      return;
-    }
-    target.kind = 'elimination';
-    target.label = 'Last team standing';
-    target.progress = 0;
-    target.remainingTicks = null;
-  }
-
-  private copyRuntimeMetrics(): void {
-    const target = this.runtimeMetricsSnapshot;
-    target.activeEntities = this.world.activeCount();
-    target.commandsProcessed = this.stepMetrics.commandsProcessed;
-    target.candidatePairs = this.stepMetrics.candidatePairs;
-    target.contactsResolved = this.stepMetrics.contactsResolved;
-    target.sameTeamContacts = this.stepMetrics.sameTeamContacts;
-    target.occupiedBroadphaseCells = this.stepMetrics.occupiedBroadphaseCells;
-    target.maxBroadphaseBucket = this.stepMetrics.maxBroadphaseBucket;
-    target.projectileEntityChecks = this.stepMetrics.projectileEntityChecks;
-    target.projectileObstacleChecks = this.stepMetrics.projectileObstacleChecks;
-    target.invalidNumericStates = this.stepMetrics.invalidNumericStates;
-  }
-
-  private projectileSnapshots(): ProjectileSnapshot[] {
-    return this.projectiles.filter((projectile) => projectile.alive).map((projectile) => {
-      const definition = projectile.weapon.projectile!;
-      const progress = Math.max(0, Math.min(1, projectile.ageTicks / Math.max(1, projectile.totalTicks)));
-      const arcHeight = projectile.weapon.behavior === 'throwable'
-        ? Math.sin(Math.min(1, progress * 1.55) * Math.PI) * Math.max(18, definition.gravity * 720)
-        : 0;
-      return {
-        id: projectile.id,
-        sourceId: projectile.sourceId,
-        team: projectile.team,
-        weaponId: projectile.weapon.id,
-        category: projectile.weapon.behavior,
-        x: projectile.x,
-        y: projectile.y,
-        prevX: projectile.prevX,
-        prevY: projectile.prevY,
-        vx: projectile.vx,
-        vy: projectile.vy,
-        radius: projectile.radius,
-        alive: projectile.alive,
-        fuseRemainingTicks: projectile.fuseRemainingTicks,
-        arcHeight,
-        rotation: Math.atan2(projectile.vy, projectile.vx) + projectile.ageTicks * (projectile.weapon.behavior === 'throwable' ? 0.18 : 0),
-        ...(projectile.targetId !== null ? { targetId: projectile.targetId } : {}),
-        ...(definition.trailStyle ? { trailStyle: definition.trailStyle } : {})
-      };
-    });
-  }
-
   private steerHomingProjectile(projectile: RuntimeProjectile): void {
     const definition = projectile.weapon.projectile;
     if (!definition || projectile.homingStrength <= 0 || projectile.ageTicks < (definition.homingDelayTicks ?? 0)) return;
@@ -1937,21 +1730,6 @@ export class LocalSimulationRunner implements SimulationRunner {
     return { x: vx / length, y: vy / length };
   }
 
-
-  private objectiveSnapshot(): BattleObjectiveSnapshot {
-    if (this.mode.victory === 'DEFEAT_BOSS') {
-      const bossTeam = this.mode.bossTeam ?? 2;
-      const bossEntities = this.world.activeIds().filter((id) => this.world.getTeam(id) === bossTeam);
-      const bossMax = bossEntities.reduce((sum, id) => sum + (this.world.maxHp[id] ?? 0), 0);
-      const bossHp = bossEntities.reduce((sum, id) => sum + (this.world.hp[id] ?? 0), 0);
-      return { kind: 'boss', label: 'Destroy the boss', progress: bossMax > 0 ? 1 - bossHp / bossMax : 1, remainingTicks: null };
-    }
-    if (this.mode.victory === 'SURVIVE_TICKS') {
-      const duration = this.mode.durationTicks ?? 2700;
-      return { kind: 'survival', label: 'Survive the foundry', progress: Math.min(1, this.tickValue / duration), remainingTicks: Math.max(0, duration - this.tickValue) };
-    }
-    return { kind: 'elimination', label: 'Last team standing', progress: 0, remainingTicks: null };
-  }
 
   private recoverInvalidNumericState(): void {
     for (const id of this.world.activeIdsView()) {
