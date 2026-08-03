@@ -5,4 +5,4 @@ export { ATTACK_FORM_BEHAVIORS, isAttackCombinationAllowed } from './validation/
 export * from './registries/contentRegistry';
 export * from './profiles/activationProfiles';
 
-export const CONTENT_VERSION = '1.3.1-stage8.4a';
+export const CONTENT_VERSION = '1.3.2-stage8.4a1';

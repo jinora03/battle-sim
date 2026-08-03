@@ -111,8 +111,97 @@ export function drawMountedAttachments(
       case 'ember-satellite':
         drawEmberSatellite(graphics, attachment, pose, context);
         break;
+      case 'flamethrower':
+        drawFlamethrowerRig(graphics, attachment, pose, context);
+        break;
     }
   }
+}
+
+function drawFlamethrowerRig(
+  graphics: Graphics,
+  attachment: MountedAttachmentDefinition,
+  pose: MountedAttachmentPose,
+  context: MountedAttachmentRenderContext
+): void {
+  const size = Math.max(8, context.radius * 0.42 * pose.scale);
+  const glow = attachment.glowColor ?? attachment.accentColor;
+  const outlineColor = attachment.outlineColor ?? DEFAULT_OUTLINE_COLOR;
+  const outlineWidth = resolveMountedAttachmentOutlineWidth(attachment, context, pose.scale);
+
+  if (attachment.mountPoint === 'rear') {
+    const hoseStart = transformPoint(pose, size * 0.35, 0);
+    graphics.moveTo(0, 0).lineTo(hoseStart.x, hoseStart.y)
+      .stroke({ color: outlineColor, width: Math.max(2.2, outlineWidth * 0.72), alpha: 0.9 });
+    graphics.moveTo(0, 0).lineTo(hoseStart.x, hoseStart.y)
+      .stroke({ color: 0x24120f, width: Math.max(1.3, outlineWidth * 0.38), alpha: 1 });
+    drawRotatedRect(
+      graphics,
+      pose,
+      0,
+      0,
+      size * 0.92,
+      size * 1.42,
+      { color: attachment.primaryColor, alpha: 1 },
+      { color: outlineColor, alpha: 0.98, width: outlineWidth }
+    );
+    drawRotatedRect(
+      graphics,
+      pose,
+      0,
+      0,
+      size * 0.68,
+      size * 1.14,
+      { color: attachment.accentColor, alpha: 0.9 }
+    );
+    const cap = transformPoint(pose, size * 0.02, -size * 0.82);
+    graphics.circle(cap.x, cap.y, size * 0.18).fill({ color: glow, alpha: 0.95 });
+    graphics.circle(cap.x, cap.y, size * 0.18)
+      .stroke({ color: outlineColor, width: Math.max(1.2, outlineWidth * 0.42), alpha: 0.92 });
+    return;
+  }
+
+  const bracket = transformPoint(pose, -size * 0.58, 0);
+  graphics.moveTo(0, 0).lineTo(bracket.x, bracket.y)
+    .stroke({ color: outlineColor, width: Math.max(3.2, outlineWidth * 1.2), alpha: 0.94 });
+  graphics.moveTo(0, 0).lineTo(bracket.x, bracket.y)
+    .stroke({ color: attachment.primaryColor, width: Math.max(2.1, outlineWidth * 0.64), alpha: 1 });
+
+  drawRotatedRect(
+    graphics,
+    pose,
+    0,
+    0,
+    size * 1.5,
+    size * 0.62,
+    { color: attachment.primaryColor, alpha: 1 },
+    { color: outlineColor, alpha: 0.98, width: outlineWidth }
+  );
+  drawRotatedRect(
+    graphics,
+    pose,
+    size * 0.2,
+    0,
+    size * 0.86,
+    size * 0.38,
+    { color: attachment.accentColor, alpha: 0.94 }
+  );
+  const nozzle = transformPoint(pose, size * 0.86, 0);
+  graphics.circle(nozzle.x, nozzle.y, size * 0.25).fill({ color: 0x101014, alpha: 1 });
+  graphics.circle(nozzle.x, nozzle.y, size * 0.25)
+    .stroke({ color: outlineColor, width: Math.max(1.4, outlineWidth * 0.48), alpha: 0.96 });
+  graphics.circle(nozzle.x, nozzle.y, size * 0.14).fill({ color: glow, alpha: 0.94 });
+
+  const pilot = context.reducedMotion ? 0.68 : 0.72 + Math.sin(context.elapsedSeconds * 15 + context.entityId) * 0.18;
+  const baseTop = transformPoint(pose, size * 1.02, -size * 0.16);
+  const tip = transformPoint(pose, size * (1.38 + pilot * 0.18), 0);
+  const baseBottom = transformPoint(pose, size * 1.02, size * 0.16);
+  drawPolygon(
+    graphics,
+    [baseTop, tip, baseBottom],
+    { color: glow, alpha: 0.42 + pilot * 0.24 },
+    { color: outlineColor, alpha: 0.22, width: Math.max(1, outlineWidth * 0.22) }
+  );
 }
 
 function drawEmberSatellite(

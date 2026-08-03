@@ -58,6 +58,56 @@ export const PYRO_MODULES: readonly FighterModuleDefinition[] = [
     }
   },
   {
+    id: 'furnace-nozzle',
+    name: 'Furnace Nozzle',
+    description: 'Converts Flame Jet into a sustained cone flamethrower. Pyro keeps 72% movement while channeling and applies Burn at a controlled cadence.',
+    slot: 'offense',
+    compatibleFighterIds: ['pyro-brawler'],
+    attachments: [
+      {
+        id: 'pyro-furnace-nozzle',
+        kind: 'flamethrower',
+        mountPoint: 'front',
+        rotationMode: 'body',
+        forward: 1.18,
+        scale: 1.08,
+        primaryColor: 0x35130e,
+        accentColor: 0xff6a24,
+        glowColor: 0xffe16f,
+        outlineColor: 0xfffbef,
+        outlineWidthScale: 0.07,
+        hideInMassBattle: true
+      },
+      {
+        id: 'pyro-furnace-tank',
+        kind: 'flamethrower',
+        mountPoint: 'rear',
+        rotationMode: 'body',
+        forward: -1.02,
+        lateral: 0.64,
+        scale: 0.94,
+        primaryColor: 0x2b1512,
+        accentColor: 0xd84a1e,
+        glowColor: 0xffb83e,
+        outlineColor: 0xfffbef,
+        outlineWidthScale: 0.07,
+        hideInMassBattle: true
+      }
+    ],
+    modifiers: {
+      primaryConeChannel: {
+        activeTicks: 72,
+        hitIntervalTicks: 6,
+        statusIntervalHits: 3,
+        rangeMultiplier: 0.95,
+        angleDegrees: 36,
+        damageMultiplier: 0.68,
+        knockbackMultiplier: 0.22,
+        movementMultiplier: 0.72
+      }
+    }
+  },
+  {
     id: 'thermal-shield',
     name: 'Thermal Shield',
     description: 'At 60% Heat or higher, incoming damage is reduced by 16%.',

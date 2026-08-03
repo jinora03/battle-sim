@@ -233,6 +233,7 @@ export class BattleAudioEngine {
   }
 
   private playWeaponHit(event: WeaponHitEvent): void {
+    if (event.presentation === 'continuous') return;
     const heavy = event.weaponId === 'hydraulic-gauntlet' || event.weaponId === 'war-hammer';
     const sharp = event.weaponId === 'flame-fists' || event.weaponId === 'frost-halberd' || event.weaponId === 'void-scythe' || event.weaponId === 'duelist-sword' || event.weaponId === 'lancer-spear';
     if (heavy) {

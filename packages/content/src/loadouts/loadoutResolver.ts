@@ -42,6 +42,7 @@ export function resolveFighterLoadout(fighter: FighterDefinition, requested?: Fi
   let primaryProjectileBounce = 0;
   let primaryProjectileMaxWallBounces = 0;
   let primaryProjectilePenetration = 0;
+  let primaryConeChannel: ResolvedFighterLoadout['primaryConeChannel'] = null;
   let skillProjectileHomingMultiplier = 1;
   let skillProjectileDamageMultiplier = 1;
   let incomingDamageMultiplier = 1;
@@ -57,6 +58,10 @@ export function resolveFighterLoadout(fighter: FighterDefinition, requested?: Fi
     primaryProjectileBounce = Math.max(primaryProjectileBounce, modifier.primaryProjectileBounce ?? 0);
     primaryProjectileMaxWallBounces += modifier.primaryProjectileMaxWallBounces ?? 0;
     primaryProjectilePenetration += modifier.primaryProjectilePenetration ?? 0;
+    if (modifier.primaryConeChannel) {
+      if (primaryConeChannel) throw new Error(`${fighter.name} cannot equip multiple primary cone-channel modules`);
+      primaryConeChannel = { ...modifier.primaryConeChannel };
+    }
     skillProjectileHomingMultiplier *= modifier.skillProjectileHomingMultiplier ?? 1;
     skillProjectileDamageMultiplier *= modifier.skillProjectileDamageMultiplier ?? 1;
     incomingDamageMultiplier *= modifier.incomingDamageMultiplier ?? 1;
@@ -92,6 +97,7 @@ export function resolveFighterLoadout(fighter: FighterDefinition, requested?: Fi
     primaryProjectileBounce,
     primaryProjectileMaxWallBounces,
     primaryProjectilePenetration,
+    primaryConeChannel,
     statusDurationMultiplier,
     statusStacksAppliedBonus,
     skillProjectileHomingMultiplier,

@@ -75,6 +75,8 @@ For normal melee, do not use continuous idle rotation. Melee should remain stabl
 
 Projectile recipes support speed, radius, lifetime, fuse, bounce, visual throw arc, direct-hit behavior, burst count/interval/spread and optional explosion data. Set `maxWallBounces` when a native ricochet should expire after a fixed number of wall or obstacle reflections; omitting it preserves lifetime-limited unlimited bounce. The top-down path remains deterministic; throw height is visual only.
 
+A fighter module may provide `primaryConeChannel` to convert the equipped primary from projectile spawning into a pulsed deterministic cone. Author active duration, pulse interval, status cadence, range/angle and per-pulse damage/knockback explicitly. This conversion should be used for sustained streams such as flamethrowers; do not simulate the effect by spawning a projectile every tick. The primary attack ID stays unchanged for replay/content compatibility.
+
 ### Authoring mass-changing statuses
 
 Use `massMultiplier` for one fixed modifier and `massMultiplierPerStack` when every stack should compound the target's effective mass. Collision response and knockback already read effective mass, so do not add fighter-specific launch formulas. `massPresentation: "light" | "heavy"` opts the status into the generic renderer indicator. Keep stack counts small and test the resolved multiplier explicitly.

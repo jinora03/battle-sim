@@ -38,8 +38,8 @@ export function shouldPresentDamage(event: Pick<DamageEvent, 'amount' | 'prevent
   return event.amount > 0;
 }
 
-export function resolveWeaponHitFreezeMs(event: Pick<WeaponHitEvent, 'weaponId' | 'damage'>): number {
-  if (isMissileWeapon(event.weaponId)) return 0;
+export function resolveWeaponHitFreezeMs(event: Pick<WeaponHitEvent, 'weaponId' | 'damage' | 'presentation'>): number {
+  if (event.presentation === 'continuous' || isMissileWeapon(event.weaponId)) return 0;
   return Math.min(42, 6 + event.damage * 1.1);
 }
 

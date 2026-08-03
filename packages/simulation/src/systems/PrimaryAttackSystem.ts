@@ -1,7 +1,9 @@
 import {
   getFighter,
   getPrimaryAttack,
-  type PrimaryAttackDefinition
+  type PrimaryAttackDefinition,
+  type PrimaryConeChannelDefinition,
+  type ResolvedFighterLoadout
 } from '@kinetic/content';
 import type {
   ActivatePrimaryAttackCommand,
@@ -32,6 +34,7 @@ export interface PrimaryAttackSystemContext {
 /** Owns primary-attack activation, phase progression and melee hit resolution. */
 export class PrimaryAttackSystem {
   private readonly meleeIdScratch: EntityId[] = [];
+  private readonly coneIdScratch: EntityId[] = [];
 
   constructor(
     private readonly world: World,
@@ -61,7 +64,8 @@ export class PrimaryAttackSystem {
       y: this.world.y[command.entityId] ?? 0
     };
     const windupTicks = Math.max(0, attack.windupTicks);
-    const activeTicks = this.activeTicks(attack);
+    const loadout = this.world.getLoadout(command.entityId);
+    const activeTicks = this.activeTicks(attack, loadout);
     this.activeWeaponAttacks.set(command.entityId, {
       weaponId: attack.id,
       category: attack.behavior,
@@ -100,12 +104,30 @@ export class PrimaryAttackSystem {
         state.remainingTicks -= 1;
         if (state.remainingTicks > 0) continue;
         state.phase = 'active';
-        state.remainingTicks = this.activeTicks(weapon);
+        state.remainingTicks = this.activeTicks(weapon, this.world.getLoadout(source));
         state.totalTicks = state.remainingTicks;
         continue;
       }
       if (state.phase === 'active') {
-        if (weapon.behavior === 'ranged' || weapon.behavior === 'automatic' || weapon.behavior === 'beam') {
+        const loadout = this.world.getLoadout(source);
+        const coneChannel = loadout.primaryConeChannel;
+        if (coneChannel) {
+          this.refreshConeChannelDirection(source, state);
+          const elapsed = state.totalTicks - state.remainingTicks;
+          if (elapsed % coneChannel.hitIntervalTicks === 0) {
+            this.resolveConeChannel(
+              source,
+              weapon,
+              state.direction,
+              coneChannel,
+              loadout,
+              state.shotsFired % coneChannel.statusIntervalHits === 0,
+              events
+            );
+            state.shotsFired += 1;
+          }
+          state.executed = true;
+        } else if (weapon.behavior === 'ranged' || weapon.behavior === 'automatic' || weapon.behavior === 'beam') {
           const burstCount = Math.max(1, weapon.burstCount ?? 1);
           const interval = Math.max(1, weapon.burstIntervalTicks ?? 1);
           const elapsed = state.totalTicks - state.remainingTicks;
@@ -199,7 +221,8 @@ export class PrimaryAttackSystem {
     return true;
   }
 
-  private activeTicks(attack: PrimaryAttackDefinition): number {
+  private activeTicks(attack: PrimaryAttackDefinition, loadout: ResolvedFighterLoadout): number {
+    if (loadout.primaryConeChannel) return loadout.primaryConeChannel.activeTicks;
     const burstTicks = attack.behavior === 'ranged'
       || attack.behavior === 'automatic'
       || attack.behavior === 'beam'
@@ -209,6 +232,93 @@ export class PrimaryAttackSystem {
         )
       : 1;
     return Math.max(1, attack.activeTicks, burstTicks);
+  }
+
+  private refreshConeChannelDirection(source: EntityId, state: ActiveWeaponAttackState): void {
+    if (state.targetId === null || !this.world.isAlive(state.targetId)) return;
+    const dx = (this.world.x[state.targetId] ?? 0) - (this.world.x[source] ?? 0);
+    const dy = (this.world.y[state.targetId] ?? 0) - (this.world.y[source] ?? 0);
+    const length = Math.hypot(dx, dy);
+    if (length <= 0.001) return;
+    state.direction.x = dx / length;
+    state.direction.y = dy / length;
+  }
+
+  private resolveConeChannel(
+    source: EntityId,
+    weapon: PrimaryAttackDefinition,
+    direction: Vec2,
+    channel: PrimaryConeChannelDefinition,
+    loadout: ResolvedFighterLoadout,
+    applyStatuses: boolean,
+    events: SimulationEvent[]
+  ): void {
+    const sx = this.world.x[source] ?? 0;
+    const sy = this.world.y[source] ?? 0;
+    const sourceTeam = this.world.getTeam(source);
+    const directionLength = Math.hypot(direction.x, direction.y) || 1;
+    const nx = direction.x / directionLength;
+    const ny = direction.y / directionLength;
+    const halfArc = channel.angleDegrees * Math.PI / 360;
+    const maximumRange = weapon.range * channel.rangeMultiplier;
+    const damage = weapon.damage * loadout.primaryDamageMultiplier * channel.damageMultiplier;
+    const knockback = weapon.knockback * loadout.primaryKnockbackMultiplier * channel.knockbackMultiplier;
+    const candidates = this.world.copyActiveIdsInto(this.coneIdScratch);
+
+    for (const target of candidates) {
+      if (target === source || !this.world.isAlive(target)) continue;
+      if (!weapon.friendlyFire && this.world.getTeam(target) === sourceTeam) continue;
+      const dx = (this.world.x[target] ?? 0) - sx;
+      const dy = (this.world.y[target] ?? 0) - sy;
+      const distance = Math.hypot(dx, dy);
+      if (distance < weapon.minRange || distance > maximumRange + (this.world.radius[target] ?? 0)) continue;
+      const dot = distance > 0 ? (dx / distance) * nx + (dy / distance) * ny : 1;
+      const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
+      if (angle > halfArc || !this.abilities.hasLineOfSight(source, target)) continue;
+
+      this.damage.dealDamage(source, target, damage, this.primaryElement(source), events);
+      if (this.world.isAlive(target)) {
+        if (knockback > 0) this.knockback.applyKnockback(source, target, knockback, events, 'weapon');
+        if (applyStatuses) {
+          for (const status of weapon.onHitStatuses ?? []) {
+            this.context.applyStatus(
+              source,
+              target,
+              status.statusId,
+              status.durationTicks,
+              events,
+              status.stacks ?? 1
+            );
+          }
+        }
+      }
+      events.push({
+        type: 'weaponHit',
+        tick: this.context.getTick(),
+        sourceId: source,
+        targetId: target,
+        weaponId: weapon.id,
+        position: {
+          x: this.world.x[target] ?? 0,
+          y: this.world.y[target] ?? 0
+        },
+        damage,
+        knockback,
+        presentation: 'continuous'
+      });
+      this.abilities.triggerPassives(
+        source,
+        'ON_PRIMARY_HIT',
+        {
+          self: source,
+          target,
+          impact: knockback,
+          normal: direction,
+          abilityId: weapon.id
+        },
+        events
+      );
+    }
   }
 
   private resolveMelee(

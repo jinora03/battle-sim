@@ -317,6 +317,23 @@ export class AiController implements ControllerSource {
       y = toward.y * radial + perpendicular.y * Math.max(0.08, profile.orbitStrength);
     }
 
+    // Stream primaries need a readable firing lane. While the attack is
+    // committed, hold radial distance and strafe instead of continuing to body-
+    // check the target. This is content-generic and currently benefits Flame Jet.
+    const streamCommitted = attack?.style === 'stream'
+      && entity.weaponAttack !== null
+      && (entity.weaponAttack.phase === 'windup' || entity.weaponAttack.phase === 'active');
+    if (!retreat && streamCommitted) {
+      const radial = distance < preferredDistance * 0.82
+        ? -0.72
+        : distance > preferredDistance * 1.18
+          ? 0.34
+          : 0;
+      const strafe = Math.max(0.3, profile.orbitStrength);
+      x = toward.x * radial + perpendicular.x * strafe;
+      y = toward.y * radial + perpendicular.y * strafe;
+    }
+
     if (!ranged && distance < preferredDistance * 1.75) {
       const slotAngle = (entity.id * 2.399963229728653 + target.id * 0.73) % (Math.PI * 2);
       const slotRadius = Math.max(55, preferredDistance * (0.86 + Math.min(4, targetEngagements) * 0.035));

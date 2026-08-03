@@ -1,0 +1,61 @@
+{
+  "id": "pyro-combo-bruiser",
+  "reactionTicks": 6,
+  "aggression": 0.88,
+  "preferredDistance": 230,
+  "retreatHealthRatio": 0.12,
+  "steeringStrength": 1.0,
+  "movementStyle": "orbit",
+  "orbitStrength": 0.34,
+  "wallAvoidance": 0.9,
+  "targeting": "lowest-health",
+  "allySeparation": 0.72,
+  "targetSpread": 0.7,
+  "targetStickiness": 0.82,
+  "abilityUsage": [
+    {
+      "slot": "skill1",
+      "everyTicks": 165,
+      "phaseTicks": 38,
+      "minDistance": 240,
+      "maxDistance": 520,
+      "priority": 5,
+      "maximumTargetStatusStacks": 4,
+      "targetStatusId": "burn"
+    },
+    {
+      "slot": "skill2",
+      "everyTicks": 245,
+      "phaseTicks": 82,
+      "minDistance": 0,
+      "maxDistance": 440,
+      "priority": 8,
+      "minimumTargets": 1
+    },
+    {
+      "slot": "skill3",
+      "everyTicks": 320,
+      "phaseTicks": 135,
+      "minDistance": 0,
+      "maxDistance": 280,
+      "priority": 18,
+      "targetStatusId": "burn",
+      "minimumTargetStatusStacks": 2,
+      "priorityPerTargetStatusStack": 8,
+      "selfResourceId": "heat",
+      "minimumSelfResource": 20
+    },
+    {
+      "slot": "ultimate",
+      "everyTicks": 660,
+      "phaseTicks": 210,
+      "minDistance": 0,
+      "maxDistance": 285,
+      "priority": 16,
+      "minimumTargets": 1,
+      "selfResourceId": "heat",
+      "minimumSelfResource": 35,
+      "priorityPerSelfResource": 0.12
+    }
+  ]
+}

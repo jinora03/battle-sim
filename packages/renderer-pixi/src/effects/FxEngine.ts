@@ -248,10 +248,16 @@ export class FxEngine {
         // Tactical/Suppressive/Pinning/Kill Zone hit and stops the RAF loop.
         const attack = getAttackSource(event.weaponId);
         const color = primaryAttackColor(attack);
-        const count = Math.round(Math.min(24, 8 + event.damage * 0.55) * particleScale);
-        this.shardBurst(event.position.x, event.position.y, color, count, 6 + event.knockback * 0.35);
-        this.flash(event.position.x, event.position.y, color, Math.min(28, 12 + event.damage * 0.45), 0.1);
-        shake = Math.max(shake, Math.min(8, event.damage * 0.22 + event.knockback * 0.25));
+        if (event.presentation === 'continuous') {
+          const count = Math.round(Math.min(5, 2 + event.damage * 0.25) * particleScale);
+          this.shardBurst(event.position.x, event.position.y, color, count, 2.8 + event.knockback * 0.2);
+          this.flash(event.position.x, event.position.y, color, Math.min(15, 7 + event.damage * 0.3), 0.045);
+        } else {
+          const count = Math.round(Math.min(24, 8 + event.damage * 0.55) * particleScale);
+          this.shardBurst(event.position.x, event.position.y, color, count, 6 + event.knockback * 0.35);
+          this.flash(event.position.x, event.position.y, color, Math.min(28, 12 + event.damage * 0.45), 0.1);
+          shake = Math.max(shake, Math.min(8, event.damage * 0.22 + event.knockback * 0.25));
+        }
         freezeMs = Math.max(freezeMs, resolveWeaponHitFreezeMs(event));
       } else if (event.type === 'projectileSpawned') {
         const attack = getProjectileSource(event.weaponId);

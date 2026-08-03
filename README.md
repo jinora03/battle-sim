@@ -1,10 +1,21 @@
-# Kinetic Battle Engine — v1.3.1 Stage 8.4A
+# Kinetic Battle Engine — v1.3.2 Stage 8.4A.1
 
 A browser/mobile-ready 2D physics battle game and modular fighter engine built with TypeScript, PixiJS, React, Vite and Capacitor.
 
-> **Stage 8.4A establishes deterministic mass-manipulation primitives for Ballast and future physics-driven fighters.** Stack-scaled mass statuses now feed the existing collision and knockback model, native projectiles can use a finite ricochet budget, and light/heavy status presentation is data-driven.
+> **Stage 8.4A.1 improves Pyro's combat readability and adds the optional Furnace Nozzle flamethrower module.** Pyro now holds a close-range orbiting firing lane instead of behaving like a melee charger, and the module converts Flame Jet into a deterministic sustained cone without per-tick projectile spam.
 
-## Stage 8.4A highlights
+## Stage 8.4A.1 highlights
+
+- dedicated `pyro-combo-bruiser` orbit profile
+- readable stream-primary firing commitment and stronger close-range separation
+- Cinder Rush reserved for meaningful approach distances
+- optional `furnace-nozzle` offense module with forward nozzle and rear tank
+- deterministic 72-tick cone channel with controlled Burn cadence
+- no change to unmodified Flame Jet, Heat/Burn values or Pyro's four skills
+
+See `docs/V1_3_STAGE_8_4A1_PYRO_READABILITY_AND_FURNACE_NOZZLE.md` for implementation and validation notes.
+
+## Stage 8.4A mass-manipulation foundation
 
 - generic per-stack mass multipliers without changing existing status behavior
 - registered `featherlight` and `anchored` status definitions
