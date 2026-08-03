@@ -150,7 +150,7 @@ export class ProjectileSystem {
         ? definition.bounce
         : loadout.primaryProjectileBounce,
       maxWallBounces: nativeBounce
-        ? Number.POSITIVE_INFINITY
+        ? definition.maxWallBounces ?? Number.POSITIVE_INFINITY
         : loadout.primaryProjectileMaxWallBounces,
       wallBounces: 0,
       penetrationRemaining: isPrimaryAttack

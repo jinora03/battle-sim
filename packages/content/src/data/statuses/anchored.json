@@ -1,0 +1,8 @@
+{
+  "id": "anchored",
+  "speedMultiplier": 0.72,
+  "massMultiplier": 3.2,
+  "massPresentation": "heavy",
+  "maxStacks": 1,
+  "refreshMode": "refresh"
+}

@@ -1,4 +1,5 @@
 import { Graphics } from 'pixi.js';
+import { getStatus, resolveStatusMassMultiplier } from '@kinetic/content';
 import type { EntitySnapshot } from '@kinetic/protocol';
 import type { VisualLod } from './types';
 
@@ -24,6 +25,19 @@ export class FighterStatusIndicators {
 
     const targetLock = entity.statuses.find((status) => status.statusId === 'target-lock');
     if (targetLock) this.drawTargetLock(entity, targetLock.stacks, elapsedSeconds, reducedMotion, lod);
+
+    for (const status of entity.statuses) {
+      const definition = getStatus(status.statusId);
+      if (definition.massPresentation === 'light') {
+        this.drawLightMass(entity, status.stacks, elapsedSeconds, reducedMotion, lod);
+        break;
+      }
+      if (definition.massPresentation === 'heavy') {
+        const multiplier = resolveStatusMassMultiplier(definition, status.stacks);
+        this.drawHeavyMass(entity, multiplier, elapsedSeconds, reducedMotion, lod);
+        break;
+      }
+    }
   }
 
   reset(): void {
@@ -102,6 +116,58 @@ export class FighterStatusIndicators {
       this.graphics.moveTo(Math.cos(angle) * start, Math.sin(angle) * start)
         .lineTo(Math.cos(angle) * end, Math.sin(angle) * end)
         .stroke({ color: index % 2 ? 0xff7a2e : 0xfff2a0, width: lod === 'army' ? 1.5 : 2.5, alpha: 0.48 + pulse * 0.26 });
+    }
+  }
+
+  private drawLightMass(
+    entity: EntitySnapshot,
+    rawStacks: number,
+    elapsedSeconds: number,
+    reducedMotion: boolean,
+    lod: VisualLod
+  ): void {
+    const stacks = Math.max(1, Math.min(3, rawStacks));
+    const r = entity.radius;
+    const lift = reducedMotion ? 0 : Math.sin(elapsedSeconds * 4.2 + entity.id * 0.53) * r * 0.05;
+    const orbitRadius = r * (1.22 + stacks * 0.08);
+    const alpha = 0.36 + stacks * 0.12;
+    this.graphics.circle(0, lift, orbitRadius).stroke({
+      color: 0xc9f8ff,
+      width: lod === 'army' ? 1.4 : 2.4,
+      alpha
+    });
+    const markerCount = lod === 'army' ? Math.min(2, stacks) : stacks + 1;
+    for (let index = 0; index < markerCount; index += 1) {
+      const phase = index / markerCount * Math.PI * 2 + (reducedMotion ? 0 : elapsedSeconds * 1.7);
+      const x = Math.cos(phase) * orbitRadius;
+      const y = Math.sin(phase) * orbitRadius + lift;
+      this.graphics.circle(x, y, Math.max(1.8, r * 0.045)).fill({ color: 0xe9fdff, alpha: 0.68 });
+    }
+  }
+
+  private drawHeavyMass(
+    entity: EntitySnapshot,
+    massMultiplier: number,
+    elapsedSeconds: number,
+    reducedMotion: boolean,
+    lod: VisualLod
+  ): void {
+    const r = entity.radius;
+    const pulse = reducedMotion ? 0.84 : 0.8 + Math.sin(elapsedSeconds * 3.6 + entity.id) * 0.08;
+    const radius = r * (1.08 + Math.min(0.16, (massMultiplier - 1) * 0.035));
+    this.graphics.circle(0, 0, radius * 1.12).fill({ color: 0x111922, alpha: 0.12 + pulse * 0.06 });
+    this.graphics.circle(0, 0, radius).stroke({
+      color: 0xe7eff7,
+      width: lod === 'army' ? 2 : 3.4,
+      alpha: 0.4 + pulse * 0.28
+    });
+    for (let index = 0; index < 4; index += 1) {
+      const angle = Math.PI / 4 + index * Math.PI / 2;
+      const inner = r * 0.84;
+      const outer = radius * 1.06;
+      this.graphics.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner)
+        .lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer)
+        .stroke({ color: 0x8ba0b5, width: lod === 'army' ? 1.5 : 2.4, alpha: 0.56 });
     }
   }
 

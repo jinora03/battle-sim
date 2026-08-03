@@ -18,6 +18,8 @@ import voidMarkRaw from '../data/statuses/void-mark.json';
 import targetLockRaw from '../data/statuses/target-lock.json';
 import suppressedRaw from '../data/statuses/suppressed.json';
 import pinnedRaw from '../data/statuses/pinned.json';
+import featherlightRaw from '../data/statuses/featherlight.json';
+import anchoredRaw from '../data/statuses/anchored.json';
 
 import ironPitRaw from '../data/arenas/iron-pit.json';
 import pillarCourtRaw from '../data/arenas/pillar-court.json';
@@ -56,7 +58,9 @@ export const STATUS_RAW: readonly unknown[] = [
   voidMarkRaw,
   targetLockRaw,
   suppressedRaw,
-  pinnedRaw
+  pinnedRaw,
+  featherlightRaw,
+  anchoredRaw
 ];
 
 export const ARENA_RAW: readonly unknown[] = [
