@@ -6,6 +6,7 @@ import {
   type PassiveTriggerEvent
 } from '@kinetic/content';
 import type {
+  AbilityRejectionReason,
   AbilitySlot,
   ActivateAbilityCommand,
   EntityId,
@@ -51,18 +52,28 @@ export class AbilitySystem {
   }
 
   activate(command: ActivateAbilityCommand, activeWeaponAttack: boolean, events: SimulationEvent[]): void {
-    if (this.activeCasts.has(command.entityId) || activeWeaponAttack) return;
     const fighter = getFighter(this.world.getFighterId(command.entityId));
     const abilityId = fighter.abilitySlots[command.slot];
     if (!abilityId) return;
     const ability = getAbility(abilityId);
-    if (!this.cooldowns.isAbilityReady(command.entityId, ability.id)) return;
+    if (this.activeCasts.has(command.entityId) || activeWeaponAttack) {
+      this.rejectPlayerActivation(command, ability.id, 'busy', events);
+      return;
+    }
+    if (!this.cooldowns.isAbilityReady(command.entityId, ability.id)) {
+      this.rejectPlayerActivation(command, ability.id, 'cooldown', events);
+      return;
+    }
 
     const target = command.targetId !== undefined && this.world.isAlive(command.targetId)
       ? command.targetId
       : null;
     const direction = this.resolveDirection(command.entityId, target, command.direction);
-    if (!this.activationIsValid(command.entityId, ability, target, direction)) return;
+    const rejection = this.activationRejectionReason(command.entityId, ability, target, direction);
+    if (rejection) {
+      this.rejectPlayerActivation(command, ability.id, rejection, events);
+      return;
+    }
 
     const castTicks = ability.castTicks;
     this.cooldowns.startAbility(command.entityId, ability);
@@ -360,22 +371,26 @@ export class AbilitySystem {
     this.armedAbilities.set(entityId, armed);
   }
 
-  private activationIsValid(
+  private activationRejectionReason(
     self: EntityId,
     ability: AbilityDefinition,
     target: EntityId | null,
     direction: Vec2
-  ): boolean {
+  ): AbilityRejectionReason | null {
     const activation = getAbilityActivationProfile(ability, this.world.getFighterId(self));
-    if (activation.targeting !== 'self' && target === null && activation.targeting !== 'direction') return false;
+    if (activation.targeting !== 'self' && target === null && activation.targeting !== 'direction') {
+      return 'target-required';
+    }
 
     if (target !== null) {
-      if (!this.world.isAlive(target) || this.world.getTeam(target) === this.world.getTeam(self)) return false;
+      if (!this.world.isAlive(target) || this.world.getTeam(target) === this.world.getTeam(self)) {
+        return 'invalid-target';
+      }
       const dx = (this.world.x[target] ?? 0) - (this.world.x[self] ?? 0);
       const dy = (this.world.y[target] ?? 0) - (this.world.y[self] ?? 0);
       const distance = Math.hypot(dx, dy);
-      if (distance < activation.minRange || distance > activation.maxRange) return false;
-      if (activation.requiresLineOfSight && !this.hasLineOfSight(self, target)) return false;
+      if (distance < activation.minRange || distance > activation.maxRange) return 'out-of-range';
+      if (activation.requiresLineOfSight && !this.hasLineOfSight(self, target)) return 'line-of-sight';
       if (activation.aimToleranceDegrees < 180) {
         const length = distance || 1;
         const dot = Math.max(
@@ -383,7 +398,7 @@ export class AbilitySystem {
           Math.min(1, direction.x * (dx / length) + direction.y * (dy / length))
         );
         const angle = Math.acos(dot) * 180 / Math.PI;
-        if (angle > activation.aimToleranceDegrees) return false;
+        if (angle > activation.aimToleranceDegrees) return 'aim-tolerance';
       }
     }
 
@@ -394,7 +409,7 @@ export class AbilitySystem {
         const dy = (this.world.y[id] ?? 0) - (this.world.y[self] ?? 0);
         return dx * dx + dy * dy <= activation.maxRange * activation.maxRange;
       }).length;
-      if (nearby < activation.minimumTargets) return false;
+      if (nearby < activation.minimumTargets) return 'minimum-targets';
     }
     const activateTriggers = ability.triggers.filter((trigger) => trigger.event === 'ON_ACTIVATE');
     if (activateTriggers.length > 0) {
@@ -407,10 +422,28 @@ export class AbilitySystem {
       };
       if (!activateTriggers.some((trigger) =>
         trigger.conditions.every((condition) => this.actions.conditionPasses(condition, context)))) {
-        return false;
+        return 'requirements-not-met';
       }
     }
-    return true;
+    return null;
+  }
+
+  private rejectPlayerActivation(
+    command: ActivateAbilityCommand,
+    abilityId: string,
+    reason: AbilityRejectionReason,
+    events: SimulationEvent[]
+  ): void {
+    if (this.world.getController(command.entityId) !== 'player') return;
+    events.push({
+      type: 'abilityRejected',
+      tick: this.context.getTick(),
+      entityId: command.entityId,
+      abilityId,
+      slot: command.slot,
+      reason,
+      ...(command.targetId !== undefined ? { targetId: command.targetId } : {})
+    });
   }
 
   private hostileTargetsByDistance(source: EntityId): EntityId[] {

@@ -267,6 +267,28 @@ export interface AbilityActivatedEvent {
   castTicks: number;
 }
 
+export type AbilityRejectionReason =
+  | 'busy'
+  | 'cooldown'
+  | 'target-required'
+  | 'invalid-target'
+  | 'out-of-range'
+  | 'line-of-sight'
+  | 'aim-tolerance'
+  | 'minimum-targets'
+  | 'requirements-not-met';
+
+/** Player-facing feedback for a skill command that did not alter simulation state. */
+export interface AbilityRejectedEvent {
+  type: 'abilityRejected';
+  tick: number;
+  entityId: EntityId;
+  abilityId: string;
+  slot: AbilitySlot;
+  reason: AbilityRejectionReason;
+  targetId?: EntityId;
+}
+
 /** Emitted when the skill's gameplay actions resolve. */
 export interface AbilityResolvedEvent {
   type: 'abilityResolved';
@@ -323,6 +345,7 @@ export type SimulationEvent =
   | StatusAppliedEvent
   | PassiveTriggeredEvent
   | AbilityActivatedEvent
+  | AbilityRejectedEvent
   | AbilityResolvedEvent
   | DeathEvent
   | BattleEndedEvent;

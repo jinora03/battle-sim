@@ -1147,3 +1147,38 @@ button.playback-toggle:hover:not(:disabled) {
 .note-card-inline .developer-workshop-button {
   margin-top: 16px;
 }
+
+.ability-rejection-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  margin-top: 8px;
+  border: 1px solid rgba(255, 174, 86, 0.42);
+  border-radius: 10px;
+  padding: 7px 10px;
+  background: rgba(43, 24, 10, 0.84);
+  color: #f6d9b0;
+  box-shadow: inset 0 0 18px rgba(255, 139, 45, 0.06);
+}
+
+.ability-rejection-strip strong {
+  flex: 0 0 auto;
+  color: #ffbd73;
+  font-size: 10px;
+}
+
+.ability-rejection-strip span {
+  min-width: 0;
+  color: #d8b995;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+@media (max-width: 720px) {
+  .ability-rejection-strip {
+    align-items: flex-start;
+    gap: 3px;
+    flex-direction: column;
+  }
+}
