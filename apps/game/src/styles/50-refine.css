@@ -1117,3 +1117,33 @@ button.playback-toggle:hover:not(:disabled) {
 @media (max-width: 560px) {
   .elimination-progress { grid-template-columns: 1fr; }
 }
+
+
+/* Stage 8.2.8: stabilize empty diagnostics spacing and workshop affordance. */
+.ai-decision-debug {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 2px;
+}
+.ai-decision-debug h3 {
+  margin: 0;
+}
+.ai-decision-empty-state {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(166, 217, 255, .12);
+  border-radius: 14px;
+  background: rgba(9, 15, 28, .72);
+  color: #91a8bf;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.debug-export-row {
+  padding-top: 18px;
+}
+.note-card-inline .developer-workshop-button {
+  margin-top: 16px;
+}

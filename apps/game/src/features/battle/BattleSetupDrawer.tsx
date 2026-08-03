@@ -209,7 +209,7 @@ export function BattleSetupDrawer({
         </div>
       </details>
 
-      <details className="panel-section collapsible-panel release-settings">
+      <details className="panel-section collapsible-panel release-settings" open>
         <summary className="panel-summary"><span><small>Display</small><strong>Quality & accessibility</strong></span></summary>
         <div className="panel-content">
           <label className="field-label" htmlFor="quality-preset">Quality preset</label>
