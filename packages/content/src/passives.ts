@@ -2,6 +2,28 @@ import type { PassiveDefinition } from './schemas';
 
 const PASSIVES: readonly PassiveDefinition[] = [
   {
+    id: 'living-furnace',
+    name: 'Living Furnace',
+    description: 'Fire damage and new Burn stacks build Heat. Flame Jet hits also feed the furnace directly.',
+    triggers: [
+      {
+        event: 'ON_PRIMARY_HIT',
+        conditions: [],
+        actions: [
+          { type: 'MODIFY_RESOURCE_SELF', resourceId: 'heat', amount: 2 }
+        ]
+      },
+      {
+        event: 'ON_PRIMARY_HIT',
+        conditions: [{ type: 'SELF_HAS_STATUS', statusId: 'meltdown' }],
+        actions: [
+          { type: 'DEAL_DAMAGE_TARGET', amount: 3, element: 'fire' },
+          { type: 'APPLY_STATUS_TARGET', statusId: 'burn', durationTicks: 160, stacks: 1 }
+        ]
+      }
+    ]
+  },
+  {
     id: 'combat-analysis',
     name: 'Combat Analysis',
     description: 'Gunner primary-attack hits build Target Lock on the same enemy, up to four stacks.',

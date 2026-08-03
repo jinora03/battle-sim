@@ -26,6 +26,33 @@ export function cloneModule(module: FighterModuleDefinition): FighterModuleDefin
       ...module.modifiers,
       ...(module.modifiers.statusDurationMultiplier
         ? { statusDurationMultiplier: { ...module.modifiers.statusDurationMultiplier } }
+        : {}),
+      ...(module.modifiers.statusStacksAppliedBonus
+        ? { statusStacksAppliedBonus: { ...module.modifiers.statusStacksAppliedBonus } }
+        : {}),
+      ...(module.modifiers.abilityDamageMultiplier
+        ? { abilityDamageMultiplier: { ...module.modifiers.abilityDamageMultiplier } }
+        : {}),
+      ...(module.modifiers.abilityImpulseMultiplier
+        ? { abilityImpulseMultiplier: { ...module.modifiers.abilityImpulseMultiplier } }
+        : {}),
+      ...(module.modifiers.abilityRadiusMultiplier
+        ? { abilityRadiusMultiplier: { ...module.modifiers.abilityRadiusMultiplier } }
+        : {}),
+      ...(module.modifiers.abilitySelfImpulseMultiplier
+        ? { abilitySelfImpulseMultiplier: { ...module.modifiers.abilitySelfImpulseMultiplier } }
+        : {}),
+      ...(module.modifiers.resourceGainMultiplier
+        ? { resourceGainMultiplier: { ...module.modifiers.resourceGainMultiplier } }
+        : {}),
+      ...(module.modifiers.resourceDecayMultiplier
+        ? { resourceDecayMultiplier: { ...module.modifiers.resourceDecayMultiplier } }
+        : {}),
+      ...(module.modifiers.resourceThresholdIncomingDamageMultiplier
+        ? { resourceThresholdIncomingDamageMultiplier: { ...module.modifiers.resourceThresholdIncomingDamageMultiplier } }
+        : {}),
+      ...(module.modifiers.periodicStatusPulses
+        ? { periodicStatusPulses: module.modifiers.periodicStatusPulses.map((pulse) => ({ ...pulse })) }
         : {})
     }
   };

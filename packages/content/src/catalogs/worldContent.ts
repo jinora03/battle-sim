@@ -1,4 +1,5 @@
 import burnRaw from '../data/statuses/burn.json';
+import meltdownRaw from '../data/statuses/meltdown.json';
 import moltenGuardStatusRaw from '../data/statuses/molten-guard.json';
 import fortifiedStatusRaw from '../data/statuses/fortified.json';
 import magmaStatusRaw from '../data/statuses/magma-dash.json';
@@ -37,6 +38,7 @@ import interactionsRaw from '../data/element-interactions.json';
 
 export const STATUS_RAW: readonly unknown[] = [
   burnRaw,
+  meltdownRaw,
   moltenGuardStatusRaw,
   fortifiedStatusRaw,
   magmaStatusRaw,

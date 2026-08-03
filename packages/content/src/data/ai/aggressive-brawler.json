@@ -1,46 +1,61 @@
 {
   "id": "aggressive-brawler",
-  "reactionTicks": 8,
-  "aggression": 0.95,
-  "preferredDistance": 70,
-  "retreatHealthRatio": 0.05,
+  "reactionTicks": 7,
+  "aggression": 0.96,
+  "preferredDistance": 145,
+  "retreatHealthRatio": 0.08,
   "steeringStrength": 1.0,
   "movementStyle": "charger",
-  "orbitStrength": 0.15,
+  "orbitStrength": 0.2,
   "wallAvoidance": 0.9,
+  "targeting": "lowest-health",
+  "allySeparation": 0.72,
+  "targetSpread": 0.7,
+  "targetStickiness": 0.8,
   "abilityUsage": [
     {
       "slot": "skill1",
-      "everyTicks": 160,
-      "phaseTicks": 40,
-      "minDistance": 70,
-      "maxDistance": 520
+      "everyTicks": 165,
+      "phaseTicks": 38,
+      "minDistance": 90,
+      "maxDistance": 520,
+      "priority": 6,
+      "maximumTargetStatusStacks": 4,
+      "targetStatusId": "burn"
     },
     {
       "slot": "skill2",
       "everyTicks": 245,
-      "phaseTicks": 85,
+      "phaseTicks": 82,
       "minDistance": 0,
-      "maxDistance": 230
+      "maxDistance": 440,
+      "priority": 8,
+      "minimumTargets": 1
     },
     {
       "slot": "skill3",
-      "everyTicks": 390,
-      "phaseTicks": 145,
+      "everyTicks": 320,
+      "phaseTicks": 135,
       "minDistance": 0,
-      "maxDistance": 9999,
-      "healthBelow": 0.58
+      "maxDistance": 280,
+      "priority": 18,
+      "targetStatusId": "burn",
+      "minimumTargetStatusStacks": 2,
+      "priorityPerTargetStatusStack": 8,
+      "selfResourceId": "heat",
+      "minimumSelfResource": 20
     },
     {
       "slot": "ultimate",
-      "everyTicks": 620,
+      "everyTicks": 660,
       "phaseTicks": 210,
       "minDistance": 0,
-      "maxDistance": 250
+      "maxDistance": 285,
+      "priority": 16,
+      "minimumTargets": 1,
+      "selfResourceId": "heat",
+      "minimumSelfResource": 35,
+      "priorityPerSelfResource": 0.12
     }
-  ],
-  "targeting": "lowest-health",
-  "allySeparation": 0.72,
-  "targetSpread": 0.7,
-  "targetStickiness": 0.78
+  ]
 }

@@ -170,7 +170,39 @@ export class FxEngine {
         const microMissile = blastFeedback.classification === 'micro-missile';
         const missileBarrage = blastFeedback.classification !== 'singular';
         const intensity = Math.min(microMissile ? 0.72 : missileBarrage ? 1.02 : 1.6, 0.55 + event.radius / 260 + event.force / 28);
-        if (event.kind === 'explosion') {
+        if (event.abilityId === 'flame-ring') {
+          // Fire Vortex has a dark, rotating furnace look rather than a generic
+          // water-like wave. The semantic blast is centered on the selected target.
+          this.fireSpiral(event.position.x, event.position.y, Math.max(58, event.radius * 0.42), particleScale);
+          this.flash(event.position.x, event.position.y, 0x5a120e, Math.max(24, event.radius * 0.2), 0.2);
+          this.shockwave(event.position.x, event.position.y, 0xff4b20, Math.max(42, event.radius * 0.34), 6, 0.44);
+          this.shockwave(event.position.x, event.position.y, 0xffd35a, Math.max(26, event.radius * 0.2), 2.5, 0.3);
+          this.burst(event.position.x, event.position.y, 0xff7a2a, Math.round(24 * intensity * particleScale), 4.8, 1.4, 4.8, 0.22, 0.58, 0.97, 0.5);
+          shake = Math.max(shake, 5.5);
+          freezeMs = Math.max(freezeMs, 20);
+          screenFlash = Math.max(screenFlash, 0.12);
+        } else if (event.abilityId === 'molten-guard') {
+          // Each consumed Burn target receives its own furnace-pop detonation.
+          this.flash(event.position.x, event.position.y, 0xffffd0, Math.max(20, event.radius * 0.28), 0.13);
+          this.flash(event.position.x, event.position.y, 0xff4a1f, Math.max(32, event.radius * 0.46), 0.2);
+          this.shockwave(event.position.x, event.position.y, 0xffe56b, Math.max(30, event.radius * 0.42), 6, 0.34);
+          this.shockwave(event.position.x, event.position.y, 0x8e1b13, Math.max(46, event.radius * 0.62), 3, 0.48);
+          this.burst(event.position.x, event.position.y, 0xfff08a, Math.round(14 * intensity * particleScale), 10.5, 1.4, 4.2, 0.12, 0.32, 0.94, 0.28);
+          this.burst(event.position.x, event.position.y, 0xff5425, Math.round(24 * intensity * particleScale), 8.2, 2.2, 6.4, 0.18, 0.48, 0.95, 0.52);
+          shake = Math.max(shake, Math.min(14, 4 + event.force * 0.5));
+          freezeMs = Math.max(freezeMs, Math.min(50, 14 + event.damage * 0.55));
+          screenFlash = Math.max(screenFlash, 0.24);
+        } else if (event.abilityId === 'inferno-collapse') {
+          this.flash(event.position.x, event.position.y, 0xffffff, Math.max(58, event.radius * 0.3), 0.2);
+          this.flash(event.position.x, event.position.y, 0xffa33a, Math.max(92, event.radius * 0.5), 0.32);
+          this.fireSpiral(event.position.x, event.position.y, Math.max(105, event.radius * 0.56), particleScale * 1.35);
+          this.shockwave(event.position.x, event.position.y, 0xfff09a, Math.max(74, event.radius * 0.42), 10, 0.52);
+          this.shockwave(event.position.x, event.position.y, 0xff321e, Math.max(116, event.radius * 0.65), 7, 0.68);
+          this.burst(event.position.x, event.position.y, 0xff5a27, Math.round(52 * intensity * particleScale), 12.5, 2.2, 7.4, 0.2, 0.68, 0.95, 0.72);
+          shake = Math.max(shake, 16);
+          freezeMs = Math.max(freezeMs, 52);
+          screenFlash = Math.max(screenFlash, 0.5);
+        } else if (event.kind === 'explosion') {
           this.flash(event.position.x, event.position.y, 0xfff1a8, Math.max(14, event.radius * (microMissile ? 0.14 : 0.22)), microMissile ? 0.08 : 0.15);
           this.burst(event.position.x, event.position.y, 0xffef79, Math.round((microMissile ? 5 : missileBarrage ? 10 : 18) * intensity * particleScale), 8 * intensity, 2, 5.2, 0.13, 0.3, 0.94, 0.25);
           this.burst(event.position.x, event.position.y, 0xff7a2b, Math.round((microMissile ? 7 : missileBarrage ? 15 : 28) * intensity * particleScale), 6.2 * intensity, 2.5, 6, 0.18, 0.42, 0.945, 0.38);
@@ -381,6 +413,33 @@ export class FxEngine {
         this.shockwave(x, y, 0xffd250, 74, 4, 0.4);
         this.burst(x, y, 0xff5b2d, Math.round(amount * 1.8 * particleScale), 12, 2, 6, 0.2, 0.62, 0.94, 0.48);
         break;
+      case 'cinder-rush':
+        this.directionalBurst(x, y, -dirX, -dirY, 0xfff095, Math.round(amount * 0.75 * particleScale), 13.5);
+        this.directionalBurst(x, y, -dirX, -dirY, 0xff5423, Math.round(amount * 1.8 * particleScale), 10.5);
+        this.flash(x, y, 0xff9b3a, 42, 0.16);
+        this.shockwave(x, y, 0xff4b22, 48, 4, 0.28);
+        break;
+      case 'fire-vortex':
+        this.fireSpiral(x, y, 72, particleScale);
+        this.flash(x, y, 0x5a120d, 46, 0.2);
+        this.shockwave(x, y, 0xff3d1d, 72, 5, 0.42);
+        this.shockwave(x, y, 0xffdc6b, 42, 2, 0.27);
+        break;
+      case 'combustion':
+        this.flash(x, y, 0xffffff, 54, 0.14);
+        this.flash(x, y, 0xff5a22, 78, 0.24);
+        this.shockwave(x, y, 0xffef83, 86, 8, 0.4);
+        this.shockwave(x, y, 0x9b1e13, 112, 4, 0.58);
+        this.burst(x, y, 0xffbd4d, Math.round(amount * 1.8 * particleScale), 11, 1.8, 6, 0.16, 0.48, 0.94, 0.56);
+        break;
+      case 'meltdown':
+        this.flash(x, y, 0xffffff, 108, 0.25);
+        this.flash(x, y, 0xff7b2e, 148, 0.38);
+        this.fireSpiral(x, y, 132, particleScale * 1.5);
+        this.shockwave(x, y, 0xffffa8, 122, 11, 0.62);
+        this.shockwave(x, y, 0xff2e1a, 174, 8, 0.82);
+        this.burst(x, y, 0xff4a21, Math.round(amount * 2.3 * particleScale), 14, 2.5, 8, 0.22, 0.76, 0.94, 0.9);
+        break;
       case 'kinetic-pulse':
         this.flash(x, y, 0xeaffff, 48, 0.13);
         this.shockwave(x, y, recipe.color, 82, 8, 0.42);
@@ -528,6 +587,43 @@ export class FxEngine {
       particle.node.visible = true;
       if (++created >= count) break;
     }
+  }
+
+  private fireSpiral(x: number, y: number, radius: number, particleScale: number): void {
+    const flash = this.flashes.find((item) => !item.active);
+    if (flash) {
+      flash.active = true;
+      flash.life = flash.maxLife = 0.52;
+      flash.node.clear();
+      const arms = 4;
+      for (let arm = 0; arm < arms; arm += 1) {
+        const phase = arm / arms * Math.PI * 2;
+        for (let step = 0; step < 8; step += 1) {
+          const progress = step / 7;
+          const angle = phase + progress * Math.PI * 1.45;
+          const inner = radius * (0.18 + progress * 0.74);
+          const nextProgress = Math.min(1, (step + 1) / 7);
+          const nextAngle = phase + nextProgress * Math.PI * 1.45;
+          const nextInner = radius * (0.18 + nextProgress * 0.74);
+          flash.node
+            .moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner)
+            .lineTo(Math.cos(nextAngle) * nextInner, Math.sin(nextAngle) * nextInner)
+            .stroke({
+              color: arm % 2 === 0 ? 0xff5a24 : 0xffd45d,
+              width: Math.max(2, radius * (0.055 - progress * 0.025)),
+              alpha: 0.72 - progress * 0.32
+            });
+        }
+      }
+      flash.node.circle(0, 0, radius * 0.16).fill({ color: 0x3b0b09, alpha: 0.78 });
+      flash.node.circle(0, 0, radius * 0.11).stroke({ color: 0xffffa2, width: 3, alpha: 0.9 });
+      flash.node.x = x;
+      flash.node.y = y;
+      flash.node.scale.set(0.55);
+      flash.node.alpha = 0.9;
+      flash.node.visible = true;
+    }
+    this.burst(x, y, 0xff7a2a, Math.round(18 * particleScale), 5.2, 1.2, 4.6, 0.18, 0.54, 0.97, 0.5);
   }
 
   private shockwave(x: number, y: number, color: number, radius: number, width: number, life: number): void {

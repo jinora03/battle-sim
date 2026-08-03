@@ -9,3 +9,5 @@ export * from './statusSchema';
 export * from './arenaSchema';
 export * from './modeSchema';
 export * from './elementSchema';
+
+export * from './resourceSchema';

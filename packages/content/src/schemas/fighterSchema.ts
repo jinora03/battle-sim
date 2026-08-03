@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { AbilitySlot, Element, ModuleSlot } from '@kinetic/protocol';
 import { elementSchema } from './internal';
+import { combatResourceSchema, type CombatResourceDefinition } from './resourceSchema';
 
 export interface FighterDefinition {
   id: string;
@@ -24,6 +25,8 @@ export interface FighterDefinition {
   aiProfileId: string | null;
   /** Zero or more developer-authored passives. They never consume an input slot. */
   passiveIds?: string[];
+  /** Optional deterministic resources such as Heat, Charge, Rage or Frost. */
+  combatResources?: CombatResourceDefinition[];
   abilitySlots: Partial<Record<AbilitySlot, string | null>>;
   /** Approved module choices by slot. Players may only select from these ids. */
   moduleSlots?: Partial<Record<ModuleSlot, string[]>>;
@@ -61,6 +64,7 @@ export const fighterSchema = z.object({
   }),
   aiProfileId: z.string().nullable(),
   passiveIds: z.array(z.string()).default([]),
+  combatResources: z.array(combatResourceSchema).default([]),
   abilitySlots: z.object({
     basic: z.string().nullable().optional(),
     skill1: z.string().nullable().optional(),

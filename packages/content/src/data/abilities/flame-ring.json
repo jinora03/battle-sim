@@ -1,17 +1,62 @@
 {
   "id": "flame-ring",
-  "name": "Flame Ring",
+  "name": "Fire Vortex",
   "slot": "skill2",
   "cooldownTicks": 245,
-  "castTicks": 22,
-  "castMovementMultiplier": 0.18,
+  "castTicks": 20,
+  "castMovementMultiplier": 0.24,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "area",
+    "priority": 60,
+    "minRange": 0,
+    "maxRange": 440,
+    "requiresLineOfSight": true,
+    "minimumTargets": 1,
+    "aimToleranceDegrees": 180
+  },
   "triggers": [
     {
       "event": "ON_ACTIVATE",
       "conditions": [],
       "actions": [
-        { "type": "EXPLODE", "kind": "wave", "radius": 175, "damage": 17, "impulse": 8.5, "element": "fire", "enemiesOnly": true },
-        { "type": "RADIAL_STATUS", "radius": 190, "statusId": "burn", "durationTicks": 130, "enemiesOnly": true }
+        {
+          "type": "AREA_EFFECT_AT_TARGET",
+          "radius": 215,
+          "damage": 11,
+          "impulse": 8.5,
+          "direction": "pull",
+          "element": "fire",
+          "enemiesOnly": true,
+          "statusId": "burn",
+          "statusDurationTicks": 150,
+          "statusStacks": 1,
+          "kind": "wave"
+        }
+      ]
+    },
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [
+        {
+          "type": "SELF_HAS_STATUS",
+          "statusId": "meltdown"
+        }
+      ],
+      "actions": [
+        {
+          "type": "AREA_EFFECT_AT_TARGET",
+          "radius": 245,
+          "damage": 8,
+          "impulse": 4.5,
+          "direction": "pull",
+          "element": "fire",
+          "enemiesOnly": true,
+          "statusId": "burn",
+          "statusDurationTicks": 170,
+          "statusStacks": 1,
+          "kind": "wave"
+        }
       ]
     }
   ]

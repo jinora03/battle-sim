@@ -80,6 +80,9 @@ export class AbilityActionExecutor {
     if (condition.type === 'SELF_HAS_STATUS') {
       return this.world.getStatusStacks(context.self, condition.statusId) >= (condition.minimumStacks ?? 1);
     }
+    if (condition.type === 'SELF_RESOURCE_AT_LEAST') {
+      return this.world.getCombatResourceValue(context.self, condition.resourceId) >= condition.amount;
+    }
     if (condition.type === 'TARGET_HAS_STATUS') {
       if (context.target === null) return false;
       const stacks = this.world.getStatusStacks(context.target, condition.statusId);
@@ -102,15 +105,24 @@ export class AbilityActionExecutor {
     switch (action.type) {
       case 'APPLY_IMPULSE_SELF': {
         const impulseDirection = resolveImpulseDirection(context.normal, action.direction);
+        const magnitude = action.magnitude * this.abilityMultiplier(self, context.abilityId, 'abilitySelfImpulseMultiplier');
         this.context.addExternalImpulse(
           self,
-          impulseDirection.x * action.magnitude,
-          impulseDirection.y * action.magnitude
+          impulseDirection.x * magnitude,
+          impulseDirection.y * magnitude
         );
         break;
       }
       case 'DEAL_DAMAGE_TARGET':
-        if (target !== null) this.context.dealDamage(self, target, action.amount, action.element, events);
+        if (target !== null) {
+          this.context.dealDamage(
+            self,
+            target,
+            action.amount * this.abilityMultiplier(self, context.abilityId, 'abilityDamageMultiplier'),
+            action.element,
+            events
+          );
+        }
         break;
       case 'APPLY_STATUS_SELF':
         this.context.applyStatus(
@@ -142,38 +154,54 @@ export class AbilityActionExecutor {
         break;
       case 'APPLY_KNOCKBACK_TARGET':
         if (target !== null && this.world.isAlive(target)) {
-          this.context.applyKnockback(self, target, action.magnitude, events, 'ability');
+          this.context.applyKnockback(
+            self,
+            target,
+            action.magnitude * this.abilityMultiplier(self, context.abilityId, 'abilityImpulseMultiplier'),
+            events,
+            'ability'
+          );
         }
         break;
       case 'RADIAL_IMPULSE': {
+        const radius = action.radius * this.abilityMultiplier(self, context.abilityId, 'abilityRadiusMultiplier');
+        const magnitude = action.magnitude * this.abilityMultiplier(self, context.abilityId, 'abilityImpulseMultiplier');
         const sign = action.direction === 'pull' ? -1 : 1;
-        this.forEachInRadius(self, action.radius, action.enemiesOnly, (other) => {
-          this.context.applyKnockback(self, other, action.magnitude * sign, events, 'ability');
+        this.forEachInRadius(self, radius, action.enemiesOnly, (other) => {
+          this.context.applyKnockback(self, other, magnitude * sign, events, 'ability');
         });
         break;
       }
-      case 'RADIAL_DAMAGE':
-        this.forEachInRadius(self, action.radius, action.enemiesOnly, (other) => {
-          this.context.dealDamage(self, other, action.amount, action.element, events);
+      case 'RADIAL_DAMAGE': {
+        const radius = action.radius * this.abilityMultiplier(self, context.abilityId, 'abilityRadiusMultiplier');
+        const damage = action.amount * this.abilityMultiplier(self, context.abilityId, 'abilityDamageMultiplier');
+        this.forEachInRadius(self, radius, action.enemiesOnly, (other) => {
+          this.context.dealDamage(self, other, damage, action.element, events);
         });
         break;
-      case 'DIRECTIONAL_DAMAGE':
+      }
+      case 'DIRECTIONAL_DAMAGE': {
+        const range = action.range * this.abilityMultiplier(self, context.abilityId, 'abilityRadiusMultiplier');
+        const damage = action.amount * this.abilityMultiplier(self, context.abilityId, 'abilityDamageMultiplier');
+        const knockback = action.knockback * this.abilityMultiplier(self, context.abilityId, 'abilityImpulseMultiplier');
         this.forEachInCone(
           self,
-          action.range,
+          range,
           action.arcDegrees,
           action.enemiesOnly,
           context.normal,
           (other) => {
-            this.context.dealDamage(self, other, action.amount, action.element, events);
-            if (action.knockback > 0 && this.world.isAlive(other)) {
-              this.context.applyKnockback(self, other, action.knockback, events, 'ability');
+            this.context.dealDamage(self, other, damage, action.element, events);
+            if (knockback > 0 && this.world.isAlive(other)) {
+              this.context.applyKnockback(self, other, knockback, events, 'ability');
             }
           }
         );
         break;
-      case 'RADIAL_STATUS':
-        this.forEachInRadius(self, action.radius, action.enemiesOnly, (other) => {
+      }
+      case 'RADIAL_STATUS': {
+        const radius = action.radius * this.abilityMultiplier(self, context.abilityId, 'abilityRadiusMultiplier');
+        this.forEachInRadius(self, radius, action.enemiesOnly, (other) => {
           this.context.applyStatus(
             self,
             other,
@@ -184,20 +212,113 @@ export class AbilityActionExecutor {
           );
         });
         break;
-      case 'EXPLODE': {
-        const position = { x: this.world.x[self] ?? 0, y: this.world.y[self] ?? 0 };
-        this.forEachInRadius(self, action.radius, action.enemiesOnly, (other) => {
-          if (action.damage > 0) {
-            this.context.dealDamage(self, other, action.damage, action.element, events);
+      }
+      case 'AREA_EFFECT_AT_TARGET': {
+        if (target === null || !this.world.isAlive(target)) break;
+        const radius = action.radius * this.abilityMultiplier(self, context.abilityId, 'abilityRadiusMultiplier');
+        const damage = action.damage * this.abilityMultiplier(self, context.abilityId, 'abilityDamageMultiplier');
+        const impulse = action.impulse * this.abilityMultiplier(self, context.abilityId, 'abilityImpulseMultiplier');
+        const center = { x: this.world.x[target] ?? 0, y: this.world.y[target] ?? 0 };
+        const signedImpulse = action.direction === 'pull' ? -impulse : impulse;
+        this.forEachAroundPoint(self, center, radius, action.enemiesOnly, (other) => {
+          if (damage > 0) this.context.dealDamage(self, other, damage, action.element, events);
+          if (impulse > 0 && other !== target && this.world.isAlive(other)) {
+            this.context.applyKnockbackFromPoint(
+              self,
+              center,
+              other,
+              signedImpulse,
+              events,
+              'ability',
+              {
+                x: (this.world.x[other] ?? 0) - (this.world.x[self] ?? 0),
+                y: (this.world.y[other] ?? 0) - (this.world.y[self] ?? 0)
+              }
+            );
           }
-          if (action.impulse > 0 && this.world.isAlive(other)) {
+          if (action.statusId && action.statusDurationTicks) {
+            this.context.applyStatus(
+              self,
+              other,
+              action.statusId,
+              action.statusDurationTicks,
+              events,
+              action.statusStacks ?? 1
+            );
+          }
+        });
+        events.push({
+          type: 'blast',
+          tick: this.context.getTick(),
+          sourceId: self,
+          abilityId: context.abilityId,
+          kind: action.kind,
+          position: center,
+          radius,
+          force: impulse,
+          damage,
+          element: action.element
+        });
+        break;
+      }
+      case 'DETONATE_STATUS': {
+        const searchRadius = action.radius * this.abilityMultiplier(self, context.abilityId, 'abilityRadiusMultiplier');
+        const damageMultiplier = this.abilityMultiplier(self, context.abilityId, 'abilityDamageMultiplier');
+        const impulseMultiplier = this.abilityMultiplier(self, context.abilityId, 'abilityImpulseMultiplier');
+        const visualRadiusMultiplier = this.abilityMultiplier(self, context.abilityId, 'abilityRadiusMultiplier');
+        this.forEachInRadius(self, searchRadius, action.enemiesOnly, (other) => {
+          const currentStacks = this.world.getStatusStacks(other, action.statusId);
+          if (currentStacks < action.minimumStacks) return;
+          const consumed = this.world.removeStatusStacks(other, action.statusId, action.consumeStacks);
+          if (consumed <= 0) return;
+          const damage = (action.baseDamage + action.damagePerStack * consumed) * damageMultiplier;
+          const baseImpulse = (action.baseImpulse + action.impulsePerStack * consumed) * impulseMultiplier;
+          const resolvedImpulse = this.context.damageScaledImpulse(baseImpulse, damage);
+          const position = { x: this.world.x[other] ?? 0, y: this.world.y[other] ?? 0 };
+          if (damage > 0) this.context.dealDamage(self, other, damage, action.element, events);
+          if (resolvedImpulse > 0 && this.world.isAlive(other)) {
             this.context.applyKnockback(
               self,
               other,
-              this.context.damageScaledImpulse(action.impulse, action.damage),
+              resolvedImpulse,
               events,
               'explosion',
-              this.context.explosionImpulseOptions(action.damage, context.abilityId)
+              this.context.explosionImpulseOptions(damage, context.abilityId)
+            );
+          }
+          events.push({
+            type: 'blast',
+            tick: this.context.getTick(),
+            sourceId: self,
+            abilityId: context.abilityId,
+            kind: action.kind,
+            position,
+            radius: (action.detonationRadius + action.detonationRadiusPerStack * consumed) * visualRadiusMultiplier,
+            force: resolvedImpulse,
+            damage,
+            element: action.element
+          });
+        });
+        break;
+      }
+      case 'EXPLODE': {
+        const radius = action.radius * this.abilityMultiplier(self, context.abilityId, 'abilityRadiusMultiplier');
+        const damage = action.damage * this.abilityMultiplier(self, context.abilityId, 'abilityDamageMultiplier');
+        const baseImpulse = action.impulse * this.abilityMultiplier(self, context.abilityId, 'abilityImpulseMultiplier');
+        const resolvedImpulse = this.context.damageScaledImpulse(baseImpulse, damage);
+        const position = { x: this.world.x[self] ?? 0, y: this.world.y[self] ?? 0 };
+        this.forEachInRadius(self, radius, action.enemiesOnly, (other) => {
+          if (damage > 0) {
+            this.context.dealDamage(self, other, damage, action.element, events);
+          }
+          if (resolvedImpulse > 0 && this.world.isAlive(other)) {
+            this.context.applyKnockback(
+              self,
+              other,
+              resolvedImpulse,
+              events,
+              'explosion',
+              this.context.explosionImpulseOptions(damage, context.abilityId)
             );
           }
         });
@@ -208,21 +329,25 @@ export class AbilityActionExecutor {
           abilityId: context.abilityId,
           kind: action.kind,
           position,
-          radius: action.radius,
-          force: this.context.damageScaledImpulse(action.impulse, action.damage),
-          damage: action.damage,
+          radius,
+          force: resolvedImpulse,
+          damage,
           element: action.element
         });
         break;
       }
       case 'EXPLODE_AT_TARGET': {
         if (target === null || !this.world.isAlive(target)) break;
+        const radius = action.radius * this.abilityMultiplier(self, context.abilityId, 'abilityRadiusMultiplier');
+        const damage = action.damage * this.abilityMultiplier(self, context.abilityId, 'abilityDamageMultiplier');
+        const baseImpulse = action.impulse * this.abilityMultiplier(self, context.abilityId, 'abilityImpulseMultiplier');
+        const resolvedImpulse = this.context.damageScaledImpulse(baseImpulse, damage);
         const position = { x: this.world.x[target] ?? 0, y: this.world.y[target] ?? 0 };
-        this.forEachAroundPoint(self, position, action.radius, action.enemiesOnly, (other) => {
-          if (action.damage > 0) {
-            this.context.dealDamage(self, other, action.damage, action.element, events);
+        this.forEachAroundPoint(self, position, radius, action.enemiesOnly, (other) => {
+          if (damage > 0) {
+            this.context.dealDamage(self, other, damage, action.element, events);
           }
-          if (action.impulse > 0 && this.world.isAlive(other)) {
+          if (resolvedImpulse > 0 && this.world.isAlive(other)) {
             const fallback = {
               x: (this.world.x[other] ?? 0) - (this.world.x[self] ?? 0),
               y: (this.world.y[other] ?? 0) - (this.world.y[self] ?? 0)
@@ -231,11 +356,11 @@ export class AbilityActionExecutor {
               self,
               position,
               other,
-              this.context.damageScaledImpulse(action.impulse, action.damage),
+              resolvedImpulse,
               events,
               'explosion',
               fallback,
-              this.context.explosionImpulseOptions(action.damage, context.abilityId)
+              this.context.explosionImpulseOptions(damage, context.abilityId)
             );
           }
         });
@@ -246,9 +371,9 @@ export class AbilityActionExecutor {
           abilityId: context.abilityId,
           kind: action.kind,
           position,
-          radius: action.radius,
-          force: this.context.damageScaledImpulse(action.impulse, action.damage),
-          damage: action.damage,
+          radius,
+          force: resolvedImpulse,
+          damage,
           element: action.element
         });
         break;
@@ -307,6 +432,9 @@ export class AbilityActionExecutor {
       case 'USE_WEAPON':
         // Deprecated. Skills cannot execute the fighter's primary attack in Stage 7.2.
         break;
+      case 'MODIFY_RESOURCE_SELF':
+        this.context.modifyResource(self, action.resourceId, action.amount);
+        break;
       case 'HEAL_SELF':
         this.world.hp[self] = Math.min(
           this.world.maxHp[self] ?? 0,
@@ -329,6 +457,18 @@ export class AbilityActionExecutor {
       })
       .sort((a, b) => a.distanceSq - b.distanceSq || a.id - b.id)
       .map((entry) => entry.id);
+  }
+
+  private abilityMultiplier(
+    source: EntityId,
+    abilityId: string,
+    field:
+      | 'abilityDamageMultiplier'
+      | 'abilityImpulseMultiplier'
+      | 'abilityRadiusMultiplier'
+      | 'abilitySelfImpulseMultiplier'
+  ): number {
+    return this.world.getLoadout(source)[field][abilityId] ?? 1;
   }
 
   private forEachInRadius(

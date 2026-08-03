@@ -358,6 +358,10 @@ export type SkillResolveStyle =
   | 'mega-bomb'
   | 'magma-dash'
   | 'inferno-collapse'
+  | 'cinder-rush'
+  | 'fire-vortex'
+  | 'combustion'
+  | 'meltdown'
   | 'kinetic-pulse'
   | 'reactor-overdrive'
   | 'solar-laser'
@@ -378,12 +382,12 @@ export interface SkillPresentationRecipe {
 
 const skillPresentationRecipes: Record<string, SkillPresentationRecipe> = {
   'magma-dash': {
-    abilityId: 'magma-dash', icon: 'MD', shortName: 'Magma Dash', color: 0xff572f, accentColor: 0xffe18a,
-    telegraph: 'directional-stream', motion: 'stream', resolve: 'magma-dash', importance: 'skill', telegraphRadius: 110
+    abilityId: 'magma-dash', icon: 'CR', shortName: 'Cinder Rush', color: 0xff4a1f, accentColor: 0xfff09a,
+    telegraph: 'directional-stream', motion: 'stream', resolve: 'cinder-rush', importance: 'skill', telegraphRadius: 165
   },
   'inferno-collapse': {
-    abilityId: 'inferno-collapse', icon: 'IC', shortName: 'Inferno Collapse', color: 0xff321f, accentColor: 0xffd75e,
-    telegraph: 'mega-danger', motion: 'gather', resolve: 'inferno-collapse', importance: 'ultimate', telegraphRadius: 260
+    abilityId: 'inferno-collapse', icon: 'ML', shortName: 'Meltdown', color: 0xff2518, accentColor: 0xffffb0,
+    telegraph: 'mega-danger', motion: 'overdrive', resolve: 'meltdown', importance: 'ultimate', telegraphRadius: 265
   },
   'kinetic-pulse': {
     abilityId: 'kinetic-pulse', icon: 'KP', shortName: 'Kinetic Pulse', color: 0x60d9ff, accentColor: 0xe3fbff,
@@ -434,8 +438,8 @@ const skillPresentationRecipes: Record<string, SkillPresentationRecipe> = {
     telegraph: 'mega-danger', motion: 'tremble', resolve: 'mega-bomb', importance: 'ultimate', telegraphRadius: 285
   },
   'ember-impact': { abilityId: 'ember-impact', icon: 'EI', shortName: 'Ember Impact', color: 0xff6b32, accentColor: 0xffe083, telegraph: 'none', motion: 'snap', resolve: 'contact-pop', importance: 'basic', telegraphRadius: 54 },
-  'flame-ring': { abilityId: 'flame-ring', icon: 'FR', shortName: 'Flame Ring', color: 0xff4c22, accentColor: 0xffd45c, telegraph: 'outward-rings', motion: 'compress', resolve: 'inferno-collapse', importance: 'skill', telegraphRadius: 190 },
-  'molten-guard': { abilityId: 'molten-guard', icon: 'MG', shortName: 'Molten Guard', color: 0xe64925, accentColor: 0xffe29d, telegraph: 'reactor-charge', motion: 'brace', resolve: 'reactor-overdrive', importance: 'skill', telegraphRadius: 145 },
+  'flame-ring': { abilityId: 'flame-ring', icon: 'FV', shortName: 'Fire Vortex', color: 0xb92717, accentColor: 0xffdc62, telegraph: 'inward-vortex', motion: 'vortex', resolve: 'fire-vortex', importance: 'skill', telegraphRadius: 215 },
+  'molten-guard': { abilityId: 'molten-guard', icon: 'CB', shortName: 'Combustion', color: 0xff361e, accentColor: 0xffffc2, telegraph: 'warning-ring', motion: 'compress', resolve: 'combustion', importance: 'skill', telegraphRadius: 230 },
   'steel-impact': { abilityId: 'steel-impact', icon: 'SI', shortName: 'Steel Impact', color: 0x91a9b8, accentColor: 0xe4fbff, telegraph: 'none', motion: 'snap', resolve: 'kinetic-pulse', importance: 'basic', telegraphRadius: 62 },
   'magnet-drag': { abilityId: 'magnet-drag', icon: 'MD', shortName: 'Magnet Drag', color: 0x54c9dc, accentColor: 0xf1ffff, telegraph: 'inward-vortex', motion: 'vortex', resolve: 'undertow', importance: 'skill', telegraphRadius: 255 },
   fortify: { abilityId: 'fortify', icon: 'FT', shortName: 'Fortify', color: 0x7193a6, accentColor: 0xd9fbff, telegraph: 'reactor-charge', motion: 'brace', resolve: 'reactor-overdrive', importance: 'skill', telegraphRadius: 160 },

@@ -1,5 +1,5 @@
 import { getAbility, getFighter, getPrimaryAttack, getStatus, resolveFighterLoadout, type ResolvedFighterLoadout } from '@kinetic/content';
-import type { AbilitySlot, AbilityStateSnapshot, ArenaObstacleSnapshot, BattleObjectiveSnapshot, BattleParticipant, BattleResultSnapshot, ControllerKind, Element, EntityId, EntitySnapshot, ProjectileSnapshot, SimulationMetricsSnapshot, StatusStateSnapshot, TeamId, Vec2, WeaponAttackPhase, WeaponAttackStateSnapshot, WeaponCategory, WorldSnapshot } from '@kinetic/protocol';
+import type { AbilitySlot, AbilityStateSnapshot, ArenaObstacleSnapshot, BattleObjectiveSnapshot, BattleParticipant, BattleResultSnapshot, CombatResourceStateSnapshot, ControllerKind, Element, EntityId, EntitySnapshot, ProjectileSnapshot, SimulationMetricsSnapshot, StatusStateSnapshot, TeamId, Vec2, WeaponAttackPhase, WeaponAttackStateSnapshot, WeaponCategory, WorldSnapshot } from '@kinetic/protocol';
 import type { SeededRng } from './rng';
 import { compareOrdinal } from './order';
 
@@ -46,6 +46,12 @@ export interface ActiveStatus {
   pulseCountdown: number;
 }
 
+export interface ActiveCombatResource {
+  id: string;
+  value: number;
+  lastGainTick: number;
+}
+
 
 interface ReusableEntitySnapshotSlot {
   entity: EntitySnapshot;
@@ -81,6 +87,7 @@ export class World {
   private readonly fighterId: Array<string | null>;
   private readonly loadouts: Array<ResolvedFighterLoadout | null>;
   private readonly statuses = new Map<EntityId, Map<string, ActiveStatus>>();
+  private readonly combatResources = new Map<EntityId, Map<string, ActiveCombatResource>>();
   private readonly cooldownReadyTick = new Map<EntityId, Map<string, number>>();
   private readonly activeZoneIds = new Map<EntityId, Set<string>>();
 
@@ -171,6 +178,11 @@ export class World {
     this.fighterId[id] = fighter.id;
     this.loadouts[id] = loadout;
     this.statuses.set(id, new Map());
+    this.combatResources.set(id, new Map((fighter.combatResources ?? []).map((resource) => [resource.id, {
+      id: resource.id,
+      value: resource.initial,
+      lastGainTick: 0
+    }])));
     this.cooldownReadyTick.set(id, new Map());
     this.activeZoneIds.set(id, new Set());
     this.activeIdList.push(id);
@@ -309,6 +321,42 @@ export class World {
 
   getStatuses(id: EntityId): Map<string, ActiveStatus> {
     return this.statuses.get(id) ?? new Map();
+  }
+
+  getCombatResources(id: EntityId): ReadonlyMap<string, ActiveCombatResource> {
+    return this.combatResources.get(id) ?? new Map<string, ActiveCombatResource>();
+  }
+
+  getCombatResourceValue(id: EntityId, resourceId: string): number {
+    return this.combatResources.get(id)?.get(resourceId)?.value ?? 0;
+  }
+
+  getCombatResourceMaximum(id: EntityId, resourceId: string): number {
+    const fighter = getFighter(this.getFighterId(id));
+    return fighter.combatResources?.find((resource) => resource.id === resourceId)?.maximum ?? 0;
+  }
+
+  getCombatResourceLastGainTick(id: EntityId, resourceId: string): number {
+    return this.combatResources.get(id)?.get(resourceId)?.lastGainTick ?? 0;
+  }
+
+  modifyCombatResource(
+    id: EntityId,
+    resourceId: string,
+    amount: number,
+    tick: number,
+    countsAsGain = amount > 0
+  ): number {
+    if (!this.isAlive(id) || !Number.isFinite(amount)) return 0;
+    const fighter = getFighter(this.getFighterId(id));
+    const definition = (fighter.combatResources ?? []).find((resource) => resource.id === resourceId);
+    const state = this.combatResources.get(id)?.get(resourceId);
+    if (!definition || !state) return 0;
+    const previous = state.value;
+    state.value = Math.max(0, Math.min(definition.maximum, previous + amount));
+    const applied = state.value - previous;
+    if (countsAsGain && applied > 0) state.lastGainTick = tick;
+    return applied;
   }
 
   getSpeedMultiplier(id: EntityId): number {
@@ -468,6 +516,28 @@ export class World {
       }
       statuses.length = statusIndex;
       statuses.sort((a, b) => compareOrdinal(a.statusId, b.statusId));
+
+      const resourceDefinitions = fighter.combatResources ?? [];
+      if (resourceDefinitions.length > 0) {
+        const resources = entity.resources ?? (entity.resources = []);
+        let resourceIndex = 0;
+        for (const definition of resourceDefinitions) {
+          const state = this.combatResources.get(id)?.get(definition.id);
+          const target = resources[resourceIndex] ?? ({ resourceId: '', value: 0, maximum: 1 } satisfies CombatResourceStateSnapshot);
+          target.resourceId = definition.id;
+          target.value = state?.value ?? definition.initial;
+          target.maximum = definition.maximum;
+          resources[resourceIndex] = target;
+          resourceIndex += 1;
+        }
+        resources.length = resourceIndex;
+        resources.sort((a, b) => compareOrdinal(a.resourceId, b.resourceId));
+      } else if (entity.resources !== undefined) {
+        // Reusable snapshot slots can shift to another fighter after a death.
+        // Remove stale resource state when the new occupant has no resources.
+        delete entity.resources;
+      }
+
       entity.moduleIds.length = 0;
       entity.moduleIds.push(...this.getLoadout(id).moduleIds);
 
@@ -724,6 +794,15 @@ export class World {
         statuses: [...this.getStatuses(id).values()]
           .map((status) => ({ statusId: status.id, remainingTicks: status.remainingTicks, stacks: status.stacks }))
           .sort((a, b) => compareOrdinal(a.statusId, b.statusId)),
+        ...((fighter.combatResources ?? []).length > 0 ? {
+          resources: (fighter.combatResources ?? [])
+            .map((definition) => ({
+              resourceId: definition.id,
+              value: this.combatResources.get(id)?.get(definition.id)?.value ?? definition.initial,
+              maximum: definition.maximum
+            }))
+            .sort((a, b) => compareOrdinal(a.resourceId, b.resourceId))
+        } : {}),
         moduleIds: [...this.getLoadout(id).moduleIds],
         primaryAttackId: fighter.primaryAttackId,
         weaponId: fighter.primaryAttackId,

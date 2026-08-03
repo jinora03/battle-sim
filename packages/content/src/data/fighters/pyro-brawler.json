@@ -1,14 +1,16 @@
 {
   "id": "pyro-brawler",
-  "name": "Pyro Brawler",
+  "name": "Pyro",
   "classification": {
-    "archetype": "bruiser",
+    "archetype": "heat combo bruiser",
     "elements": [
       "fire"
     ],
     "traits": [
       "organic",
-      "brawler"
+      "brawler",
+      "burn-combo",
+      "area-control"
     ]
   },
   "physics": {
@@ -23,6 +25,29 @@
     "moveAcceleration": 0.18
   },
   "aiProfileId": "aggressive-brawler",
+  "combatResources": [
+    {
+      "id": "heat",
+      "name": "Heat",
+      "maximum": 100,
+      "initial": 0,
+      "decayPerSecond": 6,
+      "decayDelayTicks": 120,
+      "gainRules": [
+        {
+          "event": "DAMAGE_DEALT",
+          "element": "fire",
+          "amountPerDamage": 0.35,
+          "maximumPerEvent": 10
+        },
+        {
+          "event": "STATUS_APPLIED",
+          "statusId": "burn",
+          "amountPerStack": 5
+        }
+      ]
+    }
+  ],
   "abilitySlots": {
     "skill1": "magma-dash",
     "skill2": "flame-ring",
@@ -36,5 +61,25 @@
   "visualRecipeId": "pyro-brawler",
   "animationRecipeId": "volatile-orb",
   "audioProfileId": "fire-heavy",
-  "primaryAttackId": "flame-fists"
+  "primaryAttackId": "flame-fists",
+  "passiveIds": [
+    "living-furnace"
+  ],
+  "moduleSlots": {
+    "offense": [
+      "accelerant-nozzle",
+      "blast-vent"
+    ],
+    "defense": [
+      "thermal-shield"
+    ],
+    "mobility": [
+      "afterburner"
+    ],
+    "utility": [
+      "ember-satellite",
+      "overpressure-core"
+    ]
+  },
+  "defaultModuleIds": []
 }

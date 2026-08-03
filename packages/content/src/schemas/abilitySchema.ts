@@ -20,6 +20,7 @@ export interface AbilityActivationProfile {
 export type AbilityCondition =
   | { type: 'IMPACT_ABOVE'; value: number }
   | { type: 'SELF_HAS_STATUS'; statusId: string; minimumStacks?: number }
+  | { type: 'SELF_RESOURCE_AT_LEAST'; resourceId: string; amount: number }
   | { type: 'TARGET_HAS_STATUS'; statusId: string; minimumStacks?: number; maximumStacks?: number }
   | { type: 'SELF_HEALTH_BELOW'; ratio: number };
 
@@ -35,6 +36,35 @@ export type AbilityAction =
   | { type: 'RADIAL_DAMAGE'; radius: number; amount: number; element: Element; enemiesOnly: boolean }
   | { type: 'DIRECTIONAL_DAMAGE'; range: number; arcDegrees: number; amount: number; knockback: number; element: Element; enemiesOnly: boolean }
   | { type: 'RADIAL_STATUS'; radius: number; statusId: string; durationTicks: number; stacks?: number; enemiesOnly: boolean }
+  | {
+      type: 'AREA_EFFECT_AT_TARGET';
+      radius: number;
+      damage: number;
+      impulse: number;
+      direction: 'push' | 'pull';
+      element: Element;
+      enemiesOnly: boolean;
+      statusId?: string;
+      statusDurationTicks?: number;
+      statusStacks?: number;
+      kind: BlastKind;
+    }
+  | {
+      type: 'DETONATE_STATUS';
+      radius: number;
+      statusId: string;
+      minimumStacks: number;
+      consumeStacks: number | 'all';
+      baseDamage: number;
+      damagePerStack: number;
+      baseImpulse: number;
+      impulsePerStack: number;
+      element: Element;
+      enemiesOnly: boolean;
+      kind: BlastKind;
+      detonationRadius: number;
+      detonationRadiusPerStack: number;
+    }
   | { type: 'EXPLODE'; kind: BlastKind; radius: number; damage: number; impulse: number; element: Element; enemiesOnly: boolean }
   | { type: 'EXPLODE_AT_TARGET'; kind: BlastKind; radius: number; damage: number; impulse: number; element: Element; enemiesOnly: boolean }
   | {
@@ -47,6 +77,7 @@ export type AbilityAction =
       intervalTicks?: number;
     }
   | { type: 'HEAL_SELF'; amount: number }
+  | { type: 'MODIFY_RESOURCE_SELF'; resourceId: string; amount: number }
   | { type: 'USE_WEAPON'; weaponId?: string };
 
 export interface AbilityDefinition {
@@ -80,6 +111,7 @@ export interface PassiveDefinition {
 const conditionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('IMPACT_ABOVE'), value: z.number().nonnegative() }),
   z.object({ type: z.literal('SELF_HAS_STATUS'), statusId: z.string(), minimumStacks: z.number().int().positive().optional() }),
+  z.object({ type: z.literal('SELF_RESOURCE_AT_LEAST'), resourceId: z.string().min(1), amount: z.number().nonnegative() }),
   z.object({ type: z.literal('TARGET_HAS_STATUS'), statusId: z.string(), minimumStacks: z.number().int().nonnegative().optional(), maximumStacks: z.number().int().nonnegative().optional() }),
   z.object({ type: z.literal('SELF_HEALTH_BELOW'), ratio: z.number().min(0).max(1) })
 ]);
@@ -103,6 +135,35 @@ const actionSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('RADIAL_STATUS'), radius: z.number().positive(), statusId: z.string(), durationTicks: z.number().int().positive(), stacks: z.number().int().positive().optional(), enemiesOnly: z.boolean().default(true) }),
   z.object({
+    type: z.literal('AREA_EFFECT_AT_TARGET'),
+    radius: z.number().positive(),
+    damage: z.number().nonnegative(),
+    impulse: z.number().nonnegative(),
+    direction: z.enum(['push', 'pull']).default('push'),
+    element: elementSchema,
+    enemiesOnly: z.boolean().default(true),
+    statusId: z.string().min(1).optional(),
+    statusDurationTicks: z.number().int().positive().optional(),
+    statusStacks: z.number().int().positive().optional(),
+    kind: z.enum(['explosion', 'wave']).default('wave')
+  }),
+  z.object({
+    type: z.literal('DETONATE_STATUS'),
+    radius: z.number().positive(),
+    statusId: z.string().min(1),
+    minimumStacks: z.number().int().positive().default(1),
+    consumeStacks: z.union([z.number().int().positive(), z.literal('all')]).default('all'),
+    baseDamage: z.number().nonnegative().default(0),
+    damagePerStack: z.number().nonnegative(),
+    baseImpulse: z.number().nonnegative().default(0),
+    impulsePerStack: z.number().nonnegative().default(0),
+    element: elementSchema,
+    enemiesOnly: z.boolean().default(true),
+    kind: z.enum(['explosion', 'wave']).default('explosion'),
+    detonationRadius: z.number().positive().default(36),
+    detonationRadiusPerStack: z.number().nonnegative().default(8)
+  }),
+  z.object({
     type: z.literal('EXPLODE'), kind: z.enum(['explosion', 'wave']), radius: z.number().positive(),
     damage: z.number().nonnegative(), impulse: z.number().nonnegative(), element: elementSchema, enemiesOnly: z.boolean().default(true)
   }),
@@ -120,6 +181,7 @@ const actionSchema = z.discriminatedUnion('type', [
     intervalTicks: z.number().int().min(0).max(30).optional()
   }),
   z.object({ type: z.literal('HEAL_SELF'), amount: z.number().positive() }),
+  z.object({ type: z.literal('MODIFY_RESOURCE_SELF'), resourceId: z.string().min(1), amount: z.number() }),
   z.object({ type: z.literal('USE_WEAPON'), weaponId: z.string().optional() })
 ]);
 

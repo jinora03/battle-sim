@@ -2,5 +2,7 @@
   "id": "burn",
   "periodicDamage": 2.5,
   "periodTicks": 30,
-  "element": "fire"
+  "element": "fire",
+  "maxStacks": 5,
+  "refreshMode": "refresh"
 }

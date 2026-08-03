@@ -69,6 +69,7 @@ export interface AbilitySystemContext {
     options?: AbilityImpulseOptions
   ): void;
   removeExternalImpulse(entityId: EntityId): void;
+  modifyResource(entityId: EntityId, resourceId: string, amount: number): number;
   damageScaledImpulse(baseImpulse: number, damage: number): number;
   explosionImpulseOptions(damage: number, abilityId?: string): AbilityImpulseOptions;
 }
