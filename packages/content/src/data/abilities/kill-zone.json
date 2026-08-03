@@ -7,21 +7,19 @@
   "castMovementMultiplier": 0.28,
   "activation": {
     "intent": "offensive",
-    "targeting": "target",
+    "targeting": "direction",
     "priority": 112,
-    "minRange": 120,
-    "maxRange": 820,
-    "requiresLineOfSight": true,
+    "minRange": 0,
+    "maxRange": 99999,
+    "requiresLineOfSight": false,
     "minimumTargets": 1,
     "collisionWindowTicks": 0,
-    "aimToleranceDegrees": 85
+    "aimToleranceDegrees": 180
   },
   "triggers": [
     {
       "event": "ON_ACTIVATE",
-      "conditions": [
-        { "type": "TARGET_HAS_STATUS", "statusId": "target-lock", "minimumStacks": 3 }
-      ],
+      "conditions": [],
       "actions": [
         { "type": "APPLY_STATUS_SELF", "statusId": "overdrive", "durationTicks": 150 },
         {

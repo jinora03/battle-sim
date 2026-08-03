@@ -142,6 +142,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
           { id: 'battle', label: 'Fight', shortLabel: 'Fight' },
           { id: 'training', label: 'Lab', shortLabel: 'Lab' },
           { id: 'roster', label: 'Roster', shortLabel: 'Roster', badge: fighters.length },
+          { id: 'creator', label: 'Create Fighter', shortLabel: 'Create' },
           { id: 'profile', label: 'Profile', shortLabel: 'Profile', badge: `Lv ${profile.level}` }
         ]}
       />
@@ -467,7 +468,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
               </div>
               <div className="ai-decision-debug">
                 <h3>AI action selection</h3>
-                {diagnostics.aiDecisions.length === 0 ? <span className="small-note">No AI decision sampled yet.</span> : diagnostics.aiDecisions.slice(0, 8).map((decision) => (
+                {diagnostics.aiDecisions.length === 0 ? <p className="ai-decision-empty-state">No AI decision sampled yet.</p> : diagnostics.aiDecisions.slice(0, 8).map((decision) => (
                   <div className="ai-decision-row" key={decision.entityId}>
                     <b>#{decision.entityId}</b>
                     <span>{decision.kind === 'ability' ? `${decision.slot?.toUpperCase()} · ${decision.abilityId}` : decision.kind}</span>
@@ -498,7 +499,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
                 <div>
                   {['Built-in fighters use the same modular content pipeline','Six arenas range from compact ricochet pits to mass-war fields','Player, AI, replay and future network control share one command protocol','Unique skill telegraphs, cast motion, resolve FX, cooldown UI and audio','Duel, teams, battle royale, boss raid, survival and mass skirmish modes','Achievements, challenges, unlocks, history and local profile persistence','Developer Fighter Workshop remains an internal authoring tool; players choose only approved fighters and loadouts','Standard, minimal and debug render profiles with adaptive mobile quality','New battles randomize seed while explicit replay preserves exact inputs','Simulation remains headless, fixed-step and independent from PixiJS','Ability Lab reuses the real combat runner with deterministic training-only rules','Stage 7 pools live runtime snapshots and fighter views while preserving immutable diagnostic snapshots','Adaptive quality changes only presentation; simulation ticks, AI, damage and winners remain untouched'].map((item) => <div className="architecture-item" key={item}><span>✓</span>{item}</div>)}
                 </div>
-                <div className="note-card-inline"><strong>Architecture proof</strong><p>The release layers remain replaceable: content feeds a headless simulation, commands select the controller, semantic events drive visuals/audio/meta systems, and the browser/mobile app only wires those packages together.</p><NeonButton tone="ghost" size="small" onClick={() => setView('creator')}>Open developer Fighter Workshop</NeonButton></div>
+                <div className="note-card-inline"><strong>Architecture proof</strong><p>The release layers remain replaceable: content feeds a headless simulation, commands select the controller, semantic events drive visuals/audio/meta systems, and the browser/mobile app only wires those packages together.</p><NeonButton tone="ghost" size="small" className="developer-workshop-button" onClick={() => setView('creator')}>Open developer Fighter Workshop</NeonButton></div>
               </div>
             </details>
           </div>
