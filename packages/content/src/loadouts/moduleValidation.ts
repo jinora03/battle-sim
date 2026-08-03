@@ -20,6 +20,27 @@ export function validateModuleCatalog(modules: readonly FighterModuleDefinition[
         }
         continue;
       }
+      if (name === 'primaryConeChannel') {
+        const channel = value as NonNullable<FighterModuleDefinition['modifiers']['primaryConeChannel']>;
+        if (
+          !Number.isInteger(channel.activeTicks)
+          || channel.activeTicks <= 0
+          || !Number.isInteger(channel.hitIntervalTicks)
+          || channel.hitIntervalTicks <= 0
+          || !Number.isInteger(channel.statusIntervalHits)
+          || channel.statusIntervalHits <= 0
+          || channel.rangeMultiplier <= 0
+          || channel.angleDegrees <= 0
+          || channel.angleDegrees > 180
+          || channel.damageMultiplier <= 0
+          || channel.knockbackMultiplier < 0
+          || channel.movementMultiplier < 0
+          || channel.movementMultiplier > 1
+        ) {
+          throw new Error(`Module ${module.id} has an invalid primary cone channel`);
+        }
+        continue;
+      }
       if (name === 'resourceThresholdIncomingDamageMultiplier') {
         const rule = value as NonNullable<FighterModuleDefinition['modifiers']['resourceThresholdIncomingDamageMultiplier']>;
         if (!rule.resourceId || rule.thresholdRatio < 0 || rule.thresholdRatio > 1 || rule.multiplier <= 0) {

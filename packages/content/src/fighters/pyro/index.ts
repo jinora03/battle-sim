@@ -1,5 +1,5 @@
 import fighterRaw from '../../data/fighters/pyro-brawler.json';
-import aiProfileRaw from '../../data/ai/aggressive-brawler.json';
+import aiProfileRaw from '../../data/ai/pyro-combo-bruiser.json';
 import magmaDashRaw from '../../data/abilities/magma-dash.json';
 import flameRingRaw from '../../data/abilities/flame-ring.json';
 import moltenGuardRaw from '../../data/abilities/molten-guard.json';

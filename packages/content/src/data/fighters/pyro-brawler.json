@@ -24,7 +24,7 @@
     "maxHp": 295,
     "moveAcceleration": 0.18
   },
-  "aiProfileId": "aggressive-brawler",
+  "aiProfileId": "pyro-combo-bruiser",
   "combatResources": [
     {
       "id": "heat",
@@ -68,7 +68,8 @@
   "moduleSlots": {
     "offense": [
       "accelerant-nozzle",
-      "blast-vent"
+      "blast-vent",
+      "furnace-nozzle"
     ],
     "defense": [
       "thermal-shield"

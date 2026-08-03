@@ -398,6 +398,40 @@ export class LayeredVfxEngine {
       const recipe = getWeaponVfxRecipe(attack.weaponId);
       const facing = Math.atan2(attack.direction.y, attack.direction.x);
       const progress = 1 - attack.remainingTicks / Math.max(1, attack.totalTicks);
+      const furnaceNozzle = weapon.id === 'flame-fists' && entity.moduleIds.includes('furnace-nozzle');
+      if (furnaceNozzle) {
+        const pulse = 0.84 + Math.sin(elapsedSeconds * 24 + entity.id * 0.7) * 0.16;
+        const halfAngle = 18 * Math.PI / 180;
+        const startDistance = entity.radius * 0.9;
+        const length = weapon.range * 0.95 * (0.92 + pulse * 0.08);
+        const startX = entity.x + Math.cos(facing) * startDistance;
+        const startY = entity.y + Math.sin(facing) * startDistance;
+        const leftX = entity.x + Math.cos(facing - halfAngle) * length;
+        const leftY = entity.y + Math.sin(facing - halfAngle) * length;
+        const rightX = entity.x + Math.cos(facing + halfAngle) * length;
+        const rightY = entity.y + Math.sin(facing + halfAngle) * length;
+        this.weaponAnchorGraphics
+          .moveTo(startX, startY)
+          .lineTo(leftX, leftY)
+          .lineTo(rightX, rightY)
+          .closePath()
+          .fill({ color: 0xff3b1f, alpha: 0.09 * quality.glowMultiplier });
+        this.weaponAnchorGraphics.moveTo(startX, startY).lineTo(leftX, leftY)
+          .stroke({ color: 0xff6a24, width: 5.5, alpha: 0.28 * quality.glowMultiplier });
+        this.weaponAnchorGraphics.moveTo(startX, startY).lineTo(rightX, rightY)
+          .stroke({ color: 0xff6a24, width: 5.5, alpha: 0.28 * quality.glowMultiplier });
+        this.weaponAnchorGraphics.moveTo(startX, startY)
+          .lineTo(entity.x + Math.cos(facing) * length, entity.y + Math.sin(facing) * length)
+          .stroke({ color: 0xffe36e, width: 9 + pulse * 4, alpha: 0.62 * quality.glowMultiplier });
+        for (let tongue = 0; tongue < 3; tongue += 1) {
+          const offset = (tongue - 1) * halfAngle * 0.52 + Math.sin(elapsedSeconds * 17 + tongue * 2.1 + entity.id) * 0.045;
+          const tongueLength = length * (0.66 + tongue * 0.09 + pulse * 0.08);
+          this.weaponAnchorGraphics.moveTo(startX, startY)
+            .lineTo(entity.x + Math.cos(facing + offset) * tongueLength, entity.y + Math.sin(facing + offset) * tongueLength)
+            .stroke({ color: tongue === 1 ? 0xffff9a : 0xff8a2f, width: tongue === 1 ? 5 : 7, alpha: (0.48 + pulse * 0.18) * quality.glowMultiplier });
+        }
+        continue;
+      }
       if (recipe.trailShape === 'slash') {
         this.drawArc(this.weaponAnchorGraphics, entity.x, entity.y, weapon.range * 0.82, facing - 1.15 + progress * 1.55, facing - 0.35 + progress * 1.55, recipe.trailColor, 8, 0.46 * quality.glowMultiplier);
       } else if (recipe.trailShape === 'thrust') {

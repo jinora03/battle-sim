@@ -1,4 +1,5 @@
 import fighterRaw from '../../data/fighters/solar-sentinel.json';
+import aiProfileRaw from '../../data/ai/aggressive-brawler.json';
 import solarRushRaw from '../../data/abilities/solar-rush.json';
 import thunderClapRaw from '../../data/abilities/thunder-clap.json';
 import solarAegisRaw from '../../data/abilities/solar-aegis.json';
@@ -7,6 +8,7 @@ import type { FighterContentBundle } from '../types';
 
 export const solarSentinelContent: FighterContentBundle = {
   fighter: fighterRaw,
+  aiProfile: aiProfileRaw,
   abilities: [solarRushRaw, thunderClapRaw, solarAegisRaw, solarLaserRaw],
   primaryAttack: {
     id: 'solar-punch', name: 'Solar Punch', form: 'gauntlet', behavior: 'melee', category: 'melee', style: 'thrust',

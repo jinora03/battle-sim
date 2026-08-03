@@ -188,6 +188,8 @@ export interface WeaponHitEvent {
   position: Vec2;
   damage: number;
   knockback: number;
+  /** Presentation hint for sampled continuous channels; gameplay remains event-driven. */
+  presentation?: 'impact' | 'continuous';
 }
 
 export interface ProjectileSpawnedEvent {

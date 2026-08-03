@@ -11,6 +11,25 @@ export interface PeriodicStatusPulseDefinition {
   minimumResource?: number;
 }
 
+export interface PrimaryConeChannelDefinition {
+  /** Total active channel duration after the normal primary windup. */
+  activeTicks: number;
+  /** Damage/knockback pulse cadence while the channel is active. */
+  hitIntervalTicks: number;
+  /** Apply the primary's on-hit statuses every N channel pulses. */
+  statusIntervalHits: number;
+  /** Multiplies the base primary range for cone queries. */
+  rangeMultiplier: number;
+  /** Full cone width in degrees. */
+  angleDegrees: number;
+  /** Per-pulse direct damage relative to the base primary damage. */
+  damageMultiplier: number;
+  /** Per-pulse knockback relative to the base primary knockback. */
+  knockbackMultiplier: number;
+  /** Locomotion acceleration retained while channeling. */
+  movementMultiplier: number;
+}
+
 export interface FighterModuleDefinition {
   id: string;
   name: string;
@@ -26,6 +45,8 @@ export interface FighterModuleDefinition {
     primaryProjectileBounce?: number;
     primaryProjectileMaxWallBounces?: number;
     primaryProjectilePenetration?: number;
+    /** Replaces projectile firing with a deterministic pulsed cone channel. */
+    primaryConeChannel?: PrimaryConeChannelDefinition;
     statusDurationMultiplier?: Record<string, number>;
     /** Adds deterministic stacks when this fighter applies the named status to an enemy. */
     statusStacksAppliedBonus?: Record<string, number>;
@@ -63,6 +84,7 @@ export interface ResolvedFighterLoadout {
   primaryProjectileBounce: number;
   primaryProjectileMaxWallBounces: number;
   primaryProjectilePenetration: number;
+  primaryConeChannel: PrimaryConeChannelDefinition | null;
   statusDurationMultiplier: Record<string, number>;
   statusStacksAppliedBonus: Record<string, number>;
   skillProjectileHomingMultiplier: number;

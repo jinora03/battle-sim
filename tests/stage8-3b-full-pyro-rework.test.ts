@@ -219,11 +219,12 @@ describe('Stage 8.3B full Pyro rework', () => {
     expect(burnStacks(runner.getSnapshot())).toBe(5);
   });
 
-  it('registers six developer-approved Pyro modules and resolves their real gameplay modifiers', () => {
+  it('registers seven developer-approved Pyro modules and resolves their real gameplay modifiers', () => {
     const pyro = getFighter('pyro-brawler');
     expect(listCompatibleModules(pyro).map((module) => module.id)).toEqual([
       'accelerant-nozzle',
       'blast-vent',
+      'furnace-nozzle',
       'thermal-shield',
       'afterburner',
       'ember-satellite',
@@ -344,7 +345,7 @@ describe('Stage 8.3B full Pyro rework', () => {
     const snapshot = runner.getSnapshot();
     const self = entity(snapshot, 0);
     const target = entity(snapshot, 1);
-    const profile = getAiProfile('aggressive-brawler');
+    const profile = getAiProfile('pyro-combo-bruiser');
 
     const unprimed = selectAbilityAction(snapshot, self, target, profile);
     expect(unprimed.debug.candidates.find((candidate) => candidate.slot === 'skill3')).toMatchObject({

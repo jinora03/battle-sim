@@ -24,6 +24,9 @@ export function cloneModule(module: FighterModuleDefinition): FighterModuleDefin
     ...(module.attachments ? { attachments: module.attachments.map(cloneAttachment) } : {}),
     modifiers: {
       ...module.modifiers,
+      ...(module.modifiers.primaryConeChannel
+        ? { primaryConeChannel: { ...module.modifiers.primaryConeChannel } }
+        : {}),
       ...(module.modifiers.statusDurationMultiplier
         ? { statusDurationMultiplier: { ...module.modifiers.statusDurationMultiplier } }
         : {}),

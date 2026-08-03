@@ -37,9 +37,16 @@ export class MovementSystem {
     const activeCast = this.activeCasts.get(id);
     const castAbility = activeCast ? getAbility(activeCast.abilityId) : null;
     const activePrimaryAttack = this.activeWeaponAttacks.get(id);
-    const primaryMovementMultiplier = activePrimaryAttack
-      && !getPrimaryAttack(activePrimaryAttack.weaponId).movementAllowed
-      ? 0
+    const activePrimaryDefinition = activePrimaryAttack
+      ? getPrimaryAttack(activePrimaryAttack.weaponId)
+      : null;
+    const channelMovementMultiplier = activePrimaryAttack?.phase === 'active'
+      ? this.world.getLoadout(id).primaryConeChannel?.movementMultiplier ?? 1
+      : 1;
+    const primaryMovementMultiplier = activePrimaryDefinition
+      ? activePrimaryDefinition.movementAllowed
+        ? channelMovementMultiplier
+        : 0
       : 1;
     const castMovementMultiplier = castAbility ? castAbility.castMovementMultiplier : 1;
     const environment = this.arenaZones.modifiersFor(id);
