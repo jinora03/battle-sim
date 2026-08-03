@@ -458,6 +458,33 @@ export class FxEngine {
         this.shockwave(x, y, 0xffffff, 42, 2, 0.25);
         this.burst(x, y, recipe.color, Math.round(amount * 1.25 * particleScale), 7.5, 1.5, 4.5, 0.2, 0.55, 0.96, 0.2);
         break;
+      case 'mass-bloom':
+        this.flash(x, y, 0xe9fbff, 42, 0.13);
+        this.shockwave(x, y, recipe.accentColor, 86, 3, 0.46);
+        this.shockwave(x, y, recipe.color, 58, 5, 0.34);
+        this.burst(x, y, 0xd8c7ff, Math.round(amount * 0.85 * particleScale), 3.8, 1, 3.4, 0.22, 0.62, 0.98, 0.5);
+        break;
+      case 'downbeat-punt':
+        this.flash(x, y, 0xf4fdff, 38, 0.12);
+        this.directionalBurst(x, y, dirX, dirY, recipe.accentColor, Math.round(amount * 1.35 * particleScale), 12.5);
+        this.directionalBurst(x, y, dirX, dirY, recipe.color, Math.round(amount * 0.8 * particleScale), 8.5);
+        this.shockwave(x, y, recipe.color, 64, 7, 0.28);
+        break;
+      case 'anchor-drop':
+        this.flash(x, y, 0xeaffff, 46, 0.14);
+        this.shockwave(x, y, 0x2d203a, 86, 10, 0.48);
+        this.shockwave(x, y, recipe.accentColor, 58, 4, 0.34);
+        this.shardBurst(x, y, 0xbcefff, Math.round(amount * 0.8 * particleScale), 5.5);
+        break;
+      case 'last-call':
+        this.flash(x, y, 0xffffff, 112, 0.22);
+        this.flash(x, y, recipe.color, 156, 0.34);
+        this.shockwave(x, y, 0x28172f, 188, 12, 0.78);
+        this.shockwave(x, y, recipe.accentColor, 132, 6, 0.6);
+        this.shockwave(x, y, 0xa88cdd, 82, 3, 0.42);
+        this.burst(x, y, 0xd8faff, Math.round(amount * 1.6 * particleScale), 10.5, 1.5, 5, 0.2, 0.68, 0.96, 0.72);
+        this.burst(x, y, 0x5d3a79, Math.round(amount * 1.25 * particleScale), 7.2, 2.5, 7, 0.26, 0.78, 0.97, 0.9);
+        break;
       case 'solar-laser':
         // The sustained beam is rendered from the live casting snapshot so it
         // stays attached to the Sentinel and tracks its target. Resolution only

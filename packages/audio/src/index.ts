@@ -217,7 +217,10 @@ export class BattleAudioEngine {
 
 
   private playWeaponAttack(event: WeaponAttackStartedEvent): void {
-    if (event.weaponId === 'automatic-rifle') {
+    if (event.weaponId === 'skip-stone') {
+      this.playTone(132, 520, 0.12, 'sine', 0.04);
+      this.playTone(760, 310, 0.065, 'triangle', 0.028);
+    } else if (event.weaponId === 'automatic-rifle') {
       this.playTone(170, 88, 0.055, 'triangle', 0.026);
       this.playTone(74, 52, 0.07, 'square', 0.018);
     } else if (event.category === 'ranged' || event.category === 'automatic' || event.category === 'beam') {
@@ -249,7 +252,11 @@ export class BattleAudioEngine {
   }
 
   private playProjectileSpawn(event: ProjectileSpawnedEvent): void {
-    if (event.weaponId === 'demolition-bomb') this.playTone(150, 250, 0.13, 'triangle', 0.028);
+    if (event.weaponId === 'skip-stone') {
+      this.playTone(210, 610, 0.11, 'sine', 0.035);
+      this.playTone(980, 460, 0.05, 'triangle', 0.022);
+    }
+    else if (event.weaponId === 'demolition-bomb') this.playTone(150, 250, 0.13, 'triangle', 0.028);
     else if (event.weaponId === 'automatic-rifle') this.playAutomaticRifleCrack(false);
     else if (event.weaponId === 'arc-emitter') this.playTone(820, 210, 0.085, 'square', 0.05);
     else if (event.weaponId.includes('rocket') || event.weaponId.includes('missile')) {
@@ -260,7 +267,12 @@ export class BattleAudioEngine {
   }
 
   private playProjectileImpact(event: ProjectileImpactEvent): void {
-    if (event.weaponId === 'demolition-bomb') this.playTone(115, 48, 0.16, 'square', 0.05);
+    if (event.weaponId === 'skip-stone') {
+      this.playTone(148, 54, 0.13, 'triangle', 0.052);
+      this.playTone(1240, 420, 0.055, 'sine', 0.026);
+      this.playMetallicTick(0.58);
+    }
+    else if (event.weaponId === 'demolition-bomb') this.playTone(115, 48, 0.16, 'square', 0.05);
     else if (event.weaponId === 'arc-emitter') this.playTone(630, 105, 0.09, 'square', 0.045);
     else if (event.weaponId.includes('rocket') || event.weaponId.includes('missile')) {
       this.playTone(108, 34, 0.22, 'square', 0.08);
@@ -411,12 +423,12 @@ export class BattleAudioEngine {
     const ice = ['glacier-charge', 'frost-nova', 'ice-anchor', 'absolute-zero'].includes(abilityId);
     const electric = ['lightning-dash', 'arc-burst', 'polarity-pull', 'thunder-dome'].includes(abilityId);
     const nature = ['bramble-charge', 'seed-burst', 'regenerate', 'overgrowth'].includes(abilityId);
-    const voidSkill = ['phase-lunge', 'gravity-well', 'void-burst', 'singularity'].includes(abilityId);
+    const voidSkill = ['phase-lunge', 'gravity-well', 'void-burst', 'singularity', 'featherfall', 'downbeat', 'dead-weight', 'last-call'].includes(abilityId);
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
     oscillator.type = abilityId === 'mega-bomb' ? 'sawtooth' : bomber ? 'square' : fire ? 'sawtooth' : electric ? 'square' : voidSkill ? 'sine' : mech || ice || nature ? 'triangle' : water ? 'sine' : 'triangle';
     const startFrequency = abilityId === 'mega-bomb' ? 58 : abilityId === 'tidal-cataclysm' ? 120 : abilityId === 'reactor-overdrive' ? 92 : ice ? 410 : electric ? 520 : nature ? 135 : voidSkill ? 96 : fire ? 135 : mech ? 115 : bomber ? 105 : water ? 180 : 150;
-    const endFrequency = abilityId === 'undertow' || abilityId === 'gravity-well' || abilityId === 'singularity' ? 48 : abilityId === 'mega-bomb' ? 42 : abilityId === 'inferno-collapse' ? 52 : startFrequency * (water ? 1.65 : electric ? 1.8 : ice ? 0.62 : nature ? 0.74 : mech ? 1.45 : 1.25);
+    const endFrequency = abilityId === 'undertow' || abilityId === 'gravity-well' || abilityId === 'singularity' || abilityId === 'last-call' ? 48 : abilityId === 'mega-bomb' ? 42 : abilityId === 'inferno-collapse' ? 52 : startFrequency * (water ? 1.65 : electric ? 1.8 : ice ? 0.62 : nature ? 0.74 : mech ? 1.45 : 1.25);
     oscillator.frequency.setValueAtTime(startFrequency, now);
     oscillator.frequency.exponentialRampToValueAtTime(Math.max(24, endFrequency), now + duration);
     gain.gain.setValueAtTime(0.001, now);
@@ -428,8 +440,8 @@ export class BattleAudioEngine {
     oscillator.stop(now + duration + 0.02);
     this.trackVoice(oscillator);
 
-    if (['mega-bomb', 'tidal-cataclysm', 'inferno-collapse', 'reactor-overdrive', 'absolute-zero', 'thunder-dome', 'overgrowth', 'singularity', 'solar-laser'].includes(abilityId)) {
-      const pulseFrequency = abilityId === 'mega-bomb' ? 82 : abilityId === 'tidal-cataclysm' ? 210 : abilityId === 'inferno-collapse' ? 120 : abilityId === 'absolute-zero' ? 480 : abilityId === 'thunder-dome' ? 620 : abilityId === 'overgrowth' ? 140 : abilityId === 'singularity' ? 68 : abilityId === 'solar-laser' ? 910 : 165;
+    if (['mega-bomb', 'tidal-cataclysm', 'inferno-collapse', 'reactor-overdrive', 'absolute-zero', 'thunder-dome', 'overgrowth', 'singularity', 'last-call', 'solar-laser'].includes(abilityId)) {
+      const pulseFrequency = abilityId === 'mega-bomb' ? 82 : abilityId === 'tidal-cataclysm' ? 210 : abilityId === 'inferno-collapse' ? 120 : abilityId === 'absolute-zero' ? 480 : abilityId === 'thunder-dome' ? 620 : abilityId === 'overgrowth' ? 140 : abilityId === 'singularity' ? 68 : abilityId === 'last-call' ? 58 : abilityId === 'solar-laser' ? 910 : 165;
       this.playPulseSequence(pulseFrequency, duration, abilityId === 'mega-bomb' ? 'square' : abilityId === 'inferno-collapse' ? 'sawtooth' : 'sine');
     }
   }
@@ -491,6 +503,21 @@ export class BattleAudioEngine {
     else if (id === 'gravity-well') this.playTone(140, 34, 0.34, 'sine', 0.075);
     else if (id === 'void-burst') this.playTone(230, 48, 0.28, 'triangle', 0.075);
     else if (id === 'singularity') { this.playTone(96, 22, 0.68, 'sine', 0.115); this.playPulseSequence(72, 0.5, 'triangle'); }
+    else if (id === 'featherfall') {
+      this.playTone(190, 520, 0.28, 'sine', 0.048);
+      this.playTone(740, 1180, 0.18, 'triangle', 0.025);
+    } else if (id === 'downbeat') {
+      this.playTone(112, 34, 0.3, 'square', 0.095);
+      this.playTone(360, 92, 0.12, 'triangle', 0.045);
+      this.playMetallicTick(0.72);
+    } else if (id === 'dead-weight') {
+      this.playTone(150, 42, 0.4, 'sawtooth', 0.085);
+      this.playTone(520, 82, 0.16, 'triangle', 0.03);
+    } else if (id === 'last-call') {
+      this.playTone(84, 20, 0.72, 'sine', 0.125);
+      this.playTone(285, 54, 0.44, 'triangle', 0.052);
+      this.playPulseSequence(58, 0.58, 'sine');
+    }
     else if (id === 'solar-laser') { this.playTone(980, 120, 0.5, 'square', 0.18); this.playTone(1680, 220, 0.3, 'sawtooth', 0.12); this.playPulseSequence(1120, 0.55, 'square'); }
     else this.playTone(180, 320, 0.16, 'triangle', 0.045);
   }

@@ -1,19 +1,20 @@
-# Kinetic Battle Engine — v1.3.3 Stage 8.4B
+# Kinetic Battle Engine — v1.3.4 Stage 8.4C
 
 A browser/mobile-ready 2D physics battle game and modular fighter engine built with TypeScript, PixiJS, React, Vite and Capacitor.
 
-> **Stage 8.4B introduces Ballast, the Gravity Sommelier.** Ballast is a physics-first controller who stacks Featherlight, banks ricocheting Skip Stones, launches prepared targets with Downbeat, anchors against retaliation and turns the arena weightless during Last Call.
+> **Stage 8.4C completes Ballast's presentation pass.** His mass-control kit now has dedicated weightless, impact, anchoring and arena-inversion effects plus a distinct synthesized audio identity for Skip Stone and all four abilities.
 
-## Stage 8.4B highlights
+## Stage 8.4C highlights
 
 - complete Ballast fighter with `House Rules`, `Skip Stone`, `Featherfall`, `Downbeat`, `Dead Weight` and `Last Call`
 - dedicated mass-aware AI that primes Featherlight before choosing its launch payoff
 - finite native ricochets used by the basic attack, including module-added bounce budget
 - six developer-approved Ballast modules using existing generic loadout modifiers
-- generic visual recipe, motion recipe and skill presentation entries
-- deterministic regression coverage for the full setup-and-launch combat loop
+- dedicated mass-bloom, directional punt, anchor-drop and arena-inversion resolve effects
+- distinct synthesized audio cues for Skip Stone and every Ballast ability
+- deterministic gameplay remains identical to Stage 8.4B
 
-See `docs/V1_3_STAGE_8_4B_FULL_BALLAST.md` for implementation and validation notes.
+See `docs/V1_3_STAGE_8_4C_BALLAST_PRESENTATION_POLISH.md` for the presentation pass and `docs/V1_3_STAGE_8_4B_FULL_BALLAST.md` for the fighter implementation.
 
 ## Stage 8.4A.1 Pyro readability pass
 

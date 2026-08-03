@@ -372,6 +372,10 @@ export type SkillResolveStyle =
   | 'meltdown'
   | 'kinetic-pulse'
   | 'reactor-overdrive'
+  | 'mass-bloom'
+  | 'downbeat-punt'
+  | 'anchor-drop'
+  | 'last-call'
   | 'solar-laser'
   | 'generic';
 
@@ -471,10 +475,10 @@ const skillPresentationRecipes: Record<string, SkillPresentationRecipe> = {
   'gravity-well': { abilityId: 'gravity-well', icon: 'GW', shortName: 'Gravity Well', color: 0x7540c5, accentColor: 0x8cecff, telegraph: 'inward-vortex', motion: 'vortex', resolve: 'undertow', importance: 'skill', telegraphRadius: 270 },
   'void-burst': { abilityId: 'void-burst', icon: 'VB', shortName: 'Void Burst', color: 0x9a50ec, accentColor: 0xc5a3ff, telegraph: 'warning-ring', motion: 'compress', resolve: 'concussion', importance: 'skill', telegraphRadius: 195 },
   singularity: { abilityId: 'singularity', icon: 'SG', shortName: 'Singularity', color: 0x5e238f, accentColor: 0xb7eaff, telegraph: 'mega-danger', motion: 'tremble', resolve: 'inferno-collapse', importance: 'ultimate', telegraphRadius: 340 },
-  featherfall: { abilityId: 'featherfall', icon: 'FF', shortName: 'Featherfall', color: 0xa992dc, accentColor: 0x9cf4ff, telegraph: 'outward-rings', motion: 'compress', resolve: 'kinetic-pulse', importance: 'skill', telegraphRadius: 275 },
-  downbeat: { abilityId: 'downbeat', icon: 'DB', shortName: 'Downbeat', color: 0x7859aa, accentColor: 0xdffcff, telegraph: 'directional-stream', motion: 'brace', resolve: 'pressure-wave', importance: 'skill', telegraphRadius: 330 },
-  'dead-weight': { abilityId: 'dead-weight', icon: 'DW', shortName: 'Dead Weight', color: 0x4f405f, accentColor: 0xbcefff, telegraph: 'reactor-charge', motion: 'brace', resolve: 'reactor-overdrive', importance: 'skill', telegraphRadius: 205 },
-  'last-call': { abilityId: 'last-call', icon: 'LC', shortName: 'Last Call', color: 0x382348, accentColor: 0xd8faff, telegraph: 'tidal-gather', motion: 'tremble', resolve: 'inferno-collapse', importance: 'ultimate', telegraphRadius: 455 },
+  featherfall: { abilityId: 'featherfall', icon: 'FF', shortName: 'Featherfall', color: 0xa992dc, accentColor: 0x9cf4ff, telegraph: 'outward-rings', motion: 'compress', resolve: 'mass-bloom', importance: 'skill', telegraphRadius: 275 },
+  downbeat: { abilityId: 'downbeat', icon: 'DB', shortName: 'Downbeat', color: 0x7859aa, accentColor: 0xdffcff, telegraph: 'directional-stream', motion: 'brace', resolve: 'downbeat-punt', importance: 'skill', telegraphRadius: 330 },
+  'dead-weight': { abilityId: 'dead-weight', icon: 'DW', shortName: 'Dead Weight', color: 0x4f405f, accentColor: 0xbcefff, telegraph: 'reactor-charge', motion: 'brace', resolve: 'anchor-drop', importance: 'skill', telegraphRadius: 205 },
+  'last-call': { abilityId: 'last-call', icon: 'LC', shortName: 'Last Call', color: 0x382348, accentColor: 0xd8faff, telegraph: 'tidal-gather', motion: 'tremble', resolve: 'last-call', importance: 'ultimate', telegraphRadius: 455 },
   'combat-roll': { abilityId: 'combat-roll', icon: 'CR', shortName: 'Combat Roll', color: 0x7edfff, accentColor: 0xffffff, telegraph: 'directional-stream', motion: 'stream', resolve: 'rocket-burst', importance: 'skill', telegraphRadius: 100 },
   'tactical-slide': { abilityId: 'tactical-slide', icon: 'TS', shortName: 'Tactical Slide', color: 0x7edfff, accentColor: 0xffffff, telegraph: 'directional-stream', motion: 'stream', resolve: 'rocket-burst', importance: 'skill', telegraphRadius: 130 },
   'suppressive-fire': { abilityId: 'suppressive-fire', icon: 'SB', shortName: 'Suppressive Burst', color: 0xffd56a, accentColor: 0xffffff, telegraph: 'directional-stream', motion: 'brace', resolve: 'shrapnel', importance: 'skill', telegraphRadius: 310 },
