@@ -11,9 +11,25 @@ export const pyroContent: FighterContentBundle = {
   aiProfile: aiProfileRaw,
   abilities: [magmaDashRaw, flameRingRaw, moltenGuardRaw, infernoCollapseRaw],
   primaryAttack: {
-    id: 'flame-fists', name: 'Flame Fists', form: 'fire', behavior: 'melee', category: 'melee', style: 'swing',
-    range: 165, minRange: 0, damage: 15, knockback: 6.5, windupTicks: 8, activeTicks: 6, recoveryTicks: 11,
-    cooldownTicks: 31, attackAngleDegrees: 125, visualScale: 1.55, movementAllowed: true, friendlyFire: false,
-    visualId: 'flame-fists', audioId: 'fire-swipe', onHitStatuses: [{ statusId: 'burn', durationTicks: 100 }]
+    // Keep the stable id for replay/content compatibility while replacing the
+    // old melee Flame Fists behavior with Pyro's short-range flame stream.
+    id: 'flame-fists', name: 'Flame Jet', form: 'fire', behavior: 'automatic', category: 'automatic', style: 'stream',
+    range: 315, minRange: 0, damage: 5.25, knockback: 1.8, windupTicks: 5, activeTicks: 7, recoveryTicks: 9,
+    cooldownTicks: 29, attackAngleDegrees: 28, visualScale: 1.78, burstCount: 3, burstIntervalTicks: 3,
+    spreadDegrees: 10, movementAllowed: true, friendlyFire: false,
+    visualId: 'flame-fists', audioId: 'fire-swipe',
+    projectile: {
+      speed: 15.5,
+      radius: 8,
+      lifetimeTicks: 23,
+      fuseTicks: 0,
+      gravity: 0,
+      bounce: 0,
+      explosionRadius: 0,
+      explosionDamage: 0,
+      explosionImpulse: 0,
+      trailStyle: 'spark'
+    },
+    onHitStatuses: [{ statusId: 'burn', durationTicks: 135, stacks: 1 }]
   }
 };

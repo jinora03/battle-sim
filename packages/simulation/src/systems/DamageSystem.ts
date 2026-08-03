@@ -15,6 +15,7 @@ export interface DamageSystemContext {
   friendlyFireEnabled(): boolean;
   damageIsPrevented(targetId: EntityId): boolean;
   clearExternalImpulse(targetId: EntityId): void;
+  onDamageDealt(sourceId: EntityId | null, amount: number, element: Element): void;
 }
 
 /**
@@ -55,9 +56,16 @@ export class DamageSystem {
     const sourceDamageScale = sourceId !== null
       ? (this.world.damageScale[sourceId] ?? 1)
       : 1;
-    const incomingDamageMultiplier = this.world
-      .getLoadout(targetId)
-      .incomingDamageMultiplier;
+    const loadout = this.world.getLoadout(targetId);
+    let incomingDamageMultiplier = loadout.incomingDamageMultiplier;
+    const threshold = loadout.resourceThresholdIncomingDamageMultiplier;
+    if (threshold) {
+      const maximum = this.world.getCombatResourceMaximum(targetId, threshold.resourceId);
+      const value = this.world.getCombatResourceValue(targetId, threshold.resourceId);
+      if (maximum > 0 && value / maximum >= threshold.thresholdRatio) {
+        incomingDamageMultiplier *= threshold.multiplier;
+      }
+    }
     const amount = Math.max(
       0,
       rawAmount
@@ -90,6 +98,7 @@ export class DamageSystem {
       ...(prevented ? { prevented: true } : {})
     };
     events.push(damageEvent);
+    this.context.onDamageDealt(sourceId, amount, element);
 
     if (prevented || (this.world.hp[targetId] ?? 0) > 0) return;
 

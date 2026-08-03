@@ -1,29 +1,53 @@
 {
   "id": "inferno-collapse",
-  "name": "Inferno Collapse",
+  "name": "Meltdown",
   "slot": "ultimate",
-  "cooldownTicks": 600,
-  "castTicks": 52,
-  "castMovementMultiplier": 0.18,
+  "cooldownTicks": 660,
+  "castTicks": 48,
+  "castMovementMultiplier": 0.1,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "area",
+    "priority": 82,
+    "minRange": 0,
+    "maxRange": 285,
+    "requiresLineOfSight": false,
+    "minimumTargets": 1,
+    "aimToleranceDegrees": 180
+  },
   "triggers": [
     {
       "event": "ON_ACTIVATE",
+      "conditions": [],
       "actions": [
         {
-          "type": "RADIAL_DAMAGE",
-          "radius": 220,
-          "amount": 28,
+          "type": "MODIFY_RESOURCE_SELF",
+          "resourceId": "heat",
+          "amount": 100
+        },
+        {
+          "type": "APPLY_STATUS_SELF",
+          "statusId": "meltdown",
+          "durationTicks": 300
+        },
+        {
+          "type": "EXPLODE",
+          "kind": "wave",
+          "radius": 245,
+          "damage": 25,
+          "impulse": 9,
           "element": "fire",
           "enemiesOnly": true
         },
         {
-          "type": "RADIAL_IMPULSE",
-          "radius": 260,
-          "magnitude": 14,
+          "type": "RADIAL_STATUS",
+          "radius": 265,
+          "statusId": "burn",
+          "durationTicks": 180,
+          "stacks": 2,
           "enemiesOnly": true
         }
-      ],
-      "conditions": []
+      ]
     }
   ]
 }

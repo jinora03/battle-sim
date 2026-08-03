@@ -1,4 +1,4 @@
-export type MountedAttachmentKind = 'targeting-drone' | 'missile-pod' | 'deflector-plate' | 'thruster';
+export type MountedAttachmentKind = 'targeting-drone' | 'missile-pod' | 'deflector-plate' | 'thruster' | 'ember-satellite';
 export type MountedAttachmentPoint = 'front' | 'rear' | 'left' | 'right' | 'top' | 'orbit';
 export type MountedAttachmentRotation = 'body' | 'target' | 'counter-rotate' | 'orbit';
 

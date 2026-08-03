@@ -12,6 +12,8 @@ import {
   type VisualRecipe
 } from '@kinetic/visual-engine';
 import { FighterHealthRing } from './FighterHealthRing';
+import { PyroFurnaceAura } from './PyroFurnaceAura';
+import { FighterResourceRing } from './FighterResourceRing';
 import { FighterStatusIndicators } from './FighterStatusIndicators';
 import { MountedAttachmentView } from './MountedAttachmentView';
 import type { VisualLod } from './types';
@@ -24,6 +26,7 @@ export class FighterView {
   readonly container = new Container();
   private readonly playerMarker = new Graphics();
   private readonly statusIndicators = new FighterStatusIndicators();
+  private readonly pyroFurnaceAura = new PyroFurnaceAura();
   private readonly mountedAttachments: MountedAttachmentView;
   private readonly body = new Graphics();
   private readonly damageOverlay = new Graphics();
@@ -32,6 +35,7 @@ export class FighterView {
   private readonly weapon = new Graphics();
   private readonly velocityVector = new Graphics();
   private readonly healthRing: FighterHealthRing;
+  private readonly resourceRing: FighterResourceRing;
   private label: Text | null = null;
   private profileId: PresentationSettings['renderProfile'];
   private lod: VisualLod;
@@ -49,11 +53,13 @@ export class FighterView {
     this.weaponDefinition = getPrimaryAttack(entity.primaryAttackId);
     this.mountedAttachments = new MountedAttachmentView(listMountedAttachments(entity.moduleIds));
     this.healthRing = new FighterHealthRing(entity);
+    this.resourceRing = new FighterResourceRing(this.visual.accentColor);
     this.equippedModuleIdsKey = moduleIdsKey(entity.moduleIds);
     this.profileId = profileId;
     this.lod = lod;
     this.container.addChild(
       this.playerMarker,
+      this.pyroFurnaceAura.graphics,
       this.statusIndicators.graphics,
       this.mountedAttachments.graphics,
       this.aura,
@@ -62,6 +68,7 @@ export class FighterView {
       this.damageOverlay,
       this.weapon,
       this.healthRing.graphics,
+      this.resourceRing.graphics,
       this.velocityVector
     );
     this.build();
@@ -169,9 +176,11 @@ export class FighterView {
     }
 
     const uiAngle = -this.container.rotation;
+    this.pyroFurnaceAura.update(entity, elapsedSeconds, reducedMotion, this.lod);
     this.statusIndicators.update(entity, elapsedSeconds, uiAngle, reducedMotion, this.lod);
     this.mountedAttachments.update(entity, elapsedSeconds, uiAngle, reducedMotion, this.lod, showMountedAttachments);
     this.healthRing.update(entity, elapsedSeconds, uiAngle, this.lod, this.profileId, showFighterHealthRings);
+    this.resourceRing.update(entity, elapsedSeconds, uiAngle, this.lod, this.profileId, showFighterHealthRings);
 
     if (this.label) {
       this.label.text = `#${entity.id}  hp ${Math.ceil(entity.hp)}\nv ${speed.toFixed(1)} m ${entity.mass.toFixed(1)}`;
@@ -329,6 +338,7 @@ export class FighterView {
     const profile = getRenderProfile(this.profileId);
     const r = this.entity.radius;
     this.playerMarker.clear();
+    this.pyroFurnaceAura.reset();
     this.statusIndicators.reset();
     this.mountedAttachments.reset();
     this.aura.clear();
@@ -338,6 +348,7 @@ export class FighterView {
     this.weapon.clear();
     this.velocityVector.clear();
     this.healthRing.resetRenderCache();
+    this.resourceRing.resetRenderCache();
     if (this.label) { this.label.destroy(); this.label = null; }
 
     if (this.entity.controller === 'player') {

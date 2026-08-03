@@ -356,8 +356,14 @@ export interface WeaponAttackStateSnapshot {
 export interface StatusStateSnapshot {
   statusId: string;
   remainingTicks: number;
-  /** Stack count for marks, chill, heat, and other combo resources. */
+  /** Stack count for marks, burn and other status-driven combos. */
   stacks: number;
+}
+
+export interface CombatResourceStateSnapshot {
+  resourceId: string;
+  value: number;
+  maximum: number;
 }
 
 export interface EntitySnapshot {
@@ -382,6 +388,8 @@ export interface EntitySnapshot {
   abilities: AbilityStateSnapshot[];
   activeZoneIds: string[];
   statuses: StatusStateSnapshot[];
+  /** Optional deterministic fighter resources such as Heat, Charge or Rage. */
+  resources?: CombatResourceStateSnapshot[];
   /** Deterministically resolved developer-approved modules equipped for this battle. */
   moduleIds: string[];
   primaryAttackId: string;

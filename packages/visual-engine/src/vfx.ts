@@ -71,7 +71,7 @@ const palettes: Record<Element, ElementVfxPalette> = {
 };
 
 const weaponRecipes: Record<string, WeaponVfxRecipe> = {
-  'flame-fists': { weaponId: 'flame-fists', trailShape: 'slash', trailColor: 0xff7b35, impactColor: 0xffdf82, residualShape: 'ember', groundMark: 'scorch', muzzleFlash: false },
+  'flame-fists': { weaponId: 'flame-fists', trailShape: 'beam', trailColor: 0xff5a24, impactColor: 0xffffae, residualShape: 'ember', groundMark: 'scorch', muzzleFlash: true },
   'pressure-orb': { weaponId: 'pressure-orb', trailShape: 'beam', trailColor: 0x57dfff, impactColor: 0xdafcff, residualShape: 'droplet', groundMark: 'wet', muzzleFlash: true },
   'hydraulic-gauntlet': { weaponId: 'hydraulic-gauntlet', trailShape: 'slash', trailColor: 0xb9d2df, impactColor: 0xf4ffff, residualShape: 'debris', groundMark: 'crack', muzzleFlash: false },
   'demolition-bomb': { weaponId: 'demolition-bomb', trailShape: 'lob', trailColor: 0xffb347, impactColor: 0xffef9a, residualShape: 'smoke', groundMark: 'scorch', muzzleFlash: false },

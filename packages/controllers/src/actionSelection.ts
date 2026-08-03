@@ -254,6 +254,9 @@ export function selectAbilityAction(
     const targetStatusStacks = rule.targetStatusId && abilityTarget
       ? abilityTarget.statuses.find((status) => status.statusId === rule.targetStatusId)?.stacks ?? 0
       : 0;
+    const selfResource = rule.selfResourceId
+      ? entity.resources?.find((resource) => resource.resourceId === rule.selfResourceId)?.value ?? 0
+      : 0;
     let valid = true;
     let reason = 'skill ready';
 
@@ -280,6 +283,12 @@ export function selectAbilityAction(
     } else if (rule.targetStatusId && targetStatusStacks > (rule.maximumTargetStatusStacks ?? Number.POSITIVE_INFINITY)) {
       valid = false;
       reason = `${rule.targetStatusId} already at ${targetStatusStacks} stacks`;
+    } else if (rule.selfResourceId && selfResource < (rule.minimumSelfResource ?? 0)) {
+      valid = false;
+      reason = `needs ${rule.minimumSelfResource ?? 0} ${rule.selfResourceId}`;
+    } else if (rule.selfResourceId && selfResource > (rule.maximumSelfResource ?? Number.POSITIVE_INFINITY)) {
+      valid = false;
+      reason = `${rule.selfResourceId} already at ${Math.round(selfResource)}`;
     } else if (abilityTarget && !resolvedTarget.predictedInRange) {
       valid = false;
       reason = 'target predicted to leave valid range during cast';
@@ -310,7 +319,8 @@ export function selectAbilityAction(
       + (activation.targeting === 'area' ? Math.min(7, targetCount) * 7 : 0)
       + rangeUtility * 8
       + cadenceUtility
-      + targetStatusStacks * (rule.priorityPerTargetStatusStack ?? 0);
+      + targetStatusStacks * (rule.priorityPerTargetStatusStack ?? 0)
+      + selfResource * (rule.priorityPerSelfResource ?? 0);
 
     if (collectDebug) {
       candidates.push({

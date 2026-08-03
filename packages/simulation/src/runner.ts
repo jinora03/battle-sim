@@ -38,8 +38,10 @@ import { FighterCollisionSystem } from './systems/FighterCollisionSystem';
 import { NumericStateRecoverySystem } from './systems/NumericStateRecoverySystem';
 import { ParticipantSpawnSystem } from './systems/ParticipantSpawnSystem';
 import { PrimaryAttackSystem } from './systems/PrimaryAttackSystem';
+import { CombatResourceSystem } from './systems/CombatResourceSystem';
+import { ModuleEffectSystem } from './systems/ModuleEffectSystem';
 
-export const ENGINE_VERSION = '1.2.2-stage8.2a';
+export const ENGINE_VERSION = '1.3.0-stage8.3b';
 export { CONTENT_VERSION };
 export const SIM_TICK_RATE = 60;
 export const SIM_TICK_MS = 1000 / SIM_TICK_RATE;
@@ -84,6 +86,8 @@ export class LocalSimulationRunner implements SimulationRunner {
   private readonly spatial: SpatialHashGrid;
   private readonly commandSystem: CommandSystem;
   private readonly statusSystem: StatusSystem;
+  private readonly combatResourceSystem: CombatResourceSystem;
+  private readonly moduleEffectSystem: ModuleEffectSystem;
   private readonly battleResultSystem: BattleResultSystem;
   private readonly arenaZones: ArenaZoneSystem;
   private readonly arenaCollisions: ArenaCollisionSystem;
@@ -135,6 +139,10 @@ export class LocalSimulationRunner implements SimulationRunner {
     this.rng = new SeededRng(battle.seed);
     this.world = new World(maxEntities);
     this.spatial = new SpatialHashGrid(this.arena.width, this.arena.height, this.arena.spatialCellSize);
+    this.combatResourceSystem = new CombatResourceSystem(this.world, {
+      getTick: () => this.tickValue,
+      tickRate: SIM_TICK_RATE
+    });
     this.knockbackSystem = new KnockbackSystem(
       this.world,
       this.externalImpulse,
@@ -147,13 +155,20 @@ export class LocalSimulationRunner implements SimulationRunner {
         && (!this.trainingRules.damageEnabled
           || this.trainingRules.invulnerableTeams.has(this.world.getTeam(targetId))),
       clearExternalImpulse: (targetId) =>
-        this.knockbackSystem.removeExternalImpulse(targetId)
+        this.knockbackSystem.removeExternalImpulse(targetId),
+      onDamageDealt: (sourceId, amount, element) =>
+        this.combatResourceSystem.recordDamageDealt(sourceId, amount, element)
     });
     this.statusSystem = new StatusSystem(
       this.world,
       (sourceId, targetId, amount, element, events) =>
         this.damageSystem.dealDamage(sourceId, targetId, amount, element, events)
     );
+    this.moduleEffectSystem = new ModuleEffectSystem(this.world, {
+      getTick: () => this.tickValue,
+      applyStatus: (sourceId, targetId, statusId, durationTicks, events, stacks) =>
+        this.applyStatus(sourceId, targetId, statusId, durationTicks, events, stacks)
+    });
     this.battleResultSystem = new BattleResultSystem(
       this.world,
       this.mode,
@@ -289,6 +304,8 @@ export class LocalSimulationRunner implements SimulationRunner {
         addExternalImpulse: (targetId, x, y, options) =>
           this.knockbackSystem.addExternalImpulse(targetId, x, y, options),
         removeExternalImpulse: (entityId) => this.knockbackSystem.removeExternalImpulse(entityId),
+        modifyResource: (entityId, resourceId, amount) =>
+          this.combatResourceSystem.modify(entityId, resourceId, amount),
         damageScaledImpulse: (baseImpulse, damage) =>
           this.knockbackSystem.damageScaledImpulse(baseImpulse, damage),
         explosionImpulseOptions: (damage, abilityId) =>
@@ -434,6 +451,8 @@ export class LocalSimulationRunner implements SimulationRunner {
     this.explicitFacingThisTick.clear();
 
     this.statusSystem.tick(events);
+    this.combatResourceSystem.tick();
+    this.moduleEffectSystem.tick(events);
     this.primaryAttackSystem.tick(events);
     this.abilitySystem.tickCasts(events);
     this.projectileSystem.tickPendingLaunches(events);
@@ -466,12 +485,20 @@ export class LocalSimulationRunner implements SimulationRunner {
   private applyStatus(sourceId: EntityId, targetId: EntityId, statusId: string, durationTicks: number, events: SimulationEvent[], stacks = 1): void {
     if (!this.world.isAlive(targetId)) return;
     if (statusId === 'wet') this.world.removeStatus(targetId, 'burn');
-    const durationMultiplier = this.world.isAlive(sourceId)
-      ? this.world.getLoadout(sourceId).statusDurationMultiplier[statusId] ?? 1
-      : 1;
+    const sourceLoadout = this.world.isAlive(sourceId)
+      ? this.world.getLoadout(sourceId)
+      : null;
+    const durationMultiplier = sourceLoadout?.statusDurationMultiplier[statusId] ?? 1;
+    const bonusStacks = sourceId !== targetId
+      ? sourceLoadout?.statusStacksAppliedBonus[statusId] ?? 0
+      : 0;
+    const resolvedStacks = Math.max(1, stacks + bonusStacks);
     const resolvedDuration = Math.max(1, Math.round(durationTicks * durationMultiplier));
-    const applied = this.world.applyStatus(targetId, statusId, resolvedDuration, sourceId, stacks);
+    const previousStacks = this.world.getStatusStacks(targetId, statusId);
+    const applied = this.world.applyStatus(targetId, statusId, resolvedDuration, sourceId, resolvedStacks);
     if (!applied) return;
+    const addedStacks = Math.max(0, applied.stacks - previousStacks);
+    if (addedStacks > 0) this.combatResourceSystem.recordStatusApplied(sourceId, targetId, statusId, addedStacks);
     events.push({ type: 'statusApplied', tick: this.tickValue, sourceId, targetId, statusId, durationTicks: resolvedDuration, stacks: applied.stacks });
   }
 

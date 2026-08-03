@@ -27,6 +27,15 @@ export function resolveFighterLoadout(fighter: FighterDefinition, requested?: Fi
   const modules = [...selectedBySlot.values()].sort(compareModules);
   const mountedAttachments: MountedAttachmentDefinition[] = [];
   const statusDurationMultiplier: Record<string, number> = {};
+  const statusStacksAppliedBonus: Record<string, number> = {};
+  const abilityDamageMultiplier: Record<string, number> = {};
+  const abilityImpulseMultiplier: Record<string, number> = {};
+  const abilityRadiusMultiplier: Record<string, number> = {};
+  const abilitySelfImpulseMultiplier: Record<string, number> = {};
+  const resourceGainMultiplier: Record<string, number> = {};
+  const resourceDecayMultiplier: Record<string, number> = {};
+  let resourceThresholdIncomingDamageMultiplier: ResolvedFighterLoadout['resourceThresholdIncomingDamageMultiplier'] = null;
+  const periodicStatusPulses: ResolvedFighterLoadout['periodicStatusPulses'] = [];
   let primaryDamageMultiplier = 1;
   let primaryKnockbackMultiplier = 1;
   let primaryCooldownMultiplier = 1;
@@ -58,6 +67,19 @@ export function resolveFighterLoadout(fighter: FighterDefinition, requested?: Fi
     for (const [statusId, multiplier] of Object.entries(modifier.statusDurationMultiplier ?? {})) {
       statusDurationMultiplier[statusId] = (statusDurationMultiplier[statusId] ?? 1) * multiplier;
     }
+    for (const [statusId, bonus] of Object.entries(modifier.statusStacksAppliedBonus ?? {})) {
+      statusStacksAppliedBonus[statusId] = (statusStacksAppliedBonus[statusId] ?? 0) + bonus;
+    }
+    multiplyRecord(abilityDamageMultiplier, modifier.abilityDamageMultiplier);
+    multiplyRecord(abilityImpulseMultiplier, modifier.abilityImpulseMultiplier);
+    multiplyRecord(abilityRadiusMultiplier, modifier.abilityRadiusMultiplier);
+    multiplyRecord(abilitySelfImpulseMultiplier, modifier.abilitySelfImpulseMultiplier);
+    multiplyRecord(resourceGainMultiplier, modifier.resourceGainMultiplier);
+    multiplyRecord(resourceDecayMultiplier, modifier.resourceDecayMultiplier);
+    if (modifier.resourceThresholdIncomingDamageMultiplier) {
+      resourceThresholdIncomingDamageMultiplier = { ...modifier.resourceThresholdIncomingDamageMultiplier };
+    }
+    for (const pulse of modifier.periodicStatusPulses ?? []) periodicStatusPulses.push({ ...pulse });
   }
 
   return {
@@ -71,11 +93,26 @@ export function resolveFighterLoadout(fighter: FighterDefinition, requested?: Fi
     primaryProjectileMaxWallBounces,
     primaryProjectilePenetration,
     statusDurationMultiplier,
+    statusStacksAppliedBonus,
     skillProjectileHomingMultiplier,
     skillProjectileDamageMultiplier,
+    abilityDamageMultiplier,
+    abilityImpulseMultiplier,
+    abilityRadiusMultiplier,
+    abilitySelfImpulseMultiplier,
+    resourceGainMultiplier,
+    resourceDecayMultiplier,
+    resourceThresholdIncomingDamageMultiplier,
+    periodicStatusPulses,
     incomingDamageMultiplier,
     incomingKnockbackMultiplier,
     moveAccelerationMultiplier,
     maxSpeedMultiplier
   };
+}
+
+function multiplyRecord(target: Record<string, number>, source: Record<string, number> | undefined): void {
+  for (const [id, multiplier] of Object.entries(source ?? {})) {
+    target[id] = (target[id] ?? 1) * multiplier;
+  }
 }

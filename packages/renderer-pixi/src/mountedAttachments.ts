@@ -108,7 +108,53 @@ export function drawMountedAttachments(
       case 'thruster':
         drawThruster(graphics, attachment, pose, context);
         break;
+      case 'ember-satellite':
+        drawEmberSatellite(graphics, attachment, pose, context);
+        break;
     }
+  }
+}
+
+function drawEmberSatellite(
+  graphics: Graphics,
+  attachment: MountedAttachmentDefinition,
+  pose: MountedAttachmentPose,
+  context: MountedAttachmentRenderContext
+): void {
+  const size = Math.max(7, context.radius * 0.3 * pose.scale);
+  const pulse = context.reducedMotion
+    ? 0.8
+    : 0.76 + Math.sin(context.elapsedSeconds * 7.5 + attachmentPhase(attachment.id, context.entityId)) * 0.18;
+  const glow = attachment.glowColor ?? attachment.accentColor;
+  const outlineColor = attachment.outlineColor ?? DEFAULT_OUTLINE_COLOR;
+  const outlineWidth = resolveMountedAttachmentOutlineWidth(attachment, context, pose.scale);
+
+  if (attachment.mountPoint === 'orbit' || attachment.rotationMode === 'orbit') {
+    graphics.moveTo(0, 0).lineTo(pose.x, pose.y)
+      .stroke({ color: glow, width: Math.max(1.2, outlineWidth * 0.3), alpha: 0.24 });
+  }
+  graphics.circle(pose.x, pose.y, size * (1.85 + pulse * 0.2)).fill({ color: glow, alpha: 0.1 + pulse * 0.08 });
+  graphics.circle(pose.x, pose.y, size * 1.24)
+    .stroke({ color: outlineColor, width: Math.max(1.8, outlineWidth * 0.74), alpha: 0.88 });
+  graphics.circle(pose.x, pose.y, size * 1.08).fill({ color: attachment.primaryColor, alpha: 0.98 });
+  graphics.circle(pose.x, pose.y, size * 0.78).fill({ color: attachment.accentColor, alpha: 0.98 });
+  graphics.circle(pose.x, pose.y, size * (0.35 + pulse * 0.08)).fill({ color: 0xfff3ad, alpha: 1 });
+
+  for (let index = 0; index < 3; index += 1) {
+    const angle = context.elapsedSeconds * (context.reducedMotion ? 0 : 2.4)
+      + index * Math.PI * 2 / 3
+      + attachmentPhase(attachment.id, context.entityId);
+    const inner = size * 1.05;
+    const outer = size * (1.62 + pulse * 0.16);
+    const start = { x: pose.x + Math.cos(angle) * inner, y: pose.y + Math.sin(angle) * inner };
+    const tip = { x: pose.x + Math.cos(angle + 0.18) * outer, y: pose.y + Math.sin(angle + 0.18) * outer };
+    const end = { x: pose.x + Math.cos(angle + 0.36) * inner, y: pose.y + Math.sin(angle + 0.36) * inner };
+    drawPolygon(
+      graphics,
+      [start, tip, end],
+      { color: index === 0 ? 0xffef74 : 0xff6a24, alpha: 0.62 + pulse * 0.18 },
+      { color: outlineColor, alpha: 0.32, width: Math.max(1, outlineWidth * 0.24) }
+    );
   }
 }
 

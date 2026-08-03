@@ -21,6 +21,11 @@ export interface AiAbilityUseRule {
   minimumTargetStatusStacks?: number;
   maximumTargetStatusStacks?: number;
   priorityPerTargetStatusStack?: number;
+  /** Optional generic fighter-resource gate and scoring weight. */
+  selfResourceId?: string;
+  minimumSelfResource?: number;
+  maximumSelfResource?: number;
+  priorityPerSelfResource?: number;
 }
 
 export interface AiProfile {
@@ -66,6 +71,10 @@ export const aiProfileSchema = z.object({
     targetStatusId: z.string().optional(),
     minimumTargetStatusStacks: z.number().int().nonnegative().optional(),
     maximumTargetStatusStacks: z.number().int().nonnegative().optional(),
-    priorityPerTargetStatusStack: z.number().min(-100).max(100).optional()
+    priorityPerTargetStatusStack: z.number().min(-100).max(100).optional(),
+    selfResourceId: z.string().min(1).optional(),
+    minimumSelfResource: z.number().nonnegative().optional(),
+    maximumSelfResource: z.number().nonnegative().optional(),
+    priorityPerSelfResource: z.number().min(-10).max(10).optional()
   })).default([])
 });

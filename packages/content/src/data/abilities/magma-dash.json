@@ -1,25 +1,80 @@
 {
   "id": "magma-dash",
-  "name": "Magma Dash",
+  "name": "Cinder Rush",
   "slot": "skill1",
-  "cooldownTicks": 150,
-  "castTicks": 14,
-  "castMovementMultiplier": 0.45,
+  "cooldownTicks": 165,
+  "castTicks": 9,
+  "castMovementMultiplier": 0.55,
+  "activation": {
+    "intent": "movement",
+    "targeting": "direction",
+    "priority": 52,
+    "minRange": 0,
+    "maxRange": 520,
+    "requiresLineOfSight": false,
+    "aimToleranceDegrees": 180,
+    "collisionWindowTicks": 52
+  },
   "triggers": [
     {
       "event": "ON_ACTIVATE",
+      "conditions": [],
       "actions": [
         {
           "type": "APPLY_IMPULSE_SELF",
-          "magnitude": 11
+          "magnitude": 14.5
         },
         {
           "type": "APPLY_STATUS_SELF",
           "statusId": "magma-dash",
-          "durationTicks": 36
+          "durationTicks": 52
+        },
+        {
+          "type": "DIRECTIONAL_DAMAGE",
+          "range": 165,
+          "arcDegrees": 72,
+          "amount": 9,
+          "knockback": 2.5,
+          "element": "fire",
+          "enemiesOnly": true
+        },
+        {
+          "type": "RADIAL_STATUS",
+          "radius": 118,
+          "statusId": "burn",
+          "durationTicks": 130,
+          "stacks": 1,
+          "enemiesOnly": true
+        }
+      ]
+    },
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [
+        {
+          "type": "SELF_HAS_STATUS",
+          "statusId": "meltdown"
         }
       ],
-      "conditions": []
+      "actions": [
+        {
+          "type": "DIRECTIONAL_DAMAGE",
+          "range": 205,
+          "arcDegrees": 88,
+          "amount": 8,
+          "knockback": 3.5,
+          "element": "fire",
+          "enemiesOnly": true
+        },
+        {
+          "type": "RADIAL_STATUS",
+          "radius": 155,
+          "statusId": "burn",
+          "durationTicks": 150,
+          "stacks": 1,
+          "enemiesOnly": true
+        }
+      ]
     },
     {
       "event": "ON_COLLISION",
@@ -30,23 +85,24 @@
         },
         {
           "type": "IMPACT_ABOVE",
-          "value": 3
+          "value": 2.5
         }
       ],
       "actions": [
         {
           "type": "DEAL_DAMAGE_TARGET",
-          "amount": 20,
+          "amount": 18,
           "element": "fire"
         },
         {
           "type": "APPLY_STATUS_TARGET",
           "statusId": "burn",
-          "durationTicks": 120
+          "durationTicks": 150,
+          "stacks": 2
         },
         {
           "type": "APPLY_KNOCKBACK_TARGET",
-          "magnitude": 8
+          "magnitude": 8.5
         },
         {
           "type": "REMOVE_STATUS_SELF",

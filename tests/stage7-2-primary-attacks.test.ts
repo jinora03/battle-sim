@@ -46,8 +46,12 @@ describe('v1.1 Stage 7.2 primary attack and fighter identity redesign', () => {
   });
 
   it('keeps fighter identities coherent', () => {
-    expect(getPrimaryAttack(getFighter('pyro-brawler').primaryAttackId).form).toBe('fire');
-    expect(getPrimaryAttack(getFighter('pyro-brawler').primaryAttackId).behavior).toBe('melee');
+    expect(getPrimaryAttack(getFighter('pyro-brawler').primaryAttackId)).toMatchObject({
+      form: 'fire',
+      behavior: 'automatic',
+      category: 'automatic',
+      burstCount: 3
+    });
     expect(getPrimaryAttack(getFighter('thorn-colossus').primaryAttackId).behavior).toBe('melee');
     expect(getPrimaryAttack(getFighter('gunner').primaryAttackId).behavior).toBe('automatic');
     expect(getPrimaryAttack(getFighter('volt-striker').primaryAttackId).form).toBe('lightning');
@@ -63,13 +67,13 @@ describe('v1.1 Stage 7.2 primary attack and fighter identity redesign', () => {
   });
 
   it('uses broad effective melee reach instead of requiring body overlap', () => {
-    const runner = duel('pyro-brawler', 'water-shaper', 240, 420, 7203);
+    const runner = duel('thorn-colossus', 'water-shaper', 240, 420, 7203);
     const self = runner.getSnapshot().entities.find((entity) => entity.team === 1)!;
     const target = runner.getSnapshot().entities.find((entity) => entity.team === 2)!;
     const centerDistance = Math.hypot(target.x - self.x, target.y - self.y);
-    expect(centerDistance).toBeGreaterThan(getPrimaryAttack('flame-fists').range);
+    expect(centerDistance).toBeGreaterThan(getPrimaryAttack('thorn-claws').range);
     const events = runner.step([{ type: 'activatePrimaryAttack', entityId: self.id, targetId: target.id, direction: { x: 1, y: 0 } }]);
-    expect(events.some((event) => event.type === 'weaponAttackStarted' && event.weaponId === 'flame-fists')).toBe(true);
+    expect(events.some((event) => event.type === 'weaponAttackStarted' && event.weaponId === 'thorn-claws')).toBe(true);
   });
 
   it('does not let a normal skill implicitly execute the primary attack', () => {

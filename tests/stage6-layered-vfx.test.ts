@@ -41,7 +41,7 @@ describe('v1.1 Stage 6 layered VFX policy', () => {
   it('provides distinct elemental and weapon recipes', () => {
     expect(getElementVfxPalette('fire').groundMark).not.toBe(getElementVfxPalette('water').groundMark);
     expect(getWeaponVfxRecipe('arc-emitter').muzzleFlash).toBe(true);
-    expect(getWeaponVfxRecipe('flame-fists').trailShape).toBe('slash');
+    expect(getWeaponVfxRecipe('flame-fists').trailShape).toBe('beam');
     expect(getWeaponVfxRecipe('void-scythe').groundMark).toBe('void');
   });
 });

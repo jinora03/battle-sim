@@ -42,6 +42,24 @@ const arenas: ArenaDefinition[] = ARENA_RAW.map((raw) => arenaSchema.parse(raw) 
 const gameModes: GameModeDefinition[] = GAME_MODE_RAW.map((raw) => gameModeSchema.parse(raw) as GameModeDefinition);
 const interactions: ElementInteraction[] = ELEMENT_INTERACTION_RAW.map((raw) => elementInteractionSchema.parse(raw) as ElementInteraction);
 
+function validateCombatResources(fighter: FighterDefinition): string[] {
+  const errors: string[] = [];
+  const ids = new Set<string>();
+  for (const resource of fighter.combatResources ?? []) {
+    if (ids.has(resource.id)) errors.push(`Duplicate combat resource id: ${resource.id}`);
+    ids.add(resource.id);
+    if (resource.initial > resource.maximum) {
+      errors.push(`Combat resource ${resource.id} initial value exceeds maximum`);
+    }
+  }
+  return errors;
+}
+
+for (const fighter of fighters) {
+  const resourceErrors = validateCombatResources(fighter);
+  if (resourceErrors.length > 0) throw new Error(resourceErrors.join('\n'));
+}
+
 const fighterMap = new Map<string, FighterDefinition>(fighters.map((item) => [item.id, item]));
 const aiMap = new Map<string, AiProfile>(aiProfiles.map((item) => [item.id, item]));
 const abilityMap = new Map<string, AbilityDefinition>(abilities.map((item) => [item.id, item]));
@@ -105,7 +123,7 @@ export interface RegisterFighterOptions {
 }
 
 export function validateFighterReferences(fighter: FighterDefinition): string[] {
-  const errors: string[] = [];
+  const errors: string[] = validateCombatResources(fighter);
   if (fighter.aiProfileId && !aiMap.has(fighter.aiProfileId)) errors.push(`Unknown AI profile: ${fighter.aiProfileId}`);
   for (const [slot, abilityId] of Object.entries(fighter.abilitySlots)) {
     if (abilityId && !abilityMap.has(abilityId)) errors.push(`Unknown ability in ${slot}: ${abilityId}`);

@@ -1,18 +1,106 @@
 {
   "id": "molten-guard",
-  "name": "Molten Guard",
+  "name": "Combustion",
   "slot": "skill3",
-  "cooldownTicks": 390,
-  "castTicks": 34,
-  "castMovementMultiplier": 0.08,
+  "cooldownTicks": 320,
+  "castTicks": 25,
+  "castMovementMultiplier": 0.14,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "area",
+    "priority": 72,
+    "minRange": 0,
+    "maxRange": 280,
+    "requiresLineOfSight": false,
+    "minimumTargets": 1,
+    "aimToleranceDegrees": 180
+  },
   "triggers": [
     {
       "event": "ON_ACTIVATE",
-      "conditions": [],
+      "conditions": [
+        {
+          "type": "TARGET_HAS_STATUS",
+          "statusId": "burn",
+          "minimumStacks": 2
+        },
+        {
+          "type": "SELF_RESOURCE_AT_LEAST",
+          "resourceId": "heat",
+          "amount": 60
+        }
+      ],
       "actions": [
-        { "type": "HEAL_SELF", "amount": 24 },
-        { "type": "APPLY_STATUS_SELF", "statusId": "molten-guard", "durationTicks": 170 },
-        { "type": "EXPLODE", "kind": "wave", "radius": 125, "damage": 8, "impulse": 5, "element": "fire", "enemiesOnly": true }
+        {
+          "type": "RADIAL_DAMAGE",
+          "radius": 275,
+          "amount": 8,
+          "element": "fire",
+          "enemiesOnly": true
+        }
+      ]
+    },
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [
+        {
+          "type": "TARGET_HAS_STATUS",
+          "statusId": "burn",
+          "minimumStacks": 2
+        },
+        {
+          "type": "SELF_HAS_STATUS",
+          "statusId": "meltdown"
+        }
+      ],
+      "actions": [
+        {
+          "type": "RADIAL_DAMAGE",
+          "radius": 290,
+          "amount": 10,
+          "element": "fire",
+          "enemiesOnly": true
+        },
+        {
+          "type": "RADIAL_IMPULSE",
+          "radius": 290,
+          "magnitude": 4,
+          "enemiesOnly": true,
+          "direction": "push"
+        }
+      ]
+    },
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [
+        {
+          "type": "TARGET_HAS_STATUS",
+          "statusId": "burn",
+          "minimumStacks": 2
+        }
+      ],
+      "actions": [
+        {
+          "type": "DETONATE_STATUS",
+          "radius": 270,
+          "statusId": "burn",
+          "minimumStacks": 2,
+          "consumeStacks": "all",
+          "baseDamage": 8,
+          "damagePerStack": 8,
+          "baseImpulse": 2.5,
+          "impulsePerStack": 2.25,
+          "element": "fire",
+          "enemiesOnly": true,
+          "kind": "explosion",
+          "detonationRadius": 38,
+          "detonationRadiusPerStack": 9
+        },
+        {
+          "type": "MODIFY_RESOURCE_SELF",
+          "resourceId": "heat",
+          "amount": -22
+        }
       ]
     }
   ]
