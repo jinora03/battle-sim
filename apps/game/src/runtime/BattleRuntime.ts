@@ -11,6 +11,7 @@ import {
   type FighterStats
 } from '@kinetic/meta';
 import type {
+  AbilityRejectedEvent,
   AbilitySlot,
   BattleDefinition,
   BattleResultSnapshot,
@@ -92,6 +93,7 @@ export interface RuntimeDiagnostics {
   replayCompressionRatio: number;
   recentSkills: RecentSkillActivity[];
   recentArenaActivity: RecentArenaActivity[];
+  recentAbilityRejection: AbilityRejectedEvent | null;
   playerEntityIds: number[];
   simulationMetrics: WorldSnapshot['metrics'];
   renderDiagnostics: RenderDiagnostics;
@@ -155,6 +157,7 @@ export class BattleRuntime {
   private diagnosticsTick = -1;
   private recentSkills: RecentSkillActivity[] = [];
   private recentArenaActivity: RecentArenaActivity[] = [];
+  private recentAbilityRejection: AbilityRejectedEvent | null = null;
   private seed: number;
   private setup: BattleSetup;
   private playerEntityIds: number[] = [];
@@ -299,6 +302,7 @@ export class BattleRuntime {
     this.diagnosticsSampleMs = 0;
     this.recentSkills = [];
     this.recentArenaActivity = [];
+    this.recentAbilityRejection = null;
     this.pendingRenderEvents = [];
     this.pendingMetaEvents = [];
     this.lastMetaEvaluationTick = -1;
@@ -519,6 +523,8 @@ export class BattleRuntime {
           const fighterId = this.fighterIdByEntityId.get(event.entityId) ?? 'unknown';
           this.recentSkills.push({ entityId: event.entityId, fighterId, abilityId: event.abilityId, slot: event.slot, phase: 'resolved', tick: event.tick });
           activityChanged = true;
+        } else if (event.type === 'abilityRejected') {
+          this.recentAbilityRejection = event;
         }
         else if (event.type === 'zoneEntered') { this.recentArenaActivity.push({ label: `#${event.entityId} entered ${event.kind}`, tick: event.tick }); activityChanged = true; }
         else if (event.type === 'hazardTriggered') { this.recentArenaActivity.push({ label: `${event.kind} hazard hit #${event.entityId}`, tick: event.tick }); activityChanged = true; }
@@ -681,6 +687,10 @@ export class BattleRuntime {
       replayCompressionRatio: this.replay.compressionRatio,
       recentSkills: [...this.recentSkills],
       recentArenaActivity: [...this.recentArenaActivity],
+      recentAbilityRejection: this.recentAbilityRejection
+        && snapshot.tick - this.recentAbilityRejection.tick <= 90
+        ? { ...this.recentAbilityRejection }
+        : null,
       playerEntityIds: [...this.playerEntityIds],
       simulationMetrics: snapshot.metrics,
       renderDiagnostics: { ...this.renderDiagnostics },
@@ -716,17 +726,13 @@ export class BattleRuntime {
 
   private appendRenderEvents(events: readonly SimulationEvent[]): void {
     const limit = 256;
-    if (events.length >= limit) {
-      this.pendingRenderEvents.length = 0;
-      for (let index = events.length - limit; index < events.length; index += 1) {
-        const event = events[index];
-        if (event) this.pendingRenderEvents.push(event);
-      }
-      return;
+    for (const event of events) {
+      // Rejection feedback belongs to the HUD and should not consume renderer
+      // presentation budget or reach particle presentation systems.
+      if (event.type !== 'abilityRejected') this.pendingRenderEvents.push(event);
     }
-    const overflow = this.pendingRenderEvents.length + events.length - limit;
+    const overflow = this.pendingRenderEvents.length - limit;
     if (overflow > 0) this.pendingRenderEvents.splice(0, overflow);
-    for (const event of events) this.pendingRenderEvents.push(event);
   }
 
   private pruneRecentActivity(tick: number): void {

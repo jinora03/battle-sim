@@ -1,5 +1,6 @@
 import type { CSSProperties, SyntheticEvent } from 'react';
-import { getFighter } from '@kinetic/content';
+import { getAbility, getFighter } from '@kinetic/content';
+import type { AbilityRejectionReason } from '@kinetic/protocol';
 import type { ReleaseView } from '../ReleaseHome';
 import { ProfileView } from '../ProfileView';
 import { ReleaseHome } from '../ReleaseHome';
@@ -315,6 +316,13 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
               </div>
             )}
 
+            {diagnostics.recentAbilityRejection && (
+              <div className="ability-rejection-strip" role="status" aria-live="polite">
+                <strong>{getAbility(diagnostics.recentAbilityRejection.abilityId).name}</strong>
+                <span>{abilityRejectionMessage(diagnostics.recentAbilityRejection.reason)}</span>
+              </div>
+            )}
+
             <div className={`skill-activity-rail persistent ${skillActivity.totalCasts > 0 ? 'active' : 'idle'}`} aria-live="polite" aria-label={skillActivity.totalCasts > 0 ? `${skillActivity.totalCasts} skills casting` : 'No skills currently casting'}>
               <span className="skill-activity-label">Skill activity</span>
               <div className="skill-activity-items">
@@ -549,4 +557,18 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
 
     </main>
   );
+}
+
+function abilityRejectionMessage(reason: AbilityRejectionReason): string {
+  switch (reason) {
+    case 'busy': return 'Another attack or skill is already in progress.';
+    case 'cooldown': return 'This skill is still cooling down.';
+    case 'target-required': return 'Aim at an enemy before activating this skill.';
+    case 'invalid-target': return 'The selected target is no longer valid.';
+    case 'out-of-range': return 'Move closer to bring the target into range.';
+    case 'line-of-sight': return 'An arena obstacle is blocking this skill.';
+    case 'aim-tolerance': return 'Aim closer to the selected target.';
+    case 'minimum-targets': return 'There are not enough enemies in the effect area.';
+    case 'requirements-not-met': return 'Build the required status or resource first.';
+  }
 }

@@ -39,6 +39,7 @@ const initialDiagnostics: RuntimeDiagnostics = {
   replayCompressionRatio: 0,
   recentSkills: [],
   recentArenaActivity: [],
+  recentAbilityRejection: null,
   playerEntityIds: [],
   simulationMetrics: {
     activeEntities: 0,

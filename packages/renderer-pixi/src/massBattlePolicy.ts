@@ -66,6 +66,7 @@ function eventEntityIds(event: SimulationEvent): readonly EntityId[] {
     case 'zoneExited':
     case 'hazardTriggered':
     case 'abilityActivated':
+    case 'abilityRejected':
     case 'abilityResolved':
     case 'weaponAttackStarted':
       return [event.entityId];
