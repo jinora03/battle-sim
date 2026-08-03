@@ -19,6 +19,8 @@ import {
 
 /** Executes data-driven ability and passive actions in deterministic order. */
 export class AbilityActionExecutor {
+  private readonly activeIdScratch: EntityId[] = [];
+
   constructor(
     private readonly world: World,
     private readonly projectiles: ProjectileSystem,
@@ -493,12 +495,15 @@ export class AbilityActionExecutor {
     enemiesOnly: boolean,
     callback: (id: EntityId) => void
   ): void {
-    for (const id of this.world.activeIdsView()) {
-      if (id === source) continue;
-      if (enemiesOnly && this.world.getTeam(id) === this.world.getTeam(source)) continue;
+    const sourceTeam = this.world.getTeam(source);
+    const radiusSq = radius * radius;
+    const candidates = this.world.copyActiveIdsInto(this.activeIdScratch);
+    for (const id of candidates) {
+      if (!this.world.isAlive(id) || id === source) continue;
+      if (enemiesOnly && this.world.getTeam(id) === sourceTeam) continue;
       const dx = (this.world.x[id] ?? 0) - center.x;
       const dy = (this.world.y[id] ?? 0) - center.y;
-      if (dx * dx + dy * dy <= radius * radius) callback(id);
+      if (dx * dx + dy * dy <= radiusSq) callback(id);
     }
   }
 
@@ -514,9 +519,11 @@ export class AbilityActionExecutor {
     const cosThreshold = Math.cos((arcDegrees * Math.PI / 180) / 2);
     const sx = this.world.x[source] ?? 0;
     const sy = this.world.y[source] ?? 0;
-    for (const id of this.world.activeIdsView()) {
-      if (id === source) continue;
-      if (enemiesOnly && this.world.getTeam(id) === this.world.getTeam(source)) continue;
+    const sourceTeam = this.world.getTeam(source);
+    const candidates = this.world.copyActiveIdsInto(this.activeIdScratch);
+    for (const id of candidates) {
+      if (!this.world.isAlive(id) || id === source) continue;
+      if (enemiesOnly && this.world.getTeam(id) === sourceTeam) continue;
       const dx = (this.world.x[id] ?? 0) - sx;
       const dy = (this.world.y[id] ?? 0) - sy;
       const distance = Math.hypot(dx, dy);
