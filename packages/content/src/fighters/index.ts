@@ -1,5 +1,6 @@
 import { SHARED_PRIMARY_ATTACKS } from '../catalogs/sharedPrimaryAttacks';
 import type { PrimaryAttackDefinition, SkillProjectileDefinition } from '../schemas';
+import { ballastContent } from './ballast';
 import { bomberContent } from './bomber';
 import { frostContent } from './frost';
 import { gunnerContent } from './gunner';
@@ -25,7 +26,8 @@ export const BUILTIN_FIGHTER_CONTENT: readonly FighterContentBundle[] = [
   voidContent,
   gunnerContent,
   rocketContent,
-  solarSentinelContent
+  solarSentinelContent,
+  ballastContent
 ];
 
 export const BUILTIN_FIGHTER_RAW: readonly unknown[] = BUILTIN_FIGHTER_CONTENT.map((content) => content.fighter);
@@ -50,6 +52,7 @@ export const BUILTIN_PRIMARY_ATTACKS: readonly PrimaryAttackDefinition[] = [
   rocketContent.primaryAttack,
   thornContent.primaryAttack,
   voidContent.primaryAttack,
+  ballastContent.primaryAttack,
   ...SHARED_PRIMARY_ATTACKS
 ];
 

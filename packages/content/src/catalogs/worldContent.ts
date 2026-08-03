@@ -20,6 +20,7 @@ import suppressedRaw from '../data/statuses/suppressed.json';
 import pinnedRaw from '../data/statuses/pinned.json';
 import featherlightRaw from '../data/statuses/featherlight.json';
 import anchoredRaw from '../data/statuses/anchored.json';
+import lastCallRaw from '../data/statuses/last-call.json';
 
 import ironPitRaw from '../data/arenas/iron-pit.json';
 import pillarCourtRaw from '../data/arenas/pillar-court.json';
@@ -60,7 +61,8 @@ export const STATUS_RAW: readonly unknown[] = [
   suppressedRaw,
   pinnedRaw,
   featherlightRaw,
-  anchoredRaw
+  anchoredRaw,
+  lastCallRaw
 ];
 
 export const ARENA_RAW: readonly unknown[] = [

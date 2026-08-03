@@ -11,6 +11,7 @@ import {
   type PresentationSettings,
   type VisualRecipe
 } from '@kinetic/visual-engine';
+import { BallastGravityRig } from './BallastGravityRig';
 import { FighterHealthRing } from './FighterHealthRing';
 import { PyroFurnaceAura } from './PyroFurnaceAura';
 import { FighterResourceRing } from './FighterResourceRing';
@@ -27,6 +28,7 @@ export class FighterView {
   private readonly playerMarker = new Graphics();
   private readonly statusIndicators = new FighterStatusIndicators();
   private readonly pyroFurnaceAura = new PyroFurnaceAura();
+  private readonly ballastGravityRig = new BallastGravityRig();
   private readonly mountedAttachments: MountedAttachmentView;
   private readonly body = new Graphics();
   private readonly damageOverlay = new Graphics();
@@ -60,6 +62,7 @@ export class FighterView {
     this.container.addChild(
       this.playerMarker,
       this.pyroFurnaceAura.graphics,
+      this.ballastGravityRig.graphics,
       this.statusIndicators.graphics,
       this.mountedAttachments.graphics,
       this.aura,
@@ -177,6 +180,7 @@ export class FighterView {
 
     const uiAngle = -this.container.rotation;
     this.pyroFurnaceAura.update(entity, elapsedSeconds, reducedMotion, this.lod);
+    this.ballastGravityRig.update(entity, elapsedSeconds, reducedMotion, this.lod);
     this.statusIndicators.update(entity, elapsedSeconds, uiAngle, reducedMotion, this.lod);
     this.mountedAttachments.update(entity, elapsedSeconds, uiAngle, reducedMotion, this.lod, showMountedAttachments);
     this.healthRing.update(entity, elapsedSeconds, uiAngle, this.lod, this.profileId, showFighterHealthRings);
@@ -243,6 +247,18 @@ export class FighterView {
     const accent = this.visual.accentColor;
     const core = this.visual.coreColor;
     const size = r * attack.visualScale;
+
+    if (attack.visualId === 'skip-stone') {
+      const stoneX = size * 0.62;
+      this.weapon.moveTo(size * 0.08, 0).lineTo(stoneX - size * 0.18, 0)
+        .stroke({ color: 0x6e5a88, width: Math.max(3, r * 0.1), alpha: 0.72 });
+      this.weapon.circle(stoneX, 0, size * 0.22).fill({ color: 0x241a30, alpha: 1 });
+      this.weapon.circle(stoneX, 0, size * 0.22)
+        .stroke({ color: 0x91edff, width: Math.max(2, r * 0.07), alpha: 0.95 });
+      this.weapon.circle(stoneX - size * 0.05, -size * 0.05, size * 0.06)
+        .fill({ color: 0xdccfff, alpha: 0.82 });
+      return;
+    }
 
     if (attack.form === 'fire') {
       this.weapon.circle(size * 0.58, 0, size * 0.28).fill({ color: 0xff5b28, alpha: 0.92 });
@@ -339,6 +355,7 @@ export class FighterView {
     const r = this.entity.radius;
     this.playerMarker.clear();
     this.pyroFurnaceAura.reset();
+    this.ballastGravityRig.reset();
     this.statusIndicators.reset();
     this.mountedAttachments.reset();
     this.aura.clear();

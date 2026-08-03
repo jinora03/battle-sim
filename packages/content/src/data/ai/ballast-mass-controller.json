@@ -1,0 +1,57 @@
+{
+  "id": "ballast-mass-controller",
+  "reactionTicks": 7,
+  "aggression": 0.72,
+  "preferredDistance": 310,
+  "retreatHealthRatio": 0.16,
+  "steeringStrength": 1.0,
+  "movementStyle": "orbit",
+  "orbitStrength": 0.82,
+  "wallAvoidance": 0.62,
+  "targeting": "clustered",
+  "allySeparation": 0.84,
+  "targetSpread": 0.62,
+  "targetStickiness": 0.76,
+  "abilityUsage": [
+    {
+      "slot": "skill1",
+      "everyTicks": 250,
+      "phaseTicks": 48,
+      "minDistance": 0,
+      "maxDistance": 300,
+      "priority": 12,
+      "maximumTargetStatusStacks": 1,
+      "targetStatusId": "featherlight",
+      "minimumTargets": 1
+    },
+    {
+      "slot": "skill2",
+      "everyTicks": 205,
+      "phaseTicks": 102,
+      "minDistance": 80,
+      "maxDistance": 345,
+      "priority": 20,
+      "targetStatusId": "featherlight",
+      "minimumTargetStatusStacks": 2,
+      "priorityPerTargetStatusStack": 11
+    },
+    {
+      "slot": "skill3",
+      "everyTicks": 330,
+      "phaseTicks": 160,
+      "minDistance": 0,
+      "maxDistance": 230,
+      "priority": 8,
+      "minimumTargets": 1
+    },
+    {
+      "slot": "ultimate",
+      "everyTicks": 690,
+      "phaseTicks": 260,
+      "minDistance": 0,
+      "maxDistance": 470,
+      "priority": 18,
+      "minimumTargets": 2
+    }
+  ]
+}

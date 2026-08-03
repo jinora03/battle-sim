@@ -20,7 +20,7 @@ const skillSlots = ['skill1', 'skill2', 'skill3', 'ultimate'] as const;
 describe('content definitions', () => {
   it('loads the built-in fighter library', () => {
     expect(listFighters().map((fighter) => fighter.id)).toEqual(
-      expect.arrayContaining(['pyro-brawler', 'mech-bruiser', 'water-shaper', 'bomber', 'frost-warden', 'volt-striker', 'thorn-colossus', 'void-reaper', 'gunner'])
+      expect.arrayContaining(['pyro-brawler', 'mech-bruiser', 'water-shaper', 'bomber', 'frost-warden', 'volt-striker', 'thorn-colossus', 'void-reaper', 'gunner', 'ballast'])
     );
   });
 
@@ -55,7 +55,7 @@ describe('content definitions', () => {
   });
 
   it('registers the current roster, arena and mode catalog', () => {
-    expect(CONTENT_VERSION).toBe('1.3.2-stage8.4a1');
+    expect(CONTENT_VERSION).toBe('1.3.3-stage8.4b');
     expect(listFighters().length).toBeGreaterThanOrEqual(9);
     expect(listArenas().map((arena) => arena.id)).toEqual(
       expect.arrayContaining(['iron-pit', 'pillar-court', 'elemental-foundry', 'war-basin', 'cryo-ring', 'arc-crucible', 'training-grid'])

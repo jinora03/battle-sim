@@ -184,3 +184,13 @@ A genuinely new objective may require a new strategy in the simulation, but it s
 ## Element interactions
 
 Elemental damage modifiers live in `element-interactions.json`, independent of fighter identity. Systemic interactions such as Wet + electricity or water extinguishing Burn should be reusable status/environment rules, not fighter-name checks.
+
+## Mass-control fighter example: Ballast
+
+Ballast demonstrates how to build a setup-and-payoff fighter without a resource meter:
+
+- `featherlight` uses `massMultiplierPerStack` so the normal knockback system automatically launches prepared targets farther.
+- `anchored` increases effective mass and reduces movement through status data.
+- `Skip Stone` uses native projectile `bounce` plus a finite `maxWallBounces` budget.
+- modules may add to a native projectile's ricochet budget through `primaryProjectileMaxWallBounces`.
+- AI rules use `targetStatusId`, `minimumTargetStatusStacks` and `priorityPerTargetStatusStack` to prefer Downbeat after setup.

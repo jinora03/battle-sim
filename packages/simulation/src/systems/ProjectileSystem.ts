@@ -147,10 +147,11 @@ export class ProjectileSystem {
         ? loadout.primaryKnockbackMultiplier
         : 1,
       bounceRetention: nativeBounce
-        ? definition.bounce
+        ? Math.max(definition.bounce, loadout.primaryProjectileBounce)
         : loadout.primaryProjectileBounce,
       maxWallBounces: nativeBounce
-        ? definition.maxWallBounces ?? Number.POSITIVE_INFINITY
+        ? (definition.maxWallBounces ?? Number.POSITIVE_INFINITY)
+          + loadout.primaryProjectileMaxWallBounces
         : loadout.primaryProjectileMaxWallBounces,
       wallBounces: 0,
       penetrationRemaining: isPrimaryAttack

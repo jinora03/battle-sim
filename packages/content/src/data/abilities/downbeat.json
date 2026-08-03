@@ -1,0 +1,76 @@
+{
+  "id": "downbeat",
+  "name": "Downbeat",
+  "slot": "skill2",
+  "cooldownTicks": 205,
+  "castTicks": 14,
+  "castMovementMultiplier": 0.2,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "direction",
+    "priority": 84,
+    "minRange": 45,
+    "maxRange": 345,
+    "requiresLineOfSight": true,
+    "minimumTargets": 1,
+    "aimToleranceDegrees": 68
+  },
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "DIRECTIONAL_DAMAGE",
+          "range": 330,
+          "arcDegrees": 58,
+          "amount": 15,
+          "knockback": 19,
+          "element": "void",
+          "enemiesOnly": true
+        }
+      ]
+    },
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [
+        {
+          "type": "TARGET_HAS_STATUS",
+          "statusId": "featherlight",
+          "minimumStacks": 2
+        }
+      ],
+      "actions": [
+        {
+          "type": "DEAL_DAMAGE_TARGET",
+          "amount": 5,
+          "element": "void"
+        },
+        {
+          "type": "APPLY_KNOCKBACK_TARGET",
+          "magnitude": 7
+        }
+      ]
+    },
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [
+        {
+          "type": "SELF_HAS_STATUS",
+          "statusId": "last-call"
+        }
+      ],
+      "actions": [
+        {
+          "type": "DIRECTIONAL_DAMAGE",
+          "range": 360,
+          "arcDegrees": 70,
+          "amount": 8,
+          "knockback": 8,
+          "element": "void",
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
+}

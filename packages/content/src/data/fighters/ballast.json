@@ -1,0 +1,44 @@
+{
+  "id": "ballast",
+  "name": "Ballast",
+  "classification": {
+    "archetype": "controller",
+    "elements": ["void"],
+    "traits": ["mass-control", "ricochet", "knockback"]
+  },
+  "physics": {
+    "radius": 47,
+    "mass": 1.15,
+    "restitution": 0.9,
+    "linearDamping": 0.992,
+    "maxSpeed": 11.8
+  },
+  "stats": {
+    "maxHp": 360,
+    "moveAcceleration": 0.19
+  },
+  "aiProfileId": "ballast-mass-controller",
+  "passiveIds": ["house-rules"],
+  "abilitySlots": {
+    "skill1": "featherfall",
+    "skill2": "downbeat",
+    "skill3": "dead-weight",
+    "ultimate": "last-call"
+  },
+  "moduleSlots": {
+    "offense": ["polished-stone", "loaded-shaker"],
+    "defense": ["floor-bolts"],
+    "mobility": ["rolling-service"],
+    "utility": ["gravity-caddy", "closing-time"]
+  },
+  "defaultModuleIds": [],
+  "resistances": {
+    "void": 0.62,
+    "neutral": 0.88,
+    "electric": 1.05
+  },
+  "visualRecipeId": "ballast",
+  "animationRecipeId": "weighted-orbit",
+  "audioProfileId": "void-deep",
+  "primaryAttackId": "skip-stone"
+}

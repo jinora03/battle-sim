@@ -1,0 +1,45 @@
+{
+  "id": "dead-weight",
+  "name": "Dead Weight",
+  "slot": "skill3",
+  "cooldownTicks": 330,
+  "castTicks": 28,
+  "castMovementMultiplier": 0.08,
+  "activation": {
+    "intent": "defensive",
+    "targeting": "self",
+    "priority": 66,
+    "minRange": 0,
+    "maxRange": 230,
+    "requiresLineOfSight": false,
+    "minimumTargets": 1,
+    "aimToleranceDegrees": 180
+  },
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "APPLY_STATUS_SELF",
+          "statusId": "anchored",
+          "durationTicks": 220
+        },
+        {
+          "type": "RADIAL_DAMAGE",
+          "radius": 190,
+          "amount": 8,
+          "element": "void",
+          "enemiesOnly": true
+        },
+        {
+          "type": "RADIAL_IMPULSE",
+          "radius": 205,
+          "magnitude": 6.5,
+          "enemiesOnly": true,
+          "direction": "push"
+        }
+      ]
+    }
+  ]
+}

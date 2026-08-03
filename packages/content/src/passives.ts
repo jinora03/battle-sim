@@ -24,6 +24,31 @@ const PASSIVES: readonly PassiveDefinition[] = [
     ]
   },
   {
+    id: 'house-rules',
+    name: 'House Rules',
+    description: 'Skip Stone launches already-light targets harder, and Last Call adds a second weighted impact.',
+    triggers: [
+      {
+        event: 'ON_PRIMARY_HIT',
+        conditions: [{ type: 'TARGET_HAS_STATUS', statusId: 'featherlight', minimumStacks: 2 }],
+        actions: [
+          { type: 'APPLY_KNOCKBACK_TARGET', magnitude: 2.5 }
+        ]
+      },
+      {
+        event: 'ON_PRIMARY_HIT',
+        conditions: [
+          { type: 'SELF_HAS_STATUS', statusId: 'last-call' },
+          { type: 'TARGET_HAS_STATUS', statusId: 'featherlight', minimumStacks: 1 }
+        ],
+        actions: [
+          { type: 'DEAL_DAMAGE_TARGET', amount: 2.5, element: 'void' },
+          { type: 'APPLY_KNOCKBACK_TARGET', magnitude: 3.5 }
+        ]
+      }
+    ]
+  },
+  {
     id: 'combat-analysis',
     name: 'Combat Analysis',
     description: 'Gunner primary-attack hits build Target Lock on the same enemy, up to four stacks.',
