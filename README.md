@@ -1,17 +1,25 @@
-# Kinetic Battle Engine — v1.3.2 Stage 8.4A.1
+# Kinetic Battle Engine — v1.3.3 Stage 8.4B
 
 A browser/mobile-ready 2D physics battle game and modular fighter engine built with TypeScript, PixiJS, React, Vite and Capacitor.
 
-> **Stage 8.4A.1 improves Pyro's combat readability and adds the optional Furnace Nozzle flamethrower module.** Pyro now holds a close-range orbiting firing lane instead of behaving like a melee charger, and the module converts Flame Jet into a deterministic sustained cone without per-tick projectile spam.
+> **Stage 8.4B introduces Ballast, the Gravity Sommelier.** Ballast is a physics-first controller who stacks Featherlight, banks ricocheting Skip Stones, launches prepared targets with Downbeat, anchors against retaliation and turns the arena weightless during Last Call.
 
-## Stage 8.4A.1 highlights
+## Stage 8.4B highlights
+
+- complete Ballast fighter with `House Rules`, `Skip Stone`, `Featherfall`, `Downbeat`, `Dead Weight` and `Last Call`
+- dedicated mass-aware AI that primes Featherlight before choosing its launch payoff
+- finite native ricochets used by the basic attack, including module-added bounce budget
+- six developer-approved Ballast modules using existing generic loadout modifiers
+- generic visual recipe, motion recipe and skill presentation entries
+- deterministic regression coverage for the full setup-and-launch combat loop
+
+See `docs/V1_3_STAGE_8_4B_FULL_BALLAST.md` for implementation and validation notes.
+
+## Stage 8.4A.1 Pyro readability pass
 
 - dedicated `pyro-combo-bruiser` orbit profile
 - readable stream-primary firing commitment and stronger close-range separation
-- Cinder Rush reserved for meaningful approach distances
-- optional `furnace-nozzle` offense module with forward nozzle and rear tank
-- deterministic 72-tick cone channel with controlled Burn cadence
-- no change to unmodified Flame Jet, Heat/Burn values or Pyro's four skills
+- optional `furnace-nozzle` offense module with deterministic pulsed cone damage
 
 See `docs/V1_3_STAGE_8_4A1_PYRO_READABILITY_AND_FURNACE_NOZZLE.md` for implementation and validation notes.
 

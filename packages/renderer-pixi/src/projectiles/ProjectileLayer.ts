@@ -33,6 +33,21 @@ export class ProjectileLayer {
         this.graphics.circle(x + dx * projectile.radius * 0.24, y + dy * projectile.radius * 0.24, projectile.radius * 0.48).fill({ color: 0xffffb0, alpha: 0.98 });
         continue;
       }
+      if (weapon.id === 'skip-stone') {
+        const pulse = 0.88 + Math.sin(elapsedSeconds * 10 + projectile.id) * 0.12;
+        const trailLength = Math.max(16, Math.hypot(projectile.vx, projectile.vy) * 1.7);
+        const dx = Math.cos(projectile.rotation);
+        const dy = Math.sin(projectile.rotation);
+        this.graphics.moveTo(x - dx * trailLength, y - dy * trailLength).lineTo(x, y)
+          .stroke({ color: 0x7feeff, width: Math.max(2, projectile.radius * 0.42), alpha: 0.34 });
+        this.graphics.circle(x, y, projectile.radius * 1.12)
+          .fill({ color: 0x241a30, alpha: 0.98 });
+        this.graphics.circle(x, y, projectile.radius * 1.12)
+          .stroke({ color: 0xa68bdb, width: Math.max(2, projectile.radius * 0.26), alpha: 0.96 });
+        this.graphics.circle(x - projectile.radius * 0.24, y - projectile.radius * 0.2, projectile.radius * 0.24 * pulse)
+          .fill({ color: 0xcff9ff, alpha: 0.9 });
+        continue;
+      }
       if (weapon.form === 'launcher' && weapon.id !== 'demolition-bomb') {
         const dx = Math.cos(projectile.rotation);
         const dy = Math.sin(projectile.rotation);

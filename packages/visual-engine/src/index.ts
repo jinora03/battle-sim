@@ -95,6 +95,10 @@ const visualRecipes: Record<string, VisualRecipe> = {
     id: 'void-reaper', shape: 'orb', bodyColor: 0x6c3eb2, bodyDarkColor: 0x1c103a,
     coreColor: 0xf2d6ff, auraColor: 0xa55cff, accentColor: 0x61e0ff, horns: true
   },
+  ballast: {
+    id: 'ballast', shape: 'orb', bodyColor: 0x514468, bodyDarkColor: 0x171222,
+    coreColor: 0xd8c4ff, auraColor: 0x8c6bc2, accentColor: 0x74e7ff, horns: false
+  },
   gunner: {
     id: 'gunner', shape: 'mech', bodyColor: 0x394957, bodyDarkColor: 0x111a22,
     coreColor: 0xffd36b, auraColor: 0x63d7ff, accentColor: 0x94efff, horns: false
@@ -141,6 +145,10 @@ const motionRecipes: Record<string, MotionRecipe> = {
   'void-orbit': {
     id: 'void-orbit', speedStretch: 0.22, impactSquash: 0.16, lean: 0.19,
     pulseAmount: 0.052, pulseSpeed: 2.8, weaponSpin: 3.7
+  },
+  'weighted-orbit': {
+    id: 'weighted-orbit', speedStretch: 0.1, impactSquash: 0.22, lean: 0.12,
+    pulseAmount: 0.025, pulseSpeed: 1.6, weaponSpin: 2.2
   },
   'gunner-mobile': {
     id: 'gunner-mobile', speedStretch: 0.14, impactSquash: 0.12, lean: 0.08,
@@ -463,6 +471,10 @@ const skillPresentationRecipes: Record<string, SkillPresentationRecipe> = {
   'gravity-well': { abilityId: 'gravity-well', icon: 'GW', shortName: 'Gravity Well', color: 0x7540c5, accentColor: 0x8cecff, telegraph: 'inward-vortex', motion: 'vortex', resolve: 'undertow', importance: 'skill', telegraphRadius: 270 },
   'void-burst': { abilityId: 'void-burst', icon: 'VB', shortName: 'Void Burst', color: 0x9a50ec, accentColor: 0xc5a3ff, telegraph: 'warning-ring', motion: 'compress', resolve: 'concussion', importance: 'skill', telegraphRadius: 195 },
   singularity: { abilityId: 'singularity', icon: 'SG', shortName: 'Singularity', color: 0x5e238f, accentColor: 0xb7eaff, telegraph: 'mega-danger', motion: 'tremble', resolve: 'inferno-collapse', importance: 'ultimate', telegraphRadius: 340 },
+  featherfall: { abilityId: 'featherfall', icon: 'FF', shortName: 'Featherfall', color: 0xa992dc, accentColor: 0x9cf4ff, telegraph: 'outward-rings', motion: 'compress', resolve: 'kinetic-pulse', importance: 'skill', telegraphRadius: 275 },
+  downbeat: { abilityId: 'downbeat', icon: 'DB', shortName: 'Downbeat', color: 0x7859aa, accentColor: 0xdffcff, telegraph: 'directional-stream', motion: 'brace', resolve: 'pressure-wave', importance: 'skill', telegraphRadius: 330 },
+  'dead-weight': { abilityId: 'dead-weight', icon: 'DW', shortName: 'Dead Weight', color: 0x4f405f, accentColor: 0xbcefff, telegraph: 'reactor-charge', motion: 'brace', resolve: 'reactor-overdrive', importance: 'skill', telegraphRadius: 205 },
+  'last-call': { abilityId: 'last-call', icon: 'LC', shortName: 'Last Call', color: 0x382348, accentColor: 0xd8faff, telegraph: 'tidal-gather', motion: 'tremble', resolve: 'inferno-collapse', importance: 'ultimate', telegraphRadius: 455 },
   'combat-roll': { abilityId: 'combat-roll', icon: 'CR', shortName: 'Combat Roll', color: 0x7edfff, accentColor: 0xffffff, telegraph: 'directional-stream', motion: 'stream', resolve: 'rocket-burst', importance: 'skill', telegraphRadius: 100 },
   'tactical-slide': { abilityId: 'tactical-slide', icon: 'TS', shortName: 'Tactical Slide', color: 0x7edfff, accentColor: 0xffffff, telegraph: 'directional-stream', motion: 'stream', resolve: 'rocket-burst', importance: 'skill', telegraphRadius: 130 },
   'suppressive-fire': { abilityId: 'suppressive-fire', icon: 'SB', shortName: 'Suppressive Burst', color: 0xffd56a, accentColor: 0xffffff, telegraph: 'directional-stream', motion: 'brace', resolve: 'shrapnel', importance: 'skill', telegraphRadius: 310 },

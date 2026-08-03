@@ -1,0 +1,60 @@
+{
+  "id": "last-call",
+  "name": "Last Call",
+  "slot": "ultimate",
+  "cooldownTicks": 690,
+  "castTicks": 52,
+  "castMovementMultiplier": 0.04,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "area",
+    "priority": 100,
+    "minRange": 0,
+    "maxRange": 470,
+    "requiresLineOfSight": false,
+    "minimumTargets": 1,
+    "aimToleranceDegrees": 180
+  },
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "APPLY_STATUS_SELF",
+          "statusId": "last-call",
+          "durationTicks": 360
+        },
+        {
+          "type": "APPLY_STATUS_SELF",
+          "statusId": "anchored",
+          "durationTicks": 360
+        },
+        {
+          "type": "RADIAL_STATUS",
+          "radius": 455,
+          "statusId": "featherlight",
+          "durationTicks": 360,
+          "stacks": 3,
+          "enemiesOnly": true
+        },
+        {
+          "type": "RADIAL_IMPULSE",
+          "radius": 455,
+          "magnitude": 7,
+          "enemiesOnly": true,
+          "direction": "pull"
+        },
+        {
+          "type": "EXPLODE",
+          "kind": "wave",
+          "radius": 455,
+          "damage": 12,
+          "impulse": 4,
+          "element": "void",
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
+}
