@@ -1,4 +1,4 @@
-import { getAbility, getFighter, getPrimaryAttack, getStatus, resolveFighterLoadout, type ResolvedFighterLoadout } from '@kinetic/content';
+import { getAbility, getFighter, getPrimaryAttack, getStatus, resolveFighterLoadout, resolveStatusMassMultiplier, type ResolvedFighterLoadout } from '@kinetic/content';
 import type { AbilitySlot, AbilityStateSnapshot, ArenaObstacleSnapshot, BattleObjectiveSnapshot, BattleParticipant, BattleResultSnapshot, CombatResourceStateSnapshot, ControllerKind, Element, EntityId, EntitySnapshot, ProjectileSnapshot, SimulationMetricsSnapshot, StatusStateSnapshot, TeamId, Vec2, WeaponAttackPhase, WeaponAttackStateSnapshot, WeaponCategory, WorldSnapshot } from '@kinetic/protocol';
 import type { SeededRng } from './rng';
 import { compareOrdinal } from './order';
@@ -371,7 +371,9 @@ export class World {
     const statuses = this.statuses.get(id);
     if (!statuses || statuses.size === 0) return 1;
     let multiplier = 1;
-    for (const status of statuses.values()) multiplier *= getStatus(status.id).massMultiplier ?? 1;
+    for (const status of statuses.values()) {
+      multiplier *= resolveStatusMassMultiplier(getStatus(status.id), status.stacks);
+    }
     return multiplier;
   }
 

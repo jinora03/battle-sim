@@ -73,7 +73,11 @@ Register a `PrimaryAttackDefinition` in `packages/content/src/index.ts`. Require
 
 For normal melee, do not use continuous idle rotation. Melee should remain stable until wind-up, swing/thrust/slam once, then recover. Use explicit `spin` or `orbit` behavior when rotation is the attack identity.
 
-Projectile recipes support speed, radius, lifetime, fuse, bounce, visual throw arc, direct-hit behavior, burst count/interval/spread and optional explosion data. The top-down path remains deterministic; throw height is visual only.
+Projectile recipes support speed, radius, lifetime, fuse, bounce, visual throw arc, direct-hit behavior, burst count/interval/spread and optional explosion data. Set `maxWallBounces` when a native ricochet should expire after a fixed number of wall or obstacle reflections; omitting it preserves lifetime-limited unlimited bounce. The top-down path remains deterministic; throw height is visual only.
+
+### Authoring mass-changing statuses
+
+Use `massMultiplier` for one fixed modifier and `massMultiplierPerStack` when every stack should compound the target's effective mass. Collision response and knockback already read effective mass, so do not add fighter-specific launch formulas. `massPresentation: "light" | "heavy"` opts the status into the generic renderer indicator. Keep stack counts small and test the resolved multiplier explicitly.
 
 ### Adding a new form/behavior combination
 

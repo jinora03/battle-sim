@@ -9,6 +9,8 @@ export interface ProjectileDefinition {
   fuseTicks: number;
   gravity: number;
   bounce: number;
+  /** Optional finite wall/obstacle ricochet budget. Omitted preserves legacy unlimited native bounce. */
+  maxWallBounces?: number;
   explosionRadius: number;
   explosionDamage: number;
   explosionImpulse: number;
@@ -64,6 +66,7 @@ const projectileDefinitionSchema = z.object({
   fuseTicks: z.number().int().nonnegative().default(0),
   gravity: z.number().nonnegative().default(0),
   bounce: z.number().min(0).max(1.25).default(0),
+  maxWallBounces: z.number().int().min(0).max(64).optional(),
   explosionRadius: z.number().nonnegative().default(0),
   explosionDamage: z.number().nonnegative().default(0),
   explosionImpulse: z.number().nonnegative().default(0),
