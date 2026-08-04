@@ -20,6 +20,7 @@ export type CombatAudioIntent = (typeof COMBAT_AUDIO_INTENTS)[number];
 
 export const COMBAT_AUDIO_PALETTES = [
   'kinetic',
+  'explosive',
   'fire',
   'electric',
   'gravity',
@@ -235,6 +236,101 @@ const LAST_CALL_PROFILE: AbilityCombatAudioProfile = {
 };
 
 
+const BLAST_DASH_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'blast-dash',
+  palette: 'explosive',
+  hierarchy: 'skill',
+  layers: {
+    anticipation: { intent: 'transformation', intensity: 0.5, durationSeconds: 0.16 },
+    activation: { intent: 'knockback', intensity: 0.82, durationSeconds: 0.2 },
+    sustain: { intent: 'channel', intensity: 0.42, durationSeconds: 0.18, delaySeconds: 0.025 },
+    release: { intent: 'explosion', intensity: 0.54, durationSeconds: 0.15, delaySeconds: 0.13 }
+  }
+};
+
+const CONCUSSION_BOMB_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'concussion-bomb',
+  palette: 'explosive',
+  hierarchy: 'skill',
+  layers: {
+    anticipation: { intent: 'explosion', intensity: 0.62 },
+    activation: { intent: 'explosion', intensity: 0.88, durationSeconds: 0.34 },
+    release: { intent: 'knockback', intensity: 0.68, durationSeconds: 0.22, delaySeconds: 0.12 }
+  }
+};
+
+const SHRAPNEL_BURST_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'shrapnel-burst',
+  palette: 'explosive',
+  hierarchy: 'payoff',
+  layers: {
+    anticipation: { intent: 'transformation', intensity: 0.7 },
+    activation: { intent: 'explosion', intensity: 0.98, durationSeconds: 0.38 },
+    sustain: { intent: 'burst-fire', intensity: 0.72, durationSeconds: 0.24, delaySeconds: 0.045 },
+    release: { intent: 'knockback', intensity: 0.74, durationSeconds: 0.24, delaySeconds: 0.18 }
+  }
+};
+
+const MEGA_BOMB_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'mega-bomb',
+  palette: 'explosive',
+  hierarchy: 'ultimate',
+  layers: {
+    anticipation: { intent: 'ultimate', intensity: 1.08, durationSeconds: 1.08 },
+    activation: { intent: 'explosion', intensity: 1.18, durationSeconds: 0.68 },
+    sustain: { intent: 'channel', intensity: 0.72, durationSeconds: 0.46, delaySeconds: 0.055 },
+    release: { intent: 'knockback', intensity: 0.94, durationSeconds: 0.42, delaySeconds: 0.34 }
+  }
+};
+
+const KINETIC_PULSE_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'kinetic-pulse',
+  palette: 'mechanical',
+  hierarchy: 'skill',
+  layers: {
+    anticipation: { intent: 'transformation', intensity: 0.54 },
+    activation: { intent: 'knockback', intensity: 0.86, durationSeconds: 0.3 },
+    release: { intent: 'explosion', intensity: 0.62, durationSeconds: 0.2, delaySeconds: 0.12 }
+  }
+};
+
+const MAGNET_DRAG_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'magnet-drag',
+  palette: 'mechanical',
+  hierarchy: 'skill',
+  layers: {
+    anticipation: { intent: 'pull', intensity: 0.68 },
+    activation: { intent: 'pull', intensity: 0.88, durationSeconds: 0.34 },
+    sustain: { intent: 'pull', intensity: 0.62, durationSeconds: 0.32, delaySeconds: 0.04 },
+    release: { intent: 'knockback', intensity: 0.68, durationSeconds: 0.2, delaySeconds: 0.22 }
+  }
+};
+
+const FORTIFY_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'fortify',
+  palette: 'mechanical',
+  hierarchy: 'payoff',
+  layers: {
+    anticipation: { intent: 'status-application', intensity: 0.74 },
+    activation: { intent: 'transformation', intensity: 0.92, durationSeconds: 0.38 },
+    sustain: { intent: 'status-application', intensity: 0.62, durationSeconds: 0.5, delaySeconds: 0.045 },
+    release: { intent: 'transformation', intensity: 0.58, durationSeconds: 0.22, delaySeconds: 0.38 }
+  }
+};
+
+const REACTOR_OVERDRIVE_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'reactor-overdrive',
+  palette: 'mechanical',
+  hierarchy: 'ultimate',
+  layers: {
+    anticipation: { intent: 'ultimate', intensity: 1, durationSeconds: 0.96 },
+    activation: { intent: 'transformation', intensity: 1.08, durationSeconds: 0.48 },
+    sustain: { intent: 'channel', intensity: 0.82, durationSeconds: 1.05, delaySeconds: 0.06 },
+    release: { intent: 'transformation', intensity: 0.82, durationSeconds: 0.36, delaySeconds: 0.92 }
+  }
+};
+
+
 const TACTICAL_SLIDE_PROFILE: AbilityCombatAudioProfile = {
   abilityId: 'tactical-slide',
   palette: 'mechanical',
@@ -333,6 +429,20 @@ const SOLAR_LASER_PROFILE: AbilityCombatAudioProfile = {
   }
 };
 
+const BOMBER_AUDIO_PROFILES = [
+  BLAST_DASH_PROFILE,
+  CONCUSSION_BOMB_PROFILE,
+  SHRAPNEL_BURST_PROFILE,
+  MEGA_BOMB_PROFILE
+] as const;
+
+const MECH_AUDIO_PROFILES = [
+  KINETIC_PULSE_PROFILE,
+  MAGNET_DRAG_PROFILE,
+  FORTIFY_PROFILE,
+  REACTOR_OVERDRIVE_PROFILE
+] as const;
+
 const GUNNER_AUDIO_PROFILES = [
   TACTICAL_SLIDE_PROFILE,
   SUPPRESSIVE_FIRE_PROFILE,
@@ -369,7 +479,7 @@ const BALLAST_AUDIO_PROFILES = [
 ] as const;
 
 const ABILITY_AUDIO_PROFILES = new Map<string, AbilityCombatAudioProfile>(
-  [...VOLT_AUDIO_PROFILES, ...PYRO_AUDIO_PROFILES, ...BALLAST_AUDIO_PROFILES, ...GUNNER_AUDIO_PROFILES, ...SOLAR_SENTINEL_AUDIO_PROFILES]
+  [...VOLT_AUDIO_PROFILES, ...PYRO_AUDIO_PROFILES, ...BALLAST_AUDIO_PROFILES, ...GUNNER_AUDIO_PROFILES, ...SOLAR_SENTINEL_AUDIO_PROFILES, ...BOMBER_AUDIO_PROFILES, ...MECH_AUDIO_PROFILES]
     .map((profile) => [profile.abilityId, profile])
 );
 

@@ -21,6 +21,7 @@ interface CombatAudioPaletteTuning {
 
 const COMBAT_AUDIO_PALETTE_TUNING: Readonly<Record<ResolvedCombatAudioLayer['palette'], CombatAudioPaletteTuning>> = {
   kinetic: { low: 82, mid: 260, high: 760, wave: 'triangle', pulse: 'square' },
+  explosive: { low: 42, mid: 165, high: 1280, wave: 'sawtooth', pulse: 'square' },
   fire: { low: 58, mid: 180, high: 520, wave: 'sawtooth', pulse: 'triangle' },
   electric: { low: 52, mid: 620, high: 1180, wave: 'square', pulse: 'square' },
   gravity: { low: 34, mid: 96, high: 260, wave: 'sine', pulse: 'triangle' },
@@ -299,6 +300,15 @@ export class BattleAudioEngine {
       // the actual burst cadence instead of creating a fifth gunshot sound.
       this.playTone(760, 240, 0.035, 'square', 0.018);
       this.playMetallicTick(0.26);
+    } else if (event.weaponId === 'demolition-bomb') {
+      // Launcher arm plus fuse primer, kept lighter than the eventual blast.
+      this.playTone(86, 210, 0.09, 'square', 0.03);
+      this.playTone(980, 1540, 0.045, 'triangle', 0.018, 0.025);
+      this.playMetallicTick(0.24);
+    } else if (event.weaponId === 'hydraulic-gauntlet') {
+      // Servo preload reads before the low piston impact on contact.
+      this.playTone(115, 460, 0.13, 'sawtooth', 0.042);
+      this.playTone(720, 210, 0.08, 'triangle', 0.022, 0.035);
     } else if (event.weaponId === 'solar-punch') {
       this.playTone(420, 1180, 0.09, 'sawtooth', 0.034);
       this.playTone(1480, 620, 0.045, 'triangle', 0.018);
@@ -325,7 +335,14 @@ export class BattleAudioEngine {
       this.playTone(190, 58, 0.12, 'triangle', 0.04);
       return;
     }
-    const heavy = event.weaponId === 'hydraulic-gauntlet' || event.weaponId === 'war-hammer';
+    if (event.weaponId === 'hydraulic-gauntlet') {
+      this.playTone(148, 34, 0.24, 'square', 0.092);
+      this.playTone(420, 74, 0.13, 'sawtooth', 0.045);
+      this.playTone(1720, 390, 0.055, 'triangle', 0.024);
+      this.playMetallicTick(0.82);
+      return;
+    }
+    const heavy = event.weaponId === 'war-hammer';
     const sharp = event.weaponId === 'flame-fists' || event.weaponId === 'frost-halberd' || event.weaponId === 'void-scythe' || event.weaponId === 'duelist-sword' || event.weaponId === 'lancer-spear';
     if (heavy) {
       this.playTone(125, 38, 0.2, 'square', 0.085);
@@ -344,7 +361,11 @@ export class BattleAudioEngine {
       this.playTone(210, 610, 0.11, 'sine', 0.035);
       this.playTone(980, 460, 0.05, 'triangle', 0.022);
     }
-    else if (event.weaponId === 'demolition-bomb') this.playTone(150, 250, 0.13, 'triangle', 0.028);
+    else if (event.weaponId === 'demolition-bomb') {
+      this.playTone(92, 340, 0.15, 'sawtooth', 0.046);
+      this.playTone(1520, 920, 0.055, 'square', 0.022, 0.02);
+      this.playPulseSequence(1180, 0.16, 'square', 0.025, 0.34);
+    }
     else if (event.weaponId === 'kill-zone-round') this.playGatlingRound(false);
     else if (RAPID_RIFLE_ROUNDS.has(event.weaponId)) this.playAutomaticRifleCrack(false);
     else if (event.weaponId === 'pinning-round-projectile') this.playPinningRoundCrack();
@@ -362,7 +383,11 @@ export class BattleAudioEngine {
       this.playTone(1240, 420, 0.055, 'sine', 0.026);
       this.playMetallicTick(0.58);
     }
-    else if (event.weaponId === 'demolition-bomb') this.playTone(115, 48, 0.16, 'square', 0.05);
+    else if (event.weaponId === 'demolition-bomb') {
+      this.playTone(1180, 76, 0.15, 'square', 0.056);
+      this.playTone(92, 30, 0.24, 'sawtooth', 0.072);
+      this.playMetallicTick(0.34);
+    }
     else if (event.weaponId === 'kill-zone-round') {
       this.playTone(980, 310, 0.028, 'triangle', 0.014);
       this.playMetallicTick(0.12);
@@ -549,17 +574,15 @@ export class BattleAudioEngine {
     const now = ctx.currentTime;
     const duration = Math.max(0.12, Math.min(0.75, castTicks / 60));
     const water = ['surge-dash', 'pressure-wave', 'undertow', 'tidal-cataclysm'].includes(abilityId);
-    const bomber = ['blast-dash', 'concussion-bomb', 'shrapnel-burst', 'mega-bomb'].includes(abilityId);
-    const mech = ['kinetic-pulse', 'magnet-drag', 'fortify', 'reactor-overdrive'].includes(abilityId);
     const ice = ['glacier-charge', 'frost-nova', 'ice-anchor', 'absolute-zero'].includes(abilityId);
     const electric = ['lightning-dash', 'arc-burst', 'polarity-pull'].includes(abilityId);
     const nature = ['bramble-charge', 'seed-burst', 'regenerate', 'overgrowth'].includes(abilityId);
     const voidSkill = ['phase-lunge', 'gravity-well', 'void-burst', 'singularity'].includes(abilityId);
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
-    oscillator.type = abilityId === 'mega-bomb' ? 'sawtooth' : bomber ? 'square' : electric ? 'square' : voidSkill ? 'sine' : mech || ice || nature ? 'triangle' : water ? 'sine' : 'triangle';
-    const startFrequency = abilityId === 'mega-bomb' ? 58 : abilityId === 'tidal-cataclysm' ? 120 : abilityId === 'reactor-overdrive' ? 92 : ice ? 410 : electric ? 520 : nature ? 135 : voidSkill ? 96 : mech ? 115 : bomber ? 105 : water ? 180 : 150;
-    const endFrequency = abilityId === 'undertow' || abilityId === 'gravity-well' || abilityId === 'singularity' ? 48 : abilityId === 'mega-bomb' ? 42 : startFrequency * (water ? 1.65 : electric ? 1.8 : ice ? 0.62 : nature ? 0.74 : mech ? 1.45 : 1.25);
+    oscillator.type = electric ? 'square' : voidSkill ? 'sine' : ice || nature ? 'triangle' : water ? 'sine' : 'triangle';
+    const startFrequency = abilityId === 'tidal-cataclysm' ? 120 : ice ? 410 : electric ? 520 : nature ? 135 : voidSkill ? 96 : water ? 180 : 150;
+    const endFrequency = abilityId === 'undertow' || abilityId === 'gravity-well' || abilityId === 'singularity' ? 48 : startFrequency * (water ? 1.65 : electric ? 1.8 : ice ? 0.62 : nature ? 0.74 : 1.25);
     oscillator.frequency.setValueAtTime(startFrequency, now);
     oscillator.frequency.exponentialRampToValueAtTime(Math.max(24, endFrequency), now + duration);
     gain.gain.setValueAtTime(0.001, now);
@@ -571,9 +594,9 @@ export class BattleAudioEngine {
     oscillator.stop(now + duration + 0.02);
     this.trackVoice(oscillator);
 
-    if (['mega-bomb', 'tidal-cataclysm', 'reactor-overdrive', 'absolute-zero', 'overgrowth', 'singularity'].includes(abilityId)) {
-      const pulseFrequency = abilityId === 'mega-bomb' ? 82 : abilityId === 'tidal-cataclysm' ? 210 : abilityId === 'absolute-zero' ? 480 : abilityId === 'overgrowth' ? 140 : abilityId === 'singularity' ? 68 : 165;
-      this.playPulseSequence(pulseFrequency, duration, abilityId === 'mega-bomb' ? 'square' : 'sine');
+    if (['tidal-cataclysm', 'absolute-zero', 'overgrowth', 'singularity'].includes(abilityId)) {
+      const pulseFrequency = abilityId === 'tidal-cataclysm' ? 210 : abilityId === 'absolute-zero' ? 480 : abilityId === 'overgrowth' ? 140 : 68;
+      this.playPulseSequence(pulseFrequency, duration, 'sine');
     }
   }
 
@@ -596,25 +619,9 @@ export class BattleAudioEngine {
       this.playTone(145, 48, 0.48, 'sine', 0.095);
       this.playTone(420, 95, 0.34, 'triangle', 0.045);
     } else if (id === 'blast-contact') this.playTone(150, 48, 0.11, 'square', 0.055);
-    else if (id === 'blast-dash') this.playTone(95, 280, 0.15, 'sawtooth', 0.06);
-    else if (id === 'concussion-bomb') this.playTone(105, 38, 0.25, 'square', 0.075);
-    else if (id === 'shrapnel-burst') {
-      this.playTone(250, 72, 0.18, 'sawtooth', 0.06);
-      this.playPulseSequence(390, 0.18, 'square');
-    } else if (id === 'mega-bomb') {
-      this.playTone(74, 24, 0.62, 'sawtooth', 0.13);
-      this.playTone(190, 42, 0.42, 'square', 0.055);
-    } else if (id === 'ember-impact') this.playTone(175, 62, 0.11, 'sawtooth', 0.045);
+    else if (id === 'ember-impact') this.playTone(175, 62, 0.11, 'sawtooth', 0.045);
     else if (id === 'steel-impact') this.playTone(230, 52, 0.13, 'triangle', 0.05);
-    else if (id === 'magnet-drag') this.playTone(270, 48, 0.31, 'sine', 0.07);
-    else if (id === 'fortify') { this.playTone(110, 240, 0.38, 'triangle', 0.065); this.playTone(420, 125, 0.22, 'sine', 0.03); }
- else if (id === 'kinetic-pulse') {
-      this.playTone(210, 58, 0.28, 'triangle', 0.07);
-      this.playTone(510, 120, 0.16, 'sine', 0.035);
-    } else if (id === 'reactor-overdrive') {
-      this.playTone(95, 360, 0.44, 'triangle', 0.08);
-      this.playPulseSequence(185, 0.42, 'sine');
-    } else if (id === 'frost-impact') this.playTone(620, 310, 0.11, 'triangle', 0.04);
+    else if (id === 'frost-impact') this.playTone(620, 310, 0.11, 'triangle', 0.04);
     else if (id === 'glacier-charge') this.playTone(520, 150, 0.2, 'triangle', 0.06);
     else if (id === 'frost-nova') { this.playTone(680, 180, 0.3, 'sine', 0.065); this.playPulseSequence(760, 0.2, 'triangle'); }
     else if (id === 'ice-anchor') this.playTone(360, 120, 0.34, 'triangle', 0.065);
@@ -644,7 +651,10 @@ export class BattleAudioEngine {
       const start = layer.intent === 'pull' ? palette.mid : layer.intent === 'status-application' ? palette.mid * 0.82 : palette.low;
       const end = layer.intent === 'pull' ? palette.low : palette.high;
       this.playTone(start, end, duration, palette.wave, volume * 0.72, delay, critical);
-      if (layer.intent === 'pull') {
+      if (layer.palette === 'explosive') {
+        this.playPulseSequence(palette.high * 0.82, duration, palette.pulse, delay, 0.52 * layer.gainScale, critical);
+        this.playTone(palette.low * 1.4, palette.mid * 0.9, duration, 'sawtooth', volume * 0.34, delay, critical);
+      } else if (layer.intent === 'pull') {
         this.playPulseSequence(palette.low * 1.2, duration, palette.pulse, delay, 0.52 * layer.gainScale, critical);
       } else if (layer.intent === 'status-application') {
         this.playPulseSequence(palette.high * 0.82, duration, palette.pulse, delay, 0.42 * layer.gainScale, critical);
@@ -661,6 +671,10 @@ export class BattleAudioEngine {
       if (layer.intent === 'explosion' || layer.intent === 'knockback') {
         this.playTone(palette.high, palette.low, duration, palette.wave, volume * 1.18, delay, critical);
         this.playTone(palette.low * 1.35, Math.max(24, palette.low * 0.56), duration * 1.08, 'triangle', volume * 0.78, delay, critical);
+        if (layer.palette === 'explosive') {
+          this.playTone(palette.high * 1.55, palette.mid * 0.9, duration * 0.24, 'square', volume * 0.52, delay, critical);
+          this.playPulseSequence(palette.mid, duration * 0.78, 'square', delay + 0.015, 0.38 * layer.gainScale, critical);
+        }
       } else if (layer.intent === 'pull') {
         this.playTone(palette.mid, palette.low, duration, palette.wave, volume * 1.02, delay, critical);
         this.playTone(palette.low * 1.4, Math.max(24, palette.low * 0.62), duration * 1.1, 'sine', volume * 0.58, delay, critical);
@@ -702,6 +716,9 @@ export class BattleAudioEngine {
     if (layer.intent === 'knockback' || layer.intent === 'explosion') {
       this.playTone(palette.mid, palette.low, duration, palette.wave, volume, delay, critical);
       this.playTone(palette.low * 1.25, Math.max(24, palette.low * 0.5), duration * 0.8, 'triangle', volume * 0.58, delay, critical);
+      if (layer.palette === 'explosive') {
+        this.playTone(palette.high * 0.72, palette.low * 0.8, duration * 0.62, 'sawtooth', volume * 0.34, delay + 0.025, critical);
+      }
     } else {
       this.playTone(releaseStart, palette.low, duration, palette.wave, volume * 0.82, delay, critical);
       if (layer.intent === 'transformation') {
