@@ -1,7 +1,22 @@
-# Kinetic Battle Engine — v1.3.10 Stage 8.6C-1
+# Kinetic Battle Engine — v1.3.11 Stage 8.6C-2A
 
 A browser/mobile-ready 2D physics battle game and modular fighter engine built with TypeScript, PixiJS, React, Vite and Capacitor.
 
+
+
+> **Stage 8.6C-2A adds seeded opening readiness and controlled AI variation.** Basics remain immediate, movement and normal skills enter in short seeded windows, payoff skills wait longer, and ultimates cannot open a battle before five seconds. Small utility variation is stable until an ability is committed, preserving deterministic replays without identical openings across every seed.
+
+## Stage 8.6C-2A highlights
+
+- universal AI-only opening cadence: movement 0.3–1.0s, normal skills 0.5–2.0s, payoff skills 1.5–3.5s, ultimates 5.0–8.0s
+- exact first-use ticks derived from seed, entity, slot, intent and ability id
+- no simulation RNG consumption, spawn drift or `Math.random()`
+- bounded ±3.25 utility jitter that can vary close decisions but cannot overturn large score gaps
+- variation epoch advances only when an ability is committed, never every tick
+- Solar Sentinel still uses Solar Eye Beams, but no longer at the opening bell
+- player-controlled fighters and actual ability cooldown values remain unchanged
+
+See `docs/V1_3_STAGE_8_6C2A_SEEDED_OPENING_READINESS.md` for implementation and determinism details.
 
 > **Stage 8.6C-1 rolls the intent-audio standard out to Pyro and Ballast and corrects Solar Sentinel's AI ultimate usage.** Pyro now has a furnace-to-detonation hierarchy, Ballast has distinct mass-shift and compression cues, and Solar Sentinel no longer inherits Pyro's Heat-gated AI rules.
 
