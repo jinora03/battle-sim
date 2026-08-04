@@ -372,6 +372,7 @@ export type SkillResolveStyle =
   | 'meltdown'
   | 'kinetic-pulse'
   | 'reactor-overdrive'
+  | 'gatling-overdrive'
   | 'mass-bloom'
   | 'downbeat-punt'
   | 'anchor-drop'
@@ -483,7 +484,7 @@ const skillPresentationRecipes: Record<string, SkillPresentationRecipe> = {
   'tactical-slide': { abilityId: 'tactical-slide', icon: 'TS', shortName: 'Tactical Slide', color: 0x7edfff, accentColor: 0xffffff, telegraph: 'directional-stream', motion: 'stream', resolve: 'rocket-burst', importance: 'skill', telegraphRadius: 130 },
   'suppressive-fire': { abilityId: 'suppressive-fire', icon: 'SB', shortName: 'Suppressive Burst', color: 0xffd56a, accentColor: 0xffffff, telegraph: 'directional-stream', motion: 'brace', resolve: 'shrapnel', importance: 'skill', telegraphRadius: 310 },
   'pinning-round': { abilityId: 'pinning-round', icon: 'PR', shortName: 'Pinning Round', color: 0x6ee6ff, accentColor: 0xffffff, telegraph: 'shrapnel-lock', motion: 'brace', resolve: 'concussion', importance: 'skill', telegraphRadius: 340 },
-  'kill-zone': { abilityId: 'kill-zone', icon: 'KZ', shortName: 'Kill Zone', color: 0xff5664, accentColor: 0xfff1ad, telegraph: 'mega-danger', motion: 'overdrive', resolve: 'reactor-overdrive', importance: 'ultimate', telegraphRadius: 410 },
+  'kill-zone': { abilityId: 'kill-zone', icon: 'KZ', shortName: 'Kill Zone', color: 0xff9f35, accentColor: 0xfff0a6, telegraph: 'reactor-charge', motion: 'overdrive', resolve: 'gatling-overdrive', importance: 'ultimate', telegraphRadius: 360 },
   'grenade-launcher': { abilityId: 'grenade-launcher', icon: 'GL', shortName: 'Grenade Launcher', color: 0xff934e, accentColor: 0xffec9b, telegraph: 'warning-ring', motion: 'fuse-pop', resolve: 'concussion', importance: 'skill', telegraphRadius: 210 },
   'overdrive-barrage': { abilityId: 'overdrive-barrage', icon: 'OB', shortName: 'Overdrive Barrage', color: 0xffdf74, accentColor: 0xffffff, telegraph: 'reactor-charge', motion: 'overdrive', resolve: 'reactor-overdrive', importance: 'ultimate', telegraphRadius: 320 },
   'rocket-salvo': { abilityId: 'rocket-salvo', icon: 'RS', shortName: 'Rocket Salvo', color: 0xffa33d, accentColor: 0xfff1a8, telegraph: 'directional-stream', motion: 'brace', resolve: 'shrapnel', importance: 'skill', telegraphRadius: 430 },

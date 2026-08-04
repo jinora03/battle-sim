@@ -469,6 +469,13 @@ export class FxEngine {
         this.shockwave(x, y, 0xffffff, 42, 2, 0.25);
         this.burst(x, y, recipe.color, Math.round(amount * 1.25 * particleScale), 7.5, 1.5, 4.5, 0.2, 0.55, 0.96, 0.2);
         break;
+      case 'gatling-overdrive':
+        this.flash(x, y, 0xfff6cf, 62, 0.16);
+        this.shockwave(x, y, 0xffb13b, 78, 5, 0.38);
+        this.shockwave(x, y, 0x7ddfff, 46, 2, 0.24);
+        this.directionalBurst(x, y, dirX, dirY, 0xffe18a, Math.round(amount * 1.55 * particleScale), 13.5);
+        this.directionalBurst(x, y, dirX, dirY, 0xff7f2a, Math.round(amount * 0.9 * particleScale), 9.5);
+        break;
       case 'mass-bloom':
         this.flash(x, y, 0xe9fbff, 42, 0.13);
         this.shockwave(x, y, recipe.accentColor, 86, 3, 0.46);

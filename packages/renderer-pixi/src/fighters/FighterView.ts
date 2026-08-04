@@ -35,6 +35,7 @@ export class FighterView {
   private readonly core = new Graphics();
   private readonly aura = new Graphics();
   private readonly weapon = new Graphics();
+  private readonly ultimateWeapon = new Graphics();
   private readonly velocityVector = new Graphics();
   private readonly healthRing: FighterHealthRing;
   private readonly resourceRing: FighterResourceRing;
@@ -70,6 +71,7 @@ export class FighterView {
       this.core,
       this.damageOverlay,
       this.weapon,
+      this.ultimateWeapon,
       this.healthRing.graphics,
       this.resourceRing.graphics,
       this.velocityVector
@@ -90,6 +92,7 @@ export class FighterView {
     this.damageFlash = 0;
     this.container.visible = true;
     this.weapon.position.set(0, 0);
+    this.ultimateWeapon.clear();
   }
 
   setProfile(profileId: PresentationSettings['renderProfile']): void {
@@ -164,6 +167,7 @@ export class FighterView {
     else this.container.rotation = 0;
     this.container.scale.set(pose.scaleX * castScaleX * victoryPulse, pose.scaleY * castScaleY * victoryPulse);
     this.updateWeaponPose(weaponAttack, reducedMotion);
+    this.updateKillZoneWeapon(entity, elapsedSeconds, reducedMotion);
     this.damageFlash *= reducedMotion ? 0.84 : 0.925;
     const damagePulse = Math.max(0, this.damageFlash);
     this.damageOverlay.alpha = Math.min(1, damagePulse * 1.18);
@@ -194,6 +198,40 @@ export class FighterView {
 
   destroy(): void {
     this.container.destroy({ children: true });
+  }
+
+  private updateKillZoneWeapon(entity: EntitySnapshot, elapsedSeconds: number, reducedMotion: boolean): void {
+    this.ultimateWeapon.clear();
+    if (entity.fighterId !== 'gunner' || !entity.statuses.some((status) => status.statusId === 'kill-zone-overdrive')) return;
+
+    const r = entity.radius;
+    const spin = reducedMotion ? 0 : elapsedSeconds * 28;
+    const barrelStart = r * 0.7;
+    const barrelEnd = r * 2.45;
+    const outline = 0xf7fcff;
+    const body = 0x1a252f;
+    const brass = 0xffbd58;
+
+    this.ultimateWeapon.circle(r * 0.58, 0, r * 0.34).fill({ color: 0x101820, alpha: 0.98 });
+    this.ultimateWeapon.circle(r * 0.58, 0, r * 0.34)
+      .stroke({ color: outline, width: Math.max(2, r * 0.055), alpha: 0.92 });
+    this.ultimateWeapon.circle(r * 0.58, 0, r * 0.22)
+      .stroke({ color: brass, width: Math.max(2.5, r * 0.07), alpha: 0.96 });
+
+    for (let index = 0; index < 5; index += 1) {
+      const phase = spin + index * Math.PI * 2 / 5;
+      const offset = Math.sin(phase) * r * 0.18;
+      this.ultimateWeapon.moveTo(barrelStart, offset).lineTo(barrelEnd, offset)
+        .stroke({ color: outline, width: Math.max(4.5, r * 0.13), alpha: 0.78 });
+      this.ultimateWeapon.moveTo(barrelStart, offset).lineTo(barrelEnd, offset)
+        .stroke({ color: body, width: Math.max(2.8, r * 0.075), alpha: 1 });
+    }
+
+    const pulse = reducedMotion ? 0.72 : 0.72 + Math.sin(elapsedSeconds * 48) * 0.24;
+    this.ultimateWeapon.moveTo(barrelEnd, -r * 0.26).lineTo(barrelEnd + r * (0.72 + pulse * 0.35), 0).lineTo(barrelEnd, r * 0.26)
+      .closePath().fill({ color: 0xffa132, alpha: 0.38 + pulse * 0.34 });
+    this.ultimateWeapon.moveTo(barrelEnd + r * 0.12, -r * 0.13).lineTo(barrelEnd + r * (0.55 + pulse * 0.25), 0).lineTo(barrelEnd + r * 0.12, r * 0.13)
+      .closePath().fill({ color: 0xfff1a4, alpha: 0.72 + pulse * 0.18 });
   }
 
   private updateWeaponPose(attack: EntitySnapshot['weaponAttack'], reducedMotion: boolean): void {

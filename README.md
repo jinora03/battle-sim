@@ -1,4 +1,4 @@
-# Kinetic Battle Engine — v1.3.5 Stage 8.5A
+# Kinetic Battle Engine — v1.3.6 Stage 8.5B
 
 A browser/mobile-ready 2D physics battle game and modular fighter engine built with TypeScript, PixiJS, React, Vite and Capacitor.
 

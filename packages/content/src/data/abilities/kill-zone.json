@@ -2,9 +2,9 @@
   "id": "kill-zone",
   "name": "Kill Zone",
   "slot": "ultimate",
-  "cooldownTicks": 600,
-  "castTicks": 34,
-  "castMovementMultiplier": 0.28,
+  "cooldownTicks": 660,
+  "castTicks": 30,
+  "castMovementMultiplier": 0.22,
   "activation": {
     "intent": "offensive",
     "targeting": "direction",
@@ -21,15 +21,15 @@
       "event": "ON_ACTIVATE",
       "conditions": [],
       "actions": [
-        { "type": "APPLY_STATUS_SELF", "statusId": "overdrive", "durationTicks": 150 },
+        { "type": "APPLY_STATUS_SELF", "statusId": "kill-zone-overdrive", "durationTicks": 54 },
         {
           "type": "LAUNCH_PROJECTILES",
-          "projectileId": "kill-zone-missile",
-          "count": 10,
+          "projectileId": "kill-zone-round",
+          "count": 24,
           "pattern": "fan",
-          "spreadDegrees": 36,
-          "targetMode": "distributed",
-          "intervalTicks": 3
+          "spreadDegrees": 10,
+          "targetMode": "selected",
+          "intervalTicks": 2
         }
       ]
     }

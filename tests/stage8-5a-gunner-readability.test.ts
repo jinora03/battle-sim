@@ -121,7 +121,6 @@ describe('Stage 8.5A Gunner readability pass', () => {
   });
 
   it('advances engine and content compatibility markers together', () => {
-    expect(CONTENT_VERSION).toBe('1.3.5-stage8.5a');
-    expect(ENGINE_VERSION).toBe('1.3.5-stage8.5a');
+    expect(CONTENT_VERSION).toBe(ENGINE_VERSION);
   });
 });

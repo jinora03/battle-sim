@@ -50,7 +50,7 @@ describe('Stage 8.2.8 ultimate activation stability', () => {
     const events = runUltimate(runner, 90, false);
     expect(events.some((event) => event.type === 'abilityActivated' && event.abilityId === 'kill-zone')).toBe(true);
     expect(events.some((event) => event.type === 'abilityResolved' && event.abilityId === 'kill-zone')).toBe(true);
-    expect(events.filter((event) => event.type === 'projectileSpawned' && event.weaponId === 'kill-zone-missile')).toHaveLength(10);
+    expect(events.filter((event) => event.type === 'projectileSpawned' && event.weaponId === 'kill-zone-round')).toHaveLength(24);
   });
 
   it('keeps every built-in fighter ultimate activatable and resolvable', () => {

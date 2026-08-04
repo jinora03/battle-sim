@@ -81,6 +81,7 @@ const weaponRecipes: Record<string, WeaponVfxRecipe> = {
   'tactical-round': { weaponId: 'tactical-round', trailShape: 'beam', trailColor: 0x8ee8ff, impactColor: 0xe9fcff, residualShape: 'spark', groundMark: 'none', muzzleFlash: true },
   'suppressive-round': { weaponId: 'suppressive-round', trailShape: 'beam', trailColor: 0xffd36a, impactColor: 0xffefb5, residualShape: 'spark', groundMark: 'none', muzzleFlash: true },
   'pinning-round-projectile': { weaponId: 'pinning-round-projectile', trailShape: 'beam', trailColor: 0xff9f54, impactColor: 0xffffff, residualShape: 'debris', groundMark: 'crack', muzzleFlash: true },
+  'kill-zone-round': { weaponId: 'kill-zone-round', trailShape: 'beam', trailColor: 0xffb23f, impactColor: 0xfff2b0, residualShape: 'spark', groundMark: 'none', muzzleFlash: true },
   'guided-rocket': { weaponId: 'guided-rocket', trailShape: 'beam', trailColor: 0xffa13d, impactColor: 0xfff1a0, residualShape: 'smoke', groundMark: 'scorch', muzzleFlash: true },
   'rocket-salvo-missile': { weaponId: 'rocket-salvo-missile', trailShape: 'beam', trailColor: 0xffb44d, impactColor: 0xfff0a3, residualShape: 'smoke', groundMark: 'scorch', muzzleFlash: true },
   'siege-missile': { weaponId: 'siege-missile', trailShape: 'beam', trailColor: 0xff7b38, impactColor: 0xffffff, residualShape: 'smoke', groundMark: 'crack', muzzleFlash: true },
