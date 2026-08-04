@@ -317,19 +317,22 @@ export class AiController implements ControllerSource {
       y = toward.y * radial + perpendicular.y * Math.max(0.08, profile.orbitStrength);
     }
 
-    // Stream primaries need a readable firing lane. While the attack is
-    // committed, hold radial distance and strafe instead of continuing to body-
-    // check the target. This is content-generic and currently benefits Flame Jet.
-    const streamCommitted = attack?.style === 'stream'
-      && entity.weaponAttack !== null
+    // Committed ranged attacks need a readable firing lane. Stream attacks hold
+    // their cone on target, while burst attacks brace and strafe through the full
+    // cadence instead of surging forward between rounds.
+    const committedPrimary = entity.weaponAttack !== null
       && (entity.weaponAttack.phase === 'windup' || entity.weaponAttack.phase === 'active');
-    if (!retreat && streamCommitted) {
-      const radial = distance < preferredDistance * 0.82
-        ? -0.72
-        : distance > preferredDistance * 1.18
-          ? 0.34
+    const streamCommitted = attack?.style === 'stream' && committedPrimary;
+    const burstCommitted = attack?.style === 'burst' && ranged && committedPrimary;
+    if (!retreat && (streamCommitted || burstCommitted)) {
+      const closeThreshold = burstCommitted ? 0.88 : 0.82;
+      const farThreshold = burstCommitted ? 1.12 : 1.18;
+      const radial = distance < preferredDistance * closeThreshold
+        ? burstCommitted ? -0.9 : -0.72
+        : distance > preferredDistance * farThreshold
+          ? burstCommitted ? 0.2 : 0.34
           : 0;
-      const strafe = Math.max(0.3, profile.orbitStrength);
+      const strafe = Math.max(burstCommitted ? 0.42 : 0.3, profile.orbitStrength);
       x = toward.x * radial + perpendicular.x * strafe;
       y = toward.y * radial + perpendicular.y * strafe;
     }

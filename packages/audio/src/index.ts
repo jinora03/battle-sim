@@ -1,5 +1,11 @@
 import type { AbilityResolvedEvent, BlastEvent, ProjectileImpactEvent, ProjectileSpawnedEvent, SimulationEvent, WeaponAttackStartedEvent, WeaponHitEvent } from '@kinetic/protocol';
 
+const RAPID_RIFLE_ROUNDS = new Set(['automatic-rifle', 'tactical-round', 'suppressive-round']);
+
+export function isGunnerRifleRound(weaponId: string): boolean {
+  return RAPID_RIFLE_ROUNDS.has(weaponId) || weaponId === 'pinning-round-projectile';
+}
+
 export interface AudioDiagnostics {
   eventsConsidered: number;
   eventsSelected: number;
@@ -88,7 +94,7 @@ export class BattleAudioEngine {
       if (event.type === 'projectileSpawned') {
         const missile = event.weaponId.includes('rocket') || event.weaponId.includes('missile');
         missileEvent ||= missile;
-        if (event.weaponId === 'automatic-rifle' && focused.has(event.sourceId)) {
+        if (RAPID_RIFLE_ROUNDS.has(event.weaponId) && focused.has(event.sourceId)) {
           const now = performance.now();
           if (now - this.lastFocusedRifleAt >= 20) {
             this.lastFocusedRifleAt = now;
@@ -169,7 +175,7 @@ export class BattleAudioEngine {
         const missile = event.weaponId.includes('rocket') || event.weaponId.includes('missile');
         if (missile && missileLaunches >= 3) continue;
         if (missile) missileLaunches += 1;
-        if (!(event.weaponId === 'automatic-rifle' && focused.has(event.sourceId))) this.playProjectileSpawn(event);
+        if (!(RAPID_RIFLE_ROUNDS.has(event.weaponId) && focused.has(event.sourceId))) this.playProjectileSpawn(event);
       }
       else if (event.type === 'projectileImpact') this.playProjectileImpact(event);
       else if (event.type === 'death') this.playDeath();
@@ -221,8 +227,10 @@ export class BattleAudioEngine {
       this.playTone(132, 520, 0.12, 'sine', 0.04);
       this.playTone(760, 310, 0.065, 'triangle', 0.028);
     } else if (event.weaponId === 'automatic-rifle') {
-      this.playTone(170, 88, 0.055, 'triangle', 0.026);
-      this.playTone(74, 52, 0.07, 'square', 0.018);
+      // A quiet mechanical commit leaves the four projectile cracks to define
+      // the actual burst cadence instead of creating a fifth gunshot sound.
+      this.playTone(760, 240, 0.035, 'square', 0.018);
+      this.playMetallicTick(0.26);
     } else if (event.category === 'ranged' || event.category === 'automatic' || event.category === 'beam') {
       this.playTone(520, 180, 0.075, 'square', 0.032);
     } else if (event.category === 'throwable') {
@@ -257,7 +265,8 @@ export class BattleAudioEngine {
       this.playTone(980, 460, 0.05, 'triangle', 0.022);
     }
     else if (event.weaponId === 'demolition-bomb') this.playTone(150, 250, 0.13, 'triangle', 0.028);
-    else if (event.weaponId === 'automatic-rifle') this.playAutomaticRifleCrack(false);
+    else if (RAPID_RIFLE_ROUNDS.has(event.weaponId)) this.playAutomaticRifleCrack(false);
+    else if (event.weaponId === 'pinning-round-projectile') this.playPinningRoundCrack();
     else if (event.weaponId === 'arc-emitter') this.playTone(820, 210, 0.085, 'square', 0.05);
     else if (event.weaponId.includes('rocket') || event.weaponId.includes('missile')) {
       this.playTone(125, 310, 0.14, 'sawtooth', 0.055);
@@ -273,6 +282,14 @@ export class BattleAudioEngine {
       this.playMetallicTick(0.58);
     }
     else if (event.weaponId === 'demolition-bomb') this.playTone(115, 48, 0.16, 'square', 0.05);
+    else if (RAPID_RIFLE_ROUNDS.has(event.weaponId)) {
+      this.playTone(1250, 340, 0.035, 'triangle', 0.018);
+      this.playMetallicTick(0.2);
+    }
+    else if (event.weaponId === 'pinning-round-projectile') {
+      this.playTone(680, 105, 0.09, 'square', 0.045);
+      this.playMetallicTick(0.62);
+    }
     else if (event.weaponId === 'arc-emitter') this.playTone(630, 105, 0.09, 'square', 0.045);
     else if (event.weaponId.includes('rocket') || event.weaponId.includes('missile')) {
       this.playTone(108, 34, 0.22, 'square', 0.08);
@@ -528,6 +545,12 @@ export class BattleAudioEngine {
     else if (kind === 'water') this.playTone(245, 135, 0.13, 'sine', 0.025);
     else if (kind === 'ice') this.playTone(560, 290, 0.1, 'triangle', 0.025);
     else this.playTone(190, 310, 0.1, 'sine', 0.018);
+  }
+
+  private playPinningRoundCrack(): void {
+    this.playAutomaticRifleCrack(false);
+    this.playTone(210, 72, 0.085, 'square', 0.05);
+    this.playMetallicTick(0.72);
   }
 
   private playAutomaticRifleCrack(focused = false): void {

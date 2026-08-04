@@ -3,6 +3,7 @@ import {
   isMissileCascadeAbility,
   isMissileCascadeFrame,
   isMissileWeapon,
+  isRapidFireWeapon,
   resolveBlastFeedback,
   resolveUltimateFreezeMs,
   resolveWeaponHitFreezeMs,
@@ -248,10 +249,11 @@ export class FxEngine {
         // Tactical/Suppressive/Pinning/Kill Zone hit and stops the RAF loop.
         const attack = getAttackSource(event.weaponId);
         const color = primaryAttackColor(attack);
-        if (event.presentation === 'continuous') {
-          const count = Math.round(Math.min(5, 2 + event.damage * 0.25) * particleScale);
-          this.shardBurst(event.position.x, event.position.y, color, count, 2.8 + event.knockback * 0.2);
-          this.flash(event.position.x, event.position.y, color, Math.min(15, 7 + event.damage * 0.3), 0.045);
+        if (event.presentation === 'continuous' || isRapidFireWeapon(event.weaponId)) {
+          const rapid = isRapidFireWeapon(event.weaponId);
+          const count = Math.round(Math.min(rapid ? 4 : 5, 2 + event.damage * 0.25) * particleScale);
+          this.shardBurst(event.position.x, event.position.y, color, count, rapid ? 3.8 : 2.8 + event.knockback * 0.2);
+          this.flash(event.position.x, event.position.y, color, Math.min(rapid ? 11 : 15, 7 + event.damage * 0.3), rapid ? 0.035 : 0.045);
         } else {
           const count = Math.round(Math.min(24, 8 + event.damage * 0.55) * particleScale);
           this.shardBurst(event.position.x, event.position.y, color, count, 6 + event.knockback * 0.35);
@@ -263,8 +265,17 @@ export class FxEngine {
         const attack = getProjectileSource(event.weaponId);
         const color = primaryAttackColor(attack);
         if (isProjectileBehavior(attack.behavior)) {
-          this.flash(event.position.x, event.position.y, color, 12, 0.075);
-          this.directionalBurst(event.position.x, event.position.y, -event.velocity.x, -event.velocity.y, color, Math.round(5 * particleScale), 5.5);
+          const rapid = isRapidFireWeapon(event.weaponId);
+          this.flash(event.position.x, event.position.y, color, rapid ? 9 : 12, rapid ? 0.045 : 0.075);
+          this.directionalBurst(
+            event.position.x,
+            event.position.y,
+            -event.velocity.x,
+            -event.velocity.y,
+            color,
+            Math.round((rapid ? 3 : 5) * particleScale),
+            rapid ? 6.8 : 5.5
+          );
         } else {
           this.burst(event.position.x, event.position.y, color, Math.round(4 * particleScale), 2.8, 1, 2.5, 0.1, 0.22, 0.94, 0.08);
         }
