@@ -35,6 +35,8 @@ export interface CombatVfxLayerDefinition {
   useCastDuration?: boolean;
   intensity?: number;
   radiusScale?: number;
+  /** Directional force cone instead of a radial pressure wave. */
+  directional?: boolean;
 }
 
 export interface DualEyeBeamTelegraphDefinition {
@@ -74,6 +76,7 @@ export interface ResolvedCombatVfxLayer {
   durationSeconds: number;
   intensity: number;
   radiusScale: number;
+  directional: boolean;
 }
 
 const profiles: Readonly<Record<string, CombatVfxProfile>> = {
@@ -179,7 +182,7 @@ const profiles: Readonly<Record<string, CombatVfxProfile>> = {
     colors: { core: 0xffffff, accent: 0x9cf4ff, glow: 0x7859aa },
     layers: [
       { phase: 'anticipation', intent: 'knockback', anchor: 'activated', useCastDuration: true, intensity: 0.78, radiusScale: 0.62 },
-      { phase: 'activation', intent: 'knockback', anchor: 'resolved', durationSeconds: 0.18, intensity: 1.06, radiusScale: 1.02 },
+      { phase: 'activation', intent: 'knockback', anchor: 'resolved', durationSeconds: 0.18, intensity: 1.06, radiusScale: 1.02, directional: true },
       { phase: 'release', intent: 'status', anchor: 'resolved', delaySeconds: 0.07, durationSeconds: 0.2, intensity: 0.62, radiusScale: 0.78 }
     ]
   },
@@ -216,6 +219,100 @@ const profiles: Readonly<Record<string, CombatVfxProfile>> = {
       { phase: 'activation', intent: 'explosion', anchor: 'resolved', durationSeconds: 0.24, intensity: 1.12, radiusScale: 1.12 },
       { phase: 'sustain', intent: 'channel', anchor: 'resolved', delaySeconds: 0.08, durationSeconds: 0.5, intensity: 0.82, radiusScale: 1 },
       { phase: 'release', intent: 'status', anchor: 'resolved', delaySeconds: 0.32, durationSeconds: 0.28, intensity: 0.72, radiusScale: 0.9 }
+    ]
+  },
+  'blast-dash': {
+    abilityId: 'blast-dash',
+    palette: 'neutral',
+    hierarchy: 'skill',
+    colors: { core: 0xffffd2, accent: 0xff702f, glow: 0xffb34f },
+    layers: [
+      { phase: 'anticipation', intent: 'dash', anchor: 'activated', useCastDuration: true, intensity: 0.7, radiusScale: 0.58 },
+      { phase: 'activation', intent: 'dash', anchor: 'resolved', durationSeconds: 0.18, intensity: 0.94, radiusScale: 0.84 },
+      { phase: 'sustain', intent: 'channel', anchor: 'resolved', delaySeconds: 0.03, durationSeconds: 0.3, intensity: 0.62, radiusScale: 0.76 },
+      { phase: 'release', intent: 'explosion', anchor: 'resolved', delaySeconds: 0.16, durationSeconds: 0.2, intensity: 0.66, radiusScale: 0.78 }
+    ]
+  },
+  'concussion-bomb': {
+    abilityId: 'concussion-bomb',
+    palette: 'neutral',
+    hierarchy: 'skill',
+    colors: { core: 0xffffe0, accent: 0xff9a3d, glow: 0xffd76a },
+    layers: [
+      { phase: 'anticipation', intent: 'explosion', anchor: 'activated', useCastDuration: true, intensity: 0.76, radiusScale: 0.72 },
+      { phase: 'activation', intent: 'explosion', anchor: 'resolved', durationSeconds: 0.26, intensity: 0.98, radiusScale: 1.04 },
+      { phase: 'release', intent: 'knockback', anchor: 'resolved', delaySeconds: 0.08, durationSeconds: 0.22, intensity: 0.74, radiusScale: 0.94 }
+    ]
+  },
+  'shrapnel-burst': {
+    abilityId: 'shrapnel-burst',
+    palette: 'neutral',
+    hierarchy: 'payoff',
+    colors: { core: 0xffffff, accent: 0xff5e36, glow: 0xffd65c },
+    layers: [
+      { phase: 'anticipation', intent: 'transformation', anchor: 'activated', useCastDuration: true, intensity: 0.84, radiusScale: 0.76 },
+      { phase: 'activation', intent: 'explosion', anchor: 'resolved', durationSeconds: 0.28, intensity: 1.08, radiusScale: 1.12 },
+      { phase: 'sustain', intent: 'burst-fire', anchor: 'resolved', delaySeconds: 0.04, durationSeconds: 0.3, intensity: 0.78, radiusScale: 1.02 },
+      { phase: 'release', intent: 'knockback', anchor: 'resolved', delaySeconds: 0.18, durationSeconds: 0.24, intensity: 0.78, radiusScale: 0.98 }
+    ]
+  },
+  'mega-bomb': {
+    abilityId: 'mega-bomb',
+    palette: 'neutral',
+    hierarchy: 'ultimate',
+    colors: { core: 0xffffff, accent: 0xff3d20, glow: 0xffef65 },
+    layers: [
+      { phase: 'anticipation', intent: 'ultimate', anchor: 'activated', useCastDuration: true, intensity: 1.04, radiusScale: 0.92 },
+      { phase: 'activation', intent: 'explosion', anchor: 'resolved', durationSeconds: 0.36, intensity: 1.2, radiusScale: 1.34 },
+      { phase: 'sustain', intent: 'channel', anchor: 'resolved', delaySeconds: 0.06, durationSeconds: 0.7, intensity: 0.88, radiusScale: 1.18 },
+      { phase: 'release', intent: 'knockback', anchor: 'resolved', delaySeconds: 0.38, durationSeconds: 0.34, intensity: 0.92, radiusScale: 1.12 }
+    ]
+  },
+  'kinetic-pulse': {
+    abilityId: 'kinetic-pulse',
+    palette: 'metal',
+    hierarchy: 'skill',
+    colors: { core: 0xffffff, accent: 0x60d9ff, glow: 0xcff9ff },
+    layers: [
+      { phase: 'anticipation', intent: 'transformation', anchor: 'activated', useCastDuration: true, intensity: 0.72, radiusScale: 0.68 },
+      { phase: 'activation', intent: 'explosion', anchor: 'resolved', durationSeconds: 0.24, intensity: 0.98, radiusScale: 1.02 },
+      { phase: 'release', intent: 'knockback', anchor: 'resolved', delaySeconds: 0.08, durationSeconds: 0.22, intensity: 0.72, radiusScale: 0.94 }
+    ]
+  },
+  'magnet-drag': {
+    abilityId: 'magnet-drag',
+    palette: 'metal',
+    hierarchy: 'skill',
+    colors: { core: 0xffffff, accent: 0x54c9dc, glow: 0xa9f5ff },
+    layers: [
+      { phase: 'anticipation', intent: 'pull', anchor: 'activated', useCastDuration: true, intensity: 0.78, radiusScale: 0.82 },
+      { phase: 'activation', intent: 'pull', anchor: 'resolved', durationSeconds: 0.3, intensity: 1, radiusScale: 1.12 },
+      { phase: 'sustain', intent: 'channel', anchor: 'resolved', delaySeconds: 0.04, durationSeconds: 0.4, intensity: 0.7, radiusScale: 1 },
+      { phase: 'release', intent: 'knockback', anchor: 'resolved', delaySeconds: 0.24, durationSeconds: 0.2, intensity: 0.66, radiusScale: 0.88 }
+    ]
+  },
+  'fortify': {
+    abilityId: 'fortify',
+    palette: 'metal',
+    hierarchy: 'payoff',
+    colors: { core: 0xffffff, accent: 0x7193a6, glow: 0xd9fbff },
+    layers: [
+      { phase: 'anticipation', intent: 'transformation', anchor: 'activated', useCastDuration: true, intensity: 0.84, radiusScale: 0.72 },
+      { phase: 'activation', intent: 'transformation', anchor: 'resolved', durationSeconds: 0.28, intensity: 1.02, radiusScale: 0.96 },
+      { phase: 'sustain', intent: 'status', anchor: 'resolved', delaySeconds: 0.06, durationSeconds: 0.66, intensity: 0.74, radiusScale: 0.88 },
+      { phase: 'release', intent: 'knockback', anchor: 'resolved', delaySeconds: 0.4, durationSeconds: 0.2, intensity: 0.6, radiusScale: 0.8 }
+    ]
+  },
+  'reactor-overdrive': {
+    abilityId: 'reactor-overdrive',
+    palette: 'metal',
+    hierarchy: 'ultimate',
+    colors: { core: 0xffffff, accent: 0x5edcff, glow: 0xbff8ff },
+    layers: [
+      { phase: 'anticipation', intent: 'ultimate', anchor: 'activated', useCastDuration: true, intensity: 1, radiusScale: 0.82 },
+      { phase: 'activation', intent: 'transformation', anchor: 'resolved', durationSeconds: 0.3, intensity: 1.1, radiusScale: 1.04 },
+      { phase: 'sustain', intent: 'channel', anchor: 'resolved', delaySeconds: 0.06, durationSeconds: 0.9, intensity: 0.86, radiusScale: 1 },
+      { phase: 'release', intent: 'transformation', anchor: 'resolved', delaySeconds: 0.72, durationSeconds: 0.3, intensity: 0.78, radiusScale: 0.9 }
     ]
   },
   'tactical-slide': {
@@ -272,7 +369,7 @@ const profiles: Readonly<Record<string, CombatVfxProfile>> = {
     layers: [
       { phase: 'anticipation', intent: 'dash', anchor: 'activated', useCastDuration: true, intensity: 0.66, radiusScale: 0.58 },
       { phase: 'activation', intent: 'dash', anchor: 'resolved', durationSeconds: 0.16, intensity: 0.9, radiusScale: 0.82 },
-      { phase: 'release', intent: 'knockback', anchor: 'resolved', delaySeconds: 0.05, durationSeconds: 0.16, intensity: 0.58, radiusScale: 0.72 }
+      { phase: 'release', intent: 'knockback', anchor: 'resolved', delaySeconds: 0.05, durationSeconds: 0.16, intensity: 0.58, radiusScale: 0.72, directional: true }
     ]
   },
   'thunder-clap': {
@@ -376,6 +473,7 @@ export function resolveCombatVfxLayer(
     delaySeconds: Math.max(0, layer.delaySeconds ?? 0),
     durationSeconds: Math.max(0.06, layer.useCastDuration ? castSeconds : layer.durationSeconds ?? phaseDuration[layer.phase]),
     intensity: Math.max(0.1, (layer.intensity ?? 1) * scale),
-    radiusScale: Math.max(0.2, layer.radiusScale ?? 1)
+    radiusScale: Math.max(0.2, layer.radiusScale ?? 1),
+    directional: layer.directional ?? false
   };
 }

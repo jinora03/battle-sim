@@ -391,7 +391,11 @@ export class LayeredVfxEngine {
         ? 'shard'
         : layer.palette === 'water'
           ? 'droplet'
-          : 'spark';
+          : layer.palette === 'neutral'
+            ? 'smoke'
+            : layer.palette === 'metal'
+              ? 'debris'
+              : 'spark';
 
     if (layer.phase === 'anticipation') {
       this.spawnCoreFlash(x, y, palette.glow, radius * 0.38, Math.min(0.24, layer.durationSeconds));
@@ -418,9 +422,17 @@ export class LayeredVfxEngine {
         this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.core, shape, Math.round(count * 0.3), 9.4 * layer.intensity);
       } else if (layer.intent === 'projectile' || layer.intent === 'beam' || layer.intent === 'burst-fire') {
         this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.glow, shape, Math.round(count * 0.82), 8.8 * layer.intensity);
+      } else if (layer.intent === 'explosion') {
+        this.spawnResidualBurst(x, y, palette.accent, shape, Math.round(count * 1.12), 8.6 * layer.intensity);
+        this.spawnResidualBurst(x, y, palette.debris, 'debris', Math.round(count * 0.55), 5.2 * layer.intensity);
       } else if (layer.intent === 'knockback') {
-        this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.core, shape, Math.round(count * 1.05), 10.8 * layer.intensity);
-        this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.accent, shape, Math.round(count * 0.68), 7.6 * layer.intensity);
+        if (layer.directional) {
+          this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.core, shape, Math.round(count * 1.05), 10.8 * layer.intensity);
+          this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.accent, shape, Math.round(count * 0.68), 7.6 * layer.intensity);
+        } else {
+          this.spawnResidualBurst(x, y, palette.core, shape, Math.round(count * 0.82), 7.8 * layer.intensity);
+          this.spawnResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.58), 5.8 * layer.intensity);
+        }
       }
       return;
     }
@@ -435,12 +447,18 @@ export class LayeredVfxEngine {
         this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.core, shape, Math.round(count * 0.58), 9.2 * layer.intensity);
       } else if (layer.intent === 'channel' && layer.palette === 'fire') {
         this.spawnDirectionalResidualBurst(x, y, -dirX, -dirY, palette.accent, 'ember', Math.round(count * 0.46), 4.8 * layer.intensity);
+      } else if (layer.intent === 'channel' && layer.palette === 'neutral') {
+        this.spawnResidualBurst(x, y, palette.debris, 'smoke', Math.round(count * 0.62), 3.4 * layer.intensity);
+      } else if (layer.intent === 'channel' && layer.palette === 'metal') {
+        this.spawnResidualBurst(x, y, palette.glow, 'spark', Math.round(count * 0.58), 4.2 * layer.intensity);
       }
       return;
     }
     this.spawnCoreFlash(x, y, palette.core, radius * 0.55, Math.min(0.2, layer.durationSeconds));
     if (layer.intent === 'pull') {
       this.spawnInwardResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.62), radius * 0.72, 5.2 * layer.intensity);
+    } else if (layer.intent === 'knockback' && layer.directional) {
+      this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.accent, shape, Math.round(count * 0.68), 7.2 * layer.intensity);
     } else {
       this.spawnResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.62), layer.intent === 'status' ? 3.6 * layer.intensity : 5.2 * layer.intensity);
     }
