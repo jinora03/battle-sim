@@ -3,9 +3,12 @@ import { classifyBlast, isMissileCascadeFrame, isMissileWeapon, shouldPresentDam
 import { getPrimaryAttack, getProjectileSource, type ArenaDefinition } from '@kinetic/content';
 import type { EntitySnapshot, ProjectileSnapshot, SimulationEvent, WorldSnapshot } from '@kinetic/protocol';
 import {
+  getAbilityCombatVfxProfile,
   getElementVfxPalette,
   getWeaponVfxRecipe,
+  resolveCombatVfxLayer,
   resolveVisualRadius,
+  type ResolvedCombatVfxLayer,
   type VfxParticleShape,
   type VfxQualityProfile
 } from '@kinetic/visual-engine';
@@ -65,6 +68,15 @@ interface HitPulse {
   maxLife: number;
 }
 
+interface ScheduledLayeredCombatVfx {
+  remainingSeconds: number;
+  layer: ResolvedCombatVfxLayer;
+  x: number;
+  y: number;
+  dirX: number;
+  dirY: number;
+}
+
 const STATUS_COLORS: Record<string, number> = {
   burn: 0xff6a2f,
   wet: 0x48d9ff,
@@ -85,6 +97,7 @@ export class LayeredVfxEngine {
   private readonly residuals: ResidualParticle[] = [];
   private readonly projectileTrails = new Map<number, ProjectileTrailPoint[]>();
   private readonly hitPulses: HitPulse[] = [];
+  private readonly scheduledCombatVfx: ScheduledLayeredCombatVfx[] = [];
   private readonly projectileTrailGraphics = new Graphics();
   private readonly fighterAnchorGraphics = new Graphics();
   private readonly weaponAnchorGraphics = new Graphics();
@@ -128,6 +141,7 @@ export class LayeredVfxEngine {
     this.budget = budget;
     const entities = new Map(snapshot.entities.map((entity) => [entity.id, entity]));
     const crowd = snapshot.entities.length > 48;
+    const useProfileVfx = snapshot.entities.length > 40 || quality.tier === 'low';
     const missileCascadeFrame = isMissileCascadeFrame(events);
     let crowdEffects = 0;
     let missileDamageFx = 0;
@@ -143,13 +157,46 @@ export class LayeredVfxEngine {
         if (event.type === 'knockbackApplied' && ++missileKnockbackFx > 10) continue;
       }
       if (crowd) {
-        const sourceId = event.type === 'weaponAttackStarted' ? event.entityId : event.type === 'weaponHit' || event.type === 'projectileImpact' || event.type === 'damage' ? event.sourceId ?? null : null;
+        const sourceId = event.type === 'weaponAttackStarted' || event.type === 'abilityActivated' || event.type === 'abilityResolved'
+          ? event.entityId
+          : event.type === 'weaponHit' || event.type === 'projectileImpact' || event.type === 'damage'
+            ? event.sourceId ?? null
+            : null;
         const sourceIsPlayer = sourceId !== null && entities.get(sourceId)?.controller === 'player';
-        const important = sourceIsPlayer || event.type === 'blast' || event.type === 'death' || event.type === 'obstacleDestroyed';
+        const abilityProfile = event.type === 'abilityActivated' || event.type === 'abilityResolved'
+          ? getAbilityCombatVfxProfile(event.abilityId)
+          : undefined;
+        const important = sourceIsPlayer
+          || abilityProfile?.hierarchy === 'ultimate'
+          || event.type === 'blast'
+          || event.type === 'death'
+          || event.type === 'obstacleDestroyed';
         if (!important && crowdEffects >= crowdBudget) continue;
         if (event.type === 'wallImpact' && event.magnitude < 9) continue;
         if (event.type === 'weaponHit' && quality.tier === 'low') continue;
         crowdEffects += 1;
+      }
+      if (useProfileVfx && event.type === 'abilityActivated' && this.scheduleAbilityCombatVfx(
+        event.abilityId,
+        'activated',
+        event.position.x,
+        event.position.y,
+        event.direction.x,
+        event.direction.y,
+        event.castTicks
+      )) {
+        continue;
+      }
+      if (useProfileVfx && event.type === 'abilityResolved' && this.scheduleAbilityCombatVfx(
+        event.abilityId,
+        'resolved',
+        event.position.x,
+        event.position.y,
+        event.direction.x,
+        event.direction.y,
+        0
+      )) {
+        continue;
       }
       if (event.type === 'weaponAttackStarted') {
         const weapon = getPrimaryAttack(event.weaponId);
@@ -234,6 +281,7 @@ export class LayeredVfxEngine {
 
   update(snapshot: WorldSnapshot, alpha: number, elapsedSeconds: number, dtSeconds: number, quality: VfxQualityProfile, showTrails: boolean, projectileTrailBudget = Number.POSITIVE_INFINITY, massMode = false): void {
     this.quality = quality;
+    this.updateScheduledCombatVfx(dtSeconds);
     this.updateTimedGraphics(dtSeconds);
     this.updateResiduals(dtSeconds);
     if (showTrails) this.updateProjectileTrails(
@@ -259,6 +307,7 @@ export class LayeredVfxEngine {
   }
 
   reset(): void {
+    this.scheduledCombatVfx.length = 0;
     for (const item of this.groundMarks) this.disable(item);
     for (const item of this.weaponEffects) this.disable(item);
     for (const item of this.residuals) this.disable(item);
@@ -272,6 +321,89 @@ export class LayeredVfxEngine {
 
   destroy(): void {
     this.reset();
+  }
+
+
+  private scheduleAbilityCombatVfx(
+    abilityId: string,
+    anchor: 'activated' | 'resolved',
+    x: number,
+    y: number,
+    dirX: number,
+    dirY: number,
+    castTicks: number
+  ): boolean {
+    const profile = getAbilityCombatVfxProfile(abilityId);
+    if (!profile) return false;
+    for (const phase of ['anticipation', 'activation', 'sustain', 'release'] as const) {
+      const layer = resolveCombatVfxLayer(profile, phase, castTicks);
+      if (!layer || layer.anchor !== anchor) continue;
+      if (layer.delaySeconds > 0) {
+        this.scheduledCombatVfx.push({
+          remainingSeconds: layer.delaySeconds,
+          layer,
+          x,
+          y,
+          dirX,
+          dirY
+        });
+      } else {
+        this.playCombatVfxLayer(layer, x, y, dirX, dirY);
+      }
+    }
+    return true;
+  }
+
+  private updateScheduledCombatVfx(dtSeconds: number): void {
+    for (let index = this.scheduledCombatVfx.length - 1; index >= 0; index -= 1) {
+      const scheduled = this.scheduledCombatVfx[index];
+      if (!scheduled) continue;
+      scheduled.remainingSeconds -= dtSeconds;
+      if (scheduled.remainingSeconds > 0) continue;
+      this.playCombatVfxLayer(scheduled.layer, scheduled.x, scheduled.y, scheduled.dirX, scheduled.dirY);
+      this.scheduledCombatVfx.splice(index, 1);
+    }
+  }
+
+  private playCombatVfxLayer(
+    layer: ResolvedCombatVfxLayer,
+    x: number,
+    y: number,
+    dirX: number,
+    dirY: number
+  ): void {
+    const palette = getElementVfxPalette(layer.palette);
+    const qualityScale = this.quality.tier === 'high' ? 1 : this.quality.tier === 'medium' ? 0.72 : 0.46;
+    const count = Math.max(2, Math.round(18 * layer.intensity * this.quality.residualMultiplier));
+    const radius = 64 * layer.radiusScale * layer.intensity * qualityScale;
+    const shape: VfxParticleShape = layer.palette === 'fire'
+      ? 'ember'
+      : layer.palette === 'ice'
+        ? 'shard'
+        : layer.palette === 'water'
+          ? 'droplet'
+          : 'spark';
+
+    if (layer.phase === 'anticipation') {
+      this.spawnCoreFlash(x, y, palette.glow, radius * 0.38, Math.min(0.24, layer.durationSeconds));
+      this.spawnResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.6), 2.6 * layer.intensity);
+      return;
+    }
+    if (layer.phase === 'activation') {
+      this.spawnCoreFlash(x, y, palette.core, radius, Math.min(0.28, layer.durationSeconds));
+      this.spawnResidualBurst(x, y, palette.accent, shape, count, 7.4 * layer.intensity);
+      if (layer.intent === 'dash' || layer.intent === 'projectile') {
+        this.spawnDirectionalResidualBurst(x, y, -dirX, -dirY, palette.glow, shape, Math.round(count * 0.75), 7.8 * layer.intensity);
+      }
+      return;
+    }
+    if (layer.phase === 'sustain') {
+      this.spawnCoreFlash(x, y, palette.accent, radius * 0.72, Math.min(0.42, layer.durationSeconds));
+      this.spawnResidualBurst(x, y, palette.glow, shape, Math.round(count * 0.72), 3.8 * layer.intensity);
+      return;
+    }
+    this.spawnCoreFlash(x, y, palette.core, radius * 0.55, Math.min(0.2, layer.durationSeconds));
+    this.spawnResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.62), 5.2 * layer.intensity);
   }
 
   private updateTimedGraphics(dtSeconds: number): void {
