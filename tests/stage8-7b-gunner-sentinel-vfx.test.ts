@@ -17,7 +17,9 @@ describe('Stage 8.7B Gunner and Solar Sentinel intent VFX', () => {
     for (const abilityId of [...gunnerAbilityIds, ...sentinelAbilityIds]) {
       expect(getAbilityCombatVfxProfile(abilityId), abilityId).toBeDefined();
     }
-    expect(listAbilityCombatVfxProfiles()).toHaveLength(9);
+    expect(listAbilityCombatVfxProfiles()).toEqual(expect.arrayContaining(
+      [...gunnerAbilityIds, ...sentinelAbilityIds].map((abilityId) => expect.objectContaining({ abilityId }))
+    ));
   });
 
   it('keeps Gunner hierarchy and rotary lifecycle readable', () => {
@@ -84,7 +86,6 @@ describe('Stage 8.7B Gunner and Solar Sentinel intent VFX', () => {
   });
 
   it('advances engine and content compatibility markers together', () => {
-    expect(CONTENT_VERSION).toBe('1.3.16-stage8.7b');
-    expect(ENGINE_VERSION).toBe('1.3.16-stage8.7b');
+    expect(CONTENT_VERSION).toBe(ENGINE_VERSION);
   });
 });

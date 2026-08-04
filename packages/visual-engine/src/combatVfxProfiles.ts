@@ -77,6 +77,89 @@ export interface ResolvedCombatVfxLayer {
 }
 
 const profiles: Readonly<Record<string, CombatVfxProfile>> = {
+  'lightning-dash': {
+    abilityId: 'lightning-dash',
+    palette: 'electric',
+    hierarchy: 'skill',
+    colors: { core: 0xffffff, accent: 0xffed44, glow: 0x75f5ff },
+    layers: [
+      { phase: 'anticipation', intent: 'dash', anchor: 'activated', useCastDuration: true, intensity: 0.68, radiusScale: 0.58 },
+      { phase: 'activation', intent: 'dash', anchor: 'resolved', durationSeconds: 0.16, intensity: 0.9, radiusScale: 0.82 },
+      { phase: 'sustain', intent: 'channel', anchor: 'resolved', delaySeconds: 0.03, durationSeconds: 0.26, intensity: 0.62, radiusScale: 0.72 },
+      { phase: 'release', intent: 'status', anchor: 'resolved', delaySeconds: 0.14, durationSeconds: 0.18, intensity: 0.58, radiusScale: 0.7 }
+    ]
+  },
+  'arc-burst': {
+    abilityId: 'arc-burst',
+    palette: 'electric',
+    hierarchy: 'skill',
+    colors: { core: 0xffffff, accent: 0x7aeaff, glow: 0xffed55 },
+    layers: [
+      { phase: 'anticipation', intent: 'explosion', anchor: 'activated', useCastDuration: true, intensity: 0.72, radiusScale: 0.7 },
+      { phase: 'activation', intent: 'explosion', anchor: 'resolved', durationSeconds: 0.22, intensity: 0.96, radiusScale: 1.02 },
+      { phase: 'release', intent: 'status', anchor: 'resolved', delaySeconds: 0.07, durationSeconds: 0.22, intensity: 0.7, radiusScale: 0.9 }
+    ]
+  },
+  'polarity-pull': {
+    abilityId: 'polarity-pull',
+    palette: 'electric',
+    hierarchy: 'payoff',
+    colors: { core: 0xf8ffca, accent: 0xd9ec4a, glow: 0x78f5ff },
+    layers: [
+      { phase: 'anticipation', intent: 'pull', anchor: 'activated', useCastDuration: true, intensity: 0.82, radiusScale: 0.82 },
+      { phase: 'activation', intent: 'pull', anchor: 'resolved', durationSeconds: 0.28, intensity: 1, radiusScale: 1.1 },
+      { phase: 'sustain', intent: 'channel', anchor: 'resolved', delaySeconds: 0.04, durationSeconds: 0.34, intensity: 0.7, radiusScale: 0.92 },
+      { phase: 'release', intent: 'explosion', anchor: 'resolved', delaySeconds: 0.18, durationSeconds: 0.2, intensity: 0.68, radiusScale: 0.8 }
+    ]
+  },
+  'magma-dash': {
+    abilityId: 'magma-dash',
+    palette: 'fire',
+    hierarchy: 'skill',
+    colors: { core: 0xffffc2, accent: 0xff6b28, glow: 0xffb23f },
+    layers: [
+      { phase: 'anticipation', intent: 'dash', anchor: 'activated', useCastDuration: true, intensity: 0.7, radiusScale: 0.6 },
+      { phase: 'activation', intent: 'dash', anchor: 'resolved', durationSeconds: 0.18, intensity: 0.94, radiusScale: 0.86 },
+      { phase: 'sustain', intent: 'channel', anchor: 'resolved', delaySeconds: 0.02, durationSeconds: 0.38, intensity: 0.72, radiusScale: 0.82 },
+      { phase: 'release', intent: 'status', anchor: 'resolved', delaySeconds: 0.18, durationSeconds: 0.2, intensity: 0.62, radiusScale: 0.74 }
+    ]
+  },
+  'flame-ring': {
+    abilityId: 'flame-ring',
+    palette: 'fire',
+    hierarchy: 'skill',
+    colors: { core: 0xffffc9, accent: 0xff4b20, glow: 0xffd35a },
+    layers: [
+      { phase: 'anticipation', intent: 'pull', anchor: 'activated', useCastDuration: true, intensity: 0.76, radiusScale: 0.8 },
+      { phase: 'activation', intent: 'pull', anchor: 'resolved', durationSeconds: 0.28, intensity: 0.98, radiusScale: 1.08 },
+      { phase: 'sustain', intent: 'channel', anchor: 'resolved', delaySeconds: 0.04, durationSeconds: 0.46, intensity: 0.78, radiusScale: 1 },
+      { phase: 'release', intent: 'status', anchor: 'resolved', delaySeconds: 0.24, durationSeconds: 0.2, intensity: 0.62, radiusScale: 0.84 }
+    ]
+  },
+  'molten-guard': {
+    abilityId: 'molten-guard',
+    palette: 'fire',
+    hierarchy: 'payoff',
+    colors: { core: 0xffffe0, accent: 0xff361e, glow: 0xffff7d },
+    layers: [
+      { phase: 'anticipation', intent: 'explosion', anchor: 'activated', useCastDuration: true, intensity: 0.84, radiusScale: 0.74 },
+      { phase: 'activation', intent: 'explosion', anchor: 'resolved', durationSeconds: 0.24, intensity: 1.06, radiusScale: 1.04 },
+      { phase: 'sustain', intent: 'status', anchor: 'resolved', delaySeconds: 0.04, durationSeconds: 0.34, intensity: 0.68, radiusScale: 0.88 },
+      { phase: 'release', intent: 'knockback', anchor: 'resolved', delaySeconds: 0.16, durationSeconds: 0.22, intensity: 0.76, radiusScale: 0.9 }
+    ]
+  },
+  'inferno-collapse': {
+    abilityId: 'inferno-collapse',
+    palette: 'fire',
+    hierarchy: 'ultimate',
+    colors: { core: 0xffffff, accent: 0xff421f, glow: 0xffd35a },
+    layers: [
+      { phase: 'anticipation', intent: 'transformation', anchor: 'activated', useCastDuration: true, intensity: 0.96, radiusScale: 0.82 },
+      { phase: 'activation', intent: 'explosion', anchor: 'resolved', durationSeconds: 0.3, intensity: 1.14, radiusScale: 1.18 },
+      { phase: 'sustain', intent: 'transformation', anchor: 'resolved', delaySeconds: 0.06, durationSeconds: 0.72, intensity: 0.86, radiusScale: 1.02 },
+      { phase: 'release', intent: 'status', anchor: 'resolved', delaySeconds: 0.42, durationSeconds: 0.28, intensity: 0.76, radiusScale: 0.92 }
+    ]
+  },
   'thunder-dome': {
     abilityId: 'thunder-dome',
     palette: 'electric',

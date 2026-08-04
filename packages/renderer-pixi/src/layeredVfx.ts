@@ -232,17 +232,25 @@ export class LayeredVfxEngine {
           this.spawnGroundMark(event.position.x, event.position.y, recipe.groundMark, recipe.trailColor, 18);
         }
       } else if (event.type === 'blast') {
-        const palette = getElementVfxPalette(event.element);
+        const profile = event.abilityId ? getAbilityCombatVfxProfile(event.abilityId) : undefined;
+        const basePalette = getElementVfxPalette(profile?.palette ?? event.element);
+        const palette = { ...basePalette, ...profile?.colors };
+        const activation = profile ? resolveCombatVfxLayer(profile, 'activation') ?? resolveCombatVfxLayer(profile, 'release') : undefined;
         const kind = event.element === 'ice' ? 'frost' : event.element === 'water' ? 'wet' : event.element === 'void' ? 'void' : 'scorch';
         const blastClass = classifyBlast(event);
         const microMissile = blastClass === 'micro-missile';
         const missileBarrage = blastClass !== 'singular';
-        const markScale = microMissile ? 0.2 : missileBarrage ? 0.32 : 0.48;
-        const residualBase = microMissile ? 5 : missileBarrage ? 9 : event.kind === 'explosion' ? 24 : 14;
+        const markScale = microMissile ? 0.2 : missileBarrage ? 0.32 : profile?.hierarchy === 'ultimate' ? 0.62 : 0.48;
+        const residualBase = microMissile ? 5 : missileBarrage ? 9 : profile?.hierarchy === 'ultimate' ? 30 : event.kind === 'explosion' ? 24 : 14;
         if (!microMissile || quality.tier === 'high') {
-          this.spawnGroundMark(event.position.x, event.position.y, kind, palette.groundMark, resolveVisualRadius(event.radius * markScale, quality.tier, microMissile ? 'impact' : 'ultimate'));
+          this.spawnGroundMark(event.position.x, event.position.y, kind, palette.groundMark, resolveVisualRadius(event.radius * markScale, quality.tier, profile?.hierarchy === 'ultimate' ? 'ultimate' : 'impact'));
         }
-        this.spawnResidualBurst(event.position.x, event.position.y, palette.debris, event.element === 'fire' ? 'ember' : event.element === 'ice' ? 'shard' : event.element === 'water' ? 'droplet' : 'smoke', Math.round(residualBase * quality.residualMultiplier), 4.2 + event.force * 0.2);
+        const shape: VfxParticleShape = event.element === 'fire' ? 'ember' : event.element === 'ice' ? 'shard' : event.element === 'water' ? 'droplet' : 'smoke';
+        if (activation?.intent === 'pull') {
+          this.spawnInwardResidualBurst(event.position.x, event.position.y, palette.accent, shape, Math.round(residualBase * quality.residualMultiplier), resolveVisualRadius(event.radius * 0.46, quality.tier), 5.2 + event.force * 0.18);
+        } else {
+          this.spawnResidualBurst(event.position.x, event.position.y, palette.debris, shape, Math.round(residualBase * quality.residualMultiplier), 4.2 + event.force * 0.2);
+        }
       } else if (event.type === 'knockbackApplied') {
         const entity = entities.get(event.targetId);
         const palette = getElementVfxPalette(entity?.elements[0] ?? 'neutral');
@@ -387,17 +395,27 @@ export class LayeredVfxEngine {
 
     if (layer.phase === 'anticipation') {
       this.spawnCoreFlash(x, y, palette.glow, radius * 0.38, Math.min(0.24, layer.durationSeconds));
-      this.spawnResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.6), 2.6 * layer.intensity);
-      if (layer.intent === 'projectile' || layer.intent === 'burst-fire' || layer.intent === 'beam') {
+      if (layer.intent === 'pull') {
+        this.spawnInwardResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.72), radius * 0.92, 4.4 * layer.intensity);
+      } else {
+        this.spawnResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.6), 2.6 * layer.intensity);
+      }
+      if (layer.intent === 'projectile' || layer.intent === 'burst-fire' || layer.intent === 'beam' || layer.intent === 'dash') {
         this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.glow, shape, Math.round(count * 0.38), 3.2 * layer.intensity);
       }
       return;
     }
     if (layer.phase === 'activation') {
       this.spawnCoreFlash(x, y, palette.core, radius, Math.min(0.28, layer.durationSeconds));
-      this.spawnResidualBurst(x, y, palette.accent, shape, count, 7.4 * layer.intensity);
+      if (layer.intent === 'pull') {
+        this.spawnInwardResidualBurst(x, y, palette.accent, shape, count, radius, 7.2 * layer.intensity);
+        this.spawnInwardResidualBurst(x, y, palette.glow, shape, Math.round(count * 0.48), radius * 0.7, 5.2 * layer.intensity);
+      } else {
+        this.spawnResidualBurst(x, y, palette.accent, shape, count, 7.4 * layer.intensity);
+      }
       if (layer.intent === 'dash') {
         this.spawnDirectionalResidualBurst(x, y, -dirX, -dirY, palette.glow, shape, Math.round(count * 0.75), 7.8 * layer.intensity);
+        this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.core, shape, Math.round(count * 0.3), 9.4 * layer.intensity);
       } else if (layer.intent === 'projectile' || layer.intent === 'beam' || layer.intent === 'burst-fire') {
         this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.glow, shape, Math.round(count * 0.82), 8.8 * layer.intensity);
       }
@@ -405,14 +423,24 @@ export class LayeredVfxEngine {
     }
     if (layer.phase === 'sustain') {
       this.spawnCoreFlash(x, y, palette.accent, radius * 0.72, Math.min(0.42, layer.durationSeconds));
-      this.spawnResidualBurst(x, y, palette.glow, shape, Math.round(count * 0.72), 3.8 * layer.intensity);
+      if (layer.intent === 'pull') {
+        this.spawnInwardResidualBurst(x, y, palette.glow, shape, Math.round(count * 0.74), radius * 0.84, 4.6 * layer.intensity);
+      } else {
+        this.spawnResidualBurst(x, y, palette.glow, shape, Math.round(count * 0.72), 3.8 * layer.intensity);
+      }
       if (layer.intent === 'burst-fire') {
         this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.core, shape, Math.round(count * 0.58), 9.2 * layer.intensity);
+      } else if (layer.intent === 'channel' && layer.palette === 'fire') {
+        this.spawnDirectionalResidualBurst(x, y, -dirX, -dirY, palette.accent, 'ember', Math.round(count * 0.46), 4.8 * layer.intensity);
       }
       return;
     }
     this.spawnCoreFlash(x, y, palette.core, radius * 0.55, Math.min(0.2, layer.durationSeconds));
-    this.spawnResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.62), 5.2 * layer.intensity);
+    if (layer.intent === 'pull') {
+      this.spawnInwardResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.62), radius * 0.72, 5.2 * layer.intensity);
+    } else {
+      this.spawnResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.62), layer.intent === 'status' ? 3.6 * layer.intensity : 5.2 * layer.intensity);
+    }
   }
 
   private updateTimedGraphics(dtSeconds: number): void {
@@ -697,6 +725,45 @@ export class LayeredVfxEngine {
       else if (shape === 'ember') particle.node.circle(0, 0, size * 0.65).fill({ color, alpha: 1 });
       else particle.node.moveTo(-size, 0).lineTo(size, 0).stroke({ color, width: Math.max(1.5, size * 0.45), alpha: 0.95 });
       particle.node.position.set(x, y);
+      particle.node.alpha = 1;
+      particle.node.scale.set(1);
+      particle.node.visible = true;
+      created += 1;
+      if (created >= count) break;
+    }
+  }
+
+  private spawnInwardResidualBurst(
+    x: number,
+    y: number,
+    color: number,
+    shape: VfxParticleShape,
+    count: number,
+    radius: number,
+    speed: number
+  ): void {
+    const remainingBudget = Math.max(0, this.budget.maxResidualEffects - this.activeCount(this.residuals));
+    if (remainingBudget <= 0) return;
+    count = Math.min(count, remainingBudget);
+    let created = 0;
+    for (const particle of this.residuals) {
+      if (particle.active) continue;
+      const angle = this.random() * Math.PI * 2;
+      const startRadius = radius * (0.6 + this.random() * 0.42);
+      const velocity = speed * (0.45 + this.random() * 0.65);
+      particle.active = true;
+      particle.life = particle.maxLife = 0.24 + this.random() * 0.34;
+      particle.vx = -Math.cos(angle) * velocity;
+      particle.vy = -Math.sin(angle) * velocity;
+      particle.drag = 0.96;
+      particle.growth = -0.14;
+      particle.spin = (this.random() - 0.5) * 5;
+      particle.node.clear();
+      const size = 1.6 + this.random() * 3.2;
+      if (shape === 'ember') particle.node.circle(0, 0, size * 0.62).fill({ color, alpha: 0.96 });
+      else if (shape === 'shard') particle.node.rect(-size * 0.3, -size, size * 0.6, size * 2).fill({ color, alpha: 0.9 });
+      else particle.node.moveTo(-size, 0).lineTo(size, 0).stroke({ color, width: Math.max(1.4, size * 0.42), alpha: 0.92 });
+      particle.node.position.set(x + Math.cos(angle) * startRadius, y + Math.sin(angle) * startRadius);
       particle.node.alpha = 1;
       particle.node.scale.set(1);
       particle.node.visible = true;
