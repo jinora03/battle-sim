@@ -1,7 +1,9 @@
 import type { AbilityResolvedEvent, BlastEvent, ProjectileImpactEvent, ProjectileSpawnedEvent, SimulationEvent, WeaponAttackStartedEvent, WeaponHitEvent } from '@kinetic/protocol';
 import {
   getAbilityCombatAudioProfile,
+  resolveCombatAudioContact,
   resolveCombatAudioLayer,
+  type ResolvedCombatAudioContact,
   type ResolvedCombatAudioLayer
 } from './combatAudioProfiles';
 
@@ -57,6 +59,8 @@ export class BattleAudioEngine {
   private missileQuietUntilTick = -Infinity;
   private readonly focusedIds = new Set<number>();
   private readonly aiIds = new Set<number>();
+  private readonly activeContactAbilities = new Map<number, string>();
+  private readonly lastContactCueAt = new Map<number, number>();
 
   async enable(): Promise<void> {
     if (!this.context) {
@@ -117,9 +121,23 @@ export class BattleAudioEngine {
     let strongestAiHit = 0;
     let currentTick = 0;
     let missileEvent = false;
+    const contactDamageBySource = new Map<number, { abilityId: string; amount: number }>();
 
     for (const event of events) {
       currentTick = Math.max(currentTick, event.tick);
+      if (event.type === 'abilityActivated') {
+        const profile = getAbilityCombatAudioProfile(event.abilityId);
+        if (profile?.contact) this.activeContactAbilities.set(event.entityId, event.abilityId);
+        else this.activeContactAbilities.delete(event.entityId);
+      } else if (event.type === 'abilityResolved') {
+        if (this.activeContactAbilities.get(event.entityId) === event.abilityId) {
+          this.activeContactAbilities.delete(event.entityId);
+        }
+      } else if (event.type === 'death') {
+        this.activeContactAbilities.delete(event.entityId);
+        this.lastContactCueAt.delete(event.entityId);
+      }
+
       if (event.type === 'projectileSpawned') {
         const missile = event.weaponId.includes('rocket') || event.weaponId.includes('missile');
         missileEvent ||= missile;
@@ -148,6 +166,13 @@ export class BattleAudioEngine {
       }
 
       if (event.type !== 'damage' || event.amount <= 0 || event.sourceId === undefined || event.sourceId === event.targetId) continue;
+      const activeContactAbility = this.activeContactAbilities.get(event.sourceId);
+      if (activeContactAbility) {
+        const existing = contactDamageBySource.get(event.sourceId);
+        if (!existing || event.amount > existing.amount) {
+          contactDamageBySource.set(event.sourceId, { abilityId: activeContactAbility, amount: event.amount });
+        }
+      }
       if (focused.size > 0 && focused.has(event.sourceId) && !focused.has(event.targetId)) {
         strongestPlayerHit = Math.max(strongestPlayerHit, event.amount);
       } else if (focused.size > 0 && focused.has(event.targetId)) {
@@ -172,6 +197,15 @@ export class BattleAudioEngine {
     if (strongestAiHit > 0 && now - this.lastAiHitmarkerAt >= aiHitmarkerInterval) {
       this.lastAiHitmarkerAt = now;
       this.playAiHitmarker(strongestAiHit);
+    }
+    for (const [sourceId, contactDamage] of contactDamageBySource) {
+      const profile = getAbilityCombatAudioProfile(contactDamage.abilityId);
+      const contact = profile ? resolveCombatAudioContact(profile) : undefined;
+      if (!contact) continue;
+      const lastAt = this.lastContactCueAt.get(sourceId) ?? -Infinity;
+      if (now - lastAt < contact.intervalMs) continue;
+      this.lastContactCueAt.set(sourceId, now);
+      this.playCombatAudioContact(contact, focused.has(sourceId), contactDamage.amount);
     }
 
     if (missileEvent) this.missileQuietUntilTick = Math.max(this.missileQuietUntilTick, currentTick + 72);
@@ -265,6 +299,9 @@ export class BattleAudioEngine {
       // the actual burst cadence instead of creating a fifth gunshot sound.
       this.playTone(760, 240, 0.035, 'square', 0.018);
       this.playMetallicTick(0.26);
+    } else if (event.weaponId === 'solar-punch') {
+      this.playTone(420, 1180, 0.09, 'sawtooth', 0.034);
+      this.playTone(1480, 620, 0.045, 'triangle', 0.018);
     } else if (event.weaponId === 'arc-emitter') {
       // The capacitor commit stays below the launch transient so the basic
       // attack reads as charge -> discharge rather than two equal beeps.
@@ -283,6 +320,11 @@ export class BattleAudioEngine {
 
   private playWeaponHit(event: WeaponHitEvent): void {
     if (event.presentation === 'continuous') return;
+    if (event.weaponId === 'solar-punch') {
+      this.playTone(1320, 210, 0.1, 'sawtooth', 0.055);
+      this.playTone(190, 58, 0.12, 'triangle', 0.04);
+      return;
+    }
     const heavy = event.weaponId === 'hydraulic-gauntlet' || event.weaponId === 'war-hammer';
     const sharp = event.weaponId === 'flame-fists' || event.weaponId === 'frost-halberd' || event.weaponId === 'void-scythe' || event.weaponId === 'duelist-sword' || event.weaponId === 'lancer-spear';
     if (heavy) {
@@ -485,43 +527,6 @@ export class BattleAudioEngine {
     this.trackVoice(noise);
   }
 
-  private playKillZoneSpool(duration: number): void {
-    if (!this.canPlay()) return;
-    const ctx = this.context!;
-    const master = this.master!;
-    const now = ctx.currentTime;
-
-    const motor = ctx.createOscillator();
-    const motorGain = ctx.createGain();
-    motor.type = 'sawtooth';
-    motor.frequency.setValueAtTime(58, now);
-    motor.frequency.exponentialRampToValueAtTime(245, now + duration);
-    motorGain.gain.setValueAtTime(0.001, now);
-    motorGain.gain.linearRampToValueAtTime(0.07, now + Math.min(0.16, duration * 0.45));
-    motorGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-    motor.connect(motorGain);
-    motorGain.connect(master);
-    motor.start(now);
-    motor.stop(now + duration + 0.02);
-    this.trackVoice(motor);
-
-    const whine = ctx.createOscillator();
-    const whineGain = ctx.createGain();
-    whine.type = 'triangle';
-    whine.frequency.setValueAtTime(260, now);
-    whine.frequency.exponentialRampToValueAtTime(1180, now + duration);
-    whineGain.gain.setValueAtTime(0.001, now);
-    whineGain.gain.linearRampToValueAtTime(0.032, now + duration * 0.62);
-    whineGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-    whine.connect(whineGain);
-    whineGain.connect(master);
-    whine.start(now);
-    whine.stop(now + duration + 0.02);
-    this.trackVoice(whine);
-
-    this.playPulseSequence(118, duration, 'square');
-  }
-
   private playGatlingRound(focused: boolean): void {
     const gain = focused ? 0.072 : 0.045;
     this.playTone(138, 52, 0.045, 'square', gain);
@@ -532,19 +537,17 @@ export class BattleAudioEngine {
   private playAbilityCharge(abilityId: string, ultimate: boolean, castTicks: number): void {
     const profile = getAbilityCombatAudioProfile(abilityId);
     if (profile) {
-      const layer = resolveCombatAudioLayer(profile, 'anticipation', castTicks);
-      if (layer) this.playCombatAudioLayer(layer);
+      for (const phase of ['anticipation', 'activation', 'sustain', 'release'] as const) {
+        const layer = resolveCombatAudioLayer(profile, phase, castTicks);
+        if (layer?.anchor === 'activated') this.playCombatAudioLayer(layer);
+      }
       return;
     }
     if (!this.canPlay()) return;
     const ctx = this.context!;
     const master = this.master!;
     const now = ctx.currentTime;
-    const duration = abilityId === 'solar-laser' ? Math.max(0.9, Math.min(1.8, castTicks / 60)) : Math.max(0.12, Math.min(0.75, castTicks / 60));
-    if (abilityId === 'kill-zone') {
-      this.playKillZoneSpool(duration);
-      return;
-    }
+    const duration = Math.max(0.12, Math.min(0.75, castTicks / 60));
     const water = ['surge-dash', 'pressure-wave', 'undertow', 'tidal-cataclysm'].includes(abilityId);
     const bomber = ['blast-dash', 'concussion-bomb', 'shrapnel-burst', 'mega-bomb'].includes(abilityId);
     const mech = ['kinetic-pulse', 'magnet-drag', 'fortify', 'reactor-overdrive'].includes(abilityId);
@@ -568,8 +571,8 @@ export class BattleAudioEngine {
     oscillator.stop(now + duration + 0.02);
     this.trackVoice(oscillator);
 
-    if (['mega-bomb', 'tidal-cataclysm', 'reactor-overdrive', 'absolute-zero', 'overgrowth', 'singularity', 'solar-laser'].includes(abilityId)) {
-      const pulseFrequency = abilityId === 'mega-bomb' ? 82 : abilityId === 'tidal-cataclysm' ? 210 : abilityId === 'absolute-zero' ? 480 : abilityId === 'overgrowth' ? 140 : abilityId === 'singularity' ? 68 : abilityId === 'solar-laser' ? 910 : 165;
+    if (['mega-bomb', 'tidal-cataclysm', 'reactor-overdrive', 'absolute-zero', 'overgrowth', 'singularity'].includes(abilityId)) {
+      const pulseFrequency = abilityId === 'mega-bomb' ? 82 : abilityId === 'tidal-cataclysm' ? 210 : abilityId === 'absolute-zero' ? 480 : abilityId === 'overgrowth' ? 140 : abilityId === 'singularity' ? 68 : 165;
       this.playPulseSequence(pulseFrequency, duration, abilityId === 'mega-bomb' ? 'square' : 'sine');
     }
   }
@@ -579,30 +582,13 @@ export class BattleAudioEngine {
     if (profile) {
       for (const phase of ['activation', 'sustain', 'release'] as const) {
         const layer = resolveCombatAudioLayer(profile, phase);
-        if (layer) this.playCombatAudioLayer(layer);
+        if (layer?.anchor === 'resolved') this.playCombatAudioLayer(layer);
       }
       return;
     }
     if (!this.canPlay()) return;
     const id = event.abilityId;
-    if (id === 'tactical-slide') {
-      this.playTone(190, 760, 0.16, 'sawtooth', 0.055);
-      this.playTone(720, 260, 0.08, 'triangle', 0.025);
-      this.playMetallicTick(0.34);
-    } else if (id === 'suppressive-fire') {
-      this.playTone(130, 74, 0.16, 'square', 0.065);
-      this.playPulseSequence(230, 0.18, 'square');
-      this.playMetallicTick(0.46);
-    } else if (id === 'pinning-round') {
-      this.playTone(940, 1320, 0.13, 'sine', 0.045);
-      this.playTone(180, 68, 0.2, 'triangle', 0.055);
-      this.playMetallicTick(0.72);
-    } else if (id === 'kill-zone') {
-      this.playTone(92, 36, 0.34, 'sawtooth', 0.095);
-      this.playTone(540, 118, 0.22, 'square', 0.048);
-      this.playPulseSequence(185, 0.34, 'square');
-      this.playMetallicTick(0.92);
-    } else if (id === 'riptide-contact') this.playTone(330, 180, 0.09, 'sine', 0.035);
+    if (id === 'riptide-contact') this.playTone(330, 180, 0.09, 'sine', 0.035);
     else if (id === 'surge-dash') this.playTone(210, 520, 0.14, 'sine', 0.055);
     else if (id === 'pressure-wave') this.playTone(165, 82, 0.24, 'sine', 0.065);
     else if (id === 'undertow') this.playTone(120, 48, 0.32, 'triangle', 0.07);
@@ -644,7 +630,6 @@ export class BattleAudioEngine {
     else if (id === 'gravity-well') this.playTone(140, 34, 0.34, 'sine', 0.075);
     else if (id === 'void-burst') this.playTone(230, 48, 0.28, 'triangle', 0.075);
     else if (id === 'singularity') { this.playTone(96, 22, 0.68, 'sine', 0.115); this.playPulseSequence(72, 0.5, 'triangle'); }
-    else if (id === 'solar-laser') { this.playTone(980, 120, 0.5, 'square', 0.18); this.playTone(1680, 220, 0.3, 'sawtooth', 0.12); this.playPulseSequence(1120, 0.55, 'square'); }
     else this.playTone(180, 320, 0.16, 'triangle', 0.045);
   }
 
@@ -665,6 +650,9 @@ export class BattleAudioEngine {
         this.playPulseSequence(palette.high * 0.82, duration, palette.pulse, delay, 0.42 * layer.gainScale, critical);
       } else if (layer.intent === 'ultimate' || layer.intent === 'channel' || layer.intent === 'transformation') {
         this.playPulseSequence(palette.mid, duration, palette.pulse, delay, 0.75 * layer.gainScale, critical);
+        if (layer.intent === 'transformation' && layer.palette === 'mechanical') {
+          this.playTone(palette.mid, palette.high * 1.16, duration * 0.9, 'triangle', volume * 0.42, delay, critical);
+        }
       }
       return;
     }
@@ -679,6 +667,9 @@ export class BattleAudioEngine {
       } else if (layer.intent === 'projectile') {
         this.playTone(palette.high, palette.mid * 0.62, duration * 0.74, palette.wave, volume, delay, critical);
         this.playTone(palette.high * 1.35, palette.high * 0.72, duration * 0.36, 'triangle', volume * 0.42, delay, critical);
+      } else if (layer.intent === 'beam') {
+        this.playTone(palette.high * 1.12, palette.mid * 0.72, duration, palette.wave, volume * 1.08, delay, critical);
+        this.playTone(palette.mid * 1.3, palette.low * 1.1, duration * 1.15, 'triangle', volume * 0.54, delay, critical);
       } else if (layer.intent === 'burst-fire') {
         this.playPulseSequence(palette.high, duration, palette.pulse, delay, 1.05 * layer.gainScale, critical);
         this.playTone(palette.mid, palette.low, duration * 0.7, palette.wave, volume, delay, critical);
@@ -695,7 +686,15 @@ export class BattleAudioEngine {
         this.playTone(palette.low * 1.55, palette.low * 0.78, duration, 'sine', volume * 0.44, delay, critical);
       } else if (layer.intent === 'beam' || layer.intent === 'channel' || layer.intent === 'transformation') {
         this.playTone(palette.mid * 0.82, palette.mid * 1.16, duration, palette.wave, volume * 0.48, delay, critical);
+      } else if (layer.intent === 'burst-fire') {
+        this.playTone(palette.low * 1.35, palette.mid * 0.78, duration, palette.wave, volume * 0.38, delay, critical);
       }
+      return;
+    }
+
+    if (layer.intent === 'beam') {
+      this.playTone(palette.high, palette.mid * 0.72, duration * 0.62, palette.wave, volume * 0.78, delay, critical);
+      this.playTone(palette.mid, palette.low, duration, 'triangle', volume * 0.52, delay, critical);
       return;
     }
 
@@ -705,10 +704,33 @@ export class BattleAudioEngine {
       this.playTone(palette.low * 1.25, Math.max(24, palette.low * 0.5), duration * 0.8, 'triangle', volume * 0.58, delay, critical);
     } else {
       this.playTone(releaseStart, palette.low, duration, palette.wave, volume * 0.82, delay, critical);
+      if (layer.intent === 'transformation') {
+        this.playTone(palette.high * 0.72, palette.low * 0.84, duration * 0.76, palette.pulse, volume * 0.36, delay, critical);
+      }
     }
     if (layer.intent === 'ultimate' || layer.intent === 'status-application') {
       this.playTone(palette.high * 1.08, palette.mid * 0.72, duration * 0.58, 'triangle', volume * 0.42, delay, critical);
     }
+  }
+
+  private playCombatAudioContact(
+    contact: ResolvedCombatAudioContact,
+    focused: boolean,
+    damage: number
+  ): void {
+    const palette = COMBAT_AUDIO_PALETTE_TUNING[contact.palette];
+    const damageScale = Math.max(0.75, Math.min(1.16, damage / 4));
+    const focusScale = focused ? 1.14 : 0.86;
+    const volume = 0.038 * contact.gainScale * damageScale * focusScale;
+    this.playTone(
+      palette.high * 1.08,
+      palette.mid * 0.84,
+      contact.durationSeconds,
+      palette.pulse,
+      volume,
+      0,
+      focused
+    );
   }
 
   private playHazard(kind: 'ice' | 'water' | 'lava' | 'electric' | 'wind', damage: number): void {

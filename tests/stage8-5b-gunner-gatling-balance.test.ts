@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { isGunnerRifleRound } from '@kinetic/audio';
+import { getAbilityCombatAudioProfile, isGunnerRifleRound, resolveCombatAudioLayer } from '@kinetic/audio';
 import {
   CONTENT_VERSION,
   getAbility,
@@ -128,12 +128,32 @@ describe('Stage 8.5B Gunner gatling and balance pass', () => {
     expect(projectileSource).toContain('0xc88a36');
     expect(projectileSource).toContain('tracerLength');
 
+    const tacticalSlide = getAbilityCombatAudioProfile('tactical-slide');
+    const suppressiveFire = getAbilityCombatAudioProfile('suppressive-fire');
+    const pinningRound = getAbilityCombatAudioProfile('pinning-round');
+    const killZone = getAbilityCombatAudioProfile('kill-zone');
+
+    expect(tacticalSlide).toMatchObject({ palette: 'mechanical', hierarchy: 'skill' });
+    expect(suppressiveFire).toMatchObject({ palette: 'mechanical', hierarchy: 'skill' });
+    expect(pinningRound).toMatchObject({ palette: 'mechanical', hierarchy: 'payoff' });
+    expect(killZone).toMatchObject({ palette: 'mechanical', hierarchy: 'ultimate' });
+
+    const spool = resolveCombatAudioLayer(killZone!, 'anticipation', getAbility('kill-zone').castTicks);
+    const firing = resolveCombatAudioLayer(killZone!, 'sustain');
+    const spinDown = resolveCombatAudioLayer(killZone!, 'release');
+    expect(spool).toMatchObject({ anchor: 'activated', intent: 'transformation' });
+    expect(firing).toMatchObject({ anchor: 'activated', intent: 'burst-fire' });
+    expect(spinDown).toMatchObject({ anchor: 'activated', intent: 'transformation' });
+    expect(spinDown?.delaySeconds ?? 0).toBeGreaterThan(
+      (firing?.delaySeconds ?? 0) + (firing?.durationSeconds ?? 0) * 0.75
+    );
+
     const audioSource = readFileSync(new URL('../packages/audio/src/index.ts', import.meta.url), 'utf8');
-    expect(audioSource).toContain('playKillZoneSpool');
     expect(audioSource).toContain('playGatlingRound');
-    expect(audioSource).toContain("id === 'tactical-slide'");
-    expect(audioSource).toContain("id === 'suppressive-fire'");
-    expect(audioSource).toContain("id === 'pinning-round'");
+    expect(audioSource).not.toContain('playKillZoneSpool');
+    expect(audioSource).not.toContain("id === 'tactical-slide'");
+    expect(audioSource).not.toContain("id === 'suppressive-fire'");
+    expect(audioSource).not.toContain("id === 'pinning-round'");
   });
 
   it('advances engine and content compatibility markers together', () => {

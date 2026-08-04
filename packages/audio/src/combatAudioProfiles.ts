@@ -1,6 +1,9 @@
 export const COMBAT_AUDIO_PHASES = ['anticipation', 'activation', 'sustain', 'release'] as const;
 export type CombatAudioPhase = (typeof COMBAT_AUDIO_PHASES)[number];
 
+export const COMBAT_AUDIO_ANCHORS = ['activated', 'resolved'] as const;
+export type CombatAudioAnchor = (typeof COMBAT_AUDIO_ANCHORS)[number];
+
 export const COMBAT_AUDIO_INTENTS = [
   'projectile',
   'burst-fire',
@@ -41,6 +44,8 @@ export const COMBAT_AUDIO_HIERARCHY_GAIN: Readonly<Record<CombatAudioHierarchy, 
 
 export interface CombatAudioLayerProfile {
   intent: CombatAudioIntent;
+  /** Event that owns this layer. Non-anticipation layers default to ability resolution. */
+  anchor?: CombatAudioAnchor;
   /** Relative emphasis inside the ability's hierarchy tier. */
   intensity?: number;
   /** Optional fixed duration. Anticipation normally follows cast time instead. */
@@ -49,16 +54,32 @@ export interface CombatAudioLayerProfile {
   delaySeconds?: number;
 }
 
+export interface CombatAudioContactProfile {
+  intent: CombatAudioIntent;
+  intensity?: number;
+  durationSeconds?: number;
+  intervalMs?: number;
+}
+
 export interface AbilityCombatAudioProfile {
   abilityId: string;
   palette: CombatAudioPalette;
   hierarchy: CombatAudioHierarchy;
   layers: Partial<Record<CombatAudioPhase, CombatAudioLayerProfile>>;
+  /** Optional rate-limited cue emitted only when an active channel actually deals damage. */
+  contact?: CombatAudioContactProfile;
 }
 
 export interface ResolvedCombatAudioLayer extends Required<CombatAudioLayerProfile> {
   abilityId: string;
   phase: CombatAudioPhase;
+  palette: CombatAudioPalette;
+  hierarchy: CombatAudioHierarchy;
+  gainScale: number;
+}
+
+export interface ResolvedCombatAudioContact extends Required<CombatAudioContactProfile> {
+  abilityId: string;
   palette: CombatAudioPalette;
   hierarchy: CombatAudioHierarchy;
   gainScale: number;
@@ -213,6 +234,119 @@ const LAST_CALL_PROFILE: AbilityCombatAudioProfile = {
   }
 };
 
+
+const TACTICAL_SLIDE_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'tactical-slide',
+  palette: 'mechanical',
+  hierarchy: 'skill',
+  layers: {
+    anticipation: { intent: 'transformation', intensity: 0.4, durationSeconds: 0.08 },
+    activation: { intent: 'knockback', intensity: 0.72, durationSeconds: 0.16 },
+    release: { intent: 'burst-fire', intensity: 0.44, durationSeconds: 0.1, delaySeconds: 0.04 }
+  }
+};
+
+const SUPPRESSIVE_FIRE_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'suppressive-fire',
+  palette: 'mechanical',
+  hierarchy: 'skill',
+  layers: {
+    anticipation: { intent: 'burst-fire', intensity: 0.58 },
+    activation: { intent: 'burst-fire', intensity: 0.76, durationSeconds: 0.22 },
+    sustain: { intent: 'burst-fire', intensity: 0.48, durationSeconds: 0.2, delaySeconds: 0.04 },
+    release: { intent: 'transformation', intensity: 0.42, durationSeconds: 0.14, delaySeconds: 0.16 }
+  }
+};
+
+const PINNING_ROUND_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'pinning-round',
+  palette: 'mechanical',
+  hierarchy: 'payoff',
+  layers: {
+    anticipation: { intent: 'projectile', intensity: 0.7 },
+    activation: { intent: 'projectile', intensity: 0.96, durationSeconds: 0.2 },
+    release: { intent: 'status-application', intensity: 0.72, durationSeconds: 0.18, delaySeconds: 0.08 }
+  }
+};
+
+const KILL_ZONE_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'kill-zone',
+  palette: 'mechanical',
+  hierarchy: 'ultimate',
+  layers: {
+    anticipation: { intent: 'transformation', intensity: 1, durationSeconds: 0.48 },
+    activation: { intent: 'burst-fire', anchor: 'activated', intensity: 1, durationSeconds: 0.22, delaySeconds: 0.46 },
+    sustain: { intent: 'burst-fire', anchor: 'activated', intensity: 0.78, durationSeconds: 0.84, delaySeconds: 0.5 },
+    release: { intent: 'transformation', anchor: 'activated', intensity: 0.82, durationSeconds: 0.3, delaySeconds: 1.28 }
+  }
+};
+
+const SOLAR_RUSH_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'solar-rush',
+  palette: 'solar',
+  hierarchy: 'skill',
+  layers: {
+    anticipation: { intent: 'projectile', intensity: 0.5, durationSeconds: 0.14 },
+    activation: { intent: 'knockback', intensity: 0.8, durationSeconds: 0.2 },
+    release: { intent: 'explosion', intensity: 0.56, durationSeconds: 0.15, delaySeconds: 0.08 }
+  }
+};
+
+const THUNDER_CLAP_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'thunder-clap',
+  palette: 'solar',
+  hierarchy: 'skill',
+  layers: {
+    anticipation: { intent: 'explosion', intensity: 0.6 },
+    activation: { intent: 'explosion', intensity: 0.88, durationSeconds: 0.28 },
+    release: { intent: 'knockback', intensity: 0.66, durationSeconds: 0.2, delaySeconds: 0.12 }
+  }
+};
+
+const SOLAR_AEGIS_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'solar-aegis',
+  palette: 'solar',
+  hierarchy: 'payoff',
+  layers: {
+    anticipation: { intent: 'status-application', intensity: 0.68 },
+    activation: { intent: 'transformation', intensity: 0.88, durationSeconds: 0.3 },
+    sustain: { intent: 'status-application', intensity: 0.58, durationSeconds: 0.36, delaySeconds: 0.04 },
+    release: { intent: 'explosion', intensity: 0.62, durationSeconds: 0.18, delaySeconds: 0.2 }
+  }
+};
+
+const SOLAR_LASER_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'solar-laser',
+  palette: 'solar',
+  hierarchy: 'ultimate',
+  layers: {
+    anticipation: { intent: 'ultimate', intensity: 1, durationSeconds: 0.78 },
+    activation: { intent: 'beam', anchor: 'activated', intensity: 1.08, durationSeconds: 0.22, delaySeconds: 0.76 },
+    sustain: { intent: 'beam', anchor: 'activated', intensity: 0.82, durationSeconds: 2.58, delaySeconds: 0.82 },
+    release: { intent: 'beam', intensity: 0.9, durationSeconds: 0.3 }
+  },
+  contact: {
+    intent: 'beam',
+    intensity: 0.46,
+    durationSeconds: 0.055,
+    intervalMs: 72
+  }
+};
+
+const GUNNER_AUDIO_PROFILES = [
+  TACTICAL_SLIDE_PROFILE,
+  SUPPRESSIVE_FIRE_PROFILE,
+  PINNING_ROUND_PROFILE,
+  KILL_ZONE_PROFILE
+] as const;
+
+const SOLAR_SENTINEL_AUDIO_PROFILES = [
+  SOLAR_RUSH_PROFILE,
+  THUNDER_CLAP_PROFILE,
+  SOLAR_AEGIS_PROFILE,
+  SOLAR_LASER_PROFILE
+] as const;
+
 const VOLT_AUDIO_PROFILES = [
   LIGHTNING_DASH_PROFILE,
   ARC_BURST_PROFILE,
@@ -235,7 +369,7 @@ const BALLAST_AUDIO_PROFILES = [
 ] as const;
 
 const ABILITY_AUDIO_PROFILES = new Map<string, AbilityCombatAudioProfile>(
-  [...VOLT_AUDIO_PROFILES, ...PYRO_AUDIO_PROFILES, ...BALLAST_AUDIO_PROFILES]
+  [...VOLT_AUDIO_PROFILES, ...PYRO_AUDIO_PROFILES, ...BALLAST_AUDIO_PROFILES, ...GUNNER_AUDIO_PROFILES, ...SOLAR_SENTINEL_AUDIO_PROFILES]
     .map((profile) => [profile.abilityId, profile])
 );
 
@@ -260,6 +394,7 @@ export function resolveCombatAudioLayer(
     ?? (phase === 'anticipation' && castTicks > 0 ? castDuration : DEFAULT_PHASE_DURATION[phase]);
   const intensity = Math.max(0.1, Math.min(1.25, layer.intensity ?? 1));
   const delaySeconds = Math.max(0, layer.delaySeconds ?? 0);
+  const anchor = layer.anchor ?? (phase === 'anticipation' ? 'activated' : 'resolved');
 
   return {
     abilityId: profile.abilityId,
@@ -267,9 +402,29 @@ export function resolveCombatAudioLayer(
     palette: profile.palette,
     hierarchy: profile.hierarchy,
     intent: layer.intent,
+    anchor,
     intensity,
     durationSeconds,
     delaySeconds,
+    gainScale: COMBAT_AUDIO_HIERARCHY_GAIN[profile.hierarchy] * intensity
+  };
+}
+
+
+export function resolveCombatAudioContact(
+  profile: AbilityCombatAudioProfile
+): ResolvedCombatAudioContact | undefined {
+  const contact = profile.contact;
+  if (!contact) return undefined;
+  const intensity = Math.max(0.1, Math.min(1.25, contact.intensity ?? 1));
+  return {
+    abilityId: profile.abilityId,
+    palette: profile.palette,
+    hierarchy: profile.hierarchy,
+    intent: contact.intent,
+    intensity,
+    durationSeconds: Math.max(0.02, Math.min(0.2, contact.durationSeconds ?? 0.055)),
+    intervalMs: Math.max(24, Math.min(500, contact.intervalMs ?? 72)),
     gainScale: COMBAT_AUDIO_HIERARCHY_GAIN[profile.hierarchy] * intensity
   };
 }

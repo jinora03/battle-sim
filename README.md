@@ -1,8 +1,23 @@
-# Kinetic Battle Engine — v1.3.11 Stage 8.6C-2A
+# Kinetic Battle Engine — v1.3.12 Stage 8.6C-2
 
 A browser/mobile-ready 2D physics battle game and modular fighter engine built with TypeScript, PixiJS, React, Vite and Capacitor.
 
 
+
+> **Stage 8.6C-2 rolls the intent-audio standard out to Gunner and Solar Sentinel.** Kill Zone now follows a mechanical spool-to-spin-down lifecycle, Solar Eye Beams separates eye charge, ignition, sustain, real contact, and shutdown, and all eight fighter abilities are profile-driven rather than hardcoded in the audio engine.
+
+## Stage 8.6C-2 highlights
+
+- complete mechanical intent profiles for Tactical Slide, Suppressive Burst, Pinning Round and Kill Zone
+- Kill Zone motor spool, rotary start, firing sustain and post-barrage spin-down
+- complete solar intent profiles for Sky Rush, Thunder Clap, Solar Aegis and Solar Eye Beams
+- Solar Eye Beams ignition begins after its real 0.8-second warmup and shutdown follows actual ability resolution
+- rate-limited beam-contact cues occur only when the active channel emits real damage events
+- distinct Solar Punch launch and impact audio while retaining the basic < skill < payoff < ultimate hierarchy
+- reusable activated/resolved layer anchors, channel-contact metadata and generic mechanical/beam rendering
+- no damage, cooldown, targeting, AI, projectile, seeded-opening or deterministic simulation changes
+
+See `docs/V1_3_STAGE_8_6C2_GUNNER_SENTINEL_AUDIO.md` for implementation and validation details.
 
 > **Stage 8.6C-2A adds seeded opening readiness and controlled AI variation.** Basics remain immediate, movement and normal skills enter in short seeded windows, payoff skills wait longer, and ultimates cannot open a battle before five seconds. Small utility variation is stable until an ability is committed, preserving deterministic replays without identical openings across every seed.
 
