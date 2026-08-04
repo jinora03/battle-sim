@@ -517,13 +517,6 @@ export class FxEngine {
         this.shockwave(x, y, 0xffffff, 42, 2, 0.25);
         this.burst(x, y, recipe.color, Math.round(amount * 1.25 * particleScale), 7.5, 1.5, 4.5, 0.2, 0.55, 0.96, 0.2);
         break;
-      case 'gatling-overdrive':
-        this.flash(x, y, 0xfff6cf, 62, 0.16);
-        this.shockwave(x, y, 0xffb13b, 78, 5, 0.38);
-        this.shockwave(x, y, 0x7ddfff, 46, 2, 0.24);
-        this.directionalBurst(x, y, dirX, dirY, 0xffe18a, Math.round(amount * 1.55 * particleScale), 13.5);
-        this.directionalBurst(x, y, dirX, dirY, 0xff7f2a, Math.round(amount * 0.9 * particleScale), 9.5);
-        break;
       case 'mass-bloom':
         this.flash(x, y, 0xe9fbff, 42, 0.13);
         this.shockwave(x, y, recipe.accentColor, 86, 3, 0.46);
@@ -550,14 +543,6 @@ export class FxEngine {
         this.shockwave(x, y, 0xa88cdd, 82, 3, 0.42);
         this.burst(x, y, 0xd8faff, Math.round(amount * 1.6 * particleScale), 10.5, 1.5, 5, 0.2, 0.68, 0.96, 0.72);
         this.burst(x, y, 0x5d3a79, Math.round(amount * 1.25 * particleScale), 7.2, 2.5, 7, 0.26, 0.78, 0.97, 0.9);
-        break;
-      case 'solar-laser':
-        // The sustained beam is rendered from the live casting snapshot so it
-        // stays attached to the Sentinel and tracks its target. Resolution only
-        // adds a compact release flare instead of leaving a detached static beam.
-        this.flash(x, y, 0xfff5cf, 46, 0.16);
-        this.directionalBurst(x, y, -dirX, -dirY, 0xffd46a, Math.round(20 * particleScale), 8.5);
-        this.shockwave(x, y, 0xffdd7a, 54, 3, 0.18);
         break;
       default:
         this.burst(x, y, recipe.color, Math.round(amount * particleScale), speed, 1.2, 4.2, 0.14, 0.38, 0.95, 0.12);
@@ -639,7 +624,8 @@ export class FxEngine {
     dirY: number,
     particleScale: number
   ): FxResponse {
-    const palette = getElementVfxPalette(layer.palette);
+    const basePalette = getElementVfxPalette(layer.palette);
+    const palette = { ...basePalette, ...layer.colors };
     const amount = Math.max(3, Math.round(24 * layer.intensity * particleScale));
     const radius = 72 * layer.radiusScale * layer.intensity;
     const duration = layer.durationSeconds;
@@ -647,6 +633,9 @@ export class FxEngine {
     if (layer.phase === 'anticipation') {
       this.shockwave(x, y, palette.glow, radius * 0.48, 2.5, Math.min(0.5, duration));
       this.burst(x, y, palette.accent, Math.round(amount * 0.55), 2.8, 1, 3, 0.14, Math.min(0.54, duration), 0.98, 0.48);
+      if (layer.intent === 'projectile' || layer.intent === 'burst-fire' || layer.intent === 'beam') {
+        this.directionalBurst(x, y, dirX, dirY, palette.glow, Math.round(amount * 0.38), 3.8 * layer.intensity);
+      }
       if (layer.intent === 'ultimate' || layer.intent === 'transformation') {
         this.flash(x, y, palette.core, radius * 0.28, Math.min(0.2, duration));
       }
@@ -658,8 +647,13 @@ export class FxEngine {
     }
 
     if (layer.phase === 'activation') {
-      if (layer.intent === 'dash' || layer.intent === 'projectile') {
+      if (layer.intent === 'dash') {
         this.directionalBurst(x, y, -dirX, -dirY, palette.accent, amount, 8.5 * layer.intensity);
+        this.flash(x, y, palette.core, radius * 0.36, Math.min(0.18, duration));
+      } else if (layer.intent === 'projectile' || layer.intent === 'beam' || layer.intent === 'burst-fire') {
+        this.directionalBurst(x, y, dirX, dirY, palette.accent, amount, 10.5 * layer.intensity);
+        this.directionalBurst(x, y, -dirX, -dirY, palette.glow, Math.round(amount * 0.48), 5.8 * layer.intensity);
+        this.flash(x, y, palette.core, radius * 0.42, Math.min(0.2, duration));
       } else {
         this.flash(x, y, palette.core, radius * 0.62, Math.min(0.24, duration));
         this.shockwave(x, y, palette.accent, radius, 7, Math.min(0.52, duration * 1.7));
@@ -674,13 +668,19 @@ export class FxEngine {
     }
 
     if (layer.phase === 'sustain') {
-      this.shockwave(x, y, palette.accent, radius * 0.92, 4, Math.min(0.7, duration));
-      this.shockwave(x, y, palette.glow, radius * 0.58, 2, Math.min(0.5, duration * 0.8));
-      this.burst(x, y, palette.glow, Math.round(amount * 0.72), 4.2 * layer.intensity, 1, 3.7, 0.18, Math.min(0.65, duration), 0.97, 0.58);
+      if (layer.intent === 'burst-fire') {
+        this.directionalBurst(x, y, dirX, dirY, palette.accent, Math.round(amount * 0.82), 9.6 * layer.intensity);
+        this.directionalBurst(x, y, dirX, dirY, palette.core, Math.round(amount * 0.38), 12 * layer.intensity);
+        this.flash(x, y, palette.glow, radius * 0.3, Math.min(0.18, duration));
+      } else {
+        this.shockwave(x, y, palette.accent, radius * 0.92, 4, Math.min(0.7, duration));
+        this.shockwave(x, y, palette.glow, radius * 0.58, 2, Math.min(0.5, duration * 0.8));
+        this.burst(x, y, palette.glow, Math.round(amount * 0.72), 4.2 * layer.intensity, 1, 3.7, 0.18, Math.min(0.65, duration), 0.97, 0.58);
+      }
       return { shake: 0, freezeMs: 0, screenFlash: 0 };
     }
 
-    if (layer.intent === 'knockback' || layer.intent === 'explosion') {
+    if (layer.intent === 'knockback' || layer.intent === 'explosion' || layer.intent === 'beam') {
       this.directionalBurst(x, y, dirX, dirY, palette.accent, Math.round(amount * 0.7), 7.2 * layer.intensity);
     }
     this.flash(x, y, palette.core, radius * 0.35, Math.min(0.16, duration));

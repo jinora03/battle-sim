@@ -3,6 +3,7 @@ import { getFighter, getPrimaryAttack, listMountedAttachments, type PrimaryAttac
 import type { EntitySnapshot } from '@kinetic/protocol';
 import {
   computeMotionPose,
+  getCombatVfxPersistentRig,
   getMotionRecipe,
   getRenderProfile,
   getSkillPresentation,
@@ -167,7 +168,7 @@ export class FighterView {
     else this.container.rotation = 0;
     this.container.scale.set(pose.scaleX * castScaleX * victoryPulse, pose.scaleY * castScaleY * victoryPulse);
     this.updateWeaponPose(weaponAttack, reducedMotion);
-    this.updateKillZoneWeapon(entity, elapsedSeconds, reducedMotion);
+    this.updateProfiledUltimateWeapon(entity, elapsedSeconds, reducedMotion);
     this.damageFlash *= reducedMotion ? 0.84 : 0.925;
     const damagePulse = Math.max(0, this.damageFlash);
     this.damageOverlay.alpha = Math.min(1, damagePulse * 1.18);
@@ -200,9 +201,12 @@ export class FighterView {
     this.container.destroy({ children: true });
   }
 
-  private updateKillZoneWeapon(entity: EntitySnapshot, elapsedSeconds: number, reducedMotion: boolean): void {
+  private updateProfiledUltimateWeapon(entity: EntitySnapshot, elapsedSeconds: number, reducedMotion: boolean): void {
     this.ultimateWeapon.clear();
-    if (entity.fighterId !== 'gunner' || !entity.statuses.some((status) => status.statusId === 'kill-zone-overdrive')) return;
+    const rig = entity.statuses
+      .map((status) => getCombatVfxPersistentRig(status.statusId))
+      .find((candidate) => candidate !== undefined);
+    if (rig?.kind !== 'rotary-cannon') return;
 
     const r = entity.radius;
     const spin = reducedMotion ? 0 : elapsedSeconds * 28;

@@ -1,7 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { getAbility } from '@kinetic/content';
 import type { EntityId, EntitySnapshot, Vec2, WorldSnapshot } from '@kinetic/protocol';
-import { getSkillPresentation, type SkillPresentationRecipe } from '@kinetic/visual-engine';
+import { getAbilityCombatVfxProfile, getSkillPresentation, type SkillPresentationRecipe } from '@kinetic/visual-engine';
 
 export class SkillTelegraphRenderer {
   readonly container = new Container();
@@ -85,7 +85,8 @@ export class SkillTelegraphRenderer {
       case 'directional-stream': {
         const dx = Math.cos(angle);
         const dy = Math.sin(angle);
-        if (recipe.abilityId === 'solar-laser') {
+        const beamTelegraph = getAbilityCombatVfxProfile(recipe.abilityId)?.telegraph;
+        if (beamTelegraph?.kind === 'dual-eye-beam') {
           const px = -dy;
           const py = dx;
           const eyeOffset = Math.max(10, entity.radius * 0.34);
@@ -97,8 +98,8 @@ export class SkillTelegraphRenderer {
           const castTicks = Math.max(1, getAbility(recipe.abilityId).castTicks);
           const elapsedTicks = progress * castTicks;
           const elapsedSeconds = elapsedTicks / 60;
-          const eyeChargeEnd = 30;
-          const beamStart = 48;
+          const eyeChargeEnd = beamTelegraph.eyeChargeTicks;
+          const beamStart = beamTelegraph.beamStartTicks;
           const eyeChargeProgress = Math.min(1, elapsedTicks / eyeChargeEnd);
           const lockProgress = Math.min(1, Math.max(0, elapsedTicks - eyeChargeEnd) / Math.max(1, beamStart - eyeChargeEnd));
           const beamProgress = Math.min(1, Math.max(0, elapsedTicks - beamStart) / 18);
@@ -152,7 +153,7 @@ export class SkillTelegraphRenderer {
 
           // Stage 3: the full beam is live. Gameplay damage begins at the same tick.
           if (elapsedTicks >= beamStart) {
-            const length = 1080;
+            const length = beamTelegraph.range;
             const endX = x + dx * length;
             const endY = y + dy * length;
             const activeTicks = elapsedTicks - beamStart;
@@ -163,9 +164,9 @@ export class SkillTelegraphRenderer {
             const beamAlpha = 0.58 + beamProgress * 0.32;
 
             for (const [eyeX, eyeY] of [[leftEyeX, leftEyeY], [rightEyeX, rightEyeY]] as const) {
-              this.graphics.moveTo(eyeX, eyeY).lineTo(endX, endY).stroke({ color: 0xff3028, width: outerWidth, alpha: 0.13 + ramp * 0.025 });
-              this.graphics.moveTo(eyeX, eyeY).lineTo(endX, endY).stroke({ color: 0xff7258, width: middleWidth, alpha: beamAlpha });
-              this.graphics.moveTo(eyeX, eyeY).lineTo(endX, endY).stroke({ color: 0xfff7dc, width: coreWidth, alpha: 0.98 });
+              this.graphics.moveTo(eyeX, eyeY).lineTo(endX, endY).stroke({ color: beamTelegraph.outerColor, width: outerWidth, alpha: 0.13 + ramp * 0.025 });
+              this.graphics.moveTo(eyeX, eyeY).lineTo(endX, endY).stroke({ color: beamTelegraph.middleColor, width: middleWidth, alpha: beamAlpha });
+              this.graphics.moveTo(eyeX, eyeY).lineTo(endX, endY).stroke({ color: beamTelegraph.coreColor, width: coreWidth, alpha: 0.98 });
             }
             this.graphics.circle(endX, endY, 10 + ramp * 4 + pulse * 3).fill({ color: 0xffc66c, alpha: 0.22 });
           }

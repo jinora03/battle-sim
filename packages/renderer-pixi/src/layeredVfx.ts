@@ -372,7 +372,8 @@ export class LayeredVfxEngine {
     dirX: number,
     dirY: number
   ): void {
-    const palette = getElementVfxPalette(layer.palette);
+    const basePalette = getElementVfxPalette(layer.palette);
+    const palette = { ...basePalette, ...layer.colors };
     const qualityScale = this.quality.tier === 'high' ? 1 : this.quality.tier === 'medium' ? 0.72 : 0.46;
     const count = Math.max(2, Math.round(18 * layer.intensity * this.quality.residualMultiplier));
     const radius = 64 * layer.radiusScale * layer.intensity * qualityScale;
@@ -387,19 +388,27 @@ export class LayeredVfxEngine {
     if (layer.phase === 'anticipation') {
       this.spawnCoreFlash(x, y, palette.glow, radius * 0.38, Math.min(0.24, layer.durationSeconds));
       this.spawnResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.6), 2.6 * layer.intensity);
+      if (layer.intent === 'projectile' || layer.intent === 'burst-fire' || layer.intent === 'beam') {
+        this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.glow, shape, Math.round(count * 0.38), 3.2 * layer.intensity);
+      }
       return;
     }
     if (layer.phase === 'activation') {
       this.spawnCoreFlash(x, y, palette.core, radius, Math.min(0.28, layer.durationSeconds));
       this.spawnResidualBurst(x, y, palette.accent, shape, count, 7.4 * layer.intensity);
-      if (layer.intent === 'dash' || layer.intent === 'projectile') {
+      if (layer.intent === 'dash') {
         this.spawnDirectionalResidualBurst(x, y, -dirX, -dirY, palette.glow, shape, Math.round(count * 0.75), 7.8 * layer.intensity);
+      } else if (layer.intent === 'projectile' || layer.intent === 'beam' || layer.intent === 'burst-fire') {
+        this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.glow, shape, Math.round(count * 0.82), 8.8 * layer.intensity);
       }
       return;
     }
     if (layer.phase === 'sustain') {
       this.spawnCoreFlash(x, y, palette.accent, radius * 0.72, Math.min(0.42, layer.durationSeconds));
       this.spawnResidualBurst(x, y, palette.glow, shape, Math.round(count * 0.72), 3.8 * layer.intensity);
+      if (layer.intent === 'burst-fire') {
+        this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.core, shape, Math.round(count * 0.58), 9.2 * layer.intensity);
+      }
       return;
     }
     this.spawnCoreFlash(x, y, palette.core, radius * 0.55, Math.min(0.2, layer.durationSeconds));
