@@ -137,7 +137,7 @@ describe('Stage 8.5C Gunner functionality correction', () => {
   });
 
   it('advances engine and content compatibility markers together', () => {
-    expect(CONTENT_VERSION).toBe('1.3.12-stage8.6c2');
-    expect(ENGINE_VERSION).toBe('1.3.12-stage8.6c2');
+    expect(CONTENT_VERSION).toBe('1.3.13-stage8.6c3');
+    expect(ENGINE_VERSION).toBe('1.3.13-stage8.6c3');
   });
 });

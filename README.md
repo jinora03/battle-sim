@@ -1,7 +1,22 @@
-# Kinetic Battle Engine — v1.3.12 Stage 8.6C-2
+# Kinetic Battle Engine — v1.3.13 Stage 8.6C-3
 
 A browser/mobile-ready 2D physics battle game and modular fighter engine built with TypeScript, PixiJS, React, Vite and Capacitor.
 
+
+> **Stage 8.6C-3 completes the initial roster-audio rollout with Bomber and Mech Bruiser.** Bomber gains a reusable explosive palette with fuse, ignition, blast-pressure, and release layers, while Mech gains coherent servo, magnetic, armor-lock, and reactor lifecycles. Impact Bomb and Hydraulic Gauntlet also receive stronger basic-attack identities.
+
+## Stage 8.6C-3 highlights
+
+- reusable explosive palette for demolition, grenade, mine, and bomb-style abilities
+- complete profiles for Blast Dash, Concussion Bomb, Shrapnel Burst, and Mega Bomb
+- Mega Bomb arming tension, ultimate detonation, residual pressure, and knockback release
+- complete profiles for Kinetic Pulse, Magnet Drag, Fortify, and Reactor Overdrive
+- Reactor Overdrive startup, transformation, sustained machinery, and controlled spin-down
+- distinct Impact Bomb launcher/fuse/impact cues and Hydraulic Gauntlet servo/piston cues
+- migrated Bomber and Mech abilities removed from legacy hardcoded playback branches
+- no damage, cooldown, AI, projectile, physics, seeded-opening, or deterministic simulation changes
+
+See `docs/V1_3_STAGE_8_6C3_BOMBER_MECH_AUDIO.md` for implementation and validation details.
 
 
 > **Stage 8.6C-2 rolls the intent-audio standard out to Gunner and Solar Sentinel.** Kill Zone now follows a mechanical spool-to-spin-down lifecycle, Solar Eye Beams separates eye charge, ignition, sustain, real contact, and shutdown, and all eight fighter abilities are profile-driven rather than hardcoded in the audio engine.
