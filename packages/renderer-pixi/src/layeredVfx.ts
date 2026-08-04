@@ -7,6 +7,7 @@ import {
   getElementVfxPalette,
   getWeaponVfxRecipe,
   resolveCombatVfxLayer,
+  resolveCombatVfxParticleStyle,
   resolveVisualRadius,
   type ResolvedCombatVfxLayer,
   type VfxParticleShape,
@@ -90,6 +91,60 @@ const STATUS_COLORS: Record<string, number> = {
   overcharged: 0xc7fbff,
   phased: 0xb77cff
 };
+
+function drawParticleShape(node: Graphics, shape: VfxParticleShape, size: number, color: number, alpha: number): void {
+  node.clear();
+  if (shape === 'smoke' || shape === 'droplet') {
+    node.circle(0, 0, size * (shape === 'smoke' ? 1.75 : 0.82)).fill({ color, alpha: shape === 'smoke' ? alpha * 0.52 : alpha });
+    return;
+  }
+  if (shape === 'debris' || shape === 'shard') {
+    node.moveTo(0, -size * 1.35)
+      .lineTo(size * 0.52, size * 0.72)
+      .lineTo(-size * 0.38, size)
+      .lineTo(0, -size * 1.35)
+      .fill({ color, alpha });
+    return;
+  }
+  if (shape === 'ember') {
+    node.moveTo(0, -size)
+      .lineTo(size * 0.62, 0)
+      .lineTo(0, size)
+      .lineTo(-size * 0.62, 0)
+      .lineTo(0, -size)
+      .fill({ color, alpha });
+    return;
+  }
+  if (shape === 'flame') {
+    node.moveTo(0, size * 1.2)
+      .quadraticCurveTo(size * 0.95, size * 0.12, size * 0.18, -size * 1.45)
+      .quadraticCurveTo(-size * 0.78, -size * 0.18, 0, size * 1.2)
+      .fill({ color, alpha });
+    return;
+  }
+  if (shape === 'arc' || shape === 'ribbon' || shape === 'ring-fragment') {
+    const bend = shape === 'ring-fragment' ? size * 0.92 : shape === 'ribbon' ? size * 0.62 : size * 0.42;
+    node.moveTo(-size * 1.25, size * 0.25)
+      .quadraticCurveTo(0, -bend, size * 1.25, -size * 0.2)
+      .stroke({ color, width: Math.max(1.4, size * (shape === 'ribbon' ? 0.42 : 0.34)), alpha });
+    return;
+  }
+  if (shape === 'wedge') {
+    node.moveTo(size * 1.45, 0)
+      .lineTo(-size * 0.9, -size * 0.72)
+      .lineTo(-size * 0.45, 0)
+      .lineTo(-size * 0.9, size * 0.72)
+      .lineTo(size * 1.45, 0)
+      .fill({ color, alpha });
+    return;
+  }
+  node.moveTo(-size * 1.25, 0).lineTo(size * 1.45, 0).stroke({
+    color,
+    width: Math.max(1.5, size * (shape === 'streak' ? 0.42 : 0.32)),
+    alpha
+  });
+}
+
 
 export class LayeredVfxEngine {
   private readonly groundMarks: TimedGraphic[] = [];
@@ -385,20 +440,13 @@ export class LayeredVfxEngine {
     const qualityScale = this.quality.tier === 'high' ? 1 : this.quality.tier === 'medium' ? 0.72 : 0.46;
     const count = Math.max(2, Math.round(18 * layer.intensity * this.quality.residualMultiplier));
     const radius = 64 * layer.radiusScale * layer.intensity * qualityScale;
-    const shape: VfxParticleShape = layer.palette === 'fire'
-      ? 'ember'
-      : layer.palette === 'ice'
-        ? 'shard'
-        : layer.palette === 'water'
-          ? 'droplet'
-          : layer.palette === 'neutral'
-            ? 'smoke'
-            : layer.palette === 'metal'
-              ? 'debris'
-              : 'spark';
+    const glowStrength = layer.hierarchy === 'ultimate' ? 1 : layer.hierarchy === 'payoff' ? 0.78 : 0.56;
+    const style = resolveCombatVfxParticleStyle(layer);
+    const shape = style.primary;
+    const secondaryShape = style.secondary;
 
     if (layer.phase === 'anticipation') {
-      this.spawnCoreFlash(x, y, palette.glow, radius * 0.38, Math.min(0.24, layer.durationSeconds));
+      this.spawnProfileBloom(x, y, palette.core, palette.glow, radius * 0.42, Math.min(0.28, layer.durationSeconds), glowStrength * 0.68);
       if (layer.intent === 'pull') {
         this.spawnInwardResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.72), radius * 0.92, 4.4 * layer.intensity);
       } else {
@@ -410,7 +458,7 @@ export class LayeredVfxEngine {
       return;
     }
     if (layer.phase === 'activation') {
-      this.spawnCoreFlash(x, y, palette.core, radius, Math.min(0.28, layer.durationSeconds));
+      this.spawnProfileBloom(x, y, palette.core, palette.glow, radius, Math.min(0.32, layer.durationSeconds), glowStrength);
       if (layer.intent === 'pull') {
         this.spawnInwardResidualBurst(x, y, palette.accent, shape, count, radius, 7.2 * layer.intensity);
         this.spawnInwardResidualBurst(x, y, palette.glow, shape, Math.round(count * 0.48), radius * 0.7, 5.2 * layer.intensity);
@@ -424,20 +472,22 @@ export class LayeredVfxEngine {
         this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.glow, shape, Math.round(count * 0.82), 8.8 * layer.intensity);
       } else if (layer.intent === 'explosion') {
         this.spawnResidualBurst(x, y, palette.accent, shape, Math.round(count * 1.12), 8.6 * layer.intensity);
-        this.spawnResidualBurst(x, y, palette.debris, 'debris', Math.round(count * 0.55), 5.2 * layer.intensity);
+        this.spawnResidualBurst(x, y, palette.debris, secondaryShape, Math.round(count * 0.55), 5.2 * layer.intensity);
+        this.spawnBrokenRing(x, y, palette.glow, radius * 0.94, layer.hierarchy === 'ultimate' ? 10 : 7, Math.min(0.46, layer.durationSeconds * 1.45));
       } else if (layer.intent === 'knockback') {
         if (layer.directional) {
           this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.core, shape, Math.round(count * 1.05), 10.8 * layer.intensity);
           this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.accent, shape, Math.round(count * 0.68), 7.6 * layer.intensity);
         } else {
           this.spawnResidualBurst(x, y, palette.core, shape, Math.round(count * 0.82), 7.8 * layer.intensity);
-          this.spawnResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.58), 5.8 * layer.intensity);
+          this.spawnResidualBurst(x, y, palette.accent, secondaryShape, Math.round(count * 0.58), 5.8 * layer.intensity);
+          this.spawnBrokenRing(x, y, palette.glow, radius * 0.88, 6, Math.min(0.38, layer.durationSeconds * 1.35));
         }
       }
       return;
     }
     if (layer.phase === 'sustain') {
-      this.spawnCoreFlash(x, y, palette.accent, radius * 0.72, Math.min(0.42, layer.durationSeconds));
+      this.spawnProfileBloom(x, y, palette.core, palette.accent, radius * 0.72, Math.min(0.42, layer.durationSeconds), glowStrength * 0.62);
       if (layer.intent === 'pull') {
         this.spawnInwardResidualBurst(x, y, palette.glow, shape, Math.round(count * 0.74), radius * 0.84, 4.6 * layer.intensity);
       } else {
@@ -454,7 +504,7 @@ export class LayeredVfxEngine {
       }
       return;
     }
-    this.spawnCoreFlash(x, y, palette.core, radius * 0.55, Math.min(0.2, layer.durationSeconds));
+    this.spawnProfileBloom(x, y, palette.core, palette.glow, radius * 0.55, Math.min(0.22, layer.durationSeconds), glowStrength * 0.58);
     if (layer.intent === 'pull') {
       this.spawnInwardResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.62), radius * 0.72, 5.2 * layer.intensity);
     } else if (layer.intent === 'knockback' && layer.directional) {
@@ -685,6 +735,58 @@ export class LayeredVfxEngine {
     effect.node.visible = true;
   }
 
+  private spawnProfileBloom(
+    x: number,
+    y: number,
+    coreColor: number,
+    glowColor: number,
+    radius: number,
+    life: number,
+    strength: number
+  ): void {
+    if (this.activeCount(this.weaponEffects) >= this.budget.maxWeaponEffects) return;
+    const effect = this.weaponEffects.find((item) => !item.active);
+    if (!effect) return;
+    effect.active = true;
+    effect.life = effect.maxLife = Math.max(0.08, life);
+    effect.node.clear();
+    effect.node.circle(0, 0, radius).fill({ color: glowColor, alpha: 0.08 * strength });
+    effect.node.circle(0, 0, radius * 0.64).fill({ color: glowColor, alpha: 0.13 * strength });
+    effect.node.circle(0, 0, radius * 0.28).fill({ color: coreColor, alpha: 0.58 * strength });
+    effect.node.circle(0, 0, radius * 0.16).fill({ color: 0xffffff, alpha: 0.76 * strength });
+    effect.node.circle(0, 0, radius * 0.78).stroke({ color: glowColor, width: Math.max(1.5, radius * 0.035), alpha: 0.34 * strength });
+    effect.node.position.set(x, y);
+    effect.node.alpha = 1;
+    effect.node.scale.set(1);
+    effect.node.visible = true;
+  }
+
+  private spawnBrokenRing(x: number, y: number, color: number, radius: number, segments: number, life: number): void {
+    if (this.activeCount(this.weaponEffects) >= this.budget.maxWeaponEffects) return;
+    const effect = this.weaponEffects.find((item) => !item.active);
+    if (!effect) return;
+    effect.active = true;
+    effect.life = effect.maxLife = Math.max(0.1, life);
+    effect.node.clear();
+    const count = Math.max(4, segments);
+    for (let index = 0; index < count; index += 1) {
+      const start = index / count * Math.PI * 2 + this.random() * 0.05;
+      const end = start + Math.PI * 2 / count * (0.48 + this.random() * 0.22);
+      const x1 = Math.cos(start) * radius;
+      const y1 = Math.sin(start) * radius;
+      const mid = (start + end) * 0.5;
+      const x2 = Math.cos(end) * radius;
+      const y2 = Math.sin(end) * radius;
+      effect.node.moveTo(x1, y1)
+        .quadraticCurveTo(Math.cos(mid) * radius * 1.08, Math.sin(mid) * radius * 1.08, x2, y2)
+        .stroke({ color, width: Math.max(1.5, radius * 0.028), alpha: 0.62 });
+    }
+    effect.node.position.set(x, y);
+    effect.node.alpha = 1;
+    effect.node.scale.set(0.72);
+    effect.node.visible = true;
+  }
+
   private spawnGroundMark(x: number, y: number, kind: string, color: number, radius: number): void {
     if (kind === 'none' || !this.quality || Math.min(this.quality.maxGroundMarks, this.budget.maxGroundMarks) <= 0) return;
     const mark = this.groundMarks.find((item) => !item.active) ?? this.groundMarks.reduce((oldest, item) => item.life < oldest.life ? item : oldest, this.groundMarks[0]!);
@@ -741,10 +843,7 @@ export class LayeredVfxEngine {
       particle.spin = (this.random() - 0.5) * 7;
       particle.node.clear();
       const size = 1.5 + this.random() * 4;
-      if (shape === 'smoke' || shape === 'droplet') particle.node.circle(0, 0, size * (shape === 'smoke' ? 1.8 : 1)).fill({ color, alpha: shape === 'smoke' ? 0.5 : 0.86 });
-      else if (shape === 'debris' || shape === 'shard') particle.node.rect(-size * 0.35, -size, size * 0.7, size * 2).fill({ color, alpha: 0.9 });
-      else if (shape === 'ember') particle.node.circle(0, 0, size * 0.65).fill({ color, alpha: 1 });
-      else particle.node.moveTo(-size, 0).lineTo(size, 0).stroke({ color, width: Math.max(1.5, size * 0.45), alpha: 0.95 });
+      drawParticleShape(particle.node, shape, size, color, shape === 'smoke' ? 0.5 : 0.94);
       particle.node.position.set(x, y);
       particle.node.alpha = 1;
       particle.node.scale.set(1);
@@ -781,9 +880,7 @@ export class LayeredVfxEngine {
       particle.spin = (this.random() - 0.5) * 5;
       particle.node.clear();
       const size = 1.6 + this.random() * 3.2;
-      if (shape === 'ember') particle.node.circle(0, 0, size * 0.62).fill({ color, alpha: 0.96 });
-      else if (shape === 'shard') particle.node.rect(-size * 0.3, -size, size * 0.6, size * 2).fill({ color, alpha: 0.9 });
-      else particle.node.moveTo(-size, 0).lineTo(size, 0).stroke({ color, width: Math.max(1.4, size * 0.42), alpha: 0.92 });
+      drawParticleShape(particle.node, shape, size, color, 0.92);
       particle.node.position.set(x + Math.cos(angle) * startRadius, y + Math.sin(angle) * startRadius);
       particle.node.alpha = 1;
       particle.node.scale.set(1);
@@ -826,8 +923,7 @@ export class LayeredVfxEngine {
       particle.spin = (this.random() - 0.5) * 6;
       particle.node.clear();
       const size = 1.8 + this.random() * 3.2;
-      if (shape === 'smoke') particle.node.circle(0, 0, size * 1.65).fill({ color, alpha: 0.46 });
-      else particle.node.moveTo(-size, 0).lineTo(size * 1.4, 0).stroke({ color, width: Math.max(1.6, size * 0.48), alpha: 0.94 });
+      drawParticleShape(particle.node, shape, size, color, shape === 'smoke' ? 0.46 : 0.94);
       particle.node.position.set(x, y);
       particle.node.alpha = 1;
       particle.node.scale.set(1);

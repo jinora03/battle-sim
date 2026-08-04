@@ -72,6 +72,17 @@ export function getAiAbilityScoreJitter(
   return (unit * 2 - 1) * SCORE_JITTER_MAGNITUDE;
 }
 
+
+/** Stable seeded side preference for equivalent corner-escape routes. */
+export function getAiCornerEscapeSign(
+  seed: number,
+  entityId: EntityId,
+  cornerKey: string,
+  escapeEpoch: number
+): -1 | 1 {
+  return seededUnit(seed, entityId, cornerKey, `corner-escape:${Math.max(0, Math.trunc(escapeEpoch))}`) < 0.5 ? -1 : 1;
+}
+
 function seededInteger(
   seed: number,
   entityId: EntityId,
