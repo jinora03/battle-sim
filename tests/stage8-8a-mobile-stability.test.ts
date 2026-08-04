@@ -67,7 +67,7 @@ describe('Stage 8.8A mobile controls and renderer stability', () => {
   });
 
   it('advances engine and content compatibility markers together', () => {
-    expect(CONTENT_VERSION).toBe('1.3.21-stage8.8a');
+    expect(CONTENT_VERSION).toMatch(/^1\.3\.\d+-stage8\./);
     expect(CONTENT_VERSION).toBe(ENGINE_VERSION);
   });
 });

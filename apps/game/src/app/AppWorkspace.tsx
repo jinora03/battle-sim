@@ -203,6 +203,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
             onSettingChange={updateAppSetting}
             onToggleFullscreen={() => void toggleFullscreenBattle()}
             onRestoreSettings={restoreRecommendedSettings}
+            onStartConfiguredBattle={startConfiguredBattle}
           />
           <DrawerScrim open={battleDrawerOpen} onClose={() => setBattleDrawerOpen(false)} label="Close battle setup" className="battle-drawer-scrim" />
 
@@ -211,7 +212,6 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
               {!deviceCapabilities.touchFirst && (
                 <div className="battle-command-bar" aria-label="Battle actions">
                   <div className="battle-command-actions">
-                    <NeonButton tone="success" className="battle-start-button" onClick={startConfiguredBattle}>{setupDirty ? 'Start configured battle' : 'Start new battle'}</NeonButton>
                     <NeonButton tone="random" onClick={startRandomMatchup}>New random battle</NeonButton>
                     <NeonButton tone="utility" onClick={replaySameBattle}>Replay same battle</NeonButton>
                     {viewportMetrics.width <= 900 && (

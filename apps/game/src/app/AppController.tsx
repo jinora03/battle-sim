@@ -81,7 +81,7 @@ const STORAGE_KEY = 'kinetic.custom-fighter-bundles.v1';
 const DEFAULT_SETUP: BattleSetup = {
   fighterAId: 'gunner',
   fighterBId: 'bomber',
-  moduleIdsA: [],
+  moduleIdsA: ['shoulder-missile-pod', 'deflector-plate', 'recoil-thrusters', 'targeting-drone'],
   moduleIdsB: [],
   controllerA: 'player',
   controllerB: 'ai',

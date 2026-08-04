@@ -26,25 +26,31 @@ export function FighterModuleSelectors({ fighter, selectedModuleIds, side, onCha
         const selectedModule = selected ? modules.find((module) => module.id === selected) : undefined;
         const selectId = `fighter-${side.toLowerCase()}-${slot}-module`;
         return (
-          <div className="fighter-module-field" key={slot}>
-            <label className="field-label stacked-label" htmlFor={selectId}>{slot} module</label>
-            <select
-              id={selectId}
-              value={selected}
-              onChange={(event: ChangeEvent<HTMLSelectElement>) => onChange(side, slot, event.target.value)}
-            >
-              <option value="">Standard configuration</option>
-              {modules.map((module) => (
-                <option value={module.id} key={module.id}>
-                  {module.name}{module.attachments?.length ? ' · mounted' : ''}
-                </option>
-              ))}
-            </select>
-            <small className="fighter-module-description">
-              <span>{selectedModule?.description ?? `Use ${fighter.name}'s standard developer-authored configuration.`}</span>
-              {(selectedModule?.attachments?.length ?? 0) > 0 && <strong className="mounted-module-badge">Mounted attachment</strong>}
-            </small>
-          </div>
+          <details className={`fighter-module-field ${selectedModule ? 'configured' : 'standard'}`} key={slot}>
+            <summary>
+              <span><small>{slot} module</small><strong>{selectedModule?.name ?? 'Standard configuration'}</strong></span>
+              <i aria-hidden="true" />
+            </summary>
+            <div className="fighter-module-field-content">
+              <label className="field-label" htmlFor={selectId}>Choose {slot} module</label>
+              <select
+                id={selectId}
+                value={selected}
+                onChange={(event: ChangeEvent<HTMLSelectElement>) => onChange(side, slot, event.target.value)}
+              >
+                <option value="">Standard configuration</option>
+                {modules.map((module) => (
+                  <option value={module.id} key={module.id}>
+                    {module.name}{module.attachments?.length ? ' · mounted' : ''}
+                  </option>
+                ))}
+              </select>
+              <small className="fighter-module-description">
+                <span>{selectedModule?.description ?? `Use ${fighter.name}'s standard developer-authored configuration.`}</span>
+                {(selectedModule?.attachments?.length ?? 0) > 0 && <strong className="mounted-module-badge">Mounted attachment</strong>}
+              </small>
+            </div>
+          </details>
         );
       })}
     </div>

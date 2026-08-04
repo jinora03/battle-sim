@@ -20,6 +20,7 @@ import type { BattleSetup } from '../../runtime/BattleRuntime';
 import { DrawerHeader, NeonButton } from '../../ui/NeonUI';
 import { CreatorField, RangeField, Toggle } from '../../ui/FormControls';
 import { formatModeCapacity } from '../../ui/presentation';
+import { BattleFighterPreview } from './BattleFighterPreview';
 import { FighterModuleSelectors } from './FighterModuleSelectors';
 import { generateRandomSeed } from './battleUtils';
 
@@ -53,6 +54,7 @@ export interface BattleSetupDrawerProps {
   onSettingChange<K extends keyof AppSettings>(key: K, value: AppSettings[K]): void;
   onToggleFullscreen(): void;
   onRestoreSettings(): void;
+  onStartConfiguredBattle(): void;
 }
 
 export function BattleSetupDrawer({
@@ -84,7 +86,8 @@ export function BattleSetupDrawer({
   onQualityPresetChange,
   onSettingChange,
   onToggleFullscreen,
-  onRestoreSettings
+  onRestoreSettings,
+  onStartConfiguredBattle
 }: BattleSetupDrawerProps) {
   return (
     <aside className={`control-panel ui-mobile-drawer ${open ? 'open' : ''}`} id="battle-setup-drawer" aria-label="Battle configuration and settings">
@@ -107,6 +110,7 @@ export function BattleSetupDrawer({
               return <option value={fighter.id} key={fighter.id} disabled={locked}>{fighter.name}{isCustomFighter(fighter.id) ? ' · custom' : locked ? ' · locked' : ''}</option>;
             })}
           </select>
+          <BattleFighterPreview fighter={configuredFighterA} moduleIds={setup.moduleIdsA} side="A" />
           <FighterModuleSelectors fighter={configuredFighterA} selectedModuleIds={setup.moduleIdsA} side="A" onChange={onModuleChange} />
           <label className="field-label stacked-label" htmlFor="controller-a">Team 1 controller</label>
           <select id="controller-a" value={setup.controllerA} onChange={(event: ChangeEvent<HTMLSelectElement>) => onControllerChange('A', event.target.value as ControllerKind)}>
@@ -121,6 +125,7 @@ export function BattleSetupDrawer({
               return <option value={fighter.id} key={fighter.id} disabled={locked}>{fighter.name}{isCustomFighter(fighter.id) ? ' · custom' : locked ? ' · locked' : ''}</option>;
             })}
           </select>
+          <BattleFighterPreview fighter={configuredFighterB} moduleIds={setup.moduleIdsB} side="B" />
           <FighterModuleSelectors fighter={configuredFighterB} selectedModuleIds={setup.moduleIdsB} side="B" onChange={onModuleChange} />
           <label className="field-label stacked-label" htmlFor="controller-b">Team 2 controller</label>
           <select id="controller-b" value={setup.controllerB} onChange={(event: ChangeEvent<HTMLSelectElement>) => onControllerChange('B', event.target.value as ControllerKind)}>
@@ -183,6 +188,17 @@ export function BattleSetupDrawer({
             </div>
             <p className="small-note">New battles already use a fresh cryptographic seed. Use Apply only when reproducing a battle exactly.</p>
           </details>
+
+          <div className="battle-setup-start-zone">
+            <div>
+              <small>{setupDirty ? 'Configuration changed' : 'Configuration ready'}</small>
+              <strong>{configuredFighterA.name} vs {configuredFighterB.name}</strong>
+              <span>{configuredArena?.name} · {configuredMode?.name}</span>
+            </div>
+            <NeonButton tone="success" fullWidth className="battle-setup-start-button" onClick={onStartConfiguredBattle}>
+              {setupDirty ? 'Start configured battle' : 'Start new battle'}
+            </NeonButton>
+          </div>
         </div>
       </details>
 
