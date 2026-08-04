@@ -345,6 +345,7 @@ export function useAppController() {
 
   useEffect(() => {
     let refreshRaf = 0;
+    let settleTimer = 0;
     const refreshEnvironment = () => {
       if (refreshRaf !== 0) return;
       refreshRaf = window.requestAnimationFrame(() => {
@@ -355,25 +356,31 @@ export function useAppController() {
         setViewportMetrics((current) => sameViewportMetrics(current, nextViewport) ? current : nextViewport);
       });
     };
+    const scheduleEnvironmentRefresh = () => {
+      refreshEnvironment();
+      window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(refreshEnvironment, 220);
+    };
     const queries = [
       window.matchMedia?.('(pointer: coarse)'),
       window.matchMedia?.('(any-pointer: coarse)'),
       window.matchMedia?.('(hover: hover)'),
       window.matchMedia?.('(display-mode: standalone)')
     ].filter((query): query is MediaQueryList => Boolean(query));
-    window.addEventListener('resize', refreshEnvironment, { passive: true });
-    window.addEventListener('orientationchange', refreshEnvironment, { passive: true });
-    window.visualViewport?.addEventListener('resize', refreshEnvironment, { passive: true });
-    document.addEventListener('fullscreenchange', refreshEnvironment);
-    for (const query of queries) query.addEventListener?.('change', refreshEnvironment);
-    refreshEnvironment();
+    window.addEventListener('resize', scheduleEnvironmentRefresh, { passive: true });
+    window.addEventListener('orientationchange', scheduleEnvironmentRefresh, { passive: true });
+    window.visualViewport?.addEventListener('resize', scheduleEnvironmentRefresh, { passive: true });
+    document.addEventListener('fullscreenchange', scheduleEnvironmentRefresh);
+    for (const query of queries) query.addEventListener?.('change', scheduleEnvironmentRefresh);
+    scheduleEnvironmentRefresh();
     return () => {
       if (refreshRaf !== 0) window.cancelAnimationFrame(refreshRaf);
-      window.removeEventListener('resize', refreshEnvironment);
-      window.removeEventListener('orientationchange', refreshEnvironment);
-      window.visualViewport?.removeEventListener('resize', refreshEnvironment);
-      document.removeEventListener('fullscreenchange', refreshEnvironment);
-      for (const query of queries) query.removeEventListener?.('change', refreshEnvironment);
+      window.clearTimeout(settleTimer);
+      window.removeEventListener('resize', scheduleEnvironmentRefresh);
+      window.removeEventListener('orientationchange', scheduleEnvironmentRefresh);
+      window.visualViewport?.removeEventListener('resize', scheduleEnvironmentRefresh);
+      document.removeEventListener('fullscreenchange', scheduleEnvironmentRefresh);
+      for (const query of queries) query.removeEventListener?.('change', scheduleEnvironmentRefresh);
     };
   }, []);
 

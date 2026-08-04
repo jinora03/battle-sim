@@ -17,6 +17,7 @@ export class RendererLifecycle {
   private resizeObserver: ResizeObserver | null = null;
   private resizeRaf = 0;
   private resizeForcePending = false;
+  private settleResizeTimer = 0;
   private ready = false;
   private disposed = false;
   private enabled = true;
@@ -151,8 +152,25 @@ export class RendererLifecycle {
     });
   }
 
+  refreshLayout(): void {
+    if (!this.ready || this.disposed) return;
+    this.ensureCanvasMounted();
+    this.hostWidth = 0;
+    this.hostHeight = 0;
+    this.queueResize(true);
+    window.clearTimeout(this.settleResizeTimer);
+    this.settleResizeTimer = window.setTimeout(() => {
+      if (!this.ready || this.disposed) return;
+      this.ensureCanvasMounted();
+      this.hostWidth = 0;
+      this.hostHeight = 0;
+      this.queueResize(true);
+    }, 180);
+  }
+
   syncSize(force: boolean): void {
-    if (!this.ready || !this.hostElement || this.contextRecovery.contextLost) return;
+    if (!this.ready || !this.hostElement || !this.hostElement.isConnected || this.contextRecovery.contextLost) return;
+    this.ensureCanvasMounted();
     const rect = this.hostElement.getBoundingClientRect();
     const measuredWidth = rect.width || this.hostElement.clientWidth;
     const measuredHeight = rect.height || this.hostElement.clientHeight;
@@ -182,6 +200,8 @@ export class RendererLifecycle {
     this.resizeObserver = null;
     if (this.resizeRaf !== 0) cancelAnimationFrame(this.resizeRaf);
     this.resizeRaf = 0;
+    window.clearTimeout(this.settleResizeTimer);
+    this.settleResizeTimer = 0;
     window.removeEventListener('resize', this.handleViewportResize);
     window.removeEventListener('orientationchange', this.handleViewportResize);
     window.visualViewport?.removeEventListener('resize', this.handleViewportResize);
@@ -204,10 +224,16 @@ export class RendererLifecycle {
     this.resizeObserver = typeof ResizeObserver !== 'undefined'
       ? new ResizeObserver(() => this.queueResize(false))
       : null;
-    this.resizeObserver?.observe(host, { box: 'content-box' });
+    if (!this.resizeObserver) return;
+    try {
+      this.resizeObserver.observe(host, { box: 'content-box' });
+    } catch {
+      // Older mobile Chromium/WebView builds can reject the options object.
+      this.resizeObserver.observe(host);
+    }
   }
 
   private readonly handleViewportResize = (): void => {
-    this.queueResize(false);
+    this.refreshLayout();
   };
 }

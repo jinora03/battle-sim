@@ -194,9 +194,17 @@ export function BattleSetupDrawer({
           <div className="control-help">{settings.movementMode === 'mouse' ? <><kbd>Mouse</kbd><span>move + aim</span><kbd>Left click</kbd><span>basic</span><kbd>Q E R F</kbd><span>skills</span><kbd>1–5</kbd><span>all slots</span></> : <><kbd>WASD</kbd><span>move</span><kbd>Mouse</kbd><span>aim</span><kbd>Q E R F</kbd><span>skills</span><kbd>1–5</kbd><span>all slots</span></>}</div>
           <label className="field-label stacked-label" htmlFor="movement-mode">Movement mode</label>
           <select id="movement-mode" value={settings.movementMode} onChange={(event: ChangeEvent<HTMLSelectElement>) => onSettingChange('movementMode', event.target.value as MovementMode)}>
-            <option value="wasd">WASD / arrows move</option>
             <option value="mouse">Mouse move + aim</option>
+            <option value="wasd">WASD / arrows move</option>
           </select>
+          <RangeField
+            label={`Control opacity · ${Math.round(settings.touchControlOpacity * 100)}%`}
+            value={settings.touchControlOpacity}
+            min={0.3}
+            max={1}
+            step={0.05}
+            onChange={(value) => onSettingChange('touchControlOpacity', value)}
+          />
           <label className="field-label stacked-label" htmlFor="aim-assist">Aim assist</label>
           <select id="aim-assist" value={settings.aimAssist} onChange={(event: ChangeEvent<HTMLSelectElement>) => onSettingChange('aimAssist', event.target.value as AimAssistLevel)}>
             <option value="off">Off</option>

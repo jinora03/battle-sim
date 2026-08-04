@@ -18,6 +18,7 @@ export type TrainingSpeed = 0.25 | 0.5 | 1;
 
 export interface TrainingSetup {
   trainerFighterId: string;
+  trainerModuleIds: string[];
   targetFighterId: string;
   targetPattern: TrainingTargetPattern;
   selectedSlot: AbilitySlot;
@@ -59,6 +60,7 @@ export interface TrainingDiagnostics {
 
 export const DEFAULT_TRAINING_SETUP: TrainingSetup = {
   trainerFighterId: 'volt-striker',
+  trainerModuleIds: [],
   targetFighterId: 'mech-bruiser',
   targetPattern: 'stationary',
   selectedSlot: 'basic',
@@ -206,6 +208,10 @@ export class TrainingRuntime {
     this.renderer.setActive(this.active);
   }
 
+  refreshRendererLayout(): void {
+    this.renderer.refreshLayout();
+  }
+
   setSpeed(speed: TrainingSpeed): void {
     this.speed = speed;
     this.accumulator = 0;
@@ -248,7 +254,29 @@ export class TrainingRuntime {
     const self = this.runner.getSnapshot().entities.find((entity) => entity.id === this.playerEntityId);
     if (!self) return;
     const world = this.renderer.clientToWorld(clientX, clientY);
-    this.player.setAim({ x: world.x - self.x, y: world.y - self.y });
+    this.renderer.setPlayerAimPoint(world);
+    this.player.setAimAt(world, { x: world.x - self.x, y: world.y - self.y });
+  }
+
+  setPlayerMouseDriveFromClient(clientX: number, clientY: number): void {
+    if (this.playerEntityId === null) return;
+    const self = this.runner.getSnapshot().entities.find((entity) => entity.id === this.playerEntityId);
+    if (!self) return;
+    const world = this.renderer.clientToWorld(clientX, clientY);
+    const delta = { x: world.x - self.x, y: world.y - self.y };
+    const distance = Math.hypot(delta.x, delta.y);
+    this.renderer.setPlayerAimPoint(world);
+    this.player.setAimAt(world, delta);
+    const deadzone = Math.max(18, self.radius * 0.55);
+    if (distance <= deadzone) {
+      this.player.setMovement({ x: 0, y: 0 });
+      return;
+    }
+    const fullSpeedDistance = 240;
+    const normalized = { x: delta.x / distance, y: delta.y / distance };
+    const t = Math.max(0, Math.min(1, (distance - deadzone) / (fullSpeedDistance - deadzone)));
+    const eased = t * t * (3 - 2 * t);
+    this.player.setMovement({ x: normalized.x * eased, y: normalized.y * eased });
   }
 
   activateAbility(slot: AbilitySlot = this.setup.selectedSlot): void {
@@ -362,7 +390,14 @@ export class TrainingRuntime {
 
   private createBattle(): BattleDefinition {
     const participants: BattleParticipant[] = [
-      { fighterId: this.setup.trainerFighterId, team: 1, controller: 'player', x: 245, y: 360 }
+      {
+        fighterId: this.setup.trainerFighterId,
+        team: 1,
+        controller: 'player',
+        x: 245,
+        y: 360,
+        loadout: { moduleIds: [...this.setup.trainerModuleIds] }
+      }
     ];
     const positions = targetPositions(this.setup.targetPattern);
     for (const position of positions) {

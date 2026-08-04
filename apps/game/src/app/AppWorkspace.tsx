@@ -20,6 +20,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
     view,
     setView,
     settings,
+    deviceCapabilities,
     viewportMetrics,
     touchControlsVisible,
     toastNotices,
@@ -126,7 +127,10 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
     createBlankDraft
   } = creator;
   return (
-    <main className={`app-shell view-${view} viewport-${viewportMetrics.viewportClass} orientation-${viewportMetrics.orientation} ${viewportMetrics.shortLandscape ? 'short-landscape' : ''} ${settings.fullscreenBattle ? 'battle-focus-mode' : ''} ${settings.highContrast ? 'high-contrast' : ''}`}>
+    <main
+      className={`app-shell view-${view} viewport-${viewportMetrics.viewportClass} orientation-${viewportMetrics.orientation} ${viewportMetrics.shortLandscape ? 'short-landscape' : ''} ${settings.fullscreenBattle ? 'battle-focus-mode' : ''} ${settings.highContrast ? 'high-contrast' : ''}`}
+      style={{ '--touch-control-opacity': settings.touchControlOpacity } as CSSProperties}
+    >
       <section className="hero-panel">
         <div>
           <p className="eyebrow">v1.2 Stage 8.0 · Fighter identity and controlled loadouts</p>
@@ -167,7 +171,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
         <div className={view === 'roster' ? '' : 'view-hidden'}>
           <RosterView fighters={fighters} profile={profile} onPlayAs={playAsFighter} onSetOpponent={setRosterOpponent} />
         </div>
-        <TrainingLabView fighters={fighters} settings={settings} active={view === 'training'} />
+        <TrainingLabView fighters={fighters} settings={settings} active={view === 'training'} onSettingChange={updateAppSetting} />
         <section className={`${view === 'battle' ? 'workspace' : 'workspace battle-workspace-dormant'} ${battleDrawerOpen ? 'battle-drawer-open' : ''}`}>
           <BattleSetupDrawer
             open={battleDrawerOpen}
@@ -203,27 +207,29 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
           <DrawerScrim open={battleDrawerOpen} onClose={() => setBattleDrawerOpen(false)} label="Close battle setup" className="battle-drawer-scrim" />
 
           <div className="arena-column">
-            <section className="battle-stage" ref={battleStageRef}>
-              <div className="battle-command-bar" aria-label="Battle actions">
-                <div className="battle-command-actions">
-                  <NeonButton tone="success" className="battle-start-button" onClick={startConfiguredBattle}>{setupDirty ? 'Start configured battle' : 'Start new battle'}</NeonButton>
-                  <NeonButton tone="random" onClick={startRandomMatchup}>New random battle</NeonButton>
-                  <NeonButton tone="utility" onClick={replaySameBattle}>Replay same battle</NeonButton>
-                  {viewportMetrics.width <= 900 && (
-                    <NeonButton tone="ghost" className="setup-jump" onClick={openBattleSetup} aria-controls="battle-setup-drawer" aria-expanded={battleDrawerOpen}>Battle setup</NeonButton>
-                  )}
-                  <NeonButton
-                    tone={pausedByUser ? 'success' : 'pause'}
-                    className={`playback-toggle ${pausedByUser ? 'paused' : ''}`}
-                    onClick={toggleBattlePaused}
-                    disabled={diagnostics.battleEnded || pausedBySystem || battleLaunchPhase !== 'running'}
-                    aria-pressed={pausedByUser}
-                    title={pausedBySystem ? 'The app is paused while it is in the background' : pausedByUser ? 'Resume the current battle' : 'Pause the current battle'}
-                  >
-                    {pausedByUser ? '▶ Resume battle' : 'Ⅱ Pause battle'}
-                  </NeonButton>
+            <section className={`battle-stage ${deviceCapabilities.touchFirst ? 'mobile-commandless' : ''}`} ref={battleStageRef}>
+              {!deviceCapabilities.touchFirst && (
+                <div className="battle-command-bar" aria-label="Battle actions">
+                  <div className="battle-command-actions">
+                    <NeonButton tone="success" className="battle-start-button" onClick={startConfiguredBattle}>{setupDirty ? 'Start configured battle' : 'Start new battle'}</NeonButton>
+                    <NeonButton tone="random" onClick={startRandomMatchup}>New random battle</NeonButton>
+                    <NeonButton tone="utility" onClick={replaySameBattle}>Replay same battle</NeonButton>
+                    {viewportMetrics.width <= 900 && (
+                      <NeonButton tone="ghost" className="setup-jump" onClick={openBattleSetup} aria-controls="battle-setup-drawer" aria-expanded={battleDrawerOpen}>Battle setup</NeonButton>
+                    )}
+                    <NeonButton
+                      tone={pausedByUser ? 'success' : 'pause'}
+                      className={`playback-toggle ${pausedByUser ? 'paused' : ''}`}
+                      onClick={toggleBattlePaused}
+                      disabled={diagnostics.battleEnded || pausedBySystem || battleLaunchPhase !== 'running'}
+                      aria-pressed={pausedByUser}
+                      title={pausedBySystem ? 'The app is paused while it is in the background' : pausedByUser ? 'Resume the current battle' : 'Pause the current battle'}
+                    >
+                      {pausedByUser ? '▶ Resume battle' : 'Ⅱ Pause battle'}
+                    </NeonButton>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className={`battle-objective-bar ${diagnostics.objective.kind}`}>
                 <span className="objective-summary"><small>{activeMode?.name} · {diagnostics.objective.label}</small><strong>{getFighter(activeSetup.fighterAId).name} vs {getFighter(activeSetup.fighterBId).name}</strong></span>
@@ -307,7 +313,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
               </div>
             </section>
 
-            {touchControlsVisible && (
+            {deviceCapabilities.touchFirst && (
               <div className="mobile-battle-dock" aria-label="Quick battle controls">
                 <NeonButton tone="random" size="small" onClick={startRandomMatchup}>Random</NeonButton>
                 <NeonButton tone={pausedByUser ? 'success' : 'pause'} size="small" onClick={toggleBattlePaused} disabled={diagnostics.battleEnded || pausedBySystem || battleLaunchPhase !== 'running'}>{pausedByUser ? 'Resume' : 'Pause'}</NeonButton>

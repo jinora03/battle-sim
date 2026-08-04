@@ -11,12 +11,14 @@ import {
   getAbility,
   getAbilityActivationProfile,
   getFighter,
+  getFighterModule,
   getPrimaryAttack,
   getPrimaryAttackActivationProfile,
+  listCompatibleModules,
   type FighterDefinition
 } from '@kinetic/content';
-import type { AbilitySlot, Vec2 } from '@kinetic/protocol';
-import type { AppSettings } from '@kinetic/platform';
+import type { AbilitySlot, ModuleSlot, Vec2 } from '@kinetic/protocol';
+import type { AppSettings, MovementMode } from '@kinetic/platform';
 import { DrawerHeader, DrawerScrim, NeonButton } from './ui/NeonUI';
 import {
   DEFAULT_TRAINING_OPTIONS,
@@ -34,7 +36,14 @@ const KEY_TO_SLOT: Record<string, AbilitySlot> = {
   ' ': 'basic', '1': 'basic', q: 'skill1', '2': 'skill1', e: 'skill2', '3': 'skill2', r: 'skill3', '4': 'skill3', f: 'ultimate', '5': 'ultimate'
 };
 
-export function TrainingLabView({ fighters, settings, active }: { fighters: FighterDefinition[]; settings: AppSettings; active: boolean }) {
+interface TrainingLabViewProps {
+  fighters: FighterDefinition[];
+  settings: AppSettings;
+  active: boolean;
+  onSettingChange<K extends keyof AppSettings>(key: K, value: AppSettings[K]): void;
+}
+
+export function TrainingLabView({ fighters, settings, active, onSettingChange }: TrainingLabViewProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const runtimeRef = useRef<TrainingRuntime | null>(null);
   const pressedRef = useRef(new Set<string>());
@@ -119,6 +128,24 @@ export function TrainingLabView({ fighters, settings, active }: { fighters: Figh
   }, [active]);
 
   useEffect(() => {
+    let settleTimer = 0;
+    const refresh = () => {
+      runtimeRef.current?.refreshRendererLayout();
+      window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(() => runtimeRef.current?.refreshRendererLayout(), 220);
+    };
+    window.addEventListener('resize', refresh, { passive: true });
+    window.addEventListener('orientationchange', refresh, { passive: true });
+    window.visualViewport?.addEventListener('resize', refresh, { passive: true });
+    return () => {
+      window.clearTimeout(settleTimer);
+      window.removeEventListener('resize', refresh);
+      window.removeEventListener('orientationchange', refresh);
+      window.visualViewport?.removeEventListener('resize', refresh);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!sidebarOpen) return;
     const previousOverflow = document.body.style.overflow;
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -134,6 +161,10 @@ export function TrainingLabView({ fighters, settings, active }: { fighters: Figh
 
   useEffect(() => {
     const movement = () => {
+      if (settings.movementMode !== 'wasd') {
+        runtimeRef.current?.setPlayerMovement({ x: 0, y: 0 });
+        return;
+      }
       const keys = pressedRef.current;
       const x = (keys.has('d') || keys.has('arrowright') ? 1 : 0) - (keys.has('a') || keys.has('arrowleft') ? 1 : 0);
       const y = (keys.has('s') || keys.has('arrowdown') ? 1 : 0) - (keys.has('w') || keys.has('arrowup') ? 1 : 0);
@@ -148,8 +179,10 @@ export function TrainingLabView({ fighters, settings, active }: { fighters: Figh
         runtimeRef.current?.activateAbility(KEY_TO_SLOT[key]);
         return;
       }
-      pressedRef.current.add(key);
-      movement();
+      if (settings.movementMode === 'wasd') {
+        pressedRef.current.add(key);
+        movement();
+      }
     };
     const onUp = (event: KeyboardEvent) => {
       pressedRef.current.delete(event.key.toLowerCase());
@@ -163,7 +196,7 @@ export function TrainingLabView({ fighters, settings, active }: { fighters: Figh
       pressedRef.current.clear();
       runtimeRef.current?.setPlayerMovement({ x: 0, y: 0 });
     };
-  }, [active]);
+  }, [active, settings.movementMode]);
 
   const restartWith = (next: TrainingSetup) => {
     setSetup(next);
@@ -176,8 +209,23 @@ export function TrainingLabView({ fighters, settings, active }: { fighters: Figh
     else setSetup(next);
   };
 
+  const changeTrainerModule = (slot: ModuleSlot, moduleId: string) => {
+    const nextModuleIds = setup.trainerModuleIds.filter((id) => safeTrainingModuleSlot(id) !== slot);
+    if (moduleId) nextModuleIds.push(moduleId);
+    changeSetup('trainerModuleIds', nextModuleIds);
+  };
+
   const aim = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === 'touch') return;
+    if (settings.movementMode === 'mouse') {
+      runtimeRef.current?.setPlayerMouseDriveFromClient(event.clientX, event.clientY);
+      return;
+    }
     runtimeRef.current?.setPlayerAimFromClient(event.clientX, event.clientY);
+  };
+
+  const stopPointerMovement = () => {
+    if (settings.movementMode === 'mouse') runtimeRef.current?.setPlayerMovement({ x: 0, y: 0 });
   };
 
   const unlockAudio = () => { void runtimeRef.current?.enableAudio().catch(() => undefined); };
@@ -196,10 +244,14 @@ export function TrainingLabView({ fighters, settings, active }: { fighters: Figh
         <div className="panel-section training-setup-card">
           <div className="section-heading-row"><div><p className="eyebrow">Loadout</p><h3>Trainer and targets</h3></div></div>
           <label className="field-label stacked-label">Trainer fighter
-            <select value={setup.trainerFighterId} onChange={(event: ChangeEvent<HTMLSelectElement>) => changeSetup('trainerFighterId', event.target.value)}>
+            <select
+              value={setup.trainerFighterId}
+              onChange={(event: ChangeEvent<HTMLSelectElement>) => restartWith({ ...setup, trainerFighterId: event.target.value, trainerModuleIds: [] })}
+            >
               {fighters.map((fighter) => <option value={fighter.id} key={fighter.id}>{fighter.name}</option>)}
             </select>
           </label>
+          <TrainingModuleSelectors fighter={trainer} selectedModuleIds={setup.trainerModuleIds} onChange={changeTrainerModule} />
           <label className="field-label stacked-label">Target fighter
             <select value={setup.targetFighterId} onChange={(event: ChangeEvent<HTMLSelectElement>) => changeSetup('targetFighterId', event.target.value)}>
               {fighters.map((fighter) => <option value={fighter.id} key={fighter.id}>{fighter.name}</option>)}
@@ -211,6 +263,12 @@ export function TrainingLabView({ fighters, settings, active }: { fighters: Figh
               <option value="moving">Moving dummy</option>
               <option value="group-3">Grouped targets · 3</option>
               <option value="group-5">Grouped targets · 5</option>
+            </select>
+          </label>
+          <label className="field-label stacked-label">Movement mode
+            <select value={settings.movementMode} onChange={(event: ChangeEvent<HTMLSelectElement>) => onSettingChange('movementMode', event.target.value as MovementMode)}>
+              <option value="mouse">Mouse move + aim</option>
+              <option value="wasd">WASD / arrows move</option>
             </select>
           </label>
           <div className="training-reset-row">
@@ -249,7 +307,7 @@ export function TrainingLabView({ fighters, settings, active }: { fighters: Figh
           </div>
         </div>
 
-        <div className="training-arena-wrap" onPointerMove={aim} onPointerDown={aim}>
+        <div className="training-arena-wrap" onPointerMove={aim} onPointerDown={aim} onPointerLeave={stopPointerMovement}>
           <div className="training-arena-frame" ref={attachTrainingHost} />
           {!ready && !error && <div className="arena-loading" role="status"><span className="loading-spinner" /><strong>Preparing Ability Lab…</strong><small>Loading deterministic combat, projectiles and debug overlays.</small></div>}
           {error && <div className="arena-loading error" role="alert"><strong>The Ability Lab could not start</strong><small>{error}</small><button onClick={() => window.location.reload()}>Reload application</button></div>}
@@ -280,7 +338,7 @@ export function TrainingLabView({ fighters, settings, active }: { fighters: Figh
               );
             })}
           </div>
-          <div className="training-control-hint">WASD / arrows move · pointer aims · 1–5 or Q/E/R/F activate skills</div>
+          <div className="training-control-hint">{settings.movementMode === 'mouse' ? 'Pointer steering moves + aims · 1–5 or Q/E/R/F activate skills' : 'WASD / arrows move · pointer aims · 1–5 or Q/E/R/F activate skills'}</div>
         </div>
 
         <div className="training-inspector-grid">
@@ -335,6 +393,41 @@ export function TrainingLabView({ fighters, settings, active }: { fighters: Figh
       </div>
     </section>
   );
+}
+
+function TrainingModuleSelectors({ fighter, selectedModuleIds, onChange }: {
+  fighter: FighterDefinition;
+  selectedModuleIds: readonly string[];
+  onChange(slot: ModuleSlot, moduleId: string): void;
+}) {
+  const slots: readonly ModuleSlot[] = ['offense', 'defense', 'mobility', 'utility'];
+  const available = slots
+    .map((slot) => ({ slot, modules: listCompatibleModules(fighter, slot) }))
+    .filter((entry) => entry.modules.length > 0);
+  if (available.length === 0) return null;
+  return (
+    <div className="training-module-selectors" aria-label={`${fighter.name} training modules`}>
+      {available.map(({ slot, modules }) => {
+        const selected = selectedModuleIds.find((id) => safeTrainingModuleSlot(id) === slot) ?? '';
+        return (
+          <label className="field-label stacked-label" key={slot}>{slot} module
+            <select value={selected} onChange={(event: ChangeEvent<HTMLSelectElement>) => onChange(slot, event.target.value)}>
+              <option value="">Standard configuration</option>
+              {modules.map((module) => <option value={module.id} key={module.id}>{module.name}</option>)}
+            </select>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
+function safeTrainingModuleSlot(moduleId: string): ModuleSlot | null {
+  try {
+    return getFighterModule(moduleId).slot;
+  } catch {
+    return null;
+  }
 }
 
 function TrainingToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {

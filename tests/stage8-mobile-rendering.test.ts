@@ -74,7 +74,7 @@ describe('v1.1 Stage 8 mobile rendering policy', () => {
       targetRenderFps: 30,
       effects: true
     }, phone);
-    expect(migrated.schemaVersion).toBe(9);
+    expect(migrated.schemaVersion).toBe(10);
     expect(migrated.renderScale).toBeGreaterThanOrEqual(0.5);
     const presentation = toPresentationSettings(migrated);
     expect(presentation.renderScale).toBe(migrated.renderScale);
@@ -86,5 +86,8 @@ describe('v1.1 Stage 8 mobile rendering policy', () => {
     expect(defaults.qualityPreset).toBe('auto');
     expect(defaults.renderScale).toBeLessThanOrEqual(0.9);
     expect(defaults.maxDevicePixelRatio).toBeLessThan(phone.devicePixelRatio);
+    expect(defaults.movementMode).toBe('mouse');
+    expect(defaults.cameraFollow).toBe(false);
+    expect(defaults.touchControlOpacity).toBe(0.75);
   });
 });
