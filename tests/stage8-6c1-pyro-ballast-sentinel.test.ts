@@ -80,8 +80,8 @@ describe('Stage 8.6C-1 Pyro, Ballast and Solar Sentinel correction', () => {
   });
 
   it('advances engine and content compatibility markers together', () => {
-    expect(CONTENT_VERSION).toBe('1.3.14-stage8.6d');
-    expect(ENGINE_VERSION).toBe('1.3.14-stage8.6d');
+    expect(CONTENT_VERSION).toBe('1.3.15-stage8.7a');
+    expect(ENGINE_VERSION).toBe('1.3.15-stage8.7a');
   });
 
   it('lets Solar Sentinel use Solar Eye Beams after its seeded opening lockout', () => {

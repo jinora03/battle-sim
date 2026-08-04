@@ -507,3 +507,5 @@ export function getSkillPresentation(abilityId: string): SkillPresentationRecipe
 }
 
 export * from './vfx';
+
+export * from './combatVfxProfiles';

@@ -76,7 +76,7 @@ describe('Stage 8.6A intent-based combat audio', () => {
   });
 
   it('advances engine and content compatibility markers together', () => {
-    expect(CONTENT_VERSION).toBe('1.3.14-stage8.6d');
-    expect(ENGINE_VERSION).toBe('1.3.14-stage8.6d');
+    expect(CONTENT_VERSION).toBe('1.3.15-stage8.7a');
+    expect(ENGINE_VERSION).toBe('1.3.15-stage8.7a');
   });
 });

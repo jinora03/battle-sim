@@ -18,8 +18,12 @@ import {
 import type { SimulationEvent, WorldSnapshot } from '@kinetic/protocol';
 import {
   elementColor,
+  getAbilityCombatVfxProfile,
+  getElementVfxPalette,
   getSkillPresentation,
+  resolveCombatVfxLayer,
   resolveImpactResponse,
+  type ResolvedCombatVfxLayer,
   type SkillPresentationRecipe
 } from '@kinetic/visual-engine';
 
@@ -73,10 +77,21 @@ interface FlashState {
   maxLife: number;
 }
 
+interface ScheduledCombatVfxLayer {
+  remainingSeconds: number;
+  layer: ResolvedCombatVfxLayer;
+  x: number;
+  y: number;
+  dirX: number;
+  dirY: number;
+  particleScale: number;
+}
+
 export class FxEngine {
   private readonly particles: ParticleState[] = [];
   private readonly shockwaves: ShockwaveState[] = [];
   private readonly flashes: FlashState[] = [];
+  private readonly scheduledCombatVfx: ScheduledCombatVfxLayer[] = [];
 
   constructor(private readonly container: Container) {
     // Additive blending makes bright particles/flashes/shockwaves bloom and glow
@@ -294,18 +309,50 @@ export class FxEngine {
         this.directionalBurst(event.position.x, event.position.y, nx, ny, color, Math.round(Math.min(12, 3 + event.force * 0.35) * particleScale), 3.5 + event.force * 0.22);
         if (event.force >= 8) this.shockwave(event.position.x, event.position.y, color, Math.min(42, 14 + event.force * 1.5), 2.5, 0.18);
       } else if (event.type === 'abilityActivated') {
-        const recipe = getSkillPresentation(event.abilityId);
-        const amount = recipe.importance === 'ultimate' ? 18 : recipe.importance === 'skill' ? 7 : 3;
-        this.burst(event.position.x, event.position.y, recipe.color, Math.round(amount * particleScale), recipe.importance === 'ultimate' ? 4.8 : 2.8, 1, 3.2, 0.14, 0.3, 0.96, 0.08);
-        if (recipe.importance === 'ultimate') this.shockwave(event.position.x, event.position.y, recipe.accentColor, 32, 2, 0.26);
+        const profileResponse = this.scheduleAbilityCombatVfx(
+          event.abilityId,
+          'activated',
+          event.position.x,
+          event.position.y,
+          event.direction.x,
+          event.direction.y,
+          event.castTicks,
+          particleScale
+        );
+        if (profileResponse) {
+          shake = Math.max(shake, profileResponse.shake);
+          freezeMs = Math.max(freezeMs, profileResponse.freezeMs);
+          screenFlash = Math.max(screenFlash, profileResponse.screenFlash);
+        } else {
+          const recipe = getSkillPresentation(event.abilityId);
+          const amount = recipe.importance === 'ultimate' ? 18 : recipe.importance === 'skill' ? 7 : 3;
+          this.burst(event.position.x, event.position.y, recipe.color, Math.round(amount * particleScale), recipe.importance === 'ultimate' ? 4.8 : 2.8, 1, 3.2, 0.14, 0.3, 0.96, 0.08);
+          if (recipe.importance === 'ultimate') this.shockwave(event.position.x, event.position.y, recipe.accentColor, 32, 2, 0.26);
+        }
       } else if (event.type === 'abilityResolved') {
-        const recipe = getSkillPresentation(event.abilityId);
-        this.skillResolve(event.position.x, event.position.y, event.direction.x, event.direction.y, recipe, particleScale);
-        if (recipe.importance === 'ultimate') {
-          const missileUltimate = isMissileCascadeAbility(event.abilityId);
-          shake = Math.max(shake, missileUltimate ? 7 : recipe.resolve === 'mega-bomb' ? 18 : 14);
-          freezeMs = Math.max(freezeMs, resolveUltimateFreezeMs(event, recipe.resolve));
-          screenFlash = Math.max(screenFlash, missileUltimate ? 0.16 : recipe.resolve === 'mega-bomb' ? 0.68 : 0.38);
+        const profileResponse = this.scheduleAbilityCombatVfx(
+          event.abilityId,
+          'resolved',
+          event.position.x,
+          event.position.y,
+          event.direction.x,
+          event.direction.y,
+          0,
+          particleScale
+        );
+        if (profileResponse) {
+          shake = Math.max(shake, profileResponse.shake);
+          freezeMs = Math.max(freezeMs, profileResponse.freezeMs);
+          screenFlash = Math.max(screenFlash, profileResponse.screenFlash);
+        } else {
+          const recipe = getSkillPresentation(event.abilityId);
+          this.skillResolve(event.position.x, event.position.y, event.direction.x, event.direction.y, recipe, particleScale);
+          if (recipe.importance === 'ultimate') {
+            const missileUltimate = isMissileCascadeAbility(event.abilityId);
+            shake = Math.max(shake, missileUltimate ? 7 : recipe.resolve === 'mega-bomb' ? 18 : 14);
+            freezeMs = Math.max(freezeMs, resolveUltimateFreezeMs(event, recipe.resolve));
+            screenFlash = Math.max(screenFlash, missileUltimate ? 0.16 : recipe.resolve === 'mega-bomb' ? 0.68 : 0.38);
+          }
         }
       } else if (event.type === 'death') {
         this.flash(event.position.x, event.position.y, 0xffffff, 35, 0.16);
@@ -320,6 +367,7 @@ export class FxEngine {
   }
 
   update(dtSeconds: number): void {
+    this.updateScheduledCombatVfx(dtSeconds);
     for (const particle of this.particles) {
       if (!particle.active) continue;
       particle.life -= dtSeconds;
@@ -518,6 +566,7 @@ export class FxEngine {
   }
 
   reset(): void {
+    this.scheduledCombatVfx.length = 0;
     for (const particle of this.particles) { particle.active = false; particle.node.visible = false; }
     for (const wave of this.shockwaves) { wave.active = false; wave.node.visible = false; }
     for (const flash of this.flashes) { flash.active = false; flash.node.visible = false; }
@@ -525,6 +574,123 @@ export class FxEngine {
 
   activeParticleCount(): number {
     return this.particles.reduce((count, particle) => count + (particle.active ? 1 : 0), 0);
+  }
+
+
+  private scheduleAbilityCombatVfx(
+    abilityId: string,
+    anchor: 'activated' | 'resolved',
+    x: number,
+    y: number,
+    dirX: number,
+    dirY: number,
+    castTicks: number,
+    particleScale: number
+  ): FxResponse | null {
+    const profile = getAbilityCombatVfxProfile(abilityId);
+    if (!profile) return null;
+    const response: FxResponse = { shake: 0, freezeMs: 0, screenFlash: 0 };
+    for (const phase of ['anticipation', 'activation', 'sustain', 'release'] as const) {
+      const layer = resolveCombatVfxLayer(profile, phase, castTicks);
+      if (!layer || layer.anchor !== anchor) continue;
+      if (layer.delaySeconds > 0) {
+        this.scheduledCombatVfx.push({
+          remainingSeconds: layer.delaySeconds,
+          layer,
+          x,
+          y,
+          dirX,
+          dirY,
+          particleScale
+        });
+        continue;
+      }
+      const layerResponse = this.playCombatVfxLayer(layer, x, y, dirX, dirY, particleScale);
+      response.shake = Math.max(response.shake, layerResponse.shake);
+      response.freezeMs = Math.max(response.freezeMs, layerResponse.freezeMs);
+      response.screenFlash = Math.max(response.screenFlash, layerResponse.screenFlash);
+    }
+    return response;
+  }
+
+  private updateScheduledCombatVfx(dtSeconds: number): void {
+    for (let index = this.scheduledCombatVfx.length - 1; index >= 0; index -= 1) {
+      const scheduled = this.scheduledCombatVfx[index];
+      if (!scheduled) continue;
+      scheduled.remainingSeconds -= dtSeconds;
+      if (scheduled.remainingSeconds > 0) continue;
+      this.playCombatVfxLayer(
+        scheduled.layer,
+        scheduled.x,
+        scheduled.y,
+        scheduled.dirX,
+        scheduled.dirY,
+        scheduled.particleScale
+      );
+      this.scheduledCombatVfx.splice(index, 1);
+    }
+  }
+
+  private playCombatVfxLayer(
+    layer: ResolvedCombatVfxLayer,
+    x: number,
+    y: number,
+    dirX: number,
+    dirY: number,
+    particleScale: number
+  ): FxResponse {
+    const palette = getElementVfxPalette(layer.palette);
+    const amount = Math.max(3, Math.round(24 * layer.intensity * particleScale));
+    const radius = 72 * layer.radiusScale * layer.intensity;
+    const duration = layer.durationSeconds;
+
+    if (layer.phase === 'anticipation') {
+      this.shockwave(x, y, palette.glow, radius * 0.48, 2.5, Math.min(0.5, duration));
+      this.burst(x, y, palette.accent, Math.round(amount * 0.55), 2.8, 1, 3, 0.14, Math.min(0.54, duration), 0.98, 0.48);
+      if (layer.intent === 'ultimate' || layer.intent === 'transformation') {
+        this.flash(x, y, palette.core, radius * 0.28, Math.min(0.2, duration));
+      }
+      return {
+        shake: layer.hierarchy === 'ultimate' ? 2.6 * layer.intensity : 0,
+        freezeMs: 0,
+        screenFlash: layer.hierarchy === 'ultimate' ? 0.08 * layer.intensity : 0
+      };
+    }
+
+    if (layer.phase === 'activation') {
+      if (layer.intent === 'dash' || layer.intent === 'projectile') {
+        this.directionalBurst(x, y, -dirX, -dirY, palette.accent, amount, 8.5 * layer.intensity);
+      } else {
+        this.flash(x, y, palette.core, radius * 0.62, Math.min(0.24, duration));
+        this.shockwave(x, y, palette.accent, radius, 7, Math.min(0.52, duration * 1.7));
+        this.shockwave(x, y, palette.glow, radius * 0.62, 3, Math.min(0.36, duration * 1.25));
+        this.burst(x, y, palette.accent, amount, 8.5 * layer.intensity, 1.4, 4.8, 0.16, 0.48, 0.95, 0.28);
+      }
+      return {
+        shake: layer.hierarchy === 'ultimate' ? 11 * layer.intensity : 5 * layer.intensity,
+        freezeMs: layer.hierarchy === 'ultimate' ? 34 * layer.intensity : 12 * layer.intensity,
+        screenFlash: layer.hierarchy === 'ultimate' ? 0.34 * layer.intensity : 0.12 * layer.intensity
+      };
+    }
+
+    if (layer.phase === 'sustain') {
+      this.shockwave(x, y, palette.accent, radius * 0.92, 4, Math.min(0.7, duration));
+      this.shockwave(x, y, palette.glow, radius * 0.58, 2, Math.min(0.5, duration * 0.8));
+      this.burst(x, y, palette.glow, Math.round(amount * 0.72), 4.2 * layer.intensity, 1, 3.7, 0.18, Math.min(0.65, duration), 0.97, 0.58);
+      return { shake: 0, freezeMs: 0, screenFlash: 0 };
+    }
+
+    if (layer.intent === 'knockback' || layer.intent === 'explosion') {
+      this.directionalBurst(x, y, dirX, dirY, palette.accent, Math.round(amount * 0.7), 7.2 * layer.intensity);
+    }
+    this.flash(x, y, palette.core, radius * 0.35, Math.min(0.16, duration));
+    this.shockwave(x, y, palette.glow, radius * 0.76, 3, Math.min(0.42, duration * 1.4));
+    this.shardBurst(x, y, palette.accent, Math.round(amount * 0.62), 5.6 * layer.intensity);
+    return {
+      shake: layer.hierarchy === 'ultimate' ? 2.2 * layer.intensity : 0,
+      freezeMs: 0,
+      screenFlash: layer.hierarchy === 'ultimate' ? 0.06 * layer.intensity : 0
+    };
   }
 
   private laserBeam(x: number, y: number, dirX: number, dirY: number, length: number): void {
