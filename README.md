@@ -1,6 +1,20 @@
-# Kinetic Battle Engine — v1.3.7 Stage 8.5C
+# Kinetic Battle Engine — v1.3.8 Stage 8.6A
 
 A browser/mobile-ready 2D physics battle game and modular fighter engine built with TypeScript, PixiJS, React, Vite and Capacitor.
+
+> **Stage 8.6A establishes intent-based combat audio.** Abilities can now be described through anticipation, activation, sustained-action and release layers, selected from reusable combat intents and sound palettes. Thunder Dome is the first complete reference profile; unconverted abilities retain their existing playback until the Volt and roster rollout phases.
+
+## Stage 8.6A highlights
+
+- reusable `anticipation -> activation -> sustain -> release` audio lifecycle
+- explicit intents for projectiles, burst fire, beams, explosions, pulls, knockback, transformations, channels, status application and ultimates
+- separate sound palettes so fire, gravity, mechanical and electric abilities can share structure without sharing the same sound
+- enforced loudness hierarchy: Basic < Skill < Payoff < Ultimate
+- Thunder Dome migrated out of the ability-ID sound chain into a complete four-layer profile
+- scheduled sustain/release layers use Web Audio timing only and do not add simulation timers or alter replay checksums
+- legacy ability sounds remain unchanged until Stage 8.6B/8.6C migration
+
+See `docs/V1_3_STAGE_8_6A_INTENT_BASED_COMBAT_AUDIO.md` for implementation and validation notes.
 
 > **Stage 8.5C corrects Gunner's live-play firing behavior.** Kill Zone now launches a straight per-round tracked gatling stream instead of a precomputed fan with curved homing arcs. Suppressive Burst is now a six-round tracked firing lane with a stronger, longer suppression effect.
 
