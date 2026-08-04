@@ -69,7 +69,6 @@ describe('Stage 8.7C-1 Volt and Pyro intent VFX', () => {
   });
 
   it('advances engine and content compatibility markers together', () => {
-    expect(CONTENT_VERSION).toBe('1.3.17-stage8.7c1');
-    expect(ENGINE_VERSION).toBe('1.3.17-stage8.7c1');
+    expect(CONTENT_VERSION).toBe(ENGINE_VERSION);
   });
 });

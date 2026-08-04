@@ -160,6 +160,53 @@ const profiles: Readonly<Record<string, CombatVfxProfile>> = {
       { phase: 'release', intent: 'status', anchor: 'resolved', delaySeconds: 0.42, durationSeconds: 0.28, intensity: 0.76, radiusScale: 0.92 }
     ]
   },
+  'featherfall': {
+    abilityId: 'featherfall',
+    palette: 'void',
+    hierarchy: 'skill',
+    colors: { core: 0xf4feff, accent: 0xc9b7f4, glow: 0x9cf4ff },
+    layers: [
+      { phase: 'anticipation', intent: 'pull', anchor: 'activated', useCastDuration: true, intensity: 0.7, radiusScale: 0.78 },
+      { phase: 'activation', intent: 'pull', anchor: 'resolved', durationSeconds: 0.26, intensity: 0.9, radiusScale: 1.08 },
+      { phase: 'sustain', intent: 'status', anchor: 'resolved', delaySeconds: 0.05, durationSeconds: 0.42, intensity: 0.62, radiusScale: 0.96 },
+      { phase: 'release', intent: 'status', anchor: 'resolved', delaySeconds: 0.24, durationSeconds: 0.2, intensity: 0.52, radiusScale: 0.82 }
+    ]
+  },
+  'downbeat': {
+    abilityId: 'downbeat',
+    palette: 'void',
+    hierarchy: 'payoff',
+    colors: { core: 0xffffff, accent: 0x9cf4ff, glow: 0x7859aa },
+    layers: [
+      { phase: 'anticipation', intent: 'knockback', anchor: 'activated', useCastDuration: true, intensity: 0.78, radiusScale: 0.62 },
+      { phase: 'activation', intent: 'knockback', anchor: 'resolved', durationSeconds: 0.18, intensity: 1.06, radiusScale: 1.02 },
+      { phase: 'release', intent: 'status', anchor: 'resolved', delaySeconds: 0.07, durationSeconds: 0.2, intensity: 0.62, radiusScale: 0.78 }
+    ]
+  },
+  'dead-weight': {
+    abilityId: 'dead-weight',
+    palette: 'void',
+    hierarchy: 'skill',
+    colors: { core: 0xffffff, accent: 0x4f405f, glow: 0xbcefff },
+    layers: [
+      { phase: 'anticipation', intent: 'transformation', anchor: 'activated', useCastDuration: true, intensity: 0.76, radiusScale: 0.68 },
+      { phase: 'activation', intent: 'explosion', anchor: 'resolved', durationSeconds: 0.24, intensity: 0.92, radiusScale: 0.94 },
+      { phase: 'sustain', intent: 'status', anchor: 'resolved', delaySeconds: 0.06, durationSeconds: 0.54, intensity: 0.68, radiusScale: 0.84 },
+      { phase: 'release', intent: 'status', anchor: 'resolved', delaySeconds: 0.34, durationSeconds: 0.18, intensity: 0.48, radiusScale: 0.72 }
+    ]
+  },
+  'last-call': {
+    abilityId: 'last-call',
+    palette: 'void',
+    hierarchy: 'ultimate',
+    colors: { core: 0xffffff, accent: 0xd8faff, glow: 0x6b47a0 },
+    layers: [
+      { phase: 'anticipation', intent: 'ultimate', anchor: 'activated', useCastDuration: true, intensity: 0.98, radiusScale: 0.88 },
+      { phase: 'activation', intent: 'pull', anchor: 'resolved', durationSeconds: 0.34, intensity: 1.16, radiusScale: 1.28 },
+      { phase: 'sustain', intent: 'transformation', anchor: 'resolved', delaySeconds: 0.08, durationSeconds: 0.72, intensity: 0.88, radiusScale: 1.08 },
+      { phase: 'release', intent: 'explosion', anchor: 'resolved', delaySeconds: 0.42, durationSeconds: 0.3, intensity: 0.82, radiusScale: 1.02 }
+    ]
+  },
   'thunder-dome': {
     abilityId: 'thunder-dome',
     palette: 'electric',
