@@ -794,7 +794,9 @@ export class BattleAudioEngine {
       }
 
       if (layer.phase === 'activation') {
-        if (layer.intent === 'explosion' || layer.intent === 'knockback') {
+        if (layer.variant === 'cataclysmic-explosion') {
+          this.playCataclysmicExplosion(layer, volume, delay, critical);
+        } else if (layer.intent === 'explosion' || layer.intent === 'knockback') {
           this.playTone(palette.high, palette.low, duration, palette.wave, volume * 1.18, delay, critical);
           this.playTone(palette.low * 1.35, Math.max(24, palette.low * 0.56), duration * 1.08, 'triangle', volume * 0.78, delay, critical);
           if (layer.palette === 'explosive') {
@@ -838,6 +840,11 @@ export class BattleAudioEngine {
         return;
       }
 
+      if (layer.variant === 'cataclysmic-explosion') {
+        this.playCataclysmicPressureRelease(layer, volume, delay, critical);
+        return;
+      }
+
       const releaseStart = layer.intent === 'status-application' ? palette.high : palette.mid;
       if (layer.intent === 'knockback' || layer.intent === 'explosion') {
         this.playTone(palette.mid, palette.low, duration, palette.wave, volume, delay, critical);
@@ -858,6 +865,69 @@ export class BattleAudioEngine {
       this.schedulingGainScale = previousGainScale;
       this.schedulingGroupKey = previousGroupKey;
     }
+  }
+
+  private playCataclysmicExplosion(
+    layer: ResolvedCombatAudioLayer,
+    volume: number,
+    delay: number,
+    critical: boolean
+  ): void {
+    // Reusable low-register detonation treatment for catastrophic explosions.
+    // It deliberately avoids the explosive palette's bright transient so the
+    // blast reads as mass and pressure instead of a piercing electronic chirp.
+    const duration = layer.durationSeconds;
+    this.playTone(74, 22, duration * 1.18, 'sawtooth', volume * 1.42, delay, critical);
+    this.playTone(46, 20, duration * 1.5, 'sine', volume * 1.08, delay + 0.018, critical);
+    this.playTone(118, 32, duration * 0.88, 'square', volume * 0.68, delay, critical);
+    this.playPulseSequence(52, Math.min(0.58, duration * 0.72), 'square', delay + 0.012, 0.58 * layer.gainScale, critical);
+    this.playLowExplosionNoise(duration * 1.08, volume * 0.92, delay, critical);
+  }
+
+  private playCataclysmicPressureRelease(
+    layer: ResolvedCombatAudioLayer,
+    volume: number,
+    delay: number,
+    critical: boolean
+  ): void {
+    const duration = layer.durationSeconds;
+    this.playTone(104, 24, duration, 'sawtooth', volume * 0.92, delay, critical);
+    this.playTone(54, 20, duration * 1.22, 'sine', volume * 0.72, delay + 0.02, critical);
+    this.playLowExplosionNoise(duration * 0.9, volume * 0.48, delay, critical);
+  }
+
+  private playLowExplosionNoise(duration: number, volume: number, delaySeconds: number, critical: boolean): void {
+    const delay = Math.max(0, delaySeconds);
+    const reservation = this.reserveVoice(duration, delay, critical);
+    if (!reservation) return;
+    const ctx = this.context!;
+    const master = this.master!;
+    const now = ctx.currentTime + delay;
+    const sampleCount = Math.max(1, Math.floor(ctx.sampleRate * duration));
+    const buffer = ctx.createBuffer(1, sampleCount, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let index = 0; index < sampleCount; index += 1) {
+      const progress = index / sampleCount;
+      const attack = Math.min(1, progress / 0.025);
+      const decay = Math.pow(1 - progress, 1.65);
+      data[index] = (Math.random() * 2 - 1) * attack * decay;
+    }
+    const source = ctx.createBufferSource();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    source.buffer = buffer;
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(420, now);
+    filter.frequency.exponentialRampToValueAtTime(145, now + duration);
+    filter.Q.value = 0.55;
+    gain.gain.setValueAtTime(volume * this.schedulingGainScale, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(master);
+    source.start(now);
+    source.stop(now + duration);
+    this.trackVoice(source, reservation);
   }
 
   private resolveAbilityGainScale(layer: ResolvedCombatAudioLayer, focused: boolean): number {

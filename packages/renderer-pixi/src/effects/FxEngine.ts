@@ -655,9 +655,20 @@ export class FxEngine {
         this.directionalBurst(x, y, dirX, dirY, palette.accent, amount, 10.5 * layer.intensity);
         this.directionalBurst(x, y, -dirX, -dirY, palette.glow, Math.round(amount * 0.48), 5.8 * layer.intensity);
         this.flash(x, y, palette.core, radius * 0.42, Math.min(0.2, duration));
+      } else if (layer.intent === 'explosion') {
+        this.flash(x, y, palette.core, radius * 0.68, Math.min(0.25, duration));
+        this.shockwave(x, y, palette.accent, radius * 1.08, layer.hierarchy === 'ultimate' ? 11 : 7, Math.min(0.58, duration * 1.75));
+        this.shockwave(x, y, palette.glow, radius * 0.68, 4, Math.min(0.4, duration * 1.35));
+        this.burst(x, y, palette.accent, Math.round(amount * 1.12), 9.2 * layer.intensity, 1.4, 5.6, 0.14, 0.52, 0.95, 0.42);
+        this.burst(x, y, palette.debris, Math.round(amount * 0.58), 5.5 * layer.intensity, 2.2, 7.2, 0.22, 0.72, 0.975, 0.9);
       } else if (layer.intent === 'knockback') {
-        this.directionalBurst(x, y, dirX, dirY, palette.core, Math.round(amount * 1.08), 12.5 * layer.intensity);
-        this.directionalBurst(x, y, dirX, dirY, palette.accent, Math.round(amount * 0.76), 8.8 * layer.intensity);
+        if (layer.directional) {
+          this.directionalBurst(x, y, dirX, dirY, palette.core, Math.round(amount * 1.08), 12.5 * layer.intensity);
+          this.directionalBurst(x, y, dirX, dirY, palette.accent, Math.round(amount * 0.76), 8.8 * layer.intensity);
+        } else {
+          this.burst(x, y, palette.core, Math.round(amount * 0.78), 8.8 * layer.intensity, 1.2, 4.4, 0.12, 0.38, 0.95, 0.3);
+          this.shockwave(x, y, palette.accent, radius * 0.98, 6, Math.min(0.45, duration * 1.55));
+        }
         this.flash(x, y, palette.core, radius * 0.48, Math.min(0.2, duration));
         this.shockwave(x, y, palette.glow, radius * 0.74, 5.5, Math.min(0.34, duration * 1.4));
       } else {
@@ -684,6 +695,12 @@ export class FxEngine {
       } else if (layer.intent === 'channel' && layer.palette === 'fire') {
         this.fireSpiral(x, y, radius * 0.92, particleScale * 0.72 * layer.intensity);
         this.shockwave(x, y, palette.glow, radius * 0.66, 3, Math.min(0.5, duration));
+      } else if (layer.intent === 'channel' && layer.palette === 'neutral') {
+        this.burst(x, y, palette.debris, Math.round(amount * 0.82), 3.6 * layer.intensity, 4, 9, 0.3, Math.min(0.82, duration), 0.98, 1.05);
+        this.shockwave(x, y, palette.accent, radius * 0.82, 5, Math.min(0.68, duration));
+      } else if (layer.intent === 'channel' && layer.palette === 'metal') {
+        this.shardBurst(x, y, palette.glow, Math.round(amount * 0.68), 4.8 * layer.intensity);
+        this.shockwave(x, y, palette.accent, radius * 0.78, 4, Math.min(0.62, duration));
       } else {
         this.shockwave(x, y, palette.accent, radius * 0.92, 4, Math.min(0.7, duration));
         this.shockwave(x, y, palette.glow, radius * 0.58, 2, Math.min(0.5, duration * 0.8));
@@ -694,7 +711,13 @@ export class FxEngine {
 
     if (layer.intent === 'pull') {
       this.inwardBurst(x, y, palette.accent, Math.round(amount * 0.68), radius * 0.78, 5.8 * layer.intensity);
-    } else if (layer.intent === 'knockback' || layer.intent === 'explosion' || layer.intent === 'beam') {
+    } else if (layer.intent === 'knockback') {
+      if (layer.directional) {
+        this.directionalBurst(x, y, dirX, dirY, palette.accent, Math.round(amount * 0.7), 7.2 * layer.intensity);
+      } else {
+        this.burst(x, y, palette.accent, Math.round(amount * 0.66), 6.4 * layer.intensity, 1.2, 4.6, 0.14, 0.4, 0.95, 0.32);
+      }
+    } else if (layer.intent === 'explosion' || layer.intent === 'beam') {
       this.directionalBurst(x, y, dirX, dirY, palette.accent, Math.round(amount * 0.7), 7.2 * layer.intensity);
     }
     this.flash(x, y, palette.core, radius * 0.35, Math.min(0.16, duration));

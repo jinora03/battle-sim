@@ -18,6 +18,9 @@ export const COMBAT_AUDIO_INTENTS = [
 ] as const;
 export type CombatAudioIntent = (typeof COMBAT_AUDIO_INTENTS)[number];
 
+export const COMBAT_AUDIO_VARIANTS = ['cataclysmic-explosion'] as const;
+export type CombatAudioVariant = (typeof COMBAT_AUDIO_VARIANTS)[number];
+
 export const COMBAT_AUDIO_PALETTES = [
   'kinetic',
   'explosive',
@@ -53,6 +56,8 @@ export interface CombatAudioLayerProfile {
   durationSeconds?: number;
   /** Schedules a layer after activation without creating simulation timers. */
   delaySeconds?: number;
+  /** Optional reusable synthesis treatment for a distinctive layer. */
+  variant?: CombatAudioVariant;
 }
 
 export interface CombatAudioContactProfile {
@@ -73,11 +78,17 @@ export interface AbilityCombatAudioProfile {
   cancelActivatedLayersOnResolve?: boolean;
 }
 
-export interface ResolvedCombatAudioLayer extends Required<CombatAudioLayerProfile> {
+export interface ResolvedCombatAudioLayer {
   abilityId: string;
   phase: CombatAudioPhase;
   palette: CombatAudioPalette;
   hierarchy: CombatAudioHierarchy;
+  intent: CombatAudioIntent;
+  anchor: CombatAudioAnchor;
+  intensity: number;
+  durationSeconds: number;
+  delaySeconds: number;
+  variant?: CombatAudioVariant;
   gainScale: number;
 }
 
@@ -279,9 +290,9 @@ const MEGA_BOMB_PROFILE: AbilityCombatAudioProfile = {
   hierarchy: 'ultimate',
   layers: {
     anticipation: { intent: 'ultimate', intensity: 1.08, durationSeconds: 1.08 },
-    activation: { intent: 'explosion', intensity: 1.18, durationSeconds: 0.68 },
+    activation: { intent: 'explosion', intensity: 1.18, durationSeconds: 0.78, variant: 'cataclysmic-explosion' },
     sustain: { intent: 'channel', intensity: 0.72, durationSeconds: 0.46, delaySeconds: 0.055 },
-    release: { intent: 'knockback', intensity: 0.94, durationSeconds: 0.42, delaySeconds: 0.34 }
+    release: { intent: 'knockback', intensity: 0.94, durationSeconds: 0.48, delaySeconds: 0.34, variant: 'cataclysmic-explosion' }
   }
 };
 
@@ -519,6 +530,7 @@ export function resolveCombatAudioLayer(
     intensity,
     durationSeconds,
     delaySeconds,
+    ...(layer.variant ? { variant: layer.variant } : {}),
     gainScale: COMBAT_AUDIO_HIERARCHY_GAIN[profile.hierarchy] * intensity
   };
 }
