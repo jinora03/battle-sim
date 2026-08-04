@@ -4,7 +4,7 @@ import {
   listAbilityCombatAudioProfiles
 } from '@kinetic/audio';
 import { CONTENT_VERSION, getAiProfile, getFighter, listAiProfiles } from '@kinetic/content';
-import { AiController } from '@kinetic/controllers';
+import { AiController, getAiOpeningReadyTick } from '@kinetic/controllers';
 import type { BattleDefinition } from '@kinetic/protocol';
 import { ENGINE_VERSION, LocalSimulationRunner } from '@kinetic/simulation';
 
@@ -26,8 +26,9 @@ function sentinelTrainingBattle(): LocalSimulationRunner {
       maxBattleTicks: 900,
       training: {
         enabled: true,
-        damageEnabled: true,
+        damageEnabled: false,
         cooldownsEnabled: true,
+        invulnerableTeams: [1, 2],
         suppressVictory: true
       }
     }
@@ -79,30 +80,36 @@ describe('Stage 8.6C-1 Pyro, Ballast and Solar Sentinel correction', () => {
   });
 
   it('advances engine and content compatibility markers together', () => {
-    expect(CONTENT_VERSION).toBe('1.3.10-stage8.6c1');
-    expect(ENGINE_VERSION).toBe('1.3.10-stage8.6c1');
+    expect(CONTENT_VERSION).toBe('1.3.11-stage8.6c2a');
+    expect(ENGINE_VERSION).toBe('1.3.11-stage8.6c2a');
   });
 
-  it('lets Solar Sentinel AI select and begin Solar Eye Beams', () => {
+  it('lets Solar Sentinel use Solar Eye Beams after its seeded opening lockout', () => {
     const runner = sentinelTrainingBattle();
     const controller = new AiController(false);
-    const commands = controller.commandsForTick(runner.getSnapshot());
-    const ultimateCommand = commands.find(
+    const initial = runner.getSnapshot();
+    const openingReadyTick = getAiOpeningReadyTick(initial.seed, 0, 'ultimate', 'solar-laser', 'offensive');
+    const initialCommands = controller.commandsForTick(initial);
+
+    expect(initialCommands.some(
       (command) => command.type === 'activateAbility' && command.slot === 'ultimate'
-    );
+    )).toBe(false);
+    expect(runner.step(initialCommands).some(
+      (event) => event.type === 'abilityActivated' && event.abilityId === 'solar-laser'
+    )).toBe(false);
 
-    expect(ultimateCommand).toMatchObject({
-      type: 'activateAbility',
-      entityId: 0,
-      slot: 'ultimate',
-      targetId: 1
-    });
+    let activatedTick: number | null = null;
+    for (let tick = 0; tick < openingReadyTick + 300 && activatedTick === null; tick += 1) {
+      const snapshot = runner.getRuntimeSnapshot();
+      const events = runner.step(controller.commandsForTick(snapshot));
+      if (events.some(
+        (event) => event.type === 'abilityActivated'
+          && event.entityId === 0
+          && event.abilityId === 'solar-laser'
+      )) activatedTick = snapshot.tick;
+    }
 
-    const events = runner.step(commands);
-    expect(events.some(
-      (event) => event.type === 'abilityActivated'
-        && event.entityId === 0
-        && event.abilityId === 'solar-laser'
-    )).toBe(true);
+    expect(activatedTick).not.toBeNull();
+    expect(activatedTick ?? 0).toBeGreaterThanOrEqual(openingReadyTick);
   });
 });

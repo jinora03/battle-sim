@@ -8,6 +8,7 @@ import {
   type AiProfile
 } from '@kinetic/content';
 import type { AbilitySlot, EntityId, EntitySnapshot, WorldSnapshot } from '@kinetic/protocol';
+import { getAiAbilityScoreJitter, getAiOpeningReadyTick, type AiSelectionContext } from './seededDecisionVariation';
 
 export type AiDecisionKind = 'primaryAttack' | 'ability' | 'move' | 'idle';
 
@@ -187,7 +188,8 @@ export function selectAbilityAction(
   target: EntitySnapshot | undefined,
   profile: AiProfile,
   collectDebug: false,
-  spatialContext?: ActionSelectionSpatialContext
+  spatialContext?: ActionSelectionSpatialContext,
+  selectionContext?: AiSelectionContext
 ): { selected: SelectedAbilityAction | null; debug: null };
 export function selectAbilityAction(
   snapshot: WorldSnapshot,
@@ -195,7 +197,8 @@ export function selectAbilityAction(
   target: EntitySnapshot | undefined,
   profile: AiProfile,
   collectDebug?: boolean,
-  spatialContext?: ActionSelectionSpatialContext
+  spatialContext?: ActionSelectionSpatialContext,
+  selectionContext?: AiSelectionContext
 ): AbilitySelectionResult;
 export function selectAbilityAction(
   snapshot: WorldSnapshot,
@@ -203,7 +206,8 @@ export function selectAbilityAction(
   target: EntitySnapshot | undefined,
   profile: AiProfile,
   collectDebug = true,
-  spatialContext?: ActionSelectionSpatialContext
+  spatialContext?: ActionSelectionSpatialContext,
+  selectionContext?: AiSelectionContext
 ): AbilitySelectionResult {
   const fighter = getFighter(entity.fighterId);
   const fallbackDistance = target ? Math.hypot(target.x - entity.x, target.y - entity.y) : Number.POSITIVE_INFINITY;
@@ -259,10 +263,16 @@ export function selectAbilityAction(
       : 0;
     let valid = true;
     let reason = 'skill ready';
+    const openingReadyTick = selectionContext?.openingReadiness
+      ? getAiOpeningReadyTick(snapshot.seed, entity.id, slot, abilityId, activation.intent)
+      : 0;
 
     if (!state || state.phase !== 'ready') {
       valid = false;
       reason = state?.phase === 'armed' ? 'already armed' : state?.phase === 'casting' ? 'already casting' : 'cooldown';
+    } else if (snapshot.tick < openingReadyTick) {
+      valid = false;
+      reason = `opening lockout (${openingReadyTick - snapshot.tick} ticks remaining)`;
     } else if (rule.healthBelow !== undefined && hpRatio > rule.healthBelow) {
       valid = false;
       reason = `health above ${Math.round(rule.healthBelow * 100)}% threshold`;
@@ -312,6 +322,9 @@ export function selectAbilityAction(
     const cadencePhase = ((snapshot.tick - rule.phaseTicks) % cadence + cadence) % cadence;
     const cadenceReady = cadencePhase <= Math.max(1, profile.reactionTicks);
     const cadenceUtility = cadenceReady ? 4 : Math.max(0, 2 - cadencePhase / cadence * 2);
+    const scoreJitter = selectionContext
+      ? getAiAbilityScoreJitter(snapshot.seed, entity.id, abilityId, selectionContext.variationEpoch)
+      : 0;
     const score = activation.priority
       + (rule.priority ?? 0)
       + 14
@@ -320,7 +333,8 @@ export function selectAbilityAction(
       + rangeUtility * 8
       + cadenceUtility
       + targetStatusStacks * (rule.priorityPerTargetStatusStack ?? 0)
-      + selfResource * (rule.priorityPerSelfResource ?? 0);
+      + selfResource * (rule.priorityPerSelfResource ?? 0)
+      + scoreJitter;
 
     if (collectDebug) {
       candidates.push({

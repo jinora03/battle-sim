@@ -2,6 +2,7 @@ import { getAbility, getAiProfile, getArena, getFighter, getPrimaryAttack } from
 import { ActionSelectionSpatialContext, selectAbilityAction, type AiDecisionDebug } from './actionSelection';
 
 export * from './actionSelection';
+export * from './seededDecisionVariation';
 import type { AbilitySlot, EntityId, EntitySnapshot, MoveCommand, ReplayData, ReplayMovementRun, SimulationCommand, Vec2, WorldSnapshot } from '@kinetic/protocol';
 
 export interface ControllerSource {
@@ -21,6 +22,7 @@ interface AiMemory {
   escapeUntilTick: number;
   escapeDirection: Vec2;
   nextAttackDecisionTick: number;
+  abilityVariationEpoch: number;
 }
 
 const ZERO: Vec2 = { x: 0, y: 0 };
@@ -139,7 +141,8 @@ export class AiController implements ControllerSource {
         stuckReactions: 0,
         escapeUntilTick: 0,
         escapeDirection: ZERO,
-        nextAttackDecisionTick: snapshot.tick + attackPhase
+        nextAttackDecisionTick: snapshot.tick + attackPhase,
+        abilityVariationEpoch: 0
       };
       const currentTarget = memory.targetId === null ? undefined : this.entityById.get(memory.targetId);
 
@@ -186,11 +189,20 @@ export class AiController implements ControllerSource {
       if (!target) continue;
       const busy = entity.weaponAttack !== null || entity.abilities.some((ability) => ability.phase === 'casting' || ability.phase === 'armed');
       if (!busy && snapshot.tick >= memory.nextAttackDecisionTick) {
-        const action = selectAbilityAction(snapshot, entity, target, profile, this.detailedDebugEnabled, this.actionSelectionSpatial);
+        const action = selectAbilityAction(
+          snapshot,
+          entity,
+          target,
+          profile,
+          this.detailedDebugEnabled,
+          this.actionSelectionSpatial,
+          { openingReadiness: true, variationEpoch: memory.abilityVariationEpoch }
+        );
         if (action.debug) this.decisions.set(entity.id, action.debug);
         memory.nextAttackDecisionTick = snapshot.tick + policy.attackDecisionInterval;
         this.workloadStats.attackEvaluations += 1;
         if (action.selected) {
+          if (action.selected.kind === 'ability') memory.abilityVariationEpoch += 1;
           const selectedTarget = action.selected.targetId === null ? undefined : this.entityById.get(action.selected.targetId);
           const actionDirection = selectedTarget
             ? action.selected.kind === 'primaryAttack'
