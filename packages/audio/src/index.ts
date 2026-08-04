@@ -1,6 +1,34 @@
 import type { AbilityResolvedEvent, BlastEvent, ProjectileImpactEvent, ProjectileSpawnedEvent, SimulationEvent, WeaponAttackStartedEvent, WeaponHitEvent } from '@kinetic/protocol';
+import {
+  getAbilityCombatAudioProfile,
+  resolveCombatAudioLayer,
+  type ResolvedCombatAudioLayer
+} from './combatAudioProfiles';
+
+export * from './combatAudioProfiles';
 
 const RAPID_RIFLE_ROUNDS = new Set(['automatic-rifle', 'tactical-round', 'suppressive-round', 'kill-zone-round']);
+
+interface CombatAudioPaletteTuning {
+  low: number;
+  mid: number;
+  high: number;
+  wave: OscillatorType;
+  pulse: OscillatorType;
+}
+
+const COMBAT_AUDIO_PALETTE_TUNING: Readonly<Record<ResolvedCombatAudioLayer['palette'], CombatAudioPaletteTuning>> = {
+  kinetic: { low: 82, mid: 260, high: 760, wave: 'triangle', pulse: 'square' },
+  fire: { low: 58, mid: 180, high: 520, wave: 'sawtooth', pulse: 'triangle' },
+  electric: { low: 52, mid: 620, high: 1180, wave: 'square', pulse: 'square' },
+  gravity: { low: 34, mid: 96, high: 260, wave: 'sine', pulse: 'triangle' },
+  mechanical: { low: 64, mid: 210, high: 920, wave: 'sawtooth', pulse: 'square' },
+  water: { low: 78, mid: 245, high: 620, wave: 'sine', pulse: 'triangle' },
+  ice: { low: 120, mid: 520, high: 1080, wave: 'triangle', pulse: 'sine' },
+  nature: { low: 72, mid: 180, high: 460, wave: 'triangle', pulse: 'sine' },
+  void: { low: 28, mid: 84, high: 310, wave: 'sine', pulse: 'triangle' },
+  solar: { low: 110, mid: 720, high: 1680, wave: 'sawtooth', pulse: 'square' }
+};
 
 export function isGunnerRifleRound(weaponId: string): boolean {
   return RAPID_RIFLE_ROUNDS.has(weaponId) || weaponId === 'pinning-round-projectile';
@@ -483,6 +511,12 @@ export class BattleAudioEngine {
   }
 
   private playAbilityCharge(abilityId: string, ultimate: boolean, castTicks: number): void {
+    const profile = getAbilityCombatAudioProfile(abilityId);
+    if (profile) {
+      const layer = resolveCombatAudioLayer(profile, 'anticipation', castTicks);
+      if (layer) this.playCombatAudioLayer(layer);
+      return;
+    }
     if (!this.canPlay()) return;
     const ctx = this.context!;
     const master = this.master!;
@@ -497,7 +531,7 @@ export class BattleAudioEngine {
     const fire = ['magma-dash', 'flame-ring', 'molten-guard', 'inferno-collapse'].includes(abilityId);
     const mech = ['kinetic-pulse', 'magnet-drag', 'fortify', 'reactor-overdrive'].includes(abilityId);
     const ice = ['glacier-charge', 'frost-nova', 'ice-anchor', 'absolute-zero'].includes(abilityId);
-    const electric = ['lightning-dash', 'arc-burst', 'polarity-pull', 'thunder-dome'].includes(abilityId);
+    const electric = ['lightning-dash', 'arc-burst', 'polarity-pull'].includes(abilityId);
     const nature = ['bramble-charge', 'seed-burst', 'regenerate', 'overgrowth'].includes(abilityId);
     const voidSkill = ['phase-lunge', 'gravity-well', 'void-burst', 'singularity', 'featherfall', 'downbeat', 'dead-weight', 'last-call'].includes(abilityId);
     const oscillator = ctx.createOscillator();
@@ -516,13 +550,21 @@ export class BattleAudioEngine {
     oscillator.stop(now + duration + 0.02);
     this.trackVoice(oscillator);
 
-    if (['mega-bomb', 'tidal-cataclysm', 'inferno-collapse', 'reactor-overdrive', 'absolute-zero', 'thunder-dome', 'overgrowth', 'singularity', 'last-call', 'solar-laser'].includes(abilityId)) {
-      const pulseFrequency = abilityId === 'mega-bomb' ? 82 : abilityId === 'tidal-cataclysm' ? 210 : abilityId === 'inferno-collapse' ? 120 : abilityId === 'absolute-zero' ? 480 : abilityId === 'thunder-dome' ? 620 : abilityId === 'overgrowth' ? 140 : abilityId === 'singularity' ? 68 : abilityId === 'last-call' ? 58 : abilityId === 'solar-laser' ? 910 : 165;
+    if (['mega-bomb', 'tidal-cataclysm', 'inferno-collapse', 'reactor-overdrive', 'absolute-zero', 'overgrowth', 'singularity', 'last-call', 'solar-laser'].includes(abilityId)) {
+      const pulseFrequency = abilityId === 'mega-bomb' ? 82 : abilityId === 'tidal-cataclysm' ? 210 : abilityId === 'inferno-collapse' ? 120 : abilityId === 'absolute-zero' ? 480 : abilityId === 'overgrowth' ? 140 : abilityId === 'singularity' ? 68 : abilityId === 'last-call' ? 58 : abilityId === 'solar-laser' ? 910 : 165;
       this.playPulseSequence(pulseFrequency, duration, abilityId === 'mega-bomb' ? 'square' : abilityId === 'inferno-collapse' ? 'sawtooth' : 'sine');
     }
   }
 
   private playAbilityResolve(event: AbilityResolvedEvent): void {
+    const profile = getAbilityCombatAudioProfile(event.abilityId);
+    if (profile) {
+      for (const phase of ['activation', 'sustain', 'release'] as const) {
+        const layer = resolveCombatAudioLayer(profile, phase);
+        if (layer) this.playCombatAudioLayer(layer);
+      }
+      return;
+    }
     if (!this.canPlay()) return;
     const id = event.abilityId;
     if (id === 'tactical-slide') {
@@ -585,7 +627,6 @@ export class BattleAudioEngine {
     else if (id === 'lightning-dash') this.playTone(420, 960, 0.13, 'square', 0.05);
     else if (id === 'arc-burst') { this.playTone(640, 120, 0.22, 'square', 0.065); this.playPulseSequence(820, 0.16, 'sine'); }
     else if (id === 'polarity-pull') this.playTone(480, 70, 0.3, 'sine', 0.065);
-    else if (id === 'thunder-dome') { this.playTone(780, 52, 0.55, 'square', 0.1); this.playPulseSequence(960, 0.42, 'square'); }
     else if (id === 'thorn-impact') this.playTone(180, 82, 0.12, 'triangle', 0.04);
     else if (id === 'bramble-charge') this.playTone(145, 62, 0.24, 'sawtooth', 0.06);
     else if (id === 'seed-burst') { this.playTone(260, 95, 0.22, 'triangle', 0.055); this.playPulseSequence(350, 0.18, 'triangle'); }
@@ -613,6 +654,52 @@ export class BattleAudioEngine {
     }
     else if (id === 'solar-laser') { this.playTone(980, 120, 0.5, 'square', 0.18); this.playTone(1680, 220, 0.3, 'sawtooth', 0.12); this.playPulseSequence(1120, 0.55, 'square'); }
     else this.playTone(180, 320, 0.16, 'triangle', 0.045);
+  }
+
+  private playCombatAudioLayer(layer: ResolvedCombatAudioLayer): void {
+    const palette = COMBAT_AUDIO_PALETTE_TUNING[layer.palette];
+    const volume = 0.085 * layer.gainScale;
+    const duration = layer.durationSeconds;
+    const delay = layer.delaySeconds;
+    const critical = layer.hierarchy === 'ultimate' && (layer.phase === 'anticipation' || layer.phase === 'activation');
+
+    if (layer.phase === 'anticipation') {
+      const start = layer.intent === 'pull' ? palette.mid : palette.low;
+      const end = layer.intent === 'pull' ? palette.low : palette.high;
+      this.playTone(start, end, duration, palette.wave, volume * 0.72, delay, critical);
+      if (layer.intent === 'ultimate' || layer.intent === 'channel' || layer.intent === 'transformation') {
+        this.playPulseSequence(palette.mid, duration, palette.pulse, delay, 0.75 * layer.gainScale, critical);
+      }
+      return;
+    }
+
+    if (layer.phase === 'activation') {
+      if (layer.intent === 'explosion' || layer.intent === 'knockback') {
+        this.playTone(palette.high, palette.low, duration, palette.wave, volume * 1.18, delay, critical);
+        this.playTone(palette.low * 1.35, Math.max(24, palette.low * 0.56), duration * 1.08, 'triangle', volume * 0.78, delay, critical);
+      } else if (layer.intent === 'burst-fire') {
+        this.playPulseSequence(palette.high, duration, palette.pulse, delay, 1.05 * layer.gainScale, critical);
+        this.playTone(palette.mid, palette.low, duration * 0.7, palette.wave, volume, delay, critical);
+      } else {
+        this.playTone(palette.mid, palette.high, duration, palette.wave, volume, delay, critical);
+      }
+      return;
+    }
+
+    if (layer.phase === 'sustain') {
+      const pulseFrequency = layer.intent === 'pull' ? palette.low : palette.mid;
+      this.playPulseSequence(pulseFrequency, duration, palette.pulse, delay, 0.9 * layer.gainScale, critical);
+      if (layer.intent === 'beam' || layer.intent === 'channel' || layer.intent === 'transformation') {
+        this.playTone(palette.mid * 0.82, palette.mid * 1.16, duration, palette.wave, volume * 0.48, delay, critical);
+      }
+      return;
+    }
+
+    const releaseStart = layer.intent === 'status-application' ? palette.high : palette.mid;
+    this.playTone(releaseStart, palette.low, duration, palette.wave, volume * 0.82, delay, critical);
+    if (layer.intent === 'ultimate' || layer.intent === 'status-application') {
+      this.playTone(palette.high * 1.08, palette.mid * 0.72, duration * 0.58, 'triangle', volume * 0.42, delay, critical);
+    }
   }
 
   private playHazard(kind: 'ice' | 'water' | 'lava' | 'electric' | 'wind', damage: number): void {
@@ -728,11 +815,11 @@ export class BattleAudioEngine {
     this.trackVoice(oscillator);
   }
 
-  private playTone(start: number, end: number, duration: number, type: OscillatorType, volume: number): void {
-    if (!this.canPlay()) return;
+  private playTone(start: number, end: number, duration: number, type: OscillatorType, volume: number, delaySeconds = 0, critical = false): void {
+    if (!(critical ? this.canPlayCritical() : this.canPlay())) return;
     const ctx = this.context!;
     const master = this.master!;
-    const now = ctx.currentTime;
+    const now = ctx.currentTime + Math.max(0, delaySeconds);
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
     oscillator.type = type;
@@ -747,10 +834,11 @@ export class BattleAudioEngine {
     this.trackVoice(oscillator);
   }
 
-  private playPulseSequence(frequency: number, duration: number, type: OscillatorType): void {
+  private playPulseSequence(frequency: number, duration: number, type: OscillatorType, delaySeconds = 0, volumeScale = 1, critical = false): void {
+    if (!(critical ? this.canPlayCritical() : this.canPlay())) return;
     const ctx = this.context!;
     const master = this.master!;
-    const now = ctx.currentTime;
+    const now = ctx.currentTime + Math.max(0, delaySeconds);
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
     oscillator.type = type;
@@ -759,7 +847,7 @@ export class BattleAudioEngine {
     const pulses = 4;
     for (let i = 0; i < pulses; i += 1) {
       const t = now + (i / pulses) * duration;
-      gain.gain.linearRampToValueAtTime(0.025 + i * 0.008, t + 0.018);
+      gain.gain.linearRampToValueAtTime((0.025 + i * 0.008) * volumeScale, t + 0.018);
       gain.gain.exponentialRampToValueAtTime(0.001, t + Math.max(0.04, duration / pulses * 0.72));
     }
     oscillator.connect(gain);
