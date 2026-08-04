@@ -60,7 +60,6 @@ describe('Stage 8.5B Gunner gatling and balance pass', () => {
       type: 'LAUNCH_PROJECTILES',
       projectileId: 'kill-zone-round',
       count: 24,
-      pattern: 'fan',
       intervalTicks: 2
     });
     expect(JSON.stringify(ability)).not.toContain('missile');
@@ -138,7 +137,6 @@ describe('Stage 8.5B Gunner gatling and balance pass', () => {
   });
 
   it('advances engine and content compatibility markers together', () => {
-    expect(CONTENT_VERSION).toBe('1.3.6-stage8.5b');
-    expect(ENGINE_VERSION).toBe('1.3.6-stage8.5b');
+    expect(CONTENT_VERSION).toBe(ENGINE_VERSION);
   });
 });

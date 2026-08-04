@@ -425,7 +425,8 @@ export class AbilityActionExecutor {
               action.projectileId,
               direction,
               targetId,
-              this.context.getTick() + delayTicks
+              this.context.getTick() + delayTicks,
+              action.retargetEachLaunch ?? false
             );
           }
         }

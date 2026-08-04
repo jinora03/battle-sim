@@ -5,7 +5,7 @@ Stage 8.5B replaces Gunner's missile-based Kill Zone with a sustained rotary-gun
 ## Kill Zone
 
 - Launches 24 `kill-zone-round` rifle bullets at two-tick intervals.
-- Uses a narrow ten-degree firing fan with mild Target Lock aim assistance.
+- Stage 8.5C later replaces this fan with a per-round tracked straight firing lane.
 - Produces no explosions, smoke trails or missile cascade behavior.
 - Applies a short `kill-zone-overdrive` presentation status for the temporary rotating-barrel rig.
 

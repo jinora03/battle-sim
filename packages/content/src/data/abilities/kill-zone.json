@@ -26,10 +26,11 @@
           "type": "LAUNCH_PROJECTILES",
           "projectileId": "kill-zone-round",
           "count": 24,
-          "pattern": "fan",
-          "spreadDegrees": 10,
+          "pattern": "forward",
+          "spreadDegrees": 0,
           "targetMode": "selected",
-          "intervalTicks": 2
+          "intervalTicks": 2,
+          "retargetEachLaunch": true
         }
       ]
     }

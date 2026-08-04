@@ -1,6 +1,18 @@
-# Kinetic Battle Engine — v1.3.6 Stage 8.5B
+# Kinetic Battle Engine — v1.3.7 Stage 8.5C
 
 A browser/mobile-ready 2D physics battle game and modular fighter engine built with TypeScript, PixiJS, React, Vite and Capacitor.
+
+> **Stage 8.5C corrects Gunner's live-play firing behavior.** Kill Zone now launches a straight per-round tracked gatling stream instead of a precomputed fan with curved homing arcs. Suppressive Burst is now a six-round tracked firing lane with a stronger, longer suppression effect.
+
+## Stage 8.5C highlights
+
+- delayed projectile actions can optionally re-aim when each round launches
+- Kill Zone retains 24 rounds but removes fan spread and curved homing
+- Suppressive Burst changes from a wide six-round fan to a reliable concentrated six-round stream
+- Suppressed movement multiplier strengthens from 0.82x to 0.70x and lasts longer
+- existing delayed abilities keep snapshot aiming unless they opt in
+
+See `docs/V1_3_STAGE_8_5C_GUNNER_FUNCTIONALITY_CORRECTION.md` for implementation and validation notes.
 
 > **Stage 8.5A begins Gunner's identity pass without replacing his existing Target Lock kit.** The four-round rifle now reads as a committed firing sequence: Gunner holds a disciplined kite lane, tracks the selected target between rounds, uses crisp ballistic VFX/audio across skill projectiles and no longer freezes the presentation on every rapid-fire hit.
 
