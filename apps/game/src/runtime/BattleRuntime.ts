@@ -274,6 +274,7 @@ export class BattleRuntime {
 
   restart(seed = this.seed, setup: BattleSetup = this.setup): void {
     if (this.destroyed || !this.started) return;
+    this.audio.reset();
     this.seed = seed >>> 0;
     this.setup = { ...setup };
     const battle = this.createBattle(this.seed);
@@ -463,6 +464,7 @@ export class BattleRuntime {
     this.started = false;
     this.active = false;
     cancelAnimationFrame(this.raf);
+    this.audio.reset();
     this.renderer.destroy();
   }
 

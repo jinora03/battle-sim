@@ -1,6 +1,23 @@
-# Kinetic Battle Engine — v1.3.13 Stage 8.6C-3
+# Kinetic Battle Engine — v1.3.14 Stage 8.6D
 
 A browser/mobile-ready 2D physics battle game and modular fighter engine built with TypeScript, PixiJS, React, Vite and Capacitor.
+
+
+> **Stage 8.6D closes the intent-audio milestone with stabilization and mix control.** Delayed layers now consume the voice budget only while they are actually audible, long channels stop cleanly on resolution, death, restart and Ability Lab resets, focused-player events receive priority, and crowded battles automatically reduce ambient gain and contact-cue frequency without weakening ultimates.
+
+## Stage 8.6D highlights
+
+- time-window voice reservations prevent delayed ultimate layers from starving current combat sounds
+- dedicated critical reserve keeps focused and ultimate cues audible when the normal voice budget is full
+- seeded simulation remains untouched; all scheduling and mix decisions stay presentation-only
+- Solar Eye Beams activation sustain is cancelled on real resolution or interruption before shutdown playback
+- contact-channel watchdog prevents stale hit audio when a resolution event is interrupted or missing
+- battle-size mix tiers reduce ambient gain, selected events and contact frequency for skirmish and mass-battle loads
+- focused-player events receive a priority bonus over equivalent background events
+- Battle and Ability Lab restart/destroy paths explicitly clear scheduled audio
+- no damage, cooldown, AI, physics, projectile, replay or checksum changes
+
+See `docs/V1_3_STAGE_8_6D_AUDIO_STABILIZATION.md` for implementation and validation details.
 
 
 > **Stage 8.6C-3 completes the initial roster-audio rollout with Bomber and Mech Bruiser.** Bomber gains a reusable explosive palette with fuse, ignition, blast-pressure, and release layers, while Mech gains coherent servo, magnetic, armor-lock, and reactor lifecycles. Impact Bomb and Hydraulic Gauntlet also receive stronger basic-attack identities.

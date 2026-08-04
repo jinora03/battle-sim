@@ -74,7 +74,7 @@ describe('Stage 8.6C-3 Bomber and Mech Bruiser audio rollout', () => {
   });
 
   it('advances engine and content compatibility markers together', () => {
-    expect(CONTENT_VERSION).toBe('1.3.13-stage8.6c3');
-    expect(ENGINE_VERSION).toBe('1.3.13-stage8.6c3');
+    expect(CONTENT_VERSION).toBe('1.3.14-stage8.6d');
+    expect(ENGINE_VERSION).toBe('1.3.14-stage8.6d');
   });
 });

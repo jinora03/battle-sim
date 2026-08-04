@@ -69,6 +69,8 @@ export interface AbilityCombatAudioProfile {
   layers: Partial<Record<CombatAudioPhase, CombatAudioLayerProfile>>;
   /** Optional rate-limited cue emitted only when an active channel actually deals damage. */
   contact?: CombatAudioContactProfile;
+  /** Stop activation-anchored sustain layers when the gameplay channel resolves or is interrupted. */
+  cancelActivatedLayersOnResolve?: boolean;
 }
 
 export interface ResolvedCombatAudioLayer extends Required<CombatAudioLayerProfile> {
@@ -426,7 +428,8 @@ const SOLAR_LASER_PROFILE: AbilityCombatAudioProfile = {
     intensity: 0.46,
     durationSeconds: 0.055,
     intervalMs: 72
-  }
+  },
+  cancelActivatedLayersOnResolve: true
 };
 
 const BOMBER_AUDIO_PROFILES = [
@@ -537,4 +540,23 @@ export function resolveCombatAudioContact(
     intervalMs: Math.max(24, Math.min(500, contact.intervalMs ?? 72)),
     gainScale: COMBAT_AUDIO_HIERARCHY_GAIN[profile.hierarchy] * intensity
   };
+}
+
+/**
+ * Safety window for channel-contact cues. The normal abilityResolved event still
+ * closes the channel immediately; this timeout prevents a missing/interrupted
+ * resolution event from leaving contact audio armed forever.
+ */
+export function resolveCombatAudioContactWindowTicks(
+  profile: AbilityCombatAudioProfile,
+  castTicks = 0
+): number {
+  if (!profile.contact) return 0;
+  let latestEndSeconds = 0;
+  for (const phase of COMBAT_AUDIO_PHASES) {
+    const layer = resolveCombatAudioLayer(profile, phase, castTicks);
+    if (!layer || layer.anchor !== 'activated') continue;
+    latestEndSeconds = Math.max(latestEndSeconds, layer.delaySeconds + layer.durationSeconds);
+  }
+  return Math.max(12, Math.ceil(latestEndSeconds * 60) + 12);
 }

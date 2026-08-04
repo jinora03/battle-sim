@@ -141,6 +141,7 @@ export class TrainingRuntime {
   }
 
   restart(setup: TrainingSetup = this.setup): void {
+    this.audio.reset();
     this.setup = { ...setup, seed: setup.seed >>> 0 };
     this.runner = this.createRunner();
     this.player.reset();
@@ -261,6 +262,7 @@ export class TrainingRuntime {
 
   destroy(): void {
     cancelAnimationFrame(this.raf);
+    this.audio.reset();
     this.player.reset();
     this.renderer.destroy();
     void this.audio.setPaused(true);
