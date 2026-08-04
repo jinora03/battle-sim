@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { getAbilityCombatAudioProfile } from '@kinetic/audio';
 import { CONTENT_VERSION } from '@kinetic/content';
 import { ENGINE_VERSION } from '@kinetic/simulation';
 import { getSkillPresentation } from '@kinetic/visual-engine';
@@ -23,7 +24,10 @@ describe('Stage 8.4C Ballast presentation polish', () => {
     const audioSource = readFileSync(new URL('../packages/audio/src/index.ts', import.meta.url), 'utf8');
     expect(audioSource.match(/event\.weaponId === 'skip-stone'/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
     for (const abilityId of ['featherfall', 'downbeat', 'dead-weight', 'last-call']) {
-      expect(audioSource).toContain(`id === '${abilityId}'`);
+      const profile = getAbilityCombatAudioProfile(abilityId);
+      expect(profile).toBeDefined();
+      expect(profile?.palette).toBe('gravity');
+      expect(profile?.layers.activation).toBeDefined();
     }
   });
 

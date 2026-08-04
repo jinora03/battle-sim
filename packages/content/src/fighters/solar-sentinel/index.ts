@@ -1,5 +1,5 @@
 import fighterRaw from '../../data/fighters/solar-sentinel.json';
-import aiProfileRaw from '../../data/ai/aggressive-brawler.json';
+import aiProfileRaw from '../../data/ai/solar-sentinel.json';
 import solarRushRaw from '../../data/abilities/solar-rush.json';
 import thunderClapRaw from '../../data/abilities/thunder-clap.json';
 import solarAegisRaw from '../../data/abilities/solar-aegis.json';
