@@ -393,6 +393,10 @@ export class BattleRuntime {
     this.renderer.setActive(this.active);
   }
 
+  refreshRendererLayout(): void {
+    this.renderer.refreshLayout();
+  }
+
   queuePlayerCommand(command: SimulationCommand): void {
     this.player.queue(command);
   }

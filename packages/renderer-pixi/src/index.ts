@@ -110,6 +110,11 @@ export class PixiBattleRenderer {
     if (active && this.lifecycle.initialized) this.camera.requestSnap();
   }
 
+  refreshLayout(): void {
+    this.lifecycle.refreshLayout();
+    if (this.lifecycle.initialized) this.camera.requestSnap();
+  }
+
   setArena(arenaId: string): void {
     if (this.arena?.id === arenaId) return;
     this.setArenaDefinition(arenaId);

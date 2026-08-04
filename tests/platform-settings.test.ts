@@ -55,9 +55,9 @@ describe('v0.9 platform and settings', () => {
     expect(next.largeTouchControls).toBe(true);
   });
 
-  it('migrates partial legacy settings into the v9 schema', () => {
+  it('migrates partial legacy settings into the v10 schema', () => {
     const migrated = normalizeAppSettings({ effects: false, audio: true, renderProfile: 'minimal' }, desktop);
-    expect(migrated.schemaVersion).toBe(9);
+    expect(migrated.schemaVersion).toBe(10);
     expect(migrated.effects).toBe(false);
     expect(migrated.audio).toBe(true);
     expect(migrated.renderProfile).toBe('minimal');
@@ -67,6 +67,18 @@ describe('v0.9 platform and settings', () => {
     expect(migrated.showFighterHealthRings).toBe(true);
     expect(migrated.showDamageNumbers).toBe(true);
     expect(migrated.showBattleIntros).toBe(true);
+    expect(migrated.movementMode).toBe('mouse');
+    expect(migrated.cameraFollow).toBe(false);
+    expect(migrated.touchControlOpacity).toBe(0.75);
+  });
+
+  it('clamps the touch-control opacity while preserving explicit control preferences', () => {
+    const low = normalizeAppSettings({ touchControlOpacity: 0.05, movementMode: 'wasd', cameraFollow: true }, desktop);
+    const high = normalizeAppSettings({ touchControlOpacity: 2 }, desktop);
+    expect(low.touchControlOpacity).toBe(0.3);
+    expect(high.touchControlOpacity).toBe(1);
+    expect(low.movementMode).toBe('wasd');
+    expect(low.cameraFollow).toBe(true);
   });
 
   it('preserves disabled fighter readability overlays and forwards them to the renderer', () => {

@@ -281,6 +281,24 @@ export function useBattleRuntime(options: UseBattleRuntimeOptions): BattleRuntim
   }, [battlePaused]);
 
   useEffect(() => {
+    let settleTimer = 0;
+    const refresh = () => {
+      runtimeRef.current?.refreshRendererLayout();
+      window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(() => runtimeRef.current?.refreshRendererLayout(), 220);
+    };
+    window.addEventListener('resize', refresh, { passive: true });
+    window.addEventListener('orientationchange', refresh, { passive: true });
+    window.visualViewport?.addEventListener('resize', refresh, { passive: true });
+    return () => {
+      window.clearTimeout(settleTimer);
+      window.removeEventListener('resize', refresh);
+      window.removeEventListener('orientationchange', refresh);
+      window.visualViewport?.removeEventListener('resize', refresh);
+    };
+  }, []);
+
+  useEffect(() => {
     if (view !== 'battle' || battleLaunchPhase !== 'intro') return;
     const timer = window.setTimeout(
       () => setBattleLaunchPhase('running'),
@@ -375,10 +393,12 @@ export function useBattleRuntime(options: UseBattleRuntimeOptions): BattleRuntim
     const timer = window.setTimeout(retry, 700);
     window.addEventListener('resize', retry, { passive: true });
     window.addEventListener('orientationchange', retry, { passive: true });
+    window.visualViewport?.addEventListener('resize', retry, { passive: true });
     return () => {
       window.clearTimeout(timer);
       window.removeEventListener('resize', retry);
       window.removeEventListener('orientationchange', retry);
+      window.visualViewport?.removeEventListener('resize', retry);
     };
   }, [bootError]);
 

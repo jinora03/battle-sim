@@ -51,7 +51,7 @@ export interface CanvasResolution {
 }
 
 export interface AppSettings {
-  schemaVersion: 9;
+  schemaVersion: 10;
   qualityPreset: QualityPresetId;
   renderProfile: RenderProfileId;
   effects: boolean;
@@ -75,6 +75,7 @@ export interface AppSettings {
   reducedMotion: boolean;
   highContrast: boolean;
   largeTouchControls: boolean;
+  touchControlOpacity: number;
   touchControls: TouchControlMode;
   showPerformanceHud: boolean;
   fullscreenBattle: boolean;
@@ -238,10 +239,10 @@ export function createDefaultAppSettings(capabilities = detectDeviceCapabilities
   const recommended = recommendQualityPreset(capabilities);
   const base = qualityPresets[recommended].values;
   return {
-    schemaVersion: 9,
+    schemaVersion: 10,
     qualityPreset: 'auto',
     ...base,
-    cameraFollow: true,
+    cameraFollow: false,
     showMountedAttachments: true,
     showFighterHealthRings: true,
     showDamageNumbers: true,
@@ -252,10 +253,11 @@ export function createDefaultAppSettings(capabilities = detectDeviceCapabilities
     reducedMotion: capabilities.reducedMotion,
     highContrast: false,
     largeTouchControls: capabilities.touchFirst,
+    touchControlOpacity: 0.75,
     touchControls: 'auto',
     showPerformanceHud: false,
     fullscreenBattle: false,
-    movementMode: 'wasd',
+    movementMode: 'mouse',
     aimAssist: 'light'
   };
 }
@@ -292,7 +294,7 @@ export function normalizeAppSettings(input: unknown, capabilities = detectDevice
     : defaults.aimAssist;
   return {
     ...seeded,
-    schemaVersion: 9,
+    schemaVersion: 10,
     qualityPreset: preset,
     renderProfile,
     effects: typeof raw.effects === 'boolean' ? raw.effects : seeded.effects,
@@ -316,6 +318,7 @@ export function normalizeAppSettings(input: unknown, capabilities = detectDevice
     reducedMotion: typeof raw.reducedMotion === 'boolean' ? raw.reducedMotion : seeded.reducedMotion,
     highContrast: typeof raw.highContrast === 'boolean' ? raw.highContrast : seeded.highContrast,
     largeTouchControls: typeof raw.largeTouchControls === 'boolean' ? raw.largeTouchControls : seeded.largeTouchControls,
+    touchControlOpacity: clamp(raw.touchControlOpacity, seeded.touchControlOpacity, 0.3, 1),
     touchControls,
     showPerformanceHud: typeof raw.showPerformanceHud === 'boolean' ? raw.showPerformanceHud : seeded.showPerformanceHud,
     fullscreenBattle: typeof raw.fullscreenBattle === 'boolean' ? raw.fullscreenBattle : seeded.fullscreenBattle,

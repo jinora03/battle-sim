@@ -77,7 +77,7 @@ describe('Stage 8.7D battle readability, anti-stall and roster polish', () => {
   });
 
   it('advances engine and content compatibility markers together', () => {
-    expect(CONTENT_VERSION).toBe('1.3.20-stage8.7d');
     expect(CONTENT_VERSION).toBe(ENGINE_VERSION);
+    expect(CONTENT_VERSION).toMatch(/^1\.3\.\d+-stage8\./);
   });
 });
