@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { getAbilityCombatAudioProfile } from '@kinetic/audio';
 import { CONTENT_VERSION } from '@kinetic/content';
 import { ENGINE_VERSION } from '@kinetic/simulation';
-import { getSkillPresentation } from '@kinetic/visual-engine';
+import { getAbilityCombatVfxProfile, getSkillPresentation } from '@kinetic/visual-engine';
 
 describe('Stage 8.4C Ballast presentation polish', () => {
   it('assigns dedicated mass-themed resolve recipes to the complete Ballast kit', () => {
@@ -13,10 +13,13 @@ describe('Stage 8.4C Ballast presentation polish', () => {
     expect(getSkillPresentation('last-call').resolve).toBe('last-call');
   });
 
-  it('implements every dedicated Ballast resolve style in the Pixi effect engine', () => {
+  it('routes every dedicated Ballast recipe through intent-based VFX profiles', () => {
     const fxSource = readFileSync(new URL('../packages/renderer-pixi/src/effects/FxEngine.ts', import.meta.url), 'utf8');
+    for (const abilityId of ['featherfall', 'downbeat', 'dead-weight', 'last-call']) {
+      expect(getAbilityCombatVfxProfile(abilityId), abilityId).toBeDefined();
+    }
     for (const style of ['mass-bloom', 'downbeat-punt', 'anchor-drop', 'last-call']) {
-      expect(fxSource).toContain(`case '${style}':`);
+      expect(fxSource).not.toContain(`case '${style}':`);
     }
   });
 
@@ -32,6 +35,6 @@ describe('Stage 8.4C Ballast presentation polish', () => {
   });
 
   it('keeps engine and content compatibility markers aligned', () => {
-  expect(CONTENT_VERSION).toBe(ENGINE_VERSION);
+    expect(CONTENT_VERSION).toBe(ENGINE_VERSION);
 });
 });

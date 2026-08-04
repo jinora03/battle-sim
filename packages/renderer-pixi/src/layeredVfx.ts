@@ -418,6 +418,9 @@ export class LayeredVfxEngine {
         this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.core, shape, Math.round(count * 0.3), 9.4 * layer.intensity);
       } else if (layer.intent === 'projectile' || layer.intent === 'beam' || layer.intent === 'burst-fire') {
         this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.glow, shape, Math.round(count * 0.82), 8.8 * layer.intensity);
+      } else if (layer.intent === 'knockback') {
+        this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.core, shape, Math.round(count * 1.05), 10.8 * layer.intensity);
+        this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.accent, shape, Math.round(count * 0.68), 7.6 * layer.intensity);
       }
       return;
     }
