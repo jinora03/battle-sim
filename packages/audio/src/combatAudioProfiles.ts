@@ -71,6 +71,41 @@ const DEFAULT_PHASE_DURATION: Readonly<Record<CombatAudioPhase, number>> = {
   release: 0.22
 };
 
+const LIGHTNING_DASH_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'lightning-dash',
+  palette: 'electric',
+  hierarchy: 'skill',
+  layers: {
+    anticipation: { intent: 'projectile', intensity: 0.62, durationSeconds: 0.16 },
+    activation: { intent: 'knockback', intensity: 0.82, durationSeconds: 0.17 },
+    sustain: { intent: 'channel', intensity: 0.46, durationSeconds: 0.14, delaySeconds: 0.025 },
+    release: { intent: 'status-application', intensity: 0.52, durationSeconds: 0.12, delaySeconds: 0.12 }
+  }
+};
+
+const ARC_BURST_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'arc-burst',
+  palette: 'electric',
+  hierarchy: 'skill',
+  layers: {
+    anticipation: { intent: 'status-application', intensity: 0.58, durationSeconds: 0.28 },
+    activation: { intent: 'explosion', intensity: 0.88, durationSeconds: 0.28 },
+    release: { intent: 'status-application', intensity: 0.64, durationSeconds: 0.17, delaySeconds: 0.12 }
+  }
+};
+
+const POLARITY_PULL_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'polarity-pull',
+  palette: 'electric',
+  hierarchy: 'payoff',
+  layers: {
+    anticipation: { intent: 'pull', intensity: 0.82 },
+    activation: { intent: 'pull', intensity: 0.9, durationSeconds: 0.25 },
+    sustain: { intent: 'pull', intensity: 0.7, durationSeconds: 0.34, delaySeconds: 0.025 },
+    release: { intent: 'knockback', intensity: 0.92, durationSeconds: 0.24, delaySeconds: 0.27 }
+  }
+};
+
 const THUNDER_DOME_PROFILE: AbilityCombatAudioProfile = {
   abilityId: 'thunder-dome',
   palette: 'electric',
@@ -83,9 +118,16 @@ const THUNDER_DOME_PROFILE: AbilityCombatAudioProfile = {
   }
 };
 
-const ABILITY_AUDIO_PROFILES = new Map<string, AbilityCombatAudioProfile>([
-  [THUNDER_DOME_PROFILE.abilityId, THUNDER_DOME_PROFILE]
-]);
+const VOLT_AUDIO_PROFILES = [
+  LIGHTNING_DASH_PROFILE,
+  ARC_BURST_PROFILE,
+  POLARITY_PULL_PROFILE,
+  THUNDER_DOME_PROFILE
+] as const;
+
+const ABILITY_AUDIO_PROFILES = new Map<string, AbilityCombatAudioProfile>(
+  VOLT_AUDIO_PROFILES.map((profile) => [profile.abilityId, profile])
+);
 
 export function getAbilityCombatAudioProfile(abilityId: string): AbilityCombatAudioProfile | undefined {
   return ABILITY_AUDIO_PROFILES.get(abilityId);
