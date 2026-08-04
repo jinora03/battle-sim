@@ -1,4 +1,5 @@
 import { SHARED_PRIMARY_ATTACKS } from '../catalogs/sharedPrimaryAttacks';
+import aggressiveBrawlerAiProfileRaw from '../data/ai/aggressive-brawler.json';
 import type { PrimaryAttackDefinition, SkillProjectileDefinition } from '../schemas';
 import { ballastContent } from './ballast';
 import { bomberContent } from './bomber';
@@ -31,9 +32,17 @@ export const BUILTIN_FIGHTER_CONTENT: readonly FighterContentBundle[] = [
 ];
 
 export const BUILTIN_FIGHTER_RAW: readonly unknown[] = BUILTIN_FIGHTER_CONTENT.map((content) => content.fighter);
-export const BUILTIN_AI_PROFILE_RAW: readonly unknown[] = BUILTIN_FIGHTER_CONTENT.flatMap((content) =>
-  content.aiProfile === undefined ? [] : [content.aiProfile]
-);
+/**
+ * Keep reusable/legacy controller profiles registered even when no built-in
+ * fighter currently owns them. Fighter Creator bundles and old replays may
+ * still reference aggressive-brawler directly.
+ */
+export const BUILTIN_AI_PROFILE_RAW: readonly unknown[] = [
+  aggressiveBrawlerAiProfileRaw,
+  ...BUILTIN_FIGHTER_CONTENT.flatMap((content) =>
+    content.aiProfile === undefined ? [] : [content.aiProfile]
+  )
+];
 export const BUILTIN_ABILITY_RAW: readonly unknown[] = BUILTIN_FIGHTER_CONTENT.flatMap((content) => content.abilities);
 
 /**

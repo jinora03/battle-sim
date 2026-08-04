@@ -118,6 +118,101 @@ const THUNDER_DOME_PROFILE: AbilityCombatAudioProfile = {
   }
 };
 
+const MAGMA_DASH_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'magma-dash',
+  palette: 'fire',
+  hierarchy: 'skill',
+  layers: {
+    anticipation: { intent: 'transformation', intensity: 0.54, durationSeconds: 0.15 },
+    activation: { intent: 'knockback', intensity: 0.82, durationSeconds: 0.2 },
+    sustain: { intent: 'channel', intensity: 0.48, durationSeconds: 0.2, delaySeconds: 0.035 },
+    release: { intent: 'status-application', intensity: 0.54, durationSeconds: 0.14, delaySeconds: 0.14 }
+  }
+};
+
+const FLAME_RING_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'flame-ring',
+  palette: 'fire',
+  hierarchy: 'skill',
+  layers: {
+    anticipation: { intent: 'pull', intensity: 0.62 },
+    activation: { intent: 'pull', intensity: 0.82, durationSeconds: 0.28 },
+    sustain: { intent: 'channel', intensity: 0.56, durationSeconds: 0.34, delaySeconds: 0.035 },
+    release: { intent: 'status-application', intensity: 0.64, durationSeconds: 0.2, delaySeconds: 0.24 }
+  }
+};
+
+const MOLTEN_GUARD_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'molten-guard',
+  palette: 'fire',
+  hierarchy: 'payoff',
+  layers: {
+    anticipation: { intent: 'status-application', intensity: 0.74 },
+    activation: { intent: 'explosion', intensity: 0.96, durationSeconds: 0.34 },
+    sustain: { intent: 'channel', intensity: 0.5, durationSeconds: 0.22, delaySeconds: 0.045 },
+    release: { intent: 'knockback', intensity: 0.78, durationSeconds: 0.22, delaySeconds: 0.18 }
+  }
+};
+
+const INFERNO_COLLAPSE_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'inferno-collapse',
+  palette: 'fire',
+  hierarchy: 'ultimate',
+  layers: {
+    anticipation: { intent: 'ultimate', intensity: 1, durationSeconds: 0.8 },
+    activation: { intent: 'explosion', intensity: 1.08, durationSeconds: 0.58 },
+    sustain: { intent: 'transformation', intensity: 0.82, durationSeconds: 0.62, delaySeconds: 0.06 },
+    release: { intent: 'status-application', intensity: 0.88, durationSeconds: 0.34, delaySeconds: 0.46 }
+  }
+};
+
+const FEATHERFALL_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'featherfall',
+  palette: 'gravity',
+  hierarchy: 'skill',
+  layers: {
+    anticipation: { intent: 'status-application', intensity: 0.56 },
+    activation: { intent: 'pull', intensity: 0.72, durationSeconds: 0.3 },
+    sustain: { intent: 'status-application', intensity: 0.44, durationSeconds: 0.3, delaySeconds: 0.045 },
+    release: { intent: 'status-application', intensity: 0.58, durationSeconds: 0.2, delaySeconds: 0.22 }
+  }
+};
+
+const DOWNBEAT_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'downbeat',
+  palette: 'gravity',
+  hierarchy: 'payoff',
+  layers: {
+    anticipation: { intent: 'knockback', intensity: 0.7, durationSeconds: 0.22 },
+    activation: { intent: 'knockback', intensity: 1, durationSeconds: 0.32 },
+    release: { intent: 'explosion', intensity: 0.8, durationSeconds: 0.24, delaySeconds: 0.12 }
+  }
+};
+
+const DEAD_WEIGHT_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'dead-weight',
+  palette: 'gravity',
+  hierarchy: 'skill',
+  layers: {
+    anticipation: { intent: 'transformation', intensity: 0.68 },
+    activation: { intent: 'knockback', intensity: 0.84, durationSeconds: 0.32 },
+    sustain: { intent: 'transformation', intensity: 0.6, durationSeconds: 0.38, delaySeconds: 0.045 },
+    release: { intent: 'status-application', intensity: 0.54, durationSeconds: 0.2, delaySeconds: 0.26 }
+  }
+};
+
+const LAST_CALL_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'last-call',
+  palette: 'gravity',
+  hierarchy: 'ultimate',
+  layers: {
+    anticipation: { intent: 'ultimate', intensity: 1, durationSeconds: 0.88 },
+    activation: { intent: 'pull', intensity: 1.08, durationSeconds: 0.62 },
+    sustain: { intent: 'transformation', intensity: 0.84, durationSeconds: 0.68, delaySeconds: 0.05 },
+    release: { intent: 'explosion', intensity: 0.94, durationSeconds: 0.4, delaySeconds: 0.5 }
+  }
+};
+
 const VOLT_AUDIO_PROFILES = [
   LIGHTNING_DASH_PROFILE,
   ARC_BURST_PROFILE,
@@ -125,8 +220,23 @@ const VOLT_AUDIO_PROFILES = [
   THUNDER_DOME_PROFILE
 ] as const;
 
+const PYRO_AUDIO_PROFILES = [
+  MAGMA_DASH_PROFILE,
+  FLAME_RING_PROFILE,
+  MOLTEN_GUARD_PROFILE,
+  INFERNO_COLLAPSE_PROFILE
+] as const;
+
+const BALLAST_AUDIO_PROFILES = [
+  FEATHERFALL_PROFILE,
+  DOWNBEAT_PROFILE,
+  DEAD_WEIGHT_PROFILE,
+  LAST_CALL_PROFILE
+] as const;
+
 const ABILITY_AUDIO_PROFILES = new Map<string, AbilityCombatAudioProfile>(
-  VOLT_AUDIO_PROFILES.map((profile) => [profile.abilityId, profile])
+  [...VOLT_AUDIO_PROFILES, ...PYRO_AUDIO_PROFILES, ...BALLAST_AUDIO_PROFILES]
+    .map((profile) => [profile.abilityId, profile])
 );
 
 export function getAbilityCombatAudioProfile(abilityId: string): AbilityCombatAudioProfile | undefined {

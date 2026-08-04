@@ -1,6 +1,23 @@
-# Kinetic Battle Engine — v1.3.9 Stage 8.6B
+# Kinetic Battle Engine — v1.3.10 Stage 8.6C-1
 
 A browser/mobile-ready 2D physics battle game and modular fighter engine built with TypeScript, PixiJS, React, Vite and Capacitor.
+
+
+> **Stage 8.6C-1 rolls the intent-audio standard out to Pyro and Ballast and corrects Solar Sentinel's AI ultimate usage.** Pyro now has a furnace-to-detonation hierarchy, Ballast has distinct mass-shift and compression cues, and Solar Sentinel no longer inherits Pyro's Heat-gated AI rules.
+
+## Stage 8.6C-1 highlights
+
+- complete intent-profile migration for Pyro's Cinder Rush, Fire Vortex, Combustion and Meltdown
+- complete intent-profile migration for Ballast's Featherfall, Downbeat, Dead Weight and Last Call
+- Pyro uses the fire palette while Ballast uses the low gravity palette; neither copies Thunder Dome's electric identity
+- Combustion and Downbeat are explicit payoff abilities between ordinary skills and ultimates
+- legacy Pyro/Ballast ability-ID playback branches removed after migration
+- Solar Sentinel now has a dedicated AI profile instead of reusing `aggressive-brawler`
+- removed the impossible `heat` resource prerequisite that prevented Solar Eye Beams from being selected
+- Solar Eye Beams can now be selected from its real 90–1080 range and begins its existing stationary tracking channel normally
+- no Pyro or Ballast damage, cooldown, status, physics, AI or replay behavior changed
+
+See `docs/V1_3_STAGE_8_6C1_PYRO_BALLAST_AUDIO_SENTINEL_FIX.md` for implementation and validation notes.
 
 > **Stage 8.6B validates intent-based combat audio on Volt Striker.** Arc Emitter now has separate charge, launch and impact reads; Lightning Dash, Arc Burst and Polarity Pull use distinct lifecycle profiles; Thunder Dome remains the ultimate-quality benchmark. The audit found no immediate need for AI, balance or kit changes.
 

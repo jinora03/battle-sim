@@ -25,7 +25,7 @@
     "maxHp": 450,
     "moveAcceleration": 0.22
   },
-  "aiProfileId": "aggressive-brawler",
+  "aiProfileId": "solar-sentinel",
   "abilitySlots": {
     "skill1": "solar-rush",
     "skill2": "thunder-clap",

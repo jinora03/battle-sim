@@ -1,0 +1,52 @@
+{
+  "id": "solar-sentinel",
+  "reactionTicks": 7,
+  "aggression": 0.94,
+  "preferredDistance": 175,
+  "retreatHealthRatio": 0.08,
+  "steeringStrength": 1.0,
+  "movementStyle": "charger",
+  "orbitStrength": 0.18,
+  "wallAvoidance": 0.9,
+  "targeting": "lowest-health",
+  "allySeparation": 0.72,
+  "targetSpread": 0.7,
+  "targetStickiness": 0.82,
+  "abilityUsage": [
+    {
+      "slot": "skill1",
+      "everyTicks": 125,
+      "phaseTicks": 30,
+      "minDistance": 70,
+      "maxDistance": 430,
+      "priority": 8
+    },
+    {
+      "slot": "skill2",
+      "everyTicks": 185,
+      "phaseTicks": 68,
+      "minDistance": 0,
+      "maxDistance": 210,
+      "priority": 10,
+      "minimumTargets": 1
+    },
+    {
+      "slot": "skill3",
+      "everyTicks": 260,
+      "phaseTicks": 112,
+      "minDistance": 0,
+      "maxDistance": 99999,
+      "priority": 16,
+      "healthBelow": 0.68
+    },
+    {
+      "slot": "ultimate",
+      "everyTicks": 720,
+      "phaseTicks": 170,
+      "minDistance": 90,
+      "maxDistance": 1080,
+      "priority": 28,
+      "minimumTargets": 1
+    }
+  ]
+}
