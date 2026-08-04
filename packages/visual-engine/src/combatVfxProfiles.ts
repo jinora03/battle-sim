@@ -1,4 +1,5 @@
 import type { Element } from '@kinetic/protocol';
+import type { VfxParticleShape } from './vfx';
 
 export const COMBAT_VFX_PHASES = ['anticipation', 'activation', 'sustain', 'release'] as const;
 export const COMBAT_VFX_INTENTS = [
@@ -77,6 +78,63 @@ export interface ResolvedCombatVfxLayer {
   intensity: number;
   radiusScale: number;
   directional: boolean;
+}
+
+
+export interface CombatVfxParticleStyle {
+  primary: VfxParticleShape;
+  secondary: VfxParticleShape;
+}
+
+/**
+ * Shared shape vocabulary for profile-driven effects. Circles remain useful for
+ * soft glows and smoke, but damaging actions default to directional, broken or
+ * angular particles so combat does not read as a field of floating bubbles.
+ */
+export function resolveCombatVfxParticleStyle(
+  layer: Pick<ResolvedCombatVfxLayer, 'intent' | 'palette' | 'phase' | 'directional'>
+): CombatVfxParticleStyle {
+  if (layer.intent === 'explosion') {
+    if (layer.palette === 'fire') return { primary: 'flame', secondary: 'debris' };
+    if (layer.palette === 'electric') return { primary: 'arc', secondary: 'ring-fragment' };
+    if (layer.palette === 'ice') return { primary: 'shard', secondary: 'ring-fragment' };
+    if (layer.palette === 'metal' || layer.palette === 'neutral') return { primary: 'debris', secondary: 'smoke' };
+    return { primary: 'streak', secondary: 'ring-fragment' };
+  }
+  if (layer.intent === 'pull') return { primary: 'ribbon', secondary: 'ring-fragment' };
+  if (layer.intent === 'knockback') {
+    return layer.directional
+      ? { primary: 'wedge', secondary: 'streak' }
+      : { primary: 'ring-fragment', secondary: 'debris' };
+  }
+  if (layer.intent === 'beam') {
+    return layer.palette === 'electric'
+      ? { primary: 'arc', secondary: 'streak' }
+      : { primary: 'streak', secondary: 'spark' };
+  }
+  if (layer.intent === 'burst-fire' || layer.intent === 'projectile' || layer.intent === 'dash') {
+    return layer.palette === 'electric'
+      ? { primary: 'arc', secondary: 'streak' }
+      : { primary: 'streak', secondary: layer.palette === 'fire' ? 'ember' : 'spark' };
+  }
+  if (layer.intent === 'transformation' || layer.intent === 'ultimate') {
+    return {
+      primary: layer.palette === 'fire' ? 'flame' : layer.palette === 'electric' ? 'arc' : 'ring-fragment',
+      secondary: layer.palette === 'metal' ? 'debris' : 'ribbon'
+    };
+  }
+  if (layer.intent === 'status') {
+    if (layer.palette === 'fire') return { primary: 'ember', secondary: 'flame' };
+    if (layer.palette === 'electric') return { primary: 'arc', secondary: 'spark' };
+    if (layer.palette === 'ice') return { primary: 'shard', secondary: 'spark' };
+    return { primary: 'spark', secondary: 'ribbon' };
+  }
+  if (layer.intent === 'channel') {
+    if (layer.palette === 'fire') return { primary: 'flame', secondary: 'ember' };
+    if (layer.palette === 'metal' || layer.palette === 'neutral') return { primary: 'smoke', secondary: 'debris' };
+    return { primary: 'ribbon', secondary: 'spark' };
+  }
+  return { primary: 'spark', secondary: 'streak' };
 }
 
 const profiles: Readonly<Record<string, CombatVfxProfile>> = {

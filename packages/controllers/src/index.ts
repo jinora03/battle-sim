@@ -1,5 +1,6 @@
 import { getAbility, getAiProfile, getArena, getFighter, getPrimaryAttack } from '@kinetic/content';
 import { ActionSelectionSpatialContext, selectAbilityAction, type AiDecisionDebug } from './actionSelection';
+import { getAiCornerEscapeSign } from './seededDecisionVariation';
 
 export * from './actionSelection';
 export * from './seededDecisionVariation';
@@ -23,9 +24,47 @@ interface AiMemory {
   escapeDirection: Vec2;
   nextAttackDecisionTick: number;
   abilityVariationEpoch: number;
+  cornerPressureReactions: number;
+  cornerEscapeEpoch: number;
 }
 
 const ZERO: Vec2 = { x: 0, y: 0 };
+
+export interface AiCornerEscapeInput {
+  seed: number;
+  entityId: EntityId;
+  targetId: EntityId;
+  corner: 'left:top' | 'right:top' | 'left:bottom' | 'right:bottom';
+  targetDirection: Vec2;
+  escapeEpoch: number;
+}
+
+/** Pure deterministic route resolver used by the ranged anti-stall state. */
+export function resolveAiCornerEscapeDirection(input: AiCornerEscapeInput): Vec2 {
+  const [horizontal, vertical] = input.corner.split(':') as ['left' | 'right', 'top' | 'bottom'];
+  const inward = normalize({
+    x: horizontal === 'left' ? 1 : -1,
+    y: vertical === 'top' ? 1 : -1
+  });
+  const targetDirection = normalize(input.targetDirection);
+  const side = getAiCornerEscapeSign(
+    input.seed,
+    input.entityId,
+    `${input.corner}:${input.targetId}`,
+    input.escapeEpoch
+  );
+  const lateral = side > 0
+    ? { x: -targetDirection.y, y: targetDirection.x }
+    : { x: targetDirection.y, y: -targetDirection.x };
+  let escape = normalize({
+    x: inward.x * 1.35 + lateral.x * 0.58,
+    y: inward.y * 1.35 + lateral.y * 0.58
+  });
+  if (escape.x * inward.x + escape.y * inward.y < 0.56) {
+    escape = normalize({ x: inward.x + lateral.x * 0.22, y: inward.y + lateral.y * 0.22 });
+  }
+  return escape;
+}
 const EMPTY_DENSITY: ReadonlyMap<EntityId, number> = new Map();
 
 export interface AiWorkloadPolicy {
@@ -142,7 +181,9 @@ export class AiController implements ControllerSource {
         escapeUntilTick: 0,
         escapeDirection: ZERO,
         nextAttackDecisionTick: snapshot.tick + attackPhase,
-        abilityVariationEpoch: 0
+        abilityVariationEpoch: 0,
+        cornerPressureReactions: 0,
+        cornerEscapeEpoch: 0
       };
       const currentTarget = memory.targetId === null ? undefined : this.entityById.get(memory.targetId);
 
@@ -159,6 +200,22 @@ export class AiController implements ControllerSource {
         const target = this.selectTarget(this.actionSelectionSpatial.candidatesForTeam(entity.team), entity, profile, this.targetLoad, memory.targetId, density);
         memory.targetId = target?.id ?? null;
         this.updateStuckState(memory, entity, snapshot.tick, reactionInterval);
+        if (target) {
+          this.updateRangedCornerEscape(
+            memory,
+            entity,
+            target,
+            fighter.primaryAttackId,
+            profile,
+            arena.width,
+            arena.height,
+            snapshot.seed,
+            snapshot.tick,
+            reactionInterval
+          );
+        } else {
+          memory.cornerPressureReactions = 0;
+        }
         const allies = this.teamMembers.get(entity.team) ?? [];
         memory.direction = target
           ? this.computeSteering(entity, target, fighter.primaryAttackId, profile, arena.width, arena.height, snapshot, allies, entities, this.targetLoad.get(target.id) ?? 0, memory)
@@ -272,6 +329,53 @@ export class AiController implements ControllerSource {
       memory.escapeUntilTick = tick + Math.max(18, reactionTicks * 4);
       memory.stuckReactions = 0;
     }
+  }
+
+  private updateRangedCornerEscape(
+    memory: AiMemory,
+    entity: EntitySnapshot,
+    target: EntitySnapshot,
+    weaponId: string | null | undefined,
+    profile: ReturnType<typeof getAiProfile>,
+    arenaWidth: number,
+    arenaHeight: number,
+    seed: number,
+    tick: number,
+    reactionTicks: number
+  ): void {
+    const attack = weaponId ? getPrimaryAttack(weaponId) : null;
+    const ranged = attack
+      ? ['ranged', 'automatic', 'throwable', 'beam'].includes(attack.behavior)
+      : profile.movementStyle === 'kite';
+    if (!ranged) {
+      memory.cornerPressureReactions = 0;
+      return;
+    }
+
+    const margin = Math.max(entity.radius + 34, Math.min(132, Math.min(arenaWidth, arenaHeight) * 0.15));
+    const horizontal = entity.x < margin ? 'left' : entity.x > arenaWidth - margin ? 'right' : null;
+    const vertical = entity.y < margin ? 'top' : entity.y > arenaHeight - margin ? 'bottom' : null;
+    if (!horizontal || !vertical) {
+      memory.cornerPressureReactions = 0;
+      return;
+    }
+
+    memory.cornerPressureReactions += 1;
+    if (tick < memory.escapeUntilTick || memory.cornerPressureReactions < 2) return;
+
+    const escape = resolveAiCornerEscapeDirection({
+      seed,
+      entityId: entity.id,
+      targetId: target.id,
+      corner: `${horizontal}:${vertical}`,
+      targetDirection: { x: target.x - entity.x, y: target.y - entity.y },
+      escapeEpoch: memory.cornerEscapeEpoch
+    });
+
+    memory.escapeDirection = escape;
+    memory.escapeUntilTick = tick + Math.max(32, reactionTicks * 6);
+    memory.cornerPressureReactions = 0;
+    memory.cornerEscapeEpoch += 1;
   }
 
   private computeSteering(

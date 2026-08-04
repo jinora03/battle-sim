@@ -2,7 +2,19 @@ import type { Element } from '@kinetic/protocol';
 
 export type VfxQualityTier = 'low' | 'medium' | 'high';
 export type VfxAnchor = 'arena' | 'world' | 'fighter' | 'weapon' | 'projectile' | 'screen';
-export type VfxParticleShape = 'spark' | 'smoke' | 'debris' | 'ember' | 'droplet' | 'shard';
+export type VfxParticleShape =
+  | 'spark'
+  | 'smoke'
+  | 'debris'
+  | 'ember'
+  | 'droplet'
+  | 'shard'
+  | 'streak'
+  | 'arc'
+  | 'ring-fragment'
+  | 'flame'
+  | 'wedge'
+  | 'ribbon';
 
 export interface ElementVfxPalette {
   core: number;

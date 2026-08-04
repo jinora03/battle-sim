@@ -47,8 +47,29 @@ export function RosterView({ fighters, profile, onPlayAs, onSetOpponent }: {
               </div>
               {(passives.length > 0 || compatibleModules.length > 0) && (
                 <div className="fighter-identity-summary">
-                  {passives.map((passive) => <div key={passive.id}><span>Passive</span><strong>{passive.name}</strong><small>{passive.description}</small></div>)}
-                  {compatibleModules.length > 0 && <div><span>Approved modules</span><strong>{compatibleModules.map((module) => module.name).join(' · ')}</strong><small>Selected in Battle Setup; modules adjust this fighter's authored kit rather than replacing it.</small></div>}
+                  {passives.map((passive) => (
+                    <details className="fighter-identity-disclosure" key={passive.id} open={passive.description.length <= 150}>
+                      <summary>
+                        <span>Passive</span>
+                        <strong>{passive.name}</strong>
+                        <i aria-hidden="true" />
+                      </summary>
+                      <small>{passive.description}</small>
+                    </details>
+                  ))}
+                  {compatibleModules.length > 0 && (
+                    <details className="fighter-identity-disclosure modules">
+                      <summary>
+                        <span>Approved modules</span>
+                        <strong>{compatibleModules.length} compatible</strong>
+                        <i aria-hidden="true" />
+                      </summary>
+                      <div className="roster-module-list">
+                        {compatibleModules.map((module) => <b key={module.id}>{module.name}</b>)}
+                      </div>
+                      <small>Selected in Battle Setup; modules adjust this fighter's authored kit rather than replacing it.</small>
+                    </details>
+                  )}
                 </div>
               )}
               <div className="release-fighter-actions"><NeonButton tone="success" disabled={locked} onClick={() => onPlayAs(fighter.id)}>Play as</NeonButton><NeonButton tone="utility" disabled={locked} onClick={() => onSetOpponent(fighter.id)}>Set as opponent</NeonButton></div>

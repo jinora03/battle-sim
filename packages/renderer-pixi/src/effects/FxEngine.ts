@@ -22,10 +22,12 @@ import {
   getElementVfxPalette,
   getSkillPresentation,
   resolveCombatVfxLayer,
+  resolveCombatVfxParticleStyle,
   resolveImpactResponse,
   type CombatVfxProfile,
   type ResolvedCombatVfxLayer,
-  type SkillPresentationRecipe
+  type SkillPresentationRecipe,
+  type VfxParticleShape
 } from '@kinetic/visual-engine';
 
 export interface FxResponse {
@@ -62,6 +64,7 @@ interface ParticleState {
   maxLife: number;
   drag: number;
   growth: number;
+  spin: number;
 }
 
 interface ShockwaveState {
@@ -88,6 +91,41 @@ interface ScheduledCombatVfxLayer {
   particleScale: number;
 }
 
+function drawParticleShape(node: Graphics, shape: VfxParticleShape, size: number, color: number, alpha = 1): void {
+  node.clear();
+  if (shape === 'smoke' || shape === 'droplet') {
+    node.circle(0, 0, size * (shape === 'smoke' ? 1.7 : 0.82)).fill({ color, alpha: shape === 'smoke' ? alpha * 0.5 : alpha });
+    return;
+  }
+  if (shape === 'debris' || shape === 'shard') {
+    node.moveTo(0, -size * 1.35).lineTo(size * 0.52, size * 0.72).lineTo(-size * 0.38, size).lineTo(0, -size * 1.35).fill({ color, alpha });
+    return;
+  }
+  if (shape === 'ember') {
+    node.moveTo(0, -size).lineTo(size * 0.62, 0).lineTo(0, size).lineTo(-size * 0.62, 0).lineTo(0, -size).fill({ color, alpha });
+    return;
+  }
+  if (shape === 'flame') {
+    node.moveTo(0, size * 1.2)
+      .quadraticCurveTo(size * 0.95, size * 0.12, size * 0.18, -size * 1.45)
+      .quadraticCurveTo(-size * 0.78, -size * 0.18, 0, size * 1.2)
+      .fill({ color, alpha });
+    return;
+  }
+  if (shape === 'arc' || shape === 'ribbon' || shape === 'ring-fragment') {
+    const bend = shape === 'ring-fragment' ? size * 0.92 : shape === 'ribbon' ? size * 0.62 : size * 0.42;
+    node.moveTo(-size * 1.25, size * 0.25)
+      .quadraticCurveTo(0, -bend, size * 1.25, -size * 0.2)
+      .stroke({ color, width: Math.max(1.4, size * (shape === 'ribbon' ? 0.42 : 0.34)), alpha });
+    return;
+  }
+  if (shape === 'wedge') {
+    node.moveTo(size * 1.45, 0).lineTo(-size * 0.9, -size * 0.72).lineTo(-size * 0.45, 0).lineTo(-size * 0.9, size * 0.72).lineTo(size * 1.45, 0).fill({ color, alpha });
+    return;
+  }
+  node.moveTo(-size * 1.25, 0).lineTo(size * 1.45, 0).stroke({ color, width: Math.max(1.5, size * (shape === 'streak' ? 0.42 : 0.32)), alpha });
+}
+
 export class FxEngine {
   private readonly particles: ParticleState[] = [];
   private readonly shockwaves: ShockwaveState[] = [];
@@ -102,7 +140,7 @@ export class FxEngine {
       node.visible = false;
       node.blendMode = 'add';
       container.addChild(node);
-      this.particles.push({ node, active: false, vx: 0, vy: 0, life: 0, maxLife: 1, drag: 0.96, growth: 0 });
+      this.particles.push({ node, active: false, vx: 0, vy: 0, life: 0, maxLife: 1, drag: 0.96, growth: 0, spin: 0 });
     }
     for (let i = 0; i < 28; i += 1) {
       const node = new Graphics();
@@ -358,6 +396,7 @@ export class FxEngine {
       particle.node.y += particle.vy * dtSeconds * 60;
       particle.vx *= particle.drag;
       particle.vy *= particle.drag;
+      particle.node.rotation += particle.spin * dtSeconds;
       const ratio = particle.life / particle.maxLife;
       particle.node.alpha = ratio;
       particle.node.scale.set(0.55 + ratio * 0.55 + (1 - ratio) * particle.growth);
@@ -618,17 +657,20 @@ export class FxEngine {
     const amount = Math.max(3, Math.round(24 * layer.intensity * particleScale));
     const radius = 72 * layer.radiusScale * layer.intensity;
     const duration = layer.durationSeconds;
+    const style = resolveCombatVfxParticleStyle(layer);
+    const glowStrength = layer.hierarchy === 'ultimate' ? 1 : layer.hierarchy === 'payoff' ? 0.8 : 0.58;
 
     if (layer.phase === 'anticipation') {
+      this.profileBloom(x, y, palette.core, palette.glow, radius * 0.42, Math.min(0.3, duration), glowStrength * 0.65);
       this.shockwave(x, y, palette.glow, radius * 0.48, 2.5, Math.min(0.5, duration));
       if (layer.intent === 'pull') {
         this.inwardBurst(x, y, palette.accent, Math.round(amount * 0.7), radius * 0.88, 5.2 * layer.intensity);
         this.shockwave(x, y, palette.core, radius * 0.3, 2, Math.min(0.34, duration));
       } else {
-        this.burst(x, y, palette.accent, Math.round(amount * 0.55), 2.8, 1, 3, 0.14, Math.min(0.54, duration), 0.98, 0.48);
+        this.burst(x, y, palette.accent, Math.round(amount * 0.55), 2.8, 1, 3, 0.14, Math.min(0.54, duration), 0.98, 0.48, style.primary);
       }
       if (layer.intent === 'projectile' || layer.intent === 'burst-fire' || layer.intent === 'beam' || layer.intent === 'dash') {
-        this.directionalBurst(x, y, dirX, dirY, palette.glow, Math.round(amount * 0.38), 3.8 * layer.intensity);
+        this.directionalBurst(x, y, dirX, dirY, palette.glow, Math.round(amount * 0.38), 3.8 * layer.intensity, style.primary);
       }
       if (layer.intent === 'ultimate' || layer.intent === 'transformation') {
         this.flash(x, y, palette.core, radius * 0.28, Math.min(0.2, duration));
@@ -642,31 +684,33 @@ export class FxEngine {
     }
 
     if (layer.phase === 'activation') {
+      this.profileBloom(x, y, palette.core, palette.glow, radius, Math.min(0.34, duration), glowStrength);
       if (layer.intent === 'dash') {
-        this.directionalBurst(x, y, -dirX, -dirY, palette.accent, amount, 8.5 * layer.intensity);
-        this.directionalBurst(x, y, dirX, dirY, palette.core, Math.round(amount * 0.36), 11 * layer.intensity);
+        this.directionalBurst(x, y, -dirX, -dirY, palette.accent, amount, 8.5 * layer.intensity, style.primary);
+        this.directionalBurst(x, y, dirX, dirY, palette.core, Math.round(amount * 0.36), 11 * layer.intensity, style.secondary);
         this.flash(x, y, palette.core, radius * 0.36, Math.min(0.18, duration));
       } else if (layer.intent === 'pull') {
-        this.inwardBurst(x, y, palette.accent, amount, radius * 1.05, 8.8 * layer.intensity);
-        this.inwardBurst(x, y, palette.glow, Math.round(amount * 0.52), radius * 0.72, 6.2 * layer.intensity);
+        this.inwardBurst(x, y, palette.accent, amount, radius * 1.05, 8.8 * layer.intensity, style.primary);
+        this.inwardBurst(x, y, palette.glow, Math.round(amount * 0.52), radius * 0.72, 6.2 * layer.intensity, style.secondary);
         this.flash(x, y, palette.core, radius * 0.42, Math.min(0.22, duration));
         this.shockwave(x, y, palette.accent, radius * 0.84, 5, Math.min(0.46, duration * 1.6));
       } else if (layer.intent === 'projectile' || layer.intent === 'beam' || layer.intent === 'burst-fire') {
-        this.directionalBurst(x, y, dirX, dirY, palette.accent, amount, 10.5 * layer.intensity);
-        this.directionalBurst(x, y, -dirX, -dirY, palette.glow, Math.round(amount * 0.48), 5.8 * layer.intensity);
+        this.directionalBurst(x, y, dirX, dirY, palette.accent, amount, 10.5 * layer.intensity, style.primary);
+        this.directionalBurst(x, y, -dirX, -dirY, palette.glow, Math.round(amount * 0.48), 5.8 * layer.intensity, style.secondary);
         this.flash(x, y, palette.core, radius * 0.42, Math.min(0.2, duration));
       } else if (layer.intent === 'explosion') {
         this.flash(x, y, palette.core, radius * 0.68, Math.min(0.25, duration));
         this.shockwave(x, y, palette.accent, radius * 1.08, layer.hierarchy === 'ultimate' ? 11 : 7, Math.min(0.58, duration * 1.75));
         this.shockwave(x, y, palette.glow, radius * 0.68, 4, Math.min(0.4, duration * 1.35));
-        this.burst(x, y, palette.accent, Math.round(amount * 1.12), 9.2 * layer.intensity, 1.4, 5.6, 0.14, 0.52, 0.95, 0.42);
-        this.burst(x, y, palette.debris, Math.round(amount * 0.58), 5.5 * layer.intensity, 2.2, 7.2, 0.22, 0.72, 0.975, 0.9);
+        this.burst(x, y, palette.accent, Math.round(amount * 1.12), 9.2 * layer.intensity, 1.4, 5.6, 0.14, 0.52, 0.95, 0.42, style.primary);
+        this.burst(x, y, palette.debris, Math.round(amount * 0.58), 5.5 * layer.intensity, 2.2, 7.2, 0.22, 0.72, 0.975, 0.9, style.secondary);
+        this.brokenShockwave(x, y, palette.glow, radius * 1.02, layer.hierarchy === 'ultimate' ? 11 : 7, Math.min(0.58, duration * 1.6));
       } else if (layer.intent === 'knockback') {
         if (layer.directional) {
-          this.directionalBurst(x, y, dirX, dirY, palette.core, Math.round(amount * 1.08), 12.5 * layer.intensity);
-          this.directionalBurst(x, y, dirX, dirY, palette.accent, Math.round(amount * 0.76), 8.8 * layer.intensity);
+          this.directionalBurst(x, y, dirX, dirY, palette.core, Math.round(amount * 1.08), 12.5 * layer.intensity, style.primary);
+          this.directionalBurst(x, y, dirX, dirY, palette.accent, Math.round(amount * 0.76), 8.8 * layer.intensity, style.secondary);
         } else {
-          this.burst(x, y, palette.core, Math.round(amount * 0.78), 8.8 * layer.intensity, 1.2, 4.4, 0.12, 0.38, 0.95, 0.3);
+          this.burst(x, y, palette.core, Math.round(amount * 0.78), 8.8 * layer.intensity, 1.2, 4.4, 0.12, 0.38, 0.95, 0.3, style.primary);
           this.shockwave(x, y, palette.accent, radius * 0.98, 6, Math.min(0.45, duration * 1.55));
         }
         this.flash(x, y, palette.core, radius * 0.48, Math.min(0.2, duration));
@@ -675,7 +719,7 @@ export class FxEngine {
         this.flash(x, y, palette.core, radius * 0.62, Math.min(0.24, duration));
         this.shockwave(x, y, palette.accent, radius, 7, Math.min(0.52, duration * 1.7));
         this.shockwave(x, y, palette.glow, radius * 0.62, 3, Math.min(0.36, duration * 1.25));
-        this.burst(x, y, palette.accent, amount, 8.5 * layer.intensity, 1.4, 4.8, 0.16, 0.48, 0.95, 0.28);
+        this.burst(x, y, palette.accent, amount, 8.5 * layer.intensity, 1.4, 4.8, 0.16, 0.48, 0.95, 0.28, style.primary);
       }
       return {
         shake: layer.hierarchy === 'ultimate' ? 11 * layer.intensity : 5 * layer.intensity,
@@ -685,6 +729,7 @@ export class FxEngine {
     }
 
     if (layer.phase === 'sustain') {
+      this.profileBloom(x, y, palette.core, palette.accent, radius * 0.68, Math.min(0.42, duration), glowStrength * 0.54);
       if (layer.intent === 'burst-fire') {
         this.directionalBurst(x, y, dirX, dirY, palette.accent, Math.round(amount * 0.82), 9.6 * layer.intensity);
         this.directionalBurst(x, y, dirX, dirY, palette.core, Math.round(amount * 0.38), 12 * layer.intensity);
@@ -704,18 +749,19 @@ export class FxEngine {
       } else {
         this.shockwave(x, y, palette.accent, radius * 0.92, 4, Math.min(0.7, duration));
         this.shockwave(x, y, palette.glow, radius * 0.58, 2, Math.min(0.5, duration * 0.8));
-        this.burst(x, y, palette.glow, Math.round(amount * 0.72), 4.2 * layer.intensity, 1, 3.7, 0.18, Math.min(0.65, duration), 0.97, 0.58);
+        this.burst(x, y, palette.glow, Math.round(amount * 0.72), 4.2 * layer.intensity, 1, 3.7, 0.18, Math.min(0.65, duration), 0.97, 0.58, style.primary);
       }
       return { shake: 0, freezeMs: 0, screenFlash: 0 };
     }
 
+    this.profileBloom(x, y, palette.core, palette.glow, radius * 0.5, Math.min(0.22, duration), glowStrength * 0.52);
     if (layer.intent === 'pull') {
-      this.inwardBurst(x, y, palette.accent, Math.round(amount * 0.68), radius * 0.78, 5.8 * layer.intensity);
+      this.inwardBurst(x, y, palette.accent, Math.round(amount * 0.68), radius * 0.78, 5.8 * layer.intensity, style.primary);
     } else if (layer.intent === 'knockback') {
       if (layer.directional) {
-        this.directionalBurst(x, y, dirX, dirY, palette.accent, Math.round(amount * 0.7), 7.2 * layer.intensity);
+        this.directionalBurst(x, y, dirX, dirY, palette.accent, Math.round(amount * 0.7), 7.2 * layer.intensity, style.primary);
       } else {
-        this.burst(x, y, palette.accent, Math.round(amount * 0.66), 6.4 * layer.intensity, 1.2, 4.6, 0.14, 0.4, 0.95, 0.32);
+        this.burst(x, y, palette.accent, Math.round(amount * 0.66), 6.4 * layer.intensity, 1.2, 4.6, 0.14, 0.4, 0.95, 0.32, style.primary);
       }
     } else if (layer.intent === 'explosion' || layer.intent === 'beam') {
       this.directionalBurst(x, y, dirX, dirY, palette.accent, Math.round(amount * 0.7), 7.2 * layer.intensity);
@@ -723,7 +769,7 @@ export class FxEngine {
     this.flash(x, y, palette.core, radius * 0.35, Math.min(0.16, duration));
     this.shockwave(x, y, palette.glow, radius * 0.76, 3, Math.min(0.42, duration * 1.4));
     if (layer.intent === 'status') {
-      this.burst(x, y, palette.glow, Math.round(amount * 0.54), 3.6 * layer.intensity, 1, 3.2, 0.16, 0.42, 0.97, 0.38);
+      this.burst(x, y, palette.glow, Math.round(amount * 0.54), 3.6 * layer.intensity, 1, 3.2, 0.16, 0.42, 0.97, 0.38, style.primary);
     } else {
       this.shardBurst(x, y, palette.accent, Math.round(amount * 0.62), 5.6 * layer.intensity);
     }
@@ -732,6 +778,58 @@ export class FxEngine {
       freezeMs: 0,
       screenFlash: layer.hierarchy === 'ultimate' ? 0.06 * layer.intensity : 0
     };
+  }
+
+  private profileBloom(
+    x: number,
+    y: number,
+    coreColor: number,
+    glowColor: number,
+    radius: number,
+    life: number,
+    strength: number
+  ): void {
+    const flash = this.flashes.find((item) => !item.active);
+    if (!flash) return;
+    flash.active = true;
+    flash.life = flash.maxLife = Math.max(0.08, life);
+    flash.node.clear();
+    flash.node.circle(0, 0, radius).fill({ color: glowColor, alpha: 0.08 * strength });
+    flash.node.circle(0, 0, radius * 0.64).fill({ color: glowColor, alpha: 0.14 * strength });
+    flash.node.circle(0, 0, radius * 0.3).fill({ color: coreColor, alpha: 0.58 * strength });
+    flash.node.circle(0, 0, radius * 0.16).fill({ color: 0xffffff, alpha: 0.78 * strength });
+    flash.node.circle(0, 0, radius * 0.8).stroke({ color: glowColor, width: Math.max(1.5, radius * 0.035), alpha: 0.34 * strength });
+    for (let index = 0; index < 6; index += 1) {
+      const angle = index / 6 * Math.PI * 2;
+      flash.node.moveTo(Math.cos(angle) * radius * 0.26, Math.sin(angle) * radius * 0.26)
+        .lineTo(Math.cos(angle) * radius * 0.68, Math.sin(angle) * radius * 0.68)
+        .stroke({ color: coreColor, width: 1.5, alpha: 0.2 * strength });
+    }
+    flash.node.position.set(x, y);
+    flash.node.alpha = 1;
+    flash.node.scale.set(1);
+    flash.node.visible = true;
+  }
+
+  private brokenShockwave(x: number, y: number, color: number, radius: number, segments: number, life: number): void {
+    const wave = this.shockwaves.find((item) => !item.active);
+    if (!wave) return;
+    wave.active = true;
+    wave.life = wave.maxLife = Math.max(0.1, life);
+    wave.node.clear();
+    const count = Math.max(4, segments);
+    for (let index = 0; index < count; index += 1) {
+      const start = index / count * Math.PI * 2 + Math.random() * 0.04;
+      const end = start + Math.PI * 2 / count * (0.48 + Math.random() * 0.22);
+      const mid = (start + end) * 0.5;
+      wave.node.moveTo(Math.cos(start) * radius, Math.sin(start) * radius)
+        .quadraticCurveTo(Math.cos(mid) * radius * 1.08, Math.sin(mid) * radius * 1.08, Math.cos(end) * radius, Math.sin(end) * radius)
+        .stroke({ color, width: Math.max(1.8, radius * 0.025), alpha: 0.72 });
+    }
+    wave.node.position.set(x, y);
+    wave.node.scale.set(0.55);
+    wave.node.alpha = 1;
+    wave.node.visible = true;
   }
 
   private laserBeam(x: number, y: number, dirX: number, dirY: number, length: number): void {
@@ -775,7 +873,8 @@ export class FxEngine {
     minLife: number,
     maxLife: number,
     drag: number,
-    growth: number
+    growth: number,
+    shape: VfxParticleShape = 'droplet'
   ): void {
     let created = 0;
     for (const particle of this.particles) {
@@ -789,7 +888,8 @@ export class FxEngine {
       particle.vy = Math.sin(angle) * velocity;
       particle.drag = drag;
       particle.growth = growth;
-      particle.node.clear().circle(0, 0, size).fill({ color, alpha: 1 });
+      particle.spin = (Math.random() - 0.5) * 7;
+      drawParticleShape(particle.node, shape, size, color);
       particle.node.x = x;
       particle.node.y = y;
       particle.node.alpha = 1;
@@ -800,7 +900,7 @@ export class FxEngine {
     }
   }
 
-  private directionalBurst(x: number, y: number, dirX: number, dirY: number, color: number, count: number, speed: number): void {
+  private directionalBurst(x: number, y: number, dirX: number, dirY: number, color: number, count: number, speed: number, shape: VfxParticleShape = 'streak'): void {
     const length = Math.hypot(dirX, dirY) || 1;
     const base = Math.atan2(dirY / length, dirX / length);
     let created = 0;
@@ -814,7 +914,10 @@ export class FxEngine {
       particle.vy = Math.sin(angle) * velocity;
       particle.drag = 0.95;
       particle.growth = 0.12;
-      particle.node.clear().circle(0, 0, 1.5 + Math.random() * 3.5).fill({ color, alpha: 1 });
+      particle.spin = (Math.random() - 0.5) * 5;
+      const size = 1.5 + Math.random() * 3.5;
+      drawParticleShape(particle.node, shape, size, color);
+      particle.node.rotation = angle;
       particle.node.x = x;
       particle.node.y = y;
       particle.node.alpha = 1;
@@ -824,7 +927,7 @@ export class FxEngine {
     }
   }
 
-  private inwardBurst(x: number, y: number, color: number, count: number, radius: number, speed: number): void {
+  private inwardBurst(x: number, y: number, color: number, count: number, radius: number, speed: number, shape: VfxParticleShape = 'ribbon'): void {
     let created = 0;
     for (const particle of this.particles) {
       if (particle.active) continue;
@@ -837,7 +940,10 @@ export class FxEngine {
       particle.vy = -Math.sin(angle) * velocity;
       particle.drag = 0.965;
       particle.growth = -0.18;
-      particle.node.clear().circle(0, 0, 1.3 + Math.random() * 3).fill({ color, alpha: 0.94 });
+      particle.spin = (Math.random() - 0.5) * 4;
+      const size = 1.3 + Math.random() * 3;
+      drawParticleShape(particle.node, shape, size, color, 0.94);
+      particle.node.rotation = angle + Math.PI / 2;
       particle.node.x = x + Math.cos(angle) * startRadius;
       particle.node.y = y + Math.sin(angle) * startRadius;
       particle.node.alpha = 1;
@@ -859,6 +965,7 @@ export class FxEngine {
       particle.vy = Math.sin(angle) * velocity;
       particle.drag = 0.955;
       particle.growth = 0.05;
+      particle.spin = (Math.random() - 0.5) * 8;
       particle.node.clear().rect(-1.2, -5, 2.4, 10).fill({ color, alpha: 1 });
       particle.node.rotation = angle + Math.PI / 2;
       particle.node.x = x;
