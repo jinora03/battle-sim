@@ -1,6 +1,21 @@
-# Kinetic Battle Engine — v1.3.8 Stage 8.6A
+# Kinetic Battle Engine — v1.3.9 Stage 8.6B
 
 A browser/mobile-ready 2D physics battle game and modular fighter engine built with TypeScript, PixiJS, React, Vite and Capacitor.
+
+> **Stage 8.6B validates intent-based combat audio on Volt Striker.** Arc Emitter now has separate charge, launch and impact reads; Lightning Dash, Arc Burst and Polarity Pull use distinct lifecycle profiles; Thunder Dome remains the ultimate-quality benchmark. The audit found no immediate need for AI, balance or kit changes.
+
+## Stage 8.6B highlights
+
+- complete intent-profile migration for Lightning Dash, Arc Burst, Polarity Pull and Thunder Dome
+- Arc Emitter capacitor commitment, electrical launch crack and distinct impact discharge
+- Lightning Dash departure, travel-current and delayed overcharge release layers
+- Arc Burst explosion body plus shocked-state release
+- Polarity Pull promoted to the payoff tier with cast-length attraction, compression sustain and pressure release
+- reusable intent renderer improvements for projectiles, pulls, status application and knockback release
+- no changes to Volt damage, cooldowns, ranges, statuses, AI, physics, determinism or replay output
+- explicit audit finding that `shocked` is a slow, not true chain-lightning propagation
+
+See `docs/V1_3_STAGE_8_6B_VOLT_IDENTITY_AUDIO.md` for the full identity audit and implementation notes.
 
 > **Stage 8.6A establishes intent-based combat audio.** Abilities can now be described through anticipation, activation, sustained-action and release layers, selected from reusable combat intents and sound palettes. Thunder Dome is the first complete reference profile; unconverted abilities retain their existing playback until the Volt and roster rollout phases.
 
