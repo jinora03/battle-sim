@@ -57,7 +57,8 @@ export class ProjectileSystem {
     projectileId: string,
     direction: Vec2,
     targetId: EntityId | null,
-    launchTick: number
+    launchTick: number,
+    retargetOnLaunch = false
   ): void {
     this.pendingLaunches.push({
       launchTick,
@@ -65,7 +66,8 @@ export class ProjectileSystem {
       sourceId,
       projectileId,
       direction,
-      targetId
+      targetId,
+      retargetOnLaunch
     });
   }
 
@@ -84,7 +86,13 @@ export class ProjectileSystem {
       const targetId = launch.targetId !== null && this.world.isAlive(launch.targetId)
         ? launch.targetId
         : null;
-      this.spawn(launch.sourceId, projectile, launch.direction, events, 0, 1, targetId);
+      const direction = launch.retargetOnLaunch && targetId !== null
+        ? normalizeVector({
+            x: (this.world.x[targetId] ?? 0) - (this.world.x[launch.sourceId] ?? 0),
+            y: (this.world.y[targetId] ?? 0) - (this.world.y[launch.sourceId] ?? 0)
+          })
+        : launch.direction;
+      this.spawn(launch.sourceId, projectile, direction, events, 0, 1, targetId);
     }
     if (consumed > 0) this.pendingLaunches.splice(0, consumed);
   }

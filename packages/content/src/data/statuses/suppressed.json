@@ -1,6 +1,6 @@
 {
   "id": "suppressed",
-  "speedMultiplier": 0.82,
+  "speedMultiplier": 0.7,
   "maxStacks": 1,
   "refreshMode": "refresh"
 }

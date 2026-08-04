@@ -86,6 +86,7 @@ export interface PendingProjectileLaunch {
   projectileId: string;
   direction: Vec2;
   targetId: EntityId | null;
+  retargetOnLaunch: boolean;
 }
 
 export interface ProjectileArenaBounds {

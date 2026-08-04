@@ -75,6 +75,8 @@ export type AbilityAction =
       spreadDegrees: number;
       targetMode: 'selected' | 'nearest' | 'distributed';
       intervalTicks?: number;
+      /** Re-aim delayed rounds at the selected target when each round launches. */
+      retargetEachLaunch?: boolean;
     }
   | { type: 'HEAL_SELF'; amount: number }
   | { type: 'MODIFY_RESOURCE_SELF'; resourceId: string; amount: number }
@@ -178,7 +180,8 @@ const actionSchema = z.discriminatedUnion('type', [
     pattern: z.enum(['forward', 'fan', 'radial']),
     spreadDegrees: z.number().min(0).max(360).default(0),
     targetMode: z.enum(['selected', 'nearest', 'distributed']).default('selected'),
-    intervalTicks: z.number().int().min(0).max(30).optional()
+    intervalTicks: z.number().int().min(0).max(30).optional(),
+    retargetEachLaunch: z.boolean().optional()
   }),
   z.object({ type: z.literal('HEAL_SELF'), amount: z.number().positive() }),
   z.object({ type: z.literal('MODIFY_RESOURCE_SELF'), resourceId: z.string().min(1), amount: z.number() }),

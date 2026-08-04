@@ -41,7 +41,7 @@ export const gunnerContent: FighterContentBundle = {
       projectile: { speed: 21.5, radius: 4.3, lifetimeTicks: 64, fuseTicks: 0, gravity: 0, bounce: 0, explosionRadius: 0, explosionDamage: 0, explosionImpulse: 0 },
       onHitStatuses: [
         { statusId: 'target-lock', durationTicks: 180, stacks: 1 },
-        { statusId: 'suppressed', durationTicks: 54, stacks: 1 }
+        { statusId: 'suppressed', durationTicks: 78, stacks: 1 }
       ]
     },
     {
@@ -61,14 +61,12 @@ export const gunnerContent: FighterContentBundle = {
       friendlyFire: false, visualId: 'kill-zone-round', audioId: 'gatling-barrage',
       projectile: {
         speed: 29, radius: 3.4, lifetimeTicks: 62, fuseTicks: 0, gravity: 0, bounce: 0,
-        explosionRadius: 0, explosionDamage: 0, explosionImpulse: 0,
-        homingStrength: 0.045, homingDelayTicks: 0, homingRange: 880, homingTurnRadians: 0.026
+        explosionRadius: 0, explosionDamage: 0, explosionImpulse: 0
       },
       statusInteraction: {
         statusId: 'target-lock',
         bonusDamagePerStack: 0.12,
-        bonusKnockbackPerStack: 0.08,
-        homingStrengthPerStack: 0.006
+        bonusKnockbackPerStack: 0.08
       }
     }
   ]

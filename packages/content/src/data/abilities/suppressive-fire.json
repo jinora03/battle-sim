@@ -25,10 +25,11 @@
           "type": "LAUNCH_PROJECTILES",
           "projectileId": "suppressive-round",
           "count": 6,
-          "pattern": "fan",
-          "spreadDegrees": 22,
+          "pattern": "forward",
+          "spreadDegrees": 0,
           "targetMode": "selected",
-          "intervalTicks": 2
+          "intervalTicks": 2,
+          "retargetEachLaunch": true
         }
       ]
     }
