@@ -8,7 +8,7 @@ describe('Stage 8 attack-source renderer regression', () => {
     expect(getAttackSource('tactical-round').id).toBe('tactical-round');
     expect(getAttackSource('suppressive-round').id).toBe('suppressive-round');
     expect(getAttackSource('pinning-round-projectile').id).toBe('pinning-round-projectile');
-    expect(getAttackSource('kill-zone-missile').id).toBe('kill-zone-missile');
+    expect(getAttackSource('kill-zone-round').id).toBe('kill-zone-round');
   });
 
   it('still rejects an unknown attack source', () => {

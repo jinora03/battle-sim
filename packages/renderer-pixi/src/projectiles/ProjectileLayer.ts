@@ -2,6 +2,14 @@ import { Graphics } from 'pixi.js';
 import { getProjectileSource } from '@kinetic/content';
 import type { ProjectileSnapshot } from '@kinetic/protocol';
 
+const GUNNER_BULLET_IDS = new Set([
+  'automatic-rifle',
+  'tactical-round',
+  'suppressive-round',
+  'pinning-round-projectile',
+  'kill-zone-round'
+]);
+
 export class ProjectileLayer {
   readonly graphics = new Graphics();
 
@@ -31,6 +39,34 @@ export class ProjectileLayer {
           .stroke({ color: 0xffe574, width: Math.max(2.5, projectile.radius * 0.5), alpha: 0.94 });
         this.graphics.circle(x, y, projectile.radius * (0.88 + flicker * 0.18)).fill({ color: 0xff8b2d, alpha: 0.92 });
         this.graphics.circle(x + dx * projectile.radius * 0.24, y + dy * projectile.radius * 0.24, projectile.radius * 0.48).fill({ color: 0xffffb0, alpha: 0.98 });
+        continue;
+      }
+      if (GUNNER_BULLET_IDS.has(weapon.id)) {
+        const dx = Math.cos(projectile.rotation);
+        const dy = Math.sin(projectile.rotation);
+        const sideX = -dy;
+        const sideY = dx;
+        const bulletLength = Math.max(10, projectile.radius * (weapon.id === 'pinning-round-projectile' ? 4.6 : 3.5));
+        const halfWidth = Math.max(2, projectile.radius * 0.72);
+        const tailX = x - dx * bulletLength * 0.7;
+        const tailY = y - dy * bulletLength * 0.7;
+        const tipX = x + dx * bulletLength * 0.3;
+        const tipY = y + dy * bulletLength * 0.3;
+        const tracerLength = weapon.id === 'kill-zone-round' ? bulletLength * 2.8 : bulletLength * 2.1;
+        const tracerColor = weapon.id === 'tactical-round' ? 0x8ee8ff : weapon.id === 'pinning-round-projectile' ? 0xff9f54 : 0xffd36a;
+
+        this.graphics.moveTo(x - dx * tracerLength, y - dy * tracerLength).lineTo(tailX, tailY)
+          .stroke({ color: tracerColor, width: Math.max(1.5, projectile.radius * 0.36), alpha: weapon.id === 'kill-zone-round' ? 0.7 : 0.46 });
+        this.graphics.moveTo(tailX + sideX * halfWidth, tailY + sideY * halfWidth)
+          .lineTo(tipX - dx * halfWidth * 0.35 + sideX * halfWidth * 0.58, tipY - dy * halfWidth * 0.35 + sideY * halfWidth * 0.58)
+          .lineTo(tipX, tipY)
+          .lineTo(tipX - dx * halfWidth * 0.35 - sideX * halfWidth * 0.58, tipY - dy * halfWidth * 0.35 - sideY * halfWidth * 0.58)
+          .lineTo(tailX - sideX * halfWidth, tailY - sideY * halfWidth)
+          .closePath().fill({ color: 0xc88a36, alpha: 0.98 });
+        this.graphics.moveTo(tailX + sideX * halfWidth * 0.72, tailY + sideY * halfWidth * 0.72)
+          .lineTo(tipX - dx * halfWidth * 0.42 + sideX * halfWidth * 0.36, tipY - dy * halfWidth * 0.42 + sideY * halfWidth * 0.36)
+          .stroke({ color: 0xffefb0, width: Math.max(1.2, projectile.radius * 0.24), alpha: 0.92 });
+        this.graphics.circle(tailX, tailY, Math.max(1.3, halfWidth * 0.46)).fill({ color: 0x5b351c, alpha: 0.95 });
         continue;
       }
       if (weapon.id === 'skip-stone') {

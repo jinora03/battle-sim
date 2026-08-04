@@ -1,6 +1,6 @@
 import type { AbilityResolvedEvent, BlastEvent, ProjectileImpactEvent, ProjectileSpawnedEvent, SimulationEvent, WeaponAttackStartedEvent, WeaponHitEvent } from '@kinetic/protocol';
 
-const RAPID_RIFLE_ROUNDS = new Set(['automatic-rifle', 'tactical-round', 'suppressive-round']);
+const RAPID_RIFLE_ROUNDS = new Set(['automatic-rifle', 'tactical-round', 'suppressive-round', 'kill-zone-round']);
 
 export function isGunnerRifleRound(weaponId: string): boolean {
   return RAPID_RIFLE_ROUNDS.has(weaponId) || weaponId === 'pinning-round-projectile';
@@ -25,6 +25,7 @@ export class BattleAudioEngine {
   private lastDamageCueAt = -Infinity;
   private lastWallImpactAt = -Infinity;
   private lastFocusedRifleAt = -Infinity;
+  private lastFocusedGatlingAt = -Infinity;
   private missileQuietUntilTick = -Infinity;
   private readonly focusedIds = new Set<number>();
   private readonly aiIds = new Set<number>();
@@ -96,7 +97,12 @@ export class BattleAudioEngine {
         missileEvent ||= missile;
         if (RAPID_RIFLE_ROUNDS.has(event.weaponId) && focused.has(event.sourceId)) {
           const now = performance.now();
-          if (now - this.lastFocusedRifleAt >= 20) {
+          if (event.weaponId === 'kill-zone-round') {
+            if (now - this.lastFocusedGatlingAt >= 16) {
+              this.lastFocusedGatlingAt = now;
+              this.playGatlingRound(true);
+            }
+          } else if (now - this.lastFocusedRifleAt >= 20) {
             this.lastFocusedRifleAt = now;
             this.playAutomaticRifleCrack(true);
           }
@@ -265,6 +271,7 @@ export class BattleAudioEngine {
       this.playTone(980, 460, 0.05, 'triangle', 0.022);
     }
     else if (event.weaponId === 'demolition-bomb') this.playTone(150, 250, 0.13, 'triangle', 0.028);
+    else if (event.weaponId === 'kill-zone-round') this.playGatlingRound(false);
     else if (RAPID_RIFLE_ROUNDS.has(event.weaponId)) this.playAutomaticRifleCrack(false);
     else if (event.weaponId === 'pinning-round-projectile') this.playPinningRoundCrack();
     else if (event.weaponId === 'arc-emitter') this.playTone(820, 210, 0.085, 'square', 0.05);
@@ -282,6 +289,10 @@ export class BattleAudioEngine {
       this.playMetallicTick(0.58);
     }
     else if (event.weaponId === 'demolition-bomb') this.playTone(115, 48, 0.16, 'square', 0.05);
+    else if (event.weaponId === 'kill-zone-round') {
+      this.playTone(980, 310, 0.028, 'triangle', 0.014);
+      this.playMetallicTick(0.12);
+    }
     else if (RAPID_RIFLE_ROUNDS.has(event.weaponId)) {
       this.playTone(1250, 340, 0.035, 'triangle', 0.018);
       this.playMetallicTick(0.2);
@@ -427,12 +438,60 @@ export class BattleAudioEngine {
     this.trackVoice(noise);
   }
 
+  private playKillZoneSpool(duration: number): void {
+    if (!this.canPlay()) return;
+    const ctx = this.context!;
+    const master = this.master!;
+    const now = ctx.currentTime;
+
+    const motor = ctx.createOscillator();
+    const motorGain = ctx.createGain();
+    motor.type = 'sawtooth';
+    motor.frequency.setValueAtTime(58, now);
+    motor.frequency.exponentialRampToValueAtTime(245, now + duration);
+    motorGain.gain.setValueAtTime(0.001, now);
+    motorGain.gain.linearRampToValueAtTime(0.07, now + Math.min(0.16, duration * 0.45));
+    motorGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    motor.connect(motorGain);
+    motorGain.connect(master);
+    motor.start(now);
+    motor.stop(now + duration + 0.02);
+    this.trackVoice(motor);
+
+    const whine = ctx.createOscillator();
+    const whineGain = ctx.createGain();
+    whine.type = 'triangle';
+    whine.frequency.setValueAtTime(260, now);
+    whine.frequency.exponentialRampToValueAtTime(1180, now + duration);
+    whineGain.gain.setValueAtTime(0.001, now);
+    whineGain.gain.linearRampToValueAtTime(0.032, now + duration * 0.62);
+    whineGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    whine.connect(whineGain);
+    whineGain.connect(master);
+    whine.start(now);
+    whine.stop(now + duration + 0.02);
+    this.trackVoice(whine);
+
+    this.playPulseSequence(118, duration, 'square');
+  }
+
+  private playGatlingRound(focused: boolean): void {
+    const gain = focused ? 0.072 : 0.045;
+    this.playTone(138, 52, 0.045, 'square', gain);
+    this.playTone(1780, 920, 0.018, 'triangle', gain * 0.48);
+    if (focused) this.playMetallicTick(0.2);
+  }
+
   private playAbilityCharge(abilityId: string, ultimate: boolean, castTicks: number): void {
     if (!this.canPlay()) return;
     const ctx = this.context!;
     const master = this.master!;
     const now = ctx.currentTime;
     const duration = abilityId === 'solar-laser' ? Math.max(0.9, Math.min(1.8, castTicks / 60)) : Math.max(0.12, Math.min(0.75, castTicks / 60));
+    if (abilityId === 'kill-zone') {
+      this.playKillZoneSpool(duration);
+      return;
+    }
     const water = ['surge-dash', 'pressure-wave', 'undertow', 'tidal-cataclysm'].includes(abilityId);
     const bomber = ['blast-dash', 'concussion-bomb', 'shrapnel-burst', 'mega-bomb'].includes(abilityId);
     const fire = ['magma-dash', 'flame-ring', 'molten-guard', 'inferno-collapse'].includes(abilityId);
@@ -466,7 +525,24 @@ export class BattleAudioEngine {
   private playAbilityResolve(event: AbilityResolvedEvent): void {
     if (!this.canPlay()) return;
     const id = event.abilityId;
-    if (id === 'riptide-contact') this.playTone(330, 180, 0.09, 'sine', 0.035);
+    if (id === 'tactical-slide') {
+      this.playTone(190, 760, 0.16, 'sawtooth', 0.055);
+      this.playTone(720, 260, 0.08, 'triangle', 0.025);
+      this.playMetallicTick(0.34);
+    } else if (id === 'suppressive-fire') {
+      this.playTone(130, 74, 0.16, 'square', 0.065);
+      this.playPulseSequence(230, 0.18, 'square');
+      this.playMetallicTick(0.46);
+    } else if (id === 'pinning-round') {
+      this.playTone(940, 1320, 0.13, 'sine', 0.045);
+      this.playTone(180, 68, 0.2, 'triangle', 0.055);
+      this.playMetallicTick(0.72);
+    } else if (id === 'kill-zone') {
+      this.playTone(92, 36, 0.34, 'sawtooth', 0.095);
+      this.playTone(540, 118, 0.22, 'square', 0.048);
+      this.playPulseSequence(185, 0.34, 'square');
+      this.playMetallicTick(0.92);
+    } else if (id === 'riptide-contact') this.playTone(330, 180, 0.09, 'sine', 0.035);
     else if (id === 'surge-dash') this.playTone(210, 520, 0.14, 'sine', 0.055);
     else if (id === 'pressure-wave') this.playTone(165, 82, 0.24, 'sine', 0.065);
     else if (id === 'undertow') this.playTone(120, 48, 0.32, 'triangle', 0.07);

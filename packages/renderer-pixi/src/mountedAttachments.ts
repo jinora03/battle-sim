@@ -102,6 +102,9 @@ export function drawMountedAttachments(
       case 'missile-pod':
         drawMissilePod(graphics, attachment, pose, context);
         break;
+      case 'ammo-drum':
+        drawAmmoDrum(graphics, attachment, pose, context);
+        break;
       case 'deflector-plate':
         drawDeflectorPlate(graphics, attachment, pose, context);
         break;
@@ -407,6 +410,47 @@ function drawMissilePod(
     .stroke({ color: outlineColor, width: Math.max(1.8, size * 0.08 + outlineWidth * 0.25), alpha: 0.82 });
   graphics.moveTo(railStart.x, railStart.y).lineTo(railEnd.x, railEnd.y)
     .stroke({ color: glow, width: Math.max(1.4, size * 0.055), alpha: 0.92 });
+}
+
+
+function drawAmmoDrum(
+  graphics: Graphics,
+  attachment: MountedAttachmentDefinition,
+  pose: MountedAttachmentPose,
+  context: MountedAttachmentRenderContext
+): void {
+  const size = Math.max(9, context.radius * 0.46 * pose.scale);
+  const glow = attachment.glowColor ?? attachment.accentColor;
+  const outlineColor = attachment.outlineColor ?? DEFAULT_OUTLINE_COLOR;
+  const outlineWidth = resolveMountedAttachmentOutlineWidth(attachment, context, pose.scale);
+  const bracket = transformPoint(pose, -size * 0.82, 0);
+
+  graphics.moveTo(0, 0).lineTo(bracket.x, bracket.y)
+    .stroke({ color: outlineColor, width: Math.max(3.4, outlineWidth * 1.15), alpha: 0.94 });
+  graphics.moveTo(0, 0).lineTo(bracket.x, bracket.y)
+    .stroke({ color: attachment.primaryColor, width: Math.max(2.2, outlineWidth * 0.66), alpha: 1 });
+
+  graphics.circle(pose.x, pose.y, size * 0.72).fill({ color: 0x111821, alpha: 1 });
+  graphics.circle(pose.x, pose.y, size * 0.72)
+    .stroke({ color: outlineColor, width: outlineWidth, alpha: 0.98 });
+  graphics.circle(pose.x, pose.y, size * 0.57)
+    .stroke({ color: attachment.primaryColor, width: Math.max(3, size * 0.14), alpha: 1 });
+  graphics.circle(pose.x, pose.y, size * 0.34).fill({ color: attachment.accentColor, alpha: 0.96 });
+  graphics.circle(pose.x, pose.y, size * 0.15).fill({ color: glow, alpha: 0.98 });
+
+  const spin = context.reducedMotion ? 0 : context.elapsedSeconds * 5.2 + context.entityId * 0.37;
+  for (let index = 0; index < 6; index += 1) {
+    const angle = spin + index * Math.PI / 3;
+    const point = transformPoint(pose, Math.cos(angle) * size * 0.47, Math.sin(angle) * size * 0.47);
+    graphics.circle(point.x, point.y, size * 0.075).fill({ color: 0xffd36a, alpha: 0.94 });
+  }
+
+  const feedStart = transformPoint(pose, size * 0.52, size * 0.18);
+  const feedEnd = transformPoint(pose, size * 1.08, size * 0.05);
+  graphics.moveTo(feedStart.x, feedStart.y).lineTo(feedEnd.x, feedEnd.y)
+    .stroke({ color: outlineColor, width: Math.max(2.2, outlineWidth * 0.68), alpha: 0.9 });
+  graphics.moveTo(feedStart.x, feedStart.y).lineTo(feedEnd.x, feedEnd.y)
+    .stroke({ color: attachment.accentColor, width: Math.max(1.4, outlineWidth * 0.36), alpha: 1 });
 }
 
 function drawDeflectorPlate(

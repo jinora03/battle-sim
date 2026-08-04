@@ -26,21 +26,21 @@ export const GUNNER_MODULES: readonly FighterModuleDefinition[] = [
   },
   {
     id: 'shoulder-missile-pod',
-    name: 'Shoulder Missile Pod',
-    description: 'A visible launcher upgrades Gunner skill projectiles with 12% more damage and stronger tracking.',
+    name: 'Rotary Ammo Drum',
+    description: 'A visible rotary feed drum gives Gunner skill rounds 12% more damage and steadier tracking.',
     slot: 'offense',
     compatibleFighterIds: ['gunner'],
     attachments: [
       {
         id: 'gunner-shoulder-missile-pod',
-        kind: 'missile-pod',
+        kind: 'ammo-drum',
         mountPoint: 'top',
         rotationMode: 'target',
         forward: 0.32,
         lateral: -1.14,
         scale: 1.48,
         primaryColor: 0x263645,
-        accentColor: 0xffb347,
+        accentColor: 0xffc65a,
         glowColor: 0xffd76a,
         outlineColor: 0xf7fcff,
         outlineWidthScale: 0.072,
@@ -127,7 +127,7 @@ export const GUNNER_MODULES: readonly FighterModuleDefinition[] = [
   {
     id: 'targeting-drone',
     name: 'Targeting Drone',
-    description: 'Target Lock lasts 35% longer and skill missiles track more aggressively.',
+    description: 'Target Lock lasts 35% longer and precision skill rounds track more aggressively.',
     slot: 'utility',
     compatibleFighterIds: ['gunner'],
     attachments: [

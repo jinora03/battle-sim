@@ -13,7 +13,7 @@ export interface BlastFeedbackResponse {
 const MISSILE_WEAPON_IDS = new Set(['guided-rocket', 'rocket-salvo-missile', 'siege-missile', 'micro-missile']);
 const MISSILE_ABILITY_IDS = new Set(['rocket-salvo', 'siege-marker', 'starburst-convergence']);
 
-const RAPID_FIRE_WEAPON_IDS = new Set(['automatic-rifle', 'tactical-round', 'suppressive-round']);
+const RAPID_FIRE_WEAPON_IDS = new Set(['automatic-rifle', 'tactical-round', 'suppressive-round', 'kill-zone-round']);
 
 export function isRapidFireWeapon(weaponId: string): boolean {
   return RAPID_FIRE_WEAPON_IDS.has(weaponId);

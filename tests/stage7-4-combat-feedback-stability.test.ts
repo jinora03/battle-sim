@@ -26,12 +26,12 @@ function run(runner: LocalSimulationRunner, ticks: number, first?: SimulationCom
 }
 
 describe('v1.1 Stage 7.4 combat feedback and stability', () => {
-  it('keeps Gunner cadence and projectile feel while retaining only the damage nerf', () => {
+  it('keeps Gunner four-round cadence with the Stage 8.5B balance pass', () => {
     const rifle = getPrimaryAttack('automatic-rifle');
-    expect(rifle.damage).toBe(3.4);
+    expect(rifle.damage).toBe(2.8);
     expect(rifle.burstCount).toBe(4);
     expect(rifle.burstIntervalTicks).toBe(4);
-    expect(rifle.cooldownTicks).toBe(34);
+    expect(rifle.cooldownTicks).toBe(38);
     expect(rifle.projectile?.speed).toBe(21);
     expect(rifle.visualScale).toBe(1.75);
   });
