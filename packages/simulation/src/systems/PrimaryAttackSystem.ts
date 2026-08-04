@@ -112,7 +112,7 @@ export class PrimaryAttackSystem {
         const loadout = this.world.getLoadout(source);
         const coneChannel = loadout.primaryConeChannel;
         if (coneChannel) {
-          this.refreshConeChannelDirection(source, state);
+          this.refreshTrackedDirection(source, state);
           const elapsed = state.totalTicks - state.remainingTicks;
           if (elapsed % coneChannel.hitIntervalTicks === 0) {
             this.resolveConeChannel(
@@ -132,6 +132,10 @@ export class PrimaryAttackSystem {
           const interval = Math.max(1, weapon.burstIntervalTicks ?? 1);
           const elapsed = state.totalTicks - state.remainingTicks;
           if (state.shotsFired < burstCount && elapsed >= state.shotsFired * interval) {
+            // A committed burst tracks its selected target between rounds. This
+            // keeps the visible cadence coherent against moving targets without
+            // changing projectile flight after launch.
+            if (weapon.style === 'burst') this.refreshTrackedDirection(source, state);
             this.projectiles.spawn(
               source,
               weapon,
@@ -234,7 +238,7 @@ export class PrimaryAttackSystem {
     return Math.max(1, attack.activeTicks, burstTicks);
   }
 
-  private refreshConeChannelDirection(source: EntityId, state: ActiveWeaponAttackState): void {
+  private refreshTrackedDirection(source: EntityId, state: ActiveWeaponAttackState): void {
     if (state.targetId === null || !this.world.isAlive(state.targetId)) return;
     const dx = (this.world.x[state.targetId] ?? 0) - (this.world.x[source] ?? 0);
     const dy = (this.world.y[state.targetId] ?? 0) - (this.world.y[source] ?? 0);

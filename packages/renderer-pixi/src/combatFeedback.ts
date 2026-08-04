@@ -13,6 +13,12 @@ export interface BlastFeedbackResponse {
 const MISSILE_WEAPON_IDS = new Set(['guided-rocket', 'rocket-salvo-missile', 'siege-missile', 'micro-missile']);
 const MISSILE_ABILITY_IDS = new Set(['rocket-salvo', 'siege-marker', 'starburst-convergence']);
 
+const RAPID_FIRE_WEAPON_IDS = new Set(['automatic-rifle', 'tactical-round', 'suppressive-round']);
+
+export function isRapidFireWeapon(weaponId: string): boolean {
+  return RAPID_FIRE_WEAPON_IDS.has(weaponId);
+}
+
 export function isMissileWeapon(weaponId: string): boolean {
   return MISSILE_WEAPON_IDS.has(weaponId) || weaponId.includes('rocket') || weaponId.includes('missile');
 }
@@ -39,7 +45,7 @@ export function shouldPresentDamage(event: Pick<DamageEvent, 'amount' | 'prevent
 }
 
 export function resolveWeaponHitFreezeMs(event: Pick<WeaponHitEvent, 'weaponId' | 'damage' | 'presentation'>): number {
-  if (event.presentation === 'continuous' || isMissileWeapon(event.weaponId)) return 0;
+  if (event.presentation === 'continuous' || isMissileWeapon(event.weaponId) || isRapidFireWeapon(event.weaponId)) return 0;
   return Math.min(42, 6 + event.damage * 1.1);
 }
 

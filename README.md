@@ -1,10 +1,22 @@
-# Kinetic Battle Engine — v1.3.4 Stage 8.4C
+# Kinetic Battle Engine — v1.3.5 Stage 8.5A
 
 A browser/mobile-ready 2D physics battle game and modular fighter engine built with TypeScript, PixiJS, React, Vite and Capacitor.
 
-> **Stage 8.4C completes Ballast's presentation pass.** His mass-control kit now has dedicated weightless, impact, anchoring and arena-inversion effects plus a distinct synthesized audio identity for Skip Stone and all four abilities.
+> **Stage 8.5A begins Gunner's identity pass without replacing his existing Target Lock kit.** The four-round rifle now reads as a committed firing sequence: Gunner holds a disciplined kite lane, tracks the selected target between rounds, uses crisp ballistic VFX/audio across skill projectiles and no longer freezes the presentation on every rapid-fire hit.
 
-## Stage 8.4C highlights
+## Stage 8.5A highlights
+
+- dedicated Gunner spacing tune with a 440-unit kite lane and stronger lateral firing behavior
+- burst-commitment steering that reduces forward pressure while the rifle is winding up or active
+- deterministic target refresh between rounds while already-launched bullets keep their original trajectories
+- zero repeated hit-stop for Automatic Rifle, Tactical Round and Suppressive Round
+- registered ballistic VFX/audio identity for all rifle projectiles, with Pinning Round retaining its heavier payoff
+- enlarged outlined rifle silhouette with a visible stock, receiver, scope, magazine and muzzle brake
+- no ability replacement, resource meter or projectile-system rewrite
+
+See `docs/V1_3_STAGE_8_5A_GUNNER_READABILITY.md` for implementation and validation notes.
+
+## Stage 8.4C Ballast presentation polish
 
 - complete Ballast fighter with `House Rules`, `Skip Stone`, `Featherfall`, `Downbeat`, `Dead Weight` and `Last Call`
 - dedicated mass-aware AI that primes Featherlight before choosing its launch payoff

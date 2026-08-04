@@ -27,8 +27,7 @@ describe('Stage 8.4C Ballast presentation polish', () => {
     }
   });
 
-  it('advances engine and content compatibility markers together', () => {
-    expect(CONTENT_VERSION).toBe('1.3.4-stage8.4c');
-    expect(ENGINE_VERSION).toBe('1.3.4-stage8.4c');
-  });
+  it('keeps engine and content compatibility markers aligned', () => {
+  expect(CONTENT_VERSION).toBe(ENGINE_VERSION);
+});
 });

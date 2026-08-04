@@ -228,8 +228,16 @@ export class FighterView {
       case 'orbit':
         this.weapon.rotation = attack.phase === 'active' ? progress * Math.PI * 5 : attack.phase === 'windup' ? -0.45 * eased : 0;
         break;
+      case 'burst': {
+        const rounds = Math.max(1, this.weaponDefinition.burstCount ?? 1);
+        const recoilPulse = attack.phase === 'active'
+          ? Math.max(0, Math.sin(progress * Math.PI * rounds * 2))
+          : 0;
+        this.weapon.rotation = -recoilPulse * 0.025;
+        this.weapon.x = socketX - r * 0.2 * recoilPulse;
+        break;
+      }
       case 'shot':
-      case 'burst':
       case 'stream':
         this.weapon.rotation = 0;
         this.weapon.x = socketX + (attack.phase === 'active' ? -r * 0.22 * Math.sin(progress * Math.PI * 2) : 0);
@@ -285,11 +293,34 @@ export class FighterView {
       return;
     }
     if (attack.form === 'rifle') {
-      this.weapon.moveTo(size * 0.05, 0).lineTo(size * 0.3, 0).stroke({ color: 0x26303b, width: Math.max(10, r * 0.45), alpha: 1 });
-      this.weapon.rect(size * 0.22, -size * 0.11, size * 0.78, size * 0.22).fill({ color: 0x202a34, alpha: 1 });
-      this.weapon.rect(size * 0.34, -size * 0.065, size * 0.48, size * 0.13).fill({ color: accent, alpha: 0.85 });
-      this.weapon.moveTo(size * 0.96, 0).lineTo(size * 1.28, 0).stroke({ color: core, width: Math.max(3, r * 0.13), alpha: 0.98 });
-      this.weapon.moveTo(size * 0.55, size * 0.11).lineTo(size * 0.62, size * 0.35).lineTo(size * 0.76, size * 0.11).fill({ color: 0x111820, alpha: 0.96 });
+      const outline = 0xf4fbff;
+      const receiverX = size * 0.12;
+      const receiverY = -size * 0.14;
+      const receiverW = size * 0.86;
+      const receiverH = size * 0.28;
+      // Rear stock makes the rifle silhouette readable even when the fighter is
+      // moving sideways; the bright outline keeps it separated from the body.
+      this.weapon.moveTo(-size * 0.34, 0).lineTo(receiverX + size * 0.08, 0)
+        .stroke({ color: 0x1a242e, width: Math.max(11, r * 0.42), alpha: 1 });
+      this.weapon.moveTo(-size * 0.34, 0).lineTo(receiverX + size * 0.08, 0)
+        .stroke({ color: outline, width: Math.max(2, r * 0.055), alpha: 0.72 });
+      this.weapon.rect(receiverX, receiverY, receiverW, receiverH).fill({ color: 0x202b36, alpha: 1 });
+      this.weapon.rect(receiverX, receiverY, receiverW, receiverH)
+        .stroke({ color: outline, width: Math.max(2, r * 0.055), alpha: 0.82 });
+      this.weapon.rect(size * 0.3, -size * 0.075, size * 0.48, size * 0.15).fill({ color: accent, alpha: 0.92 });
+      this.weapon.rect(size * 0.43, -size * 0.25, size * 0.32, size * 0.09).fill({ color: 0x111820, alpha: 1 });
+      this.weapon.rect(size * 0.48, -size * 0.29, size * 0.22, size * 0.06).fill({ color: core, alpha: 0.94 });
+      this.weapon.moveTo(size * 0.92, 0).lineTo(size * 1.36, 0)
+        .stroke({ color: 0x1a242e, width: Math.max(7, r * 0.2), alpha: 1 });
+      this.weapon.moveTo(size * 0.95, 0).lineTo(size * 1.39, 0)
+        .stroke({ color: core, width: Math.max(3, r * 0.09), alpha: 0.98 });
+      this.weapon.rect(size * 1.34, -size * 0.1, size * 0.12, size * 0.2).fill({ color: 0x10171e, alpha: 1 });
+      this.weapon.rect(size * 1.34, -size * 0.1, size * 0.12, size * 0.2)
+        .stroke({ color: outline, width: Math.max(2, r * 0.045), alpha: 0.76 });
+      this.weapon.moveTo(size * 0.5, size * 0.14).lineTo(size * 0.58, size * 0.4).lineTo(size * 0.76, size * 0.14)
+        .fill({ color: 0x111820, alpha: 0.98 });
+      this.weapon.moveTo(size * 0.5, size * 0.14).lineTo(size * 0.58, size * 0.4).lineTo(size * 0.76, size * 0.14)
+        .stroke({ color: outline, width: Math.max(2, r * 0.045), alpha: 0.65 });
       return;
     }
     if (attack.form === 'launcher') {
