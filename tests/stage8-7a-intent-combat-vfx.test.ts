@@ -48,7 +48,7 @@ describe('Stage 8.7A intent-based combat VFX', () => {
       'channel',
       'status'
     ]);
-    expect(listAbilityCombatVfxProfiles()).toHaveLength(1);
+    expect(listAbilityCombatVfxProfiles()).toEqual(expect.arrayContaining([expect.objectContaining({ abilityId: 'thunder-dome' })]));
   });
 
   it('normalizes cast-relative timing without simulation state or random values', () => {
@@ -83,7 +83,7 @@ describe('Stage 8.7A intent-based combat VFX', () => {
   });
 
   it('advances engine and content compatibility markers together', () => {
-    expect(CONTENT_VERSION).toBe('1.3.15-stage8.7a');
-    expect(ENGINE_VERSION).toBe('1.3.15-stage8.7a');
+    expect(CONTENT_VERSION).toBe('1.3.16-stage8.7b');
+    expect(ENGINE_VERSION).toBe('1.3.16-stage8.7b');
   });
 });
