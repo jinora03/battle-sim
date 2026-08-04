@@ -23,6 +23,7 @@ import {
   getSkillPresentation,
   resolveCombatVfxLayer,
   resolveImpactResponse,
+  type CombatVfxProfile,
   type ResolvedCombatVfxLayer,
   type SkillPresentationRecipe
 } from '@kinetic/visual-engine';
@@ -181,44 +182,21 @@ export class FxEngine {
         const color = event.kind === 'ice' ? 0xbfeaff : event.kind === 'water' ? 0x5edcff : event.kind === 'lava' ? 0xff6b32 : event.kind === 'electric' ? 0xa3f4ff : 0xe1faff;
         this.shockwave(event.position.x, event.position.y, color, 18, 2, 0.18);
       } else if (event.type === 'blast') {
+        const profile = event.abilityId ? getAbilityCombatVfxProfile(event.abilityId) : undefined;
+        const profiledResponse = profile ? this.playProfiledBlast(event, profile, particleScale) : null;
+        if (profiledResponse) {
+          shake = Math.max(shake, profiledResponse.shake);
+          freezeMs = Math.max(freezeMs, profiledResponse.freezeMs);
+          screenFlash = Math.max(screenFlash, profiledResponse.screenFlash);
+          continue;
+        }
+
         const color = elementColor(event.element);
         const blastFeedback = resolveBlastFeedback(event, 'hero');
         const microMissile = blastFeedback.classification === 'micro-missile';
         const missileBarrage = blastFeedback.classification !== 'singular';
         const intensity = Math.min(microMissile ? 0.72 : missileBarrage ? 1.02 : 1.6, 0.55 + event.radius / 260 + event.force / 28);
-        if (event.abilityId === 'flame-ring') {
-          // Fire Vortex has a dark, rotating furnace look rather than a generic
-          // water-like wave. The semantic blast is centered on the selected target.
-          this.fireSpiral(event.position.x, event.position.y, Math.max(58, event.radius * 0.42), particleScale);
-          this.flash(event.position.x, event.position.y, 0x5a120e, Math.max(24, event.radius * 0.2), 0.2);
-          this.shockwave(event.position.x, event.position.y, 0xff4b20, Math.max(42, event.radius * 0.34), 6, 0.44);
-          this.shockwave(event.position.x, event.position.y, 0xffd35a, Math.max(26, event.radius * 0.2), 2.5, 0.3);
-          this.burst(event.position.x, event.position.y, 0xff7a2a, Math.round(24 * intensity * particleScale), 4.8, 1.4, 4.8, 0.22, 0.58, 0.97, 0.5);
-          shake = Math.max(shake, 5.5);
-          freezeMs = Math.max(freezeMs, 20);
-          screenFlash = Math.max(screenFlash, 0.12);
-        } else if (event.abilityId === 'molten-guard') {
-          // Each consumed Burn target receives its own furnace-pop detonation.
-          this.flash(event.position.x, event.position.y, 0xffffd0, Math.max(20, event.radius * 0.28), 0.13);
-          this.flash(event.position.x, event.position.y, 0xff4a1f, Math.max(32, event.radius * 0.46), 0.2);
-          this.shockwave(event.position.x, event.position.y, 0xffe56b, Math.max(30, event.radius * 0.42), 6, 0.34);
-          this.shockwave(event.position.x, event.position.y, 0x8e1b13, Math.max(46, event.radius * 0.62), 3, 0.48);
-          this.burst(event.position.x, event.position.y, 0xfff08a, Math.round(14 * intensity * particleScale), 10.5, 1.4, 4.2, 0.12, 0.32, 0.94, 0.28);
-          this.burst(event.position.x, event.position.y, 0xff5425, Math.round(24 * intensity * particleScale), 8.2, 2.2, 6.4, 0.18, 0.48, 0.95, 0.52);
-          shake = Math.max(shake, Math.min(14, 4 + event.force * 0.5));
-          freezeMs = Math.max(freezeMs, Math.min(50, 14 + event.damage * 0.55));
-          screenFlash = Math.max(screenFlash, 0.24);
-        } else if (event.abilityId === 'inferno-collapse') {
-          this.flash(event.position.x, event.position.y, 0xffffff, Math.max(58, event.radius * 0.3), 0.2);
-          this.flash(event.position.x, event.position.y, 0xffa33a, Math.max(92, event.radius * 0.5), 0.32);
-          this.fireSpiral(event.position.x, event.position.y, Math.max(105, event.radius * 0.56), particleScale * 1.35);
-          this.shockwave(event.position.x, event.position.y, 0xfff09a, Math.max(74, event.radius * 0.42), 10, 0.52);
-          this.shockwave(event.position.x, event.position.y, 0xff321e, Math.max(116, event.radius * 0.65), 7, 0.68);
-          this.burst(event.position.x, event.position.y, 0xff5a27, Math.round(52 * intensity * particleScale), 12.5, 2.2, 7.4, 0.2, 0.68, 0.95, 0.72);
-          shake = Math.max(shake, 16);
-          freezeMs = Math.max(freezeMs, 52);
-          screenFlash = Math.max(screenFlash, 0.5);
-        } else if (event.kind === 'explosion') {
+        if (event.kind === 'explosion') {
           this.flash(event.position.x, event.position.y, 0xfff1a8, Math.max(14, event.radius * (microMissile ? 0.14 : 0.22)), microMissile ? 0.08 : 0.15);
           this.burst(event.position.x, event.position.y, 0xffef79, Math.round((microMissile ? 5 : missileBarrage ? 10 : 18) * intensity * particleScale), 8 * intensity, 2, 5.2, 0.13, 0.3, 0.94, 0.25);
           this.burst(event.position.x, event.position.y, 0xff7a2b, Math.round((microMissile ? 7 : missileBarrage ? 15 : 28) * intensity * particleScale), 6.2 * intensity, 2.5, 6, 0.18, 0.42, 0.945, 0.38);
@@ -562,6 +540,44 @@ export class FxEngine {
   }
 
 
+  private playProfiledBlast(
+    event: Extract<SimulationEvent, { type: 'blast' }>,
+    profile: CombatVfxProfile,
+    particleScale: number
+  ): FxResponse {
+    const basePalette = getElementVfxPalette(profile.palette);
+    const palette = { ...basePalette, ...profile.colors };
+    const activation = resolveCombatVfxLayer(profile, 'activation') ?? resolveCombatVfxLayer(profile, 'release');
+    if (!activation) return { shake: 0, freezeMs: 0, screenFlash: 0 };
+
+    const hierarchyScale = profile.hierarchy === 'ultimate' ? 1.42 : profile.hierarchy === 'payoff' ? 1.16 : 0.9;
+    const intensity = Math.max(0.55, Math.min(1.8, activation.intensity * hierarchyScale + event.force / 45));
+    const radius = Math.max(38, event.radius * (profile.hierarchy === 'ultimate' ? 0.72 : 0.52));
+    const amount = Math.round((profile.hierarchy === 'ultimate' ? 46 : profile.hierarchy === 'payoff' ? 30 : 20) * intensity * particleScale);
+
+    if (activation.intent === 'pull') {
+      if (profile.palette === 'fire') this.fireSpiral(event.position.x, event.position.y, radius * 0.92, particleScale * intensity);
+      this.inwardBurst(event.position.x, event.position.y, palette.accent, amount, radius, 8.2 * intensity);
+      this.inwardBurst(event.position.x, event.position.y, palette.glow, Math.round(amount * 0.45), radius * 0.72, 5.8 * intensity);
+      this.flash(event.position.x, event.position.y, palette.core, radius * 0.26, 0.16);
+      this.shockwave(event.position.x, event.position.y, palette.accent, radius * 0.9, 6, 0.46);
+      this.shockwave(event.position.x, event.position.y, palette.glow, radius * 0.55, 3, 0.32);
+    } else {
+      this.flash(event.position.x, event.position.y, palette.core, radius * 0.42, profile.hierarchy === 'ultimate' ? 0.24 : 0.16);
+      this.flash(event.position.x, event.position.y, palette.accent, radius * 0.66, profile.hierarchy === 'ultimate' ? 0.32 : 0.22);
+      this.shockwave(event.position.x, event.position.y, palette.glow, radius, profile.hierarchy === 'ultimate' ? 10 : 6, profile.hierarchy === 'ultimate' ? 0.62 : 0.42);
+      this.shockwave(event.position.x, event.position.y, palette.accent, radius * 0.68, 4, 0.34);
+      this.burst(event.position.x, event.position.y, palette.accent, amount, 8.4 * intensity, 1.5, 5.4, 0.14, 0.48, 0.95, 0.42);
+      this.burst(event.position.x, event.position.y, palette.debris, Math.round(amount * 0.46), 5.2 * intensity, 2, 6.4, 0.22, 0.62, 0.97, 0.72);
+    }
+
+    return {
+      shake: profile.hierarchy === 'ultimate' ? Math.min(18, 10 + event.force * 0.34) : Math.min(12, 4 + event.force * 0.28),
+      freezeMs: profile.hierarchy === 'ultimate' ? Math.min(56, 28 + event.damage * 0.62) : Math.min(42, 12 + event.damage * 0.48),
+      screenFlash: profile.hierarchy === 'ultimate' ? 0.46 : profile.hierarchy === 'payoff' ? 0.24 : 0.14
+    };
+  }
+
   private scheduleAbilityCombatVfx(
     abilityId: string,
     anchor: 'activated' | 'resolved',
@@ -632,12 +648,18 @@ export class FxEngine {
 
     if (layer.phase === 'anticipation') {
       this.shockwave(x, y, palette.glow, radius * 0.48, 2.5, Math.min(0.5, duration));
-      this.burst(x, y, palette.accent, Math.round(amount * 0.55), 2.8, 1, 3, 0.14, Math.min(0.54, duration), 0.98, 0.48);
-      if (layer.intent === 'projectile' || layer.intent === 'burst-fire' || layer.intent === 'beam') {
+      if (layer.intent === 'pull') {
+        this.inwardBurst(x, y, palette.accent, Math.round(amount * 0.7), radius * 0.88, 5.2 * layer.intensity);
+        this.shockwave(x, y, palette.core, radius * 0.3, 2, Math.min(0.34, duration));
+      } else {
+        this.burst(x, y, palette.accent, Math.round(amount * 0.55), 2.8, 1, 3, 0.14, Math.min(0.54, duration), 0.98, 0.48);
+      }
+      if (layer.intent === 'projectile' || layer.intent === 'burst-fire' || layer.intent === 'beam' || layer.intent === 'dash') {
         this.directionalBurst(x, y, dirX, dirY, palette.glow, Math.round(amount * 0.38), 3.8 * layer.intensity);
       }
       if (layer.intent === 'ultimate' || layer.intent === 'transformation') {
         this.flash(x, y, palette.core, radius * 0.28, Math.min(0.2, duration));
+        this.shockwave(x, y, palette.accent, radius * 0.68, 4, Math.min(0.48, duration));
       }
       return {
         shake: layer.hierarchy === 'ultimate' ? 2.6 * layer.intensity : 0,
@@ -649,7 +671,13 @@ export class FxEngine {
     if (layer.phase === 'activation') {
       if (layer.intent === 'dash') {
         this.directionalBurst(x, y, -dirX, -dirY, palette.accent, amount, 8.5 * layer.intensity);
+        this.directionalBurst(x, y, dirX, dirY, palette.core, Math.round(amount * 0.36), 11 * layer.intensity);
         this.flash(x, y, palette.core, radius * 0.36, Math.min(0.18, duration));
+      } else if (layer.intent === 'pull') {
+        this.inwardBurst(x, y, palette.accent, amount, radius * 1.05, 8.8 * layer.intensity);
+        this.inwardBurst(x, y, palette.glow, Math.round(amount * 0.52), radius * 0.72, 6.2 * layer.intensity);
+        this.flash(x, y, palette.core, radius * 0.42, Math.min(0.22, duration));
+        this.shockwave(x, y, palette.accent, radius * 0.84, 5, Math.min(0.46, duration * 1.6));
       } else if (layer.intent === 'projectile' || layer.intent === 'beam' || layer.intent === 'burst-fire') {
         this.directionalBurst(x, y, dirX, dirY, palette.accent, amount, 10.5 * layer.intensity);
         this.directionalBurst(x, y, -dirX, -dirY, palette.glow, Math.round(amount * 0.48), 5.8 * layer.intensity);
@@ -672,6 +700,12 @@ export class FxEngine {
         this.directionalBurst(x, y, dirX, dirY, palette.accent, Math.round(amount * 0.82), 9.6 * layer.intensity);
         this.directionalBurst(x, y, dirX, dirY, palette.core, Math.round(amount * 0.38), 12 * layer.intensity);
         this.flash(x, y, palette.glow, radius * 0.3, Math.min(0.18, duration));
+      } else if (layer.intent === 'pull') {
+        this.inwardBurst(x, y, palette.glow, Math.round(amount * 0.78), radius * 0.9, 5.4 * layer.intensity);
+        this.shockwave(x, y, palette.accent, radius * 0.64, 3, Math.min(0.56, duration));
+      } else if (layer.intent === 'channel' && layer.palette === 'fire') {
+        this.fireSpiral(x, y, radius * 0.92, particleScale * 0.72 * layer.intensity);
+        this.shockwave(x, y, palette.glow, radius * 0.66, 3, Math.min(0.5, duration));
       } else {
         this.shockwave(x, y, palette.accent, radius * 0.92, 4, Math.min(0.7, duration));
         this.shockwave(x, y, palette.glow, radius * 0.58, 2, Math.min(0.5, duration * 0.8));
@@ -680,12 +714,18 @@ export class FxEngine {
       return { shake: 0, freezeMs: 0, screenFlash: 0 };
     }
 
-    if (layer.intent === 'knockback' || layer.intent === 'explosion' || layer.intent === 'beam') {
+    if (layer.intent === 'pull') {
+      this.inwardBurst(x, y, palette.accent, Math.round(amount * 0.68), radius * 0.78, 5.8 * layer.intensity);
+    } else if (layer.intent === 'knockback' || layer.intent === 'explosion' || layer.intent === 'beam') {
       this.directionalBurst(x, y, dirX, dirY, palette.accent, Math.round(amount * 0.7), 7.2 * layer.intensity);
     }
     this.flash(x, y, palette.core, radius * 0.35, Math.min(0.16, duration));
     this.shockwave(x, y, palette.glow, radius * 0.76, 3, Math.min(0.42, duration * 1.4));
-    this.shardBurst(x, y, palette.accent, Math.round(amount * 0.62), 5.6 * layer.intensity);
+    if (layer.intent === 'status') {
+      this.burst(x, y, palette.glow, Math.round(amount * 0.54), 3.6 * layer.intensity, 1, 3.2, 0.16, 0.42, 0.97, 0.38);
+    } else {
+      this.shardBurst(x, y, palette.accent, Math.round(amount * 0.62), 5.6 * layer.intensity);
+    }
     return {
       shake: layer.hierarchy === 'ultimate' ? 2.2 * layer.intensity : 0,
       freezeMs: 0,
@@ -776,6 +816,29 @@ export class FxEngine {
       particle.node.clear().circle(0, 0, 1.5 + Math.random() * 3.5).fill({ color, alpha: 1 });
       particle.node.x = x;
       particle.node.y = y;
+      particle.node.alpha = 1;
+      particle.node.scale.set(1);
+      particle.node.visible = true;
+      if (++created >= count) break;
+    }
+  }
+
+  private inwardBurst(x: number, y: number, color: number, count: number, radius: number, speed: number): void {
+    let created = 0;
+    for (const particle of this.particles) {
+      if (particle.active) continue;
+      const angle = Math.random() * Math.PI * 2;
+      const startRadius = radius * (0.62 + Math.random() * 0.42);
+      const velocity = speed * (0.48 + Math.random() * 0.62);
+      particle.active = true;
+      particle.life = particle.maxLife = 0.24 + Math.random() * 0.28;
+      particle.vx = -Math.cos(angle) * velocity;
+      particle.vy = -Math.sin(angle) * velocity;
+      particle.drag = 0.965;
+      particle.growth = -0.18;
+      particle.node.clear().circle(0, 0, 1.3 + Math.random() * 3).fill({ color, alpha: 0.94 });
+      particle.node.x = x + Math.cos(angle) * startRadius;
+      particle.node.y = y + Math.sin(angle) * startRadius;
       particle.node.alpha = 1;
       particle.node.scale.set(1);
       particle.node.visible = true;

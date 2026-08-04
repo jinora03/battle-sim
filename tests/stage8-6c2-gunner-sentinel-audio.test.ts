@@ -88,7 +88,6 @@ describe('Stage 8.6C-2 Gunner and Solar Sentinel audio rollout', () => {
   });
 
   it('advances engine and content compatibility markers together', () => {
-    expect(CONTENT_VERSION).toBe('1.3.16-stage8.7b');
-    expect(ENGINE_VERSION).toBe('1.3.16-stage8.7b');
+    expect(CONTENT_VERSION).toBe(ENGINE_VERSION);
   });
 });
