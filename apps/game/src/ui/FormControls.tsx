@@ -1,4 +1,36 @@
-import type { ChangeEvent, ReactNode } from 'react';
+import { useState, type ChangeEvent, type ReactNode, type SyntheticEvent } from 'react';
+
+
+export function DisclosureGroup({
+  eyebrow,
+  title,
+  summary,
+  defaultOpen = false,
+  className = '',
+  children
+}: {
+  eyebrow: string;
+  title: string;
+  summary?: string;
+  defaultOpen?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <details
+      className={`disclosure-group ${className}`.trim()}
+      open={open}
+      onToggle={(event: SyntheticEvent<HTMLDetailsElement>) => setOpen(event.currentTarget.open)}
+    >
+      <summary className="disclosure-group-summary">
+        <span><small>{eyebrow}</small><strong>{title}</strong></span>
+        {summary ? <em>{summary}</em> : null}
+      </summary>
+      <div className="disclosure-group-content">{children}</div>
+    </details>
+  );
+}
 
 export function CreatorSection({ title, children }: { title: string; children: ReactNode }) {
   return <section className="panel-section creator-section"><h2>{title}</h2>{children}</section>;
