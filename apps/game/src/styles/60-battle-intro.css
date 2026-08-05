@@ -43,10 +43,10 @@
 }
 
 .battle-intro-content {
-  width: min(920px, calc(100% - 32px));
+  width: min(980px, calc(100% - 32px));
   display: grid;
   justify-items: center;
-  gap: 18px;
+  gap: 20px;
   text-align: center;
 }
 
@@ -64,43 +64,72 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: clamp(16px, 4vw, 58px);
+  gap: clamp(18px, 5vw, 72px);
 }
 
 .battle-intro-fighter {
   min-width: 0;
   display: grid;
   justify-items: center;
-  gap: 14px;
+  gap: clamp(18px, 3vh, 28px);
 }
 
 .battle-intro-nameplate {
+  min-height: 86px;
   display: grid;
   justify-items: center;
-  gap: 2px;
+  align-content: end;
+  gap: 5px;
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.85);
 }
 
-.battle-intro-nameplate small {
-  color: color-mix(in srgb, var(--intro-accent) 72%, white);
-  font-size: 0.68rem;
+.battle-intro-nameplate strong {
+  max-width: 360px;
+  color: #f5fbff;
+  font-size: clamp(1.35rem, 3.2vw, 2.35rem);
+  line-height: 1;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
+.battle-intro-identity,
+.battle-intro-weapon-name,
+.battle-intro-squad {
+  max-width: 360px;
+  overflow-wrap: anywhere;
+}
+
+.battle-intro-identity {
+  color: color-mix(in srgb, var(--intro-accent) 70%, white);
+  font-size: clamp(0.58rem, 1.2vw, 0.76rem);
   font-weight: 800;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
-.battle-intro-nameplate strong {
-  max-width: 280px;
-  color: #f5fbff;
-  font-size: clamp(1.05rem, 2.5vw, 1.7rem);
-  line-height: 1.05;
-  letter-spacing: 0.035em;
-  overflow-wrap: anywhere;
+.battle-intro-weapon-name {
+  color: rgba(224, 238, 248, 0.72);
+  font-size: clamp(0.58rem, 1.1vw, 0.72rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.battle-intro-weapon-name::before {
+  content: 'Weapon · ';
+  color: rgba(181, 205, 221, 0.58);
+}
+
+.battle-intro-squad {
+  color: rgba(217, 234, 244, 0.58);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .battle-intro-avatar {
   position: relative;
-  width: clamp(106px, calc(16vw * var(--intro-size-scale)), 204px);
+  width: clamp(94px, calc(13.5vw * var(--intro-size-scale)), 176px);
   aspect-ratio: 1;
   display: grid;
   place-items: center;
@@ -109,24 +138,26 @@
 
 .battle-intro-aura,
 .battle-intro-shell,
-.battle-intro-core,
-.battle-intro-sight {
+.battle-intro-core {
   position: absolute;
-  border-radius: 50%;
 }
 
 .battle-intro-aura {
-  inset: -8%;
-  border: 2px solid color-mix(in srgb, var(--intro-aura) 72%, transparent);
-  background: radial-gradient(circle, color-mix(in srgb, var(--intro-aura) 22%, transparent), transparent 64%);
+  inset: -10%;
+  border: 2px solid color-mix(in srgb, var(--intro-aura) 74%, transparent);
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--intro-aura) 24%, transparent), transparent 66%);
   box-shadow:
-    0 0 26px color-mix(in srgb, var(--intro-aura) 52%, transparent),
-    inset 0 0 24px color-mix(in srgb, var(--intro-aura) 22%, transparent);
+    0 0 30px color-mix(in srgb, var(--intro-aura) 58%, transparent),
+    0 0 66px color-mix(in srgb, var(--intro-aura) 24%, transparent),
+    inset 0 0 28px color-mix(in srgb, var(--intro-aura) 24%, transparent);
 }
 
 .battle-intro-shell {
-  inset: 9%;
+  inset: 8%;
+  z-index: 2;
   border: 5px solid color-mix(in srgb, var(--intro-accent) 48%, var(--intro-dark));
+  border-radius: 50%;
   background:
     linear-gradient(145deg, color-mix(in srgb, var(--intro-body) 84%, white), var(--intro-dark) 72%),
     var(--intro-body);
@@ -136,24 +167,26 @@
     0 0 28px color-mix(in srgb, var(--intro-aura) 38%, transparent);
 }
 
-.battle-intro-shell::before,
-.battle-intro-shell::after {
-  content: '';
-  position: absolute;
-  top: 44%;
-  width: 30%;
-  height: 13%;
-  border-radius: 999px;
-  background: var(--intro-accent);
-  box-shadow: 0 0 12px var(--intro-aura);
+.battle-intro-shell.shape-mech {
+  inset: 10%;
+  border-radius: 30%;
+  transform: rotate(45deg);
 }
 
-.battle-intro-shell::before { left: -16%; transform: rotate(-18deg); }
-.battle-intro-shell::after { right: -16%; transform: rotate(18deg); }
+.battle-intro-shell.shape-bomber {
+  inset: 9%;
+  border-radius: 42% 42% 36% 36%;
+}
+
+.battle-intro-shell.shape-water {
+  border-radius: 46% 54% 58% 42% / 48% 44% 56% 52%;
+}
 
 .battle-intro-core {
+  z-index: 4;
   width: 31%;
   aspect-ratio: 1;
+  border-radius: 50%;
   background: radial-gradient(circle at 36% 30%, white, var(--intro-core) 33%, var(--intro-accent) 72%);
   border: 3px solid color-mix(in srgb, var(--intro-core) 72%, white);
   box-shadow:
@@ -161,10 +194,190 @@
     0 0 30px color-mix(in srgb, var(--intro-aura) 78%, transparent);
 }
 
-.battle-intro-sight {
-  inset: 1%;
-  border: 1px dashed color-mix(in srgb, var(--intro-accent) 58%, transparent);
+.battle-intro-horns,
+.battle-intro-horns::before,
+.battle-intro-horns::after {
+  position: absolute;
 }
+
+.battle-intro-horns {
+  inset: 0;
+}
+
+.battle-intro-horns::before,
+.battle-intro-horns::after {
+  content: '';
+  top: -11%;
+  width: 19%;
+  height: 28%;
+  background: linear-gradient(var(--intro-accent), var(--intro-dark));
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  filter: drop-shadow(0 0 6px var(--intro-aura));
+}
+
+.battle-intro-horns::before { left: 12%; transform: rotate(-20deg); }
+.battle-intro-horns::after { right: 12%; transform: rotate(20deg); }
+
+.battle-intro-weapon {
+  position: absolute;
+  z-index: 5;
+  top: 50%;
+  width: 54%;
+  height: 14%;
+  border: 2px solid color-mix(in srgb, var(--intro-accent) 66%, white);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--intro-accent) 80%, white), var(--intro-dark));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--intro-aura) 76%, transparent);
+  transform-origin: center;
+}
+
+.battle-intro-fighter.side-a .battle-intro-weapon {
+  left: 61%;
+  transform: translateY(-50%) rotate(-2deg);
+}
+
+.battle-intro-fighter.side-b .battle-intro-weapon {
+  right: 61%;
+  transform: translateY(-50%) scaleX(-1) rotate(-2deg);
+}
+
+.battle-intro-weapon::before,
+.battle-intro-weapon::after {
+  content: '';
+  position: absolute;
+}
+
+.battle-intro-weapon.form-rifle {
+  height: 13%;
+  border-radius: 5px 45% 45% 5px;
+  clip-path: polygon(0 18%, 76% 18%, 100% 36%, 100% 64%, 76% 82%, 42% 82%, 34% 100%, 20% 100%, 24% 78%, 0 72%);
+}
+
+.battle-intro-weapon.form-rifle::after {
+  right: -21%;
+  top: 33%;
+  width: 26%;
+  height: 34%;
+  border-radius: 0 999px 999px 0;
+  background: var(--intro-accent);
+  box-shadow: 0 0 10px var(--intro-aura);
+}
+
+.battle-intro-weapon.form-launcher {
+  width: 50%;
+  height: 22%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--intro-accent), var(--intro-dark) 70%);
+}
+
+.battle-intro-weapon.form-launcher::after {
+  right: -10%;
+  top: -16%;
+  width: 28%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 3px solid var(--intro-accent);
+  background: var(--intro-dark);
+}
+
+.battle-intro-weapon.form-sword,
+.battle-intro-weapon.form-spear,
+.battle-intro-weapon.form-axe,
+.battle-intro-weapon.form-hammer {
+  width: 62%;
+  height: 8%;
+  border-radius: 999px;
+}
+
+.battle-intro-weapon.form-sword::after,
+.battle-intro-weapon.form-spear::after {
+  right: -18%;
+  top: -75%;
+  width: 28%;
+  height: 250%;
+  background: color-mix(in srgb, var(--intro-accent) 62%, white);
+  clip-path: polygon(0 25%, 100% 50%, 0 75%);
+}
+
+.battle-intro-weapon.form-axe::after,
+.battle-intro-weapon.form-hammer::after {
+  right: -11%;
+  top: -100%;
+  width: 26%;
+  height: 300%;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--intro-accent) 55%, white);
+}
+
+.battle-intro-weapon.form-gauntlet,
+.battle-intro-weapon.form-shield,
+.battle-intro-weapon.form-claws {
+  width: 34%;
+  height: 32%;
+  border-radius: 42%;
+}
+
+.battle-intro-weapon.form-claws {
+  clip-path: polygon(0 20%, 100% 0, 62% 38%, 100% 50%, 58% 62%, 100% 100%, 0 80%);
+}
+
+.battle-intro-weapon.form-fire,
+.battle-intro-weapon.form-water,
+.battle-intro-weapon.form-ice,
+.battle-intro-weapon.form-lightning,
+.battle-intro-weapon.form-nature,
+.battle-intro-weapon.form-void {
+  width: 48%;
+  height: 30%;
+  border: 0;
+  border-radius: 50%;
+  clip-path: polygon(0 18%, 52% 0, 100% 50%, 52% 100%, 0 82%, 22% 50%);
+  filter: drop-shadow(0 0 10px var(--intro-aura));
+}
+
+.battle-intro-weapon.form-lightning {
+  clip-path: polygon(0 34%, 40% 0, 35% 35%, 100% 22%, 52% 100%, 57% 58%, 0 72%);
+}
+
+.battle-intro-weapon.form-water { border-radius: 58% 42% 62% 38%; }
+.battle-intro-weapon.form-ice { clip-path: polygon(0 30%, 72% 0, 100% 50%, 72% 100%, 0 70%, 24% 50%); }
+.battle-intro-weapon.form-nature { clip-path: polygon(0 50%, 34% 0, 66% 30%, 100% 50%, 66% 70%, 34% 100%); }
+.battle-intro-weapon.form-void { background: radial-gradient(circle at 72% 50%, var(--intro-accent), var(--intro-dark) 70%); }
+
+.battle-intro-attachment {
+  position: absolute;
+  z-index: 6;
+  width: calc(18% * var(--attachment-scale));
+  aspect-ratio: 1;
+  border: 2px solid color-mix(in srgb, var(--attachment-accent) 72%, white);
+  border-radius: 28%;
+  background: linear-gradient(145deg, var(--attachment-primary), color-mix(in srgb, var(--attachment-primary) 44%, #050a11));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--attachment-glow) 76%, transparent);
+}
+
+.battle-intro-attachment.mount-top { top: -2%; left: 41%; }
+.battle-intro-fighter.side-a .battle-intro-attachment.mount-front { right: 0; top: 22%; }
+.battle-intro-fighter.side-b .battle-intro-attachment.mount-front { left: 0; top: 22%; }
+.battle-intro-fighter.side-a .battle-intro-attachment.mount-rear { left: 0; top: 52%; }
+.battle-intro-fighter.side-b .battle-intro-attachment.mount-rear { right: 0; top: 52%; }
+.battle-intro-attachment.mount-left { left: 12%; top: 10%; }
+.battle-intro-attachment.mount-right { right: 12%; bottom: 8%; }
+.battle-intro-attachment.mount-orbit { right: -8%; top: 0; border-radius: 50%; }
+
+.battle-intro-attachment.kind-targeting-drone { border-radius: 50%; }
+.battle-intro-attachment.kind-targeting-drone::after {
+  content: '';
+  position: absolute;
+  inset: 31%;
+  border-radius: 50%;
+  background: var(--attachment-accent);
+  box-shadow: 0 0 8px var(--attachment-glow);
+}
+.battle-intro-attachment.kind-missile-pod { width: calc(24% * var(--attachment-scale)); aspect-ratio: 1.5; }
+.battle-intro-attachment.kind-ammo-drum { border-radius: 50%; }
+.battle-intro-attachment.kind-deflector-plate { border-radius: 50% 12% 12% 50%; }
+.battle-intro-attachment.kind-thruster { clip-path: polygon(0 20%, 72% 20%, 100% 50%, 72% 80%, 0 80%); }
+.battle-intro-attachment.kind-ember-satellite { border-radius: 50%; }
+.battle-intro-attachment.kind-flamethrower { width: calc(26% * var(--attachment-scale)); aspect-ratio: 2; border-radius: 999px; }
 
 .battle-intro-versus {
   display: grid;
@@ -229,9 +442,7 @@
   font-size: clamp(1.18rem, 3vw, 1.8rem);
 }
 
-.battle-launch-overlay.intro {
-  pointer-events: none;
-}
+.battle-launch-overlay.intro { pointer-events: none; }
 
 .battle-launch-overlay.intro .side-a {
   animation: battle-intro-enter-left 680ms cubic-bezier(0.16, 0.8, 0.22, 1) both;
@@ -245,9 +456,8 @@
   animation: battle-intro-versus-pop 520ms 380ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
 }
 
-.battle-launch-overlay.intro .battle-intro-aura,
-.battle-launch-overlay.intro .battle-intro-sight {
-  animation: battle-intro-orbit 2s linear infinite;
+.battle-launch-overlay.intro .battle-intro-aura {
+  animation: battle-intro-aura-pulse 1.4s ease-in-out infinite alternate;
 }
 
 .battle-launch-overlay.intro .battle-intro-core {
@@ -273,8 +483,9 @@
   to { opacity: 1; transform: scale(1) rotate(0); }
 }
 
-@keyframes battle-intro-orbit {
-  to { transform: rotate(360deg); }
+@keyframes battle-intro-aura-pulse {
+  from { transform: scale(0.96); opacity: 0.7; }
+  to { transform: scale(1.04); opacity: 1; }
 }
 
 @keyframes battle-intro-core-pulse {
@@ -290,41 +501,45 @@
 
 @media (max-width: 680px) {
   .battle-intro-content {
-    width: min(100% - 18px, 560px);
-    gap: 12px;
+    width: min(100% - 16px, 560px);
+    gap: 11px;
   }
 
-  .battle-intro-matchup {
-    gap: 10px;
-  }
+  .battle-intro-matchup { gap: 8px; }
+  .battle-intro-fighter { gap: 12px; }
+  .battle-intro-nameplate { min-height: 72px; gap: 3px; }
 
   .battle-intro-avatar {
-    width: clamp(82px, calc(26vw * var(--intro-size-scale)), 142px);
+    width: clamp(76px, calc(22vw * var(--intro-size-scale)), 118px);
   }
 
   .battle-intro-nameplate strong {
-    font-size: clamp(0.88rem, 4.2vw, 1.18rem);
+    max-width: 35vw;
+    font-size: clamp(0.92rem, 4.3vw, 1.22rem);
   }
 
-  .battle-intro-nameplate small {
-    font-size: 0.56rem;
-    letter-spacing: 0.1em;
+  .battle-intro-identity,
+  .battle-intro-weapon-name {
+    max-width: 35vw;
+    font-size: 0.5rem;
+    letter-spacing: 0.05em;
   }
 
-  .battle-intro-versus i {
-    height: 14px;
-  }
+  .battle-intro-versus i { height: 12px; }
+  .battle-intro-versus strong { font-size: clamp(1.3rem, 7vw, 2rem); }
 }
 
 @media (max-height: 560px) and (orientation: landscape) {
-  .battle-intro-content { gap: 8px; }
-  .battle-intro-avatar { width: min(calc(24vh * var(--intro-size-scale)), 132px); }
-  .battle-intro-nameplate strong { font-size: 0.94rem; }
-  .battle-intro-nameplate small { font-size: 0.54rem; }
-  .battle-intro-kicker { font-size: 0.62rem; }
-  .battle-ready-actions { gap: 7px; }
+  .battle-intro-content { gap: 7px; }
+  .battle-intro-fighter { gap: 7px; }
+  .battle-intro-nameplate { min-height: 48px; gap: 2px; }
+  .battle-intro-avatar { width: min(calc(20vh * var(--intro-size-scale)), 104px); }
+  .battle-intro-nameplate strong { font-size: 0.9rem; }
+  .battle-intro-identity, .battle-intro-weapon-name { font-size: 0.47rem; }
+  .battle-intro-kicker { font-size: 0.58rem; }
+  .battle-ready-actions { gap: 6px; }
   .battle-ready-actions p { display: none; }
-  .battle-ready-start { min-height: 40px; }
+  .battle-ready-start { min-height: 38px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -332,7 +547,6 @@
   .battle-launch-overlay.intro .side-b,
   .battle-launch-overlay.intro .battle-intro-versus,
   .battle-launch-overlay.intro .battle-intro-aura,
-  .battle-launch-overlay.intro .battle-intro-sight,
   .battle-launch-overlay.intro .battle-intro-core,
   .battle-launch-overlay.intro .battle-intro-start-flash {
     animation-duration: 1ms;
@@ -345,7 +559,6 @@ html[data-motion='reduced'] .battle-launch-overlay.intro .side-a,
 html[data-motion='reduced'] .battle-launch-overlay.intro .side-b,
 html[data-motion='reduced'] .battle-launch-overlay.intro .battle-intro-versus,
 html[data-motion='reduced'] .battle-launch-overlay.intro .battle-intro-aura,
-html[data-motion='reduced'] .battle-launch-overlay.intro .battle-intro-sight,
 html[data-motion='reduced'] .battle-launch-overlay.intro .battle-intro-core,
 html[data-motion='reduced'] .battle-launch-overlay.intro .battle-intro-start-flash {
   animation-duration: 1ms;
