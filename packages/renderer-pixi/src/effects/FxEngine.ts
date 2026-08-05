@@ -1,5 +1,4 @@
 import { Container, Graphics } from 'pixi.js';
-import { drawDirectionalBloom, drawFracturedRing, drawRadialBloom, traceWobbleOutline } from './bloomShapes';
 import {
   isMissileCascadeAbility,
   isMissileCascadeFrame,
@@ -660,18 +659,9 @@ export class FxEngine {
     const duration = layer.durationSeconds;
     const style = resolveCombatVfxParticleStyle(layer);
     const glowStrength = layer.hierarchy === 'ultimate' ? 1 : layer.hierarchy === 'payoff' ? 0.8 : 0.58;
-    // Aimed intents get an oriented glow; everything else gets a wobbled shell.
-    const aimed = layer.intent === 'projectile'
-      || layer.intent === 'burst-fire'
-      || layer.intent === 'beam'
-      || layer.intent === 'dash'
-      || (layer.intent === 'knockback' && layer.directional);
-    const focus = !aimed ? 0 : layer.intent === 'beam' || layer.intent === 'projectile' ? 1 : 0.78;
-    const bloomDirX = aimed ? dirX : 0;
-    const bloomDirY = aimed ? dirY : 0;
 
     if (layer.phase === 'anticipation') {
-      this.profileBloom(x, y, palette.core, palette.glow, radius * 0.42, Math.min(0.3, duration), glowStrength * 0.65, bloomDirX, bloomDirY, focus);
+      this.profileBloom(x, y, palette.core, palette.glow, radius * 0.42, Math.min(0.3, duration), glowStrength * 0.65);
       this.shockwave(x, y, palette.glow, radius * 0.48, 2.5, Math.min(0.5, duration));
       if (layer.intent === 'pull') {
         this.inwardBurst(x, y, palette.accent, Math.round(amount * 0.7), radius * 0.88, 5.2 * layer.intensity);
@@ -694,7 +684,7 @@ export class FxEngine {
     }
 
     if (layer.phase === 'activation') {
-      this.profileBloom(x, y, palette.core, palette.glow, radius, Math.min(0.34, duration), glowStrength, bloomDirX, bloomDirY, focus);
+      this.profileBloom(x, y, palette.core, palette.glow, radius, Math.min(0.34, duration), glowStrength);
       if (layer.intent === 'dash') {
         this.directionalBurst(x, y, -dirX, -dirY, palette.accent, amount, 8.5 * layer.intensity, style.primary);
         this.directionalBurst(x, y, dirX, dirY, palette.core, Math.round(amount * 0.36), 11 * layer.intensity, style.secondary);
@@ -739,7 +729,7 @@ export class FxEngine {
     }
 
     if (layer.phase === 'sustain') {
-      this.profileBloom(x, y, palette.core, palette.accent, radius * 0.68, Math.min(0.42, duration), glowStrength * 0.54, bloomDirX, bloomDirY, focus);
+      this.profileBloom(x, y, palette.core, palette.accent, radius * 0.68, Math.min(0.42, duration), glowStrength * 0.54);
       if (layer.intent === 'burst-fire') {
         this.directionalBurst(x, y, dirX, dirY, palette.accent, Math.round(amount * 0.82), 9.6 * layer.intensity);
         this.directionalBurst(x, y, dirX, dirY, palette.core, Math.round(amount * 0.38), 12 * layer.intensity);
@@ -764,7 +754,7 @@ export class FxEngine {
       return { shake: 0, freezeMs: 0, screenFlash: 0 };
     }
 
-    this.profileBloom(x, y, palette.core, palette.glow, radius * 0.5, Math.min(0.22, duration), glowStrength * 0.52, bloomDirX, bloomDirY, focus);
+    this.profileBloom(x, y, palette.core, palette.glow, radius * 0.5, Math.min(0.22, duration), glowStrength * 0.52);
     if (layer.intent === 'pull') {
       this.inwardBurst(x, y, palette.accent, Math.round(amount * 0.68), radius * 0.78, 5.8 * layer.intensity, style.primary);
     } else if (layer.intent === 'knockback') {
@@ -797,31 +787,23 @@ export class FxEngine {
     glowColor: number,
     radius: number,
     life: number,
-    strength: number,
-    dirX = 0,
-    dirY = 0,
-    focus = 0
+    strength: number
   ): void {
     const flash = this.flashes.find((item) => !item.active);
     if (!flash) return;
     flash.active = true;
     flash.life = flash.maxLife = Math.max(0.08, life);
     flash.node.clear();
-    const length = Math.hypot(dirX, dirY);
-    if (focus > 0 && length > 0.0001) {
-      drawDirectionalBloom(flash.node, dirX / length, dirY / length, coreColor, glowColor, radius, strength, focus);
-    } else {
-      drawRadialBloom(flash.node, coreColor, glowColor, radius, strength, Math.random);
-      // Radiating spokes start off the centre line so the shells never read as
-      // a set of concentric rings.
-      const spin = Math.random() * Math.PI * 2;
-      for (let index = 0; index < 6; index += 1) {
-        const angle = spin + index / 6 * Math.PI * 2;
-        const outer = radius * (0.6 + Math.random() * 0.22);
-        flash.node.moveTo(Math.cos(angle) * radius * 0.26, Math.sin(angle) * radius * 0.26)
-          .lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer)
-          .stroke({ color: coreColor, width: 1.5, alpha: 0.2 * strength });
-      }
+    flash.node.circle(0, 0, radius).fill({ color: glowColor, alpha: 0.08 * strength });
+    flash.node.circle(0, 0, radius * 0.64).fill({ color: glowColor, alpha: 0.14 * strength });
+    flash.node.circle(0, 0, radius * 0.3).fill({ color: coreColor, alpha: 0.58 * strength });
+    flash.node.circle(0, 0, radius * 0.16).fill({ color: 0xffffff, alpha: 0.78 * strength });
+    flash.node.circle(0, 0, radius * 0.8).stroke({ color: glowColor, width: Math.max(1.5, radius * 0.035), alpha: 0.34 * strength });
+    for (let index = 0; index < 6; index += 1) {
+      const angle = index / 6 * Math.PI * 2;
+      flash.node.moveTo(Math.cos(angle) * radius * 0.26, Math.sin(angle) * radius * 0.26)
+        .lineTo(Math.cos(angle) * radius * 0.68, Math.sin(angle) * radius * 0.68)
+        .stroke({ color: coreColor, width: 1.5, alpha: 0.2 * strength });
     }
     flash.node.position.set(x, y);
     flash.node.alpha = 1;
@@ -1032,18 +1014,12 @@ export class FxEngine {
     this.burst(x, y, 0xff7a2a, Math.round(18 * particleScale), 5.2, 1.2, 4.6, 0.18, 0.54, 0.97, 0.5);
   }
 
-  /**
-   * Expanding impact ring. Drawn as arcs with gaps rather than a closed circle:
-   * this helper backs roughly seventy call sites, and a perfect ring inflating
-   * to 3.6x while it fades was the single strongest bubble cue in small battles.
-   */
   private shockwave(x: number, y: number, color: number, radius: number, width: number, life: number): void {
     const wave = this.shockwaves.find((item) => !item.active);
     if (!wave) return;
     wave.active = true;
     wave.life = wave.maxLife = life;
-    wave.node.clear();
-    drawFracturedRing(wave.node, radius, color, width, 0.8, Math.random);
+    wave.node.clear().circle(0, 0, radius).stroke({ color, width, alpha: 0.8 });
     wave.node.x = x;
     wave.node.y = y;
     wave.node.scale.set(0.55);
@@ -1056,9 +1032,7 @@ export class FxEngine {
     if (!flash) return;
     flash.active = true;
     flash.life = flash.maxLife = life;
-    flash.node.clear();
-    traceWobbleOutline(flash.node, 0, 0, radius, 8, 0.22, Math.random() * Math.PI * 2);
-    flash.node.fill({ color, alpha: 0.72 });
+    flash.node.clear().circle(0, 0, radius).fill({ color, alpha: 0.72 });
     flash.node.x = x;
     flash.node.y = y;
     flash.node.scale.set(0.65);
