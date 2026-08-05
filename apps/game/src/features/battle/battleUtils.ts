@@ -74,6 +74,13 @@ export function sameViewportMetrics(a: ViewportMetrics, b: ViewportMetrics): boo
 
 let seedNonce = 0;
 
+export function resolveFreshRematchSeed(currentSeed: number, candidateSeed: number): number {
+  const current = (Math.trunc(currentSeed) >>> 0) || 1;
+  const candidate = (Math.trunc(candidateSeed) >>> 0) || 1;
+  if (candidate !== current) return candidate;
+  return ((candidate + 1) >>> 0) || 1;
+}
+
 export function generateRandomSeed(): number {
   seedNonce = (seedNonce + 1) >>> 0;
 
