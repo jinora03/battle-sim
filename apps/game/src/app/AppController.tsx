@@ -70,6 +70,7 @@ import { activityPresentation } from '../features/battle/BattleFighterControls';
 import {
   describeBattleResult,
   generateRandomSeed,
+  resolveFreshRematchSeed,
   sameBattleSetup,
   sameDeviceCapabilities,
   sameViewportMetrics
@@ -180,6 +181,7 @@ export function useAppController() {
   const [deviceCapabilities, setDeviceCapabilities] = useState(detectDeviceCapabilities);
   const [viewportMetrics, setViewportMetrics] = useState(detectViewportMetrics);
   const [seedText, setSeedText] = useState(() => String(generateRandomSeed()));
+  const activeSeedRef = useRef((Number(seedText) >>> 0) || 1);
   const [setup, setSetup] = useState<BattleSetup>(DEFAULT_SETUP);
   const [activeSetup, setActiveSetup] = useState<BattleSetup>(DEFAULT_SETUP);
   const [setupPanelOpen, setSetupPanelOpen] = useState(true);
@@ -421,7 +423,8 @@ export function useAppController() {
   }, []);
 
   const prepareBattleForStart = (seed: number, nextSetup: BattleSetup) => {
-    setSeedText(String(seed));
+    activeSeedRef.current = (seed >>> 0) || 1;
+    setSeedText(String(activeSeedRef.current));
     setActiveSetup(nextSetup);
     setPausedByUser(false);
     setBattleLaunchPhase('ready');
@@ -429,7 +432,8 @@ export function useAppController() {
   };
 
   const launchBattle = (seed: number, nextSetup: BattleSetup) => {
-    setSeedText(String(seed));
+    activeSeedRef.current = (seed >>> 0) || 1;
+    setSeedText(String(activeSeedRef.current));
     setActiveSetup(nextSetup);
     setPausedByUser(false);
     restartBattleWhenReady(seed, nextSetup);
@@ -437,7 +441,12 @@ export function useAppController() {
   };
 
   const replaySameBattle = () => {
-    launchBattle(Number(seedText) || 1, activeSetup);
+    launchBattle(activeSeedRef.current, activeSetup);
+  };
+
+  const rematchBattle = () => {
+    const nextSeed = resolveFreshRematchSeed(activeSeedRef.current, generateRandomSeed());
+    launchBattle(nextSeed, activeSetup);
   };
 
   const startNewBattle = (nextSetup: BattleSetup = setup) => {
@@ -855,6 +864,7 @@ export function useAppController() {
       prepareBattleForStart,
       launchBattle,
       replaySameBattle,
+      rematchBattle,
       startNewBattle,
       startRandomMatchup,
       returnToSetup,

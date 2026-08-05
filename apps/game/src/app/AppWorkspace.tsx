@@ -74,6 +74,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
     resultPresentation,
     eliminationProgress,
     replaySameBattle,
+    rematchBattle,
     startRandomMatchup,
     returnToSetup,
     updateSetup,
@@ -213,7 +214,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
                 <div className="battle-command-bar" aria-label="Battle actions">
                   <div className="battle-command-actions">
                     <NeonButton tone="random" onClick={startRandomMatchup}>New random battle</NeonButton>
-                    <NeonButton tone="utility" onClick={replaySameBattle}>Replay same battle</NeonButton>
+                    <NeonButton tone="utility" onClick={replaySameBattle}>Replay same seed</NeonButton>
                     {viewportMetrics.width <= 900 && (
                       <NeonButton tone="ghost" className="setup-jump" onClick={openBattleSetup} aria-controls="battle-setup-drawer" aria-expanded={battleDrawerOpen}>Battle setup</NeonButton>
                     )}
@@ -247,7 +248,9 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
                 )}
                 <span className="objective-meta">
                   {diagnostics.objective.remainingTicks !== null && <b>{Math.ceil(diagnostics.objective.remainingTicks / 60)}s</b>}
-                  <em>{diagnostics.battleEnded ? resultPresentation.compact : activeMode?.victory === 'LAST_TEAM_STANDING' ? (viewportMetrics.compact ? '' : `${eliminationProgress.alive}/${eliminationProgress.total} alive · Win by elimination`) : `${diagnostics.entities.length} active`}</em>
+                  {(diagnostics.battleEnded || activeMode?.victory !== 'LAST_TEAM_STANDING') && (
+                    <em>{diagnostics.battleEnded ? resultPresentation.compact : `${diagnostics.entities.length} active`}</em>
+                  )}
                 </span>
               </div>
 
@@ -285,7 +288,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
                       <h2 id="match-result-title">{resultPresentation.title}</h2>
                       <p id="match-result-description">{resultPresentation.description}</p>
                       <div className="match-result-actions">
-                        <NeonButton tone="success" onClick={replaySameBattle}>Rematch</NeonButton>
+                        <NeonButton tone="success" onClick={rematchBattle} title="Same matchup and loadout with a fresh seed">Rematch</NeonButton>
                         <NeonButton tone="random" onClick={startRandomMatchup}>New random battle</NeonButton>
                         <NeonButton tone="ghost" fullWidth className="match-result-return" onClick={() => { returnToSetup(); openBattleSetup(); }}>Return to setup</NeonButton>
                       </div>

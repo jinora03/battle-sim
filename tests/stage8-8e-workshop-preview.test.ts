@@ -85,7 +85,7 @@ describe('Stage 8.8E workshop and unified fighter preview', () => {
   });
 
   it('keeps content and engine compatibility markers aligned', () => {
-    expect(CONTENT_VERSION).toBe('1.3.25-stage8.8e');
+    expect(CONTENT_VERSION).toBe('1.3.26-stage8.8f');
     expect(CONTENT_VERSION).toBe(ENGINE_VERSION);
   });
 });
