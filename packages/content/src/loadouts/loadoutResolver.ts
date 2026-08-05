@@ -10,12 +10,13 @@ import { getFighterModule } from './moduleCatalog';
 
 export function resolveFighterLoadout(fighter: FighterDefinition, requested?: FighterLoadout): ResolvedFighterLoadout {
   const requestedIds = requested?.moduleIds ?? fighter.defaultModuleIds ?? [];
+  const compatibilityId = fighter.kitSourceFighterId ?? fighter.id;
   const selectedBySlot = new Map<ModuleSlot, FighterModuleDefinition>();
 
   for (const moduleId of requestedIds) {
     const module = getFighterModule(moduleId);
     const allowed = fighter.moduleSlots?.[module.slot] ?? [];
-    if (!module.compatibleFighterIds.includes(fighter.id) || !allowed.includes(module.id)) {
+    if (!module.compatibleFighterIds.includes(compatibilityId) || !allowed.includes(module.id)) {
       throw new Error(`${fighter.name} cannot equip module ${module.id}`);
     }
     if (selectedBySlot.has(module.slot)) {

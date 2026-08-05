@@ -7,6 +7,7 @@ import {
   type FighterDefinition
 } from '@kinetic/content';
 import { getSkillPresentation, getVisualRecipe } from '@kinetic/visual-engine';
+import { FighterPortrait } from '../../ui/FighterPortrait';
 
 export function BattleFighterPreview({ fighter, moduleIds, side }: {
   fighter: FighterDefinition;
@@ -30,13 +31,10 @@ export function BattleFighterPreview({ fighter, moduleIds, side }: {
     '--setup-fighter-aura': color(visual.auraColor),
     '--setup-fighter-accent': color(visual.accentColor)
   } as CSSProperties;
-
   return (
     <article className={`battle-fighter-preview side-${side.toLowerCase()} ${modules.length > 0 ? 'tuned' : 'standard'}`} style={style} aria-label={`${fighter.name} battle setup preview`}>
-      <div className="battle-fighter-preview-portrait" aria-hidden="true">
-        <span className="setup-preview-aura" />
-        <span className={`setup-preview-body shape-${visual.shape}`}><i /></span>
-        <span className="setup-preview-core" />
+      <div className="battle-fighter-preview-portrait">
+        <FighterPortrait fighter={fighter} visual={visual} moduleIds={moduleIds} facing={side === 'A' ? 'right' : 'left'} size="small" />
       </div>
       <div className="battle-fighter-preview-copy">
         <div className="battle-fighter-preview-title">
@@ -70,6 +68,7 @@ export function BattleFighterPreview({ fighter, moduleIds, side }: {
     </article>
   );
 }
+
 
 function color(value: number): string {
   return `#${value.toString(16).padStart(6, '0')}`;

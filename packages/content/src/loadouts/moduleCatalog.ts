@@ -25,9 +25,10 @@ export function getFighterModule(id: string): FighterModuleDefinition {
 }
 
 export function listCompatibleModules(fighter: FighterDefinition, slot?: ModuleSlot): FighterModuleDefinition[] {
+  const compatibilityId = fighter.kitSourceFighterId ?? fighter.id;
   return MODULES
     .filter((module) => (!slot || module.slot === slot)
-      && module.compatibleFighterIds.includes(fighter.id)
+      && module.compatibleFighterIds.includes(compatibilityId)
       && (fighter.moduleSlots?.[module.slot] ?? []).includes(module.id))
     .map(cloneModule);
 }

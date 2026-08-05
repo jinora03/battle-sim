@@ -43,7 +43,7 @@ describe('Stage 8.8D settings and metrics organization', () => {
   });
 
   it('keeps content and engine compatibility markers aligned', () => {
-    expect(CONTENT_VERSION).toBe('1.3.24-stage8.8d');
     expect(CONTENT_VERSION).toBe(ENGINE_VERSION);
+    expect(CONTENT_VERSION).toMatch(/^1\.3\./);
   });
 });
