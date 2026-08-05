@@ -96,6 +96,7 @@ const DEFAULT_SETUP: BattleSetup = {
 
 function createStarterBundle(name = 'Arc Prototype', requestedId?: string): FighterBundle {
   const id = requestedId ?? slugifyFighterId(name);
+  const source = getFighter('volt-striker');
   return {
     schemaVersion: 2,
     fighter: {
@@ -104,18 +105,18 @@ function createStarterBundle(name = 'Arc Prototype', requestedId?: string): Figh
       classification: { archetype: 'striker', elements: ['electric'], traits: ['custom', 'experimental'] },
       physics: { radius: 45, mass: 1.25, restitution: 0.94, linearDamping: 0.993, maxSpeed: 12.2 },
       stats: { maxHp: 225, moveAcceleration: 0.2 },
-      aiProfileId: 'ranged-gunner',
-      abilitySlots: {
-        skill1: 'surge-dash',
-        skill2: 'kinetic-pulse',
-        skill3: 'undertow',
-        ultimate: 'reactor-overdrive'
-      },
-      resistances: { electric: 0.75, metal: 0.9 },
+      aiProfileId: source.aiProfileId,
+      kitSourceFighterId: source.id,
+      passiveIds: structuredClone(source.passiveIds ?? []),
+      combatResources: structuredClone(source.combatResources ?? []),
+      abilitySlots: structuredClone(source.abilitySlots),
+      moduleSlots: structuredClone(source.moduleSlots ?? {}),
+      defaultModuleIds: [],
+      resistances: structuredClone(source.resistances),
       visualRecipeId: `${id}-visual`,
       animationRecipeId: `${id}-motion`,
-      audioProfileId: 'custom-hybrid',
-      primaryAttackId: 'arc-emitter'
+      audioProfileId: source.audioProfileId,
+      primaryAttackId: source.primaryAttackId
     },
     visualRecipe: {
       id: `${id}-visual`,
@@ -190,7 +191,7 @@ export function useAppController() {
   const [draft, setDraft] = useState<FighterBundle>(() => customBundles[0] ?? createStarterBundle());
   const [creatorMessage, setCreatorMessage] = useState('Edit the recipe, validate it, then save or test the fighter.');
   const [importText, setImportText] = useState('');
-  const [sourceFighterId, setSourceFighterId] = useState('water-shaper');
+  const [sourceFighterId, setSourceFighterId] = useState('volt-striker');
   const [profile, setProfile] = useState<PlayerProfile>(loadPlayerProfile);
   const profileRef = useRef(profile);
   const [progressNotices, setProgressNotices] = useState<ProgressionNotice[]>([]);
@@ -586,7 +587,7 @@ export function useAppController() {
   const testDraft = () => {
     const saved = saveDraft();
     if (!saved) return;
-    const next: BattleSetup = { ...setup, fighterAId: saved.fighter.id, moduleIdsA: [], controllerA: 'player', controllerB: 'ai' };
+    const next: BattleSetup = { ...setup, fighterAId: saved.fighter.id, moduleIdsA: [...(saved.fighter.defaultModuleIds ?? [])], controllerA: 'player', controllerB: 'ai' };
     openPreparedBattle(next);
   };
 
@@ -605,6 +606,7 @@ export function useAppController() {
       return;
     }
     setDraft(result.bundle);
+    if (result.bundle.fighter.kitSourceFighterId) setSourceFighterId(result.bundle.fighter.kitSourceFighterId);
     setCreatorMessage(`${result.bundle.fighter.name} loaded into the editor. Save to register it.`);
   };
 
@@ -617,7 +619,9 @@ export function useAppController() {
         ...structuredClone(source),
         id,
         name: `${source.name} Custom`,
+        kitSourceFighterId: source.kitSourceFighterId ?? source.id,
         classification: { ...source.classification, traits: [...source.classification.traits, 'custom'] },
+        defaultModuleIds: [],
         visualRecipeId: `${id}-visual`,
         animationRecipeId: `${id}-motion`
       },
@@ -778,6 +782,7 @@ export function useAppController() {
   };
 
   const createBlankDraft = () => {
+    setSourceFighterId('volt-striker');
     setDraft(createStarterBundle());
     setCreatorMessage('Started a clean Arc Prototype recipe.');
   };

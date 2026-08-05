@@ -124,6 +124,9 @@ export interface RegisterFighterOptions {
 
 export function validateFighterReferences(fighter: FighterDefinition): string[] {
   const errors: string[] = validateCombatResources(fighter);
+  const compatibilityId = fighter.kitSourceFighterId ?? fighter.id;
+  if (fighter.kitSourceFighterId && fighter.kitSourceFighterId === fighter.id) errors.push('kitSourceFighterId must reference a different fighter');
+  if (fighter.kitSourceFighterId && !fighterMap.has(fighter.kitSourceFighterId)) errors.push(`Unknown kit source fighter: ${fighter.kitSourceFighterId}`);
   if (fighter.aiProfileId && !aiMap.has(fighter.aiProfileId)) errors.push(`Unknown AI profile: ${fighter.aiProfileId}`);
   for (const [slot, abilityId] of Object.entries(fighter.abilitySlots)) {
     if (abilityId && !abilityMap.has(abilityId)) errors.push(`Unknown ability in ${slot}: ${abilityId}`);
@@ -140,14 +143,22 @@ export function validateFighterReferences(fighter: FighterDefinition): string[] 
       try {
         const module = getFighterModule(moduleId);
         if (module.slot !== slot) errors.push(`Module ${moduleId} is not a ${slot} module`);
-        if (!module.compatibleFighterIds.includes(fighter.id)) errors.push(`Module ${moduleId} is incompatible with ${fighter.id}`);
+        if (!module.compatibleFighterIds.includes(compatibilityId)) errors.push(`Module ${moduleId} is incompatible with ${fighter.id}`);
       } catch {
         errors.push(`Unknown module: ${moduleId}`);
       }
     }
   }
+  const defaultModuleSlots = new Set<string>();
   for (const moduleId of fighter.defaultModuleIds ?? []) {
     if (!Object.values(fighter.moduleSlots ?? {}).some((ids) => ids?.includes(moduleId))) errors.push(`Default module is not allowed: ${moduleId}`);
+    try {
+      const module = getFighterModule(moduleId);
+      if (defaultModuleSlots.has(module.slot)) errors.push(`Default loadout has multiple ${module.slot} modules`);
+      defaultModuleSlots.add(module.slot);
+    } catch {
+      // Unknown module is already reported by the approved module-slot loop.
+    }
   }
   if (!primaryAttackMap.has(fighter.primaryAttackId)) errors.push(`Unknown primary attack: ${fighter.primaryAttackId}`);
   return errors;

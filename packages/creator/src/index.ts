@@ -1,7 +1,9 @@
 import { z, type ZodError } from 'zod';
+import type { ModuleSlot } from '@kinetic/protocol';
 import {
   fighterSchema,
   MIN_FIGHTER_RADIUS,
+  getFighter,
   hasFighter,
   isCustomFighter,
   registerFighter,
@@ -139,10 +141,46 @@ export function validateFighterBundle(input: unknown): BundleValidationResult {
   if (!parsed.success) return { success: false, errors: issuesToMessages(parsed.error), migrated: migration.migrated };
   const bundle = parsed.data as FighterBundle;
   const errors = validateFighterReferences(bundle.fighter);
+  errors.push(...validateFighterKitSource(bundle.fighter));
   if (bundle.fighter.visualRecipeId !== bundle.visualRecipe.id) errors.push('fighter.visualRecipeId must match visualRecipe.id');
   if (bundle.fighter.animationRecipeId !== bundle.motionRecipe.id) errors.push('fighter.animationRecipeId must match motionRecipe.id');
   if (errors.length > 0) return { success: false, errors, migrated: migration.migrated };
   return { success: true, bundle, errors: [], migrated: migration.migrated };
+}
+
+
+export function validateFighterKitSource(fighter: FighterDefinition): string[] {
+  const sourceId = fighter.kitSourceFighterId;
+  if (!sourceId) return [];
+  if (!hasFighter(sourceId)) return [`Unknown kit source fighter: ${sourceId}`];
+  const source = getFighter(sourceId);
+  const errors: string[] = [];
+
+  if (fighter.primaryAttackId !== source.primaryAttackId) {
+    errors.push(`Primary attack must come from ${source.name}: ${source.primaryAttackId}`);
+  }
+
+  for (const slot of ['skill1', 'skill2', 'skill3', 'ultimate'] as const) {
+    const abilityId = fighter.abilitySlots[slot];
+    const approvedId = source.abilitySlots[slot];
+    if (abilityId && abilityId !== approvedId) {
+      errors.push(`${slot} must come from ${source.name}: ${approvedId ?? 'empty'}`);
+    }
+  }
+
+  const approvedPassives = new Set(source.passiveIds ?? []);
+  for (const passiveId of fighter.passiveIds ?? []) {
+    if (!approvedPassives.has(passiveId)) errors.push(`Passive ${passiveId} does not belong to ${source.name}`);
+  }
+
+  for (const [slot, moduleIds] of Object.entries(fighter.moduleSlots ?? {})) {
+    const approvedIds = new Set(source.moduleSlots?.[slot as ModuleSlot] ?? []);
+    for (const moduleId of moduleIds ?? []) {
+      if (!approvedIds.has(moduleId)) errors.push(`Module ${moduleId} is not approved for ${source.name}`);
+    }
+  }
+
+  return errors;
 }
 
 export function registerFighterBundle(input: unknown, replace = false): FighterBundle {

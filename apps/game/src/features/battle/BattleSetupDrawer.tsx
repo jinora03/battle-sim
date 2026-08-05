@@ -18,7 +18,7 @@ import {
 } from '@kinetic/platform';
 import type { BattleSetup } from '../../runtime/BattleRuntime';
 import { DrawerHeader, NeonButton } from '../../ui/NeonUI';
-import { CreatorField, RangeField, Toggle } from '../../ui/FormControls';
+import { CreatorField, DisclosureGroup, RangeField, Toggle } from '../../ui/FormControls';
 import { formatModeCapacity } from '../../ui/presentation';
 import { BattleFighterPreview } from './BattleFighterPreview';
 import { FighterModuleSelectors } from './FighterModuleSelectors';
@@ -221,6 +221,13 @@ export function BattleSetupDrawer({
             step={0.05}
             onChange={(value) => onSettingChange('touchControlOpacity', value)}
           />
+          <label className="field-label stacked-label" htmlFor="touch-controls-mode">Touch controls</label>
+          <select id="touch-controls-mode" value={settings.touchControls} onChange={(event: ChangeEvent<HTMLSelectElement>) => onSettingChange('touchControls', event.target.value as TouchControlMode)}>
+            <option value="auto">Auto · touch-first devices</option>
+            <option value="always">Always show</option>
+            <option value="never">Always hide</option>
+          </select>
+          <Toggle label="Large touch controls" checked={settings.largeTouchControls} onChange={(value) => onSettingChange('largeTouchControls', value)} />
           <label className="field-label stacked-label" htmlFor="aim-assist">Aim assist</label>
           <select id="aim-assist" value={settings.aimAssist} onChange={(event: ChangeEvent<HTMLSelectElement>) => onSettingChange('aimAssist', event.target.value as AimAssistLevel)}>
             <option value="off">Off</option>
@@ -234,58 +241,70 @@ export function BattleSetupDrawer({
       </details>
 
       <details className="panel-section collapsible-panel release-settings" open>
-        <summary className="panel-summary"><span><small>Display</small><strong>Quality & accessibility</strong></span></summary>
-        <div className="panel-content">
-          <label className="field-label" htmlFor="quality-preset">Quality preset</label>
-          <select id="quality-preset" value={settings.qualityPreset} onChange={(event: ChangeEvent<HTMLSelectElement>) => onQualityPresetChange(event.target.value as QualityPresetId)}>
-            <option value="auto">Auto · recommended for this device</option>
-            <option value="battery">{qualityPresets.battery.label}</option>
-            <option value="balanced">{qualityPresets.balanced.label}</option>
-            <option value="high">{qualityPresets.high.label}</option>
-            <option value="custom">Custom</option>
-          </select>
-          <p className="small-note">Auto resolves from device memory, CPU threads, data-saver and reduced-motion preferences.</p>
-          <label className="field-label stacked-label" htmlFor="render-profile">Visual style</label>
-          <select id="render-profile" value={settings.renderProfile} onChange={(event: ChangeEvent<HTMLSelectElement>) => onSettingChange('renderProfile', event.target.value as AppSettings['renderProfile'])}>
-            <option value="standard">Standard characters</option>
-            <option value="minimal">Minimal shapes</option>
-            <option value="debug">Debug renderer</option>
-          </select>
-          <label className="field-label stacked-label" htmlFor="target-fps">Render target</label>
-          <select id="target-fps" value={settings.targetRenderFps} onChange={(event: ChangeEvent<HTMLSelectElement>) => onSettingChange('targetRenderFps', Number(event.target.value) === 30 ? 30 : 60)}>
-            <option value={60}>60 FPS</option>
-            <option value={30}>30 FPS · battery saver</option>
-          </select>
-          <RangeField label={`Internal render scale · ${Math.round(settings.renderScale * 100)}%`} value={settings.renderScale} min={0.5} max={1} step={0.05} onChange={(value) => onSettingChange('renderScale', value)} />
-          <RangeField label={`Device pixel ratio cap · ${settings.maxDevicePixelRatio.toFixed(2)}×`} value={settings.maxDevicePixelRatio} min={0.75} max={3} step={0.25} onChange={(value) => onSettingChange('maxDevicePixelRatio', value)} />
-          <RangeField label={`Particle density · ${Math.round(settings.particleScale * 100)}%`} value={settings.particleScale} min={0} max={1.5} step={0.05} onChange={(value) => onSettingChange('particleScale', value)} />
-          <RangeField label={`Audio volume · ${Math.round(settings.masterVolume * 100)}%`} value={settings.masterVolume} min={0} max={1} step={0.05} onChange={(value) => onSettingChange('masterVolume', value)} />
-          <Toggle label="Adaptive quality" checked={settings.adaptiveQuality} onChange={(value) => onSettingChange('adaptiveQuality', value)} />
-          <Toggle label="Effects + telegraphs" checked={settings.effects} onChange={(value) => onSettingChange('effects', value)} />
-          <Toggle label="Show mounted attachments" checked={settings.showMountedAttachments} onChange={(value) => onSettingChange('showMountedAttachments', value)} />
-          <Toggle label="Show fighter HP rings" checked={settings.showFighterHealthRings} onChange={(value) => onSettingChange('showFighterHealthRings', value)} />
-          <Toggle label="Show damage numbers" checked={settings.showDamageNumbers} onChange={(value) => onSettingChange('showDamageNumbers', value)} />
-          <Toggle label="Show battle intros" checked={settings.showBattleIntros} onChange={(value) => onSettingChange('showBattleIntros', value)} />
-          <Toggle label="Neon arena background" checked={settings.arenaBackground} onChange={(value) => onSettingChange('arenaBackground', value)} />
-          <Toggle label="Trails" checked={settings.trails} onChange={(value) => onSettingChange('trails', value)} />
-          <Toggle label="Camera shake" checked={settings.cameraShake} onChange={(value) => onSettingChange('cameraShake', value)} />
-          <Toggle label="Follow player" checked={settings.cameraFollow} onChange={(value) => onSettingChange('cameraFollow', value)} />
-          <label className="field-label stacked-label" htmlFor="touch-controls-mode">Touch controls</label>
-          <select id="touch-controls-mode" value={settings.touchControls} onChange={(event: ChangeEvent<HTMLSelectElement>) => onSettingChange('touchControls', event.target.value as TouchControlMode)}>
-            <option value="auto">Auto · touch-first devices</option>
-            <option value="always">Always show</option>
-            <option value="never">Always hide</option>
-          </select>
-          <Toggle label="Impact freeze" checked={settings.impactFreeze} onChange={(value) => onSettingChange('impactFreeze', value)} />
-          <Toggle label="Screen flashes" checked={settings.screenFlash} onChange={(value) => onSettingChange('screenFlash', value)} />
-          <Toggle label="Reduced motion" checked={settings.reducedMotion} onChange={(value) => onSettingChange('reducedMotion', value)} />
-          <Toggle label="High contrast UI" checked={settings.highContrast} onChange={(value) => onSettingChange('highContrast', value)} />
-          <Toggle label="Large touch controls" checked={settings.largeTouchControls} onChange={(value) => onSettingChange('largeTouchControls', value)} />
-          <Toggle label="Developer metrics panel" checked={settings.showPerformanceHud} onChange={(value) => onSettingChange('showPerformanceHud', value)} />
-          <Toggle label="Audio" checked={settings.audio} onChange={(value) => onSettingChange('audio', value)} />
-          <div className="settings-action-row">
+        <summary className="panel-summary"><span><small>Settings</small><strong>Quality, presentation & tools</strong></span></summary>
+        <div className="panel-content settings-group-list">
+          <DisclosureGroup eyebrow="Rendering" title="Quality & resolution" summary={settings.qualityPreset} defaultOpen>
+            <label className="field-label" htmlFor="quality-preset">Quality preset</label>
+            <select id="quality-preset" value={settings.qualityPreset} onChange={(event: ChangeEvent<HTMLSelectElement>) => onQualityPresetChange(event.target.value as QualityPresetId)}>
+              <option value="auto">Auto · recommended for this device</option>
+              <option value="battery">{qualityPresets.battery.label}</option>
+              <option value="balanced">{qualityPresets.balanced.label}</option>
+              <option value="high">{qualityPresets.high.label}</option>
+              <option value="custom">Custom</option>
+            </select>
+            <p className="small-note">Auto resolves from device memory, CPU threads, data-saver and reduced-motion preferences.</p>
+            <label className="field-label stacked-label" htmlFor="render-profile">Visual style</label>
+            <select id="render-profile" value={settings.renderProfile} onChange={(event: ChangeEvent<HTMLSelectElement>) => onSettingChange('renderProfile', event.target.value as AppSettings['renderProfile'])}>
+              <option value="standard">Standard characters</option>
+              <option value="minimal">Minimal shapes</option>
+              <option value="debug">Debug renderer</option>
+            </select>
+            <label className="field-label stacked-label" htmlFor="target-fps">Render target</label>
+            <select id="target-fps" value={settings.targetRenderFps} onChange={(event: ChangeEvent<HTMLSelectElement>) => onSettingChange('targetRenderFps', Number(event.target.value) === 30 ? 30 : 60)}>
+              <option value={60}>60 FPS</option>
+              <option value={30}>30 FPS · battery saver</option>
+            </select>
+            <RangeField label={`Internal render scale · ${Math.round(settings.renderScale * 100)}%`} value={settings.renderScale} min={0.5} max={1} step={0.05} onChange={(value) => onSettingChange('renderScale', value)} />
+            <RangeField label={`Device pixel ratio cap · ${settings.maxDevicePixelRatio.toFixed(2)}×`} value={settings.maxDevicePixelRatio} min={0.75} max={3} step={0.25} onChange={(value) => onSettingChange('maxDevicePixelRatio', value)} />
+            <Toggle label="Adaptive quality" checked={settings.adaptiveQuality} onChange={(value) => onSettingChange('adaptiveQuality', value)} />
+          </DisclosureGroup>
+
+          <DisclosureGroup eyebrow="Effects" title="Combat presentation" summary={`${Math.round(settings.particleScale * 100)}% particles`} defaultOpen>
+            <RangeField label={`Particle density · ${Math.round(settings.particleScale * 100)}%`} value={settings.particleScale} min={0} max={1.5} step={0.05} onChange={(value) => onSettingChange('particleScale', value)} />
+            <Toggle label="Effects + telegraphs" checked={settings.effects} onChange={(value) => onSettingChange('effects', value)} />
+            <Toggle label="Show mounted attachments" checked={settings.showMountedAttachments} onChange={(value) => onSettingChange('showMountedAttachments', value)} />
+            <Toggle label="Show fighter HP rings" checked={settings.showFighterHealthRings} onChange={(value) => onSettingChange('showFighterHealthRings', value)} />
+            <Toggle label="Show damage numbers" checked={settings.showDamageNumbers} onChange={(value) => onSettingChange('showDamageNumbers', value)} />
+            <Toggle label="Show battle intros" checked={settings.showBattleIntros} onChange={(value) => onSettingChange('showBattleIntros', value)} />
+            <Toggle label="Neon arena background" checked={settings.arenaBackground} onChange={(value) => onSettingChange('arenaBackground', value)} />
+            <Toggle label="Trails" checked={settings.trails} onChange={(value) => onSettingChange('trails', value)} />
+          </DisclosureGroup>
+
+          <DisclosureGroup eyebrow="Camera" title="View & motion" summary={settings.cameraFollow ? 'follow on' : 'follow off'}>
+            <Toggle label="Camera shake" checked={settings.cameraShake} onChange={(value) => onSettingChange('cameraShake', value)} />
+            <Toggle label="Follow player" checked={settings.cameraFollow} onChange={(value) => onSettingChange('cameraFollow', value)} />
             <NeonButton tone="utility" fullWidth onClick={onToggleFullscreen}>Fullscreen arena</NeonButton>
-            <button className="text-button settings-reset-button" onClick={onRestoreSettings}>Reset recommended</button>
+          </DisclosureGroup>
+
+          <DisclosureGroup eyebrow="Comfort" title="Accessibility" summary={settings.reducedMotion ? 'reduced motion' : 'standard motion'}>
+            <Toggle label="Impact freeze" checked={settings.impactFreeze} onChange={(value) => onSettingChange('impactFreeze', value)} />
+            <Toggle label="Screen flashes" checked={settings.screenFlash} onChange={(value) => onSettingChange('screenFlash', value)} />
+            <Toggle label="Reduced motion" checked={settings.reducedMotion} onChange={(value) => onSettingChange('reducedMotion', value)} />
+            <Toggle label="High contrast UI" checked={settings.highContrast} onChange={(value) => onSettingChange('highContrast', value)} />
+          </DisclosureGroup>
+
+          <DisclosureGroup eyebrow="Audio" title="Battle sound" summary={`${Math.round(settings.masterVolume * 100)}%`} defaultOpen>
+            <RangeField label={`Audio volume · ${Math.round(settings.masterVolume * 100)}%`} value={settings.masterVolume} min={0} max={1} step={0.05} onChange={(value) => onSettingChange('masterVolume', value)} />
+            <Toggle label="Audio" checked={settings.audio} onChange={(value) => onSettingChange('audio', value)} />
+          </DisclosureGroup>
+
+          <DisclosureGroup eyebrow="Developer" title="Diagnostics" summary={settings.showPerformanceHud ? 'panel visible' : 'panel hidden'}>
+            <Toggle label="Developer metrics panel" checked={settings.showPerformanceHud} onChange={(value) => onSettingChange('showPerformanceHud', value)} />
+            <p className="small-note">Detailed metrics add diagnostic collection and are intended for development and profiling.</p>
+          </DisclosureGroup>
+
+          <div className="settings-action-row">
+            <button className="text-button settings-reset-button" onClick={onRestoreSettings}>Reset recommended settings</button>
           </div>
         </div>
       </details>

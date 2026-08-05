@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import { getAbility, getPassive, getPrimaryAttack, listCompatibleModules, type FighterDefinition } from '@kinetic/content';
 import type { PlayerProfile } from '@kinetic/meta';
 import { getSkillPresentation, getVisualRecipe } from '@kinetic/visual-engine';
+import { FighterPortrait } from './ui/FighterPortrait';
 import { NeonButton } from './ui/NeonUI';
 
 export function RosterView({ fighters, profile, onPlayAs, onSetOpponent }: {
@@ -24,7 +25,7 @@ export function RosterView({ fighters, profile, onPlayAs, onSetOpponent }: {
           const compatibleModules = listCompatibleModules(fighter);
           return (
             <article className={`release-fighter-card ${locked ? 'locked' : ''}`} key={fighter.id} style={{ '--fighter-color': hex(visual.bodyColor), '--fighter-dark': hex(visual.bodyDarkColor), '--fighter-core': hex(visual.coreColor), '--fighter-aura': hex(visual.auraColor) } as CSSProperties}>
-              <div className="release-fighter-portrait"><span className={`portrait-body shape-${visual.shape}`}><i /></span>{locked && <b>LOCKED</b>}</div>
+              <div className="release-fighter-portrait"><FighterPortrait fighter={fighter} visual={visual} moduleIds={fighter.defaultModuleIds ?? []} size="medium" />{locked && <b>LOCKED</b>}</div>
               <div className="release-fighter-copy"><p className="eyebrow">{fighter.classification.elements.join(' + ')} · {fighter.classification.archetype}</p><h3>{fighter.name}</h3><div className="fighter-traits">{fighter.classification.traits.map((trait) => <span key={trait}>{trait}</span>)}</div></div>
               <div className="fighter-stat-bars">
                 <StatBar label="HP" value={fighter.stats.maxHp} max={400} />

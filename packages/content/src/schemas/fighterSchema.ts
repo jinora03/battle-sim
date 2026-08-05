@@ -23,6 +23,8 @@ export interface FighterDefinition {
     moveAcceleration: number;
   };
   aiProfileId: string | null;
+  /** Built-in kit that authorizes this custom fighter's weapon, skills and modules. */
+  kitSourceFighterId?: string | null;
   /** Zero or more developer-authored passives. They never consume an input slot. */
   passiveIds?: string[];
   /** Optional deterministic resources such as Heat, Charge, Rage or Frost. */
@@ -63,6 +65,7 @@ export const fighterSchema = z.object({
     moveAcceleration: z.number().positive()
   }),
   aiProfileId: z.string().nullable(),
+  kitSourceFighterId: z.string().min(1).nullable().optional(),
   passiveIds: z.array(z.string()).default([]),
   combatResources: z.array(combatResourceSchema).default([]),
   abilitySlots: z.object({

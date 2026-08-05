@@ -42,7 +42,7 @@ describe('Stage 8.8C configured match intro', () => {
   });
 
   it('keeps content and engine compatibility markers aligned', () => {
-    expect(CONTENT_VERSION).toBe('1.3.23-stage8.8c');
+    expect(CONTENT_VERSION).toMatch(/^1\.3\.\d+-stage8\./);
     expect(CONTENT_VERSION).toBe(ENGINE_VERSION);
   });
 });
