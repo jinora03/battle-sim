@@ -151,9 +151,17 @@ describe("v1.1 Stage 7.5 final performance architecture", () => {
       'utf8'
     );
 
+    const objectiveHeader = readFileSync(
+      new URL(
+        '../apps/game/src/features/battle/BattleObjectiveHeader.tsx',
+        import.meta.url
+      ),
+      'utf8'
+    );
+
     const css = readFileSync(
       new URL(
-        '../apps/game/src/styles/50-refine.css',
+        '../apps/game/src/styles/71-battle-status.css',
         import.meta.url
       ),
       'utf8'
@@ -167,10 +175,11 @@ describe("v1.1 Stage 7.5 final performance architecture", () => {
       'utf8'
     );
 
-    expect(workspace).toContain(
+    expect(workspace).toContain('<BattleObjectiveHeader');
+    expect(objectiveHeader).toContain(
       'className="objective-progress elimination-progress"'
     );
-    expect(workspace).toContain(
+    expect(objectiveHeader).toContain(
       'className="team-progress-fill"'
     );
     expect(css).toContain('justify-items: start');

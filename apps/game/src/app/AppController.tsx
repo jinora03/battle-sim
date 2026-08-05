@@ -166,8 +166,6 @@ export function useAppController() {
   const setupPanelRef = useRef<HTMLDetailsElement | null>(null);
   const toastTimersRef = useRef<number[]>([]);
   const toastCounterRef = useRef(0);
-  const appRenderCountRef = useRef(0);
-  appRenderCountRef.current += 1;
   const [customBundles, setCustomBundles] = useState<FighterBundle[]>(restoreCustomBundles);
   const [fighterRevision, setFighterRevision] = useState(0);
   const fighters = useMemo(() => listFighters(), [fighterRevision]);
@@ -185,7 +183,6 @@ export function useAppController() {
   const [setup, setSetup] = useState<BattleSetup>(DEFAULT_SETUP);
   const [activeSetup, setActiveSetup] = useState<BattleSetup>(DEFAULT_SETUP);
   const [setupPanelOpen, setSetupPanelOpen] = useState(true);
-  const [perfPanelOpen, setPerfPanelOpen] = useState(true);
   const [landscapeHintDismissed, setLandscapeHintDismissed] = useState(false);
   const [battleDrawerOpen, setBattleDrawerOpen] = useState(false);
   const [pausedByUser, setPausedByUser] = useState(false);
@@ -286,7 +283,6 @@ export function useAppController() {
   const configuredMode = gameModes.find((mode) => mode.id === setup.modeId) ?? gameModes[0];
   const configuredFighterA = getFighter(setup.fighterAId);
   const configuredFighterB = getFighter(setup.fighterBId);
-  const activeArena = arenas.find((arena) => arena.id === activeSetup.arenaId) ?? configuredArena;
   const activeMode = gameModes.find((mode) => mode.id === activeSetup.modeId) ?? configuredMode;
   const introSetup = battleLaunchPhase === 'ready' ? setup : activeSetup;
   const introFighterA = getFighter(introSetup.fighterAId);
@@ -524,21 +520,6 @@ export function useAppController() {
     setPausedByUser((current) => !current);
   };
 
-  const enableAudio = async () => {
-    try {
-      await runtimeRef.current?.enableAudio();
-      setSettings((current) => ({ ...current, audio: true }));
-    } catch {
-      // Browsers may reject audio until a direct gesture. The one-time gesture
-      // listener below retries without interrupting the battle.
-    }
-  };
-
-  const exportReplay = () => {
-    const json = runtimeRef.current?.exportReplay();
-    if (!json) return;
-    downloadText(json, `kinetic-replay-${seedText}.json`);
-  };
 
   const updateAppSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setSettings((current) => ({ ...current, [key]: value, qualityPreset: 'custom' }));
@@ -553,9 +534,6 @@ export function useAppController() {
     setSettings(restored);
   };
 
-  const setPerformanceHudVisibility = (open: boolean) => {
-    setSettings((current) => ({ ...current, showPerformanceHud: open }));
-  };
 
   const toggleFullscreenBattle = async () => {
     const target = battleStageRef.current;
@@ -805,9 +783,7 @@ export function useAppController() {
       viewportMetrics,
       touchControlsVisible,
       toastNotices,
-      dismissToast,
-      setPerformanceHudVisibility,
-      appRenderCountRef
+      dismissToast
     },
     catalog: {
       fighters,
@@ -826,8 +802,6 @@ export function useAppController() {
       activeSetup,
       setupPanelOpen,
       setSetupPanelOpen,
-      perfPanelOpen,
-      setPerfPanelOpen,
       landscapeHintDismissed,
       setLandscapeHintDismissed,
       battleDrawerOpen,
@@ -851,7 +825,6 @@ export function useAppController() {
       configuredMode,
       configuredFighterA,
       configuredFighterB,
-      activeArena,
       activeMode,
       introSetup,
       introFighterA,
@@ -874,8 +847,6 @@ export function useAppController() {
       setFighterModule,
       applyTypedSeed,
       toggleBattlePaused,
-      enableAudio,
-      exportReplay,
       updateAppSetting,
       selectQualityPreset,
       restoreRecommendedSettings,

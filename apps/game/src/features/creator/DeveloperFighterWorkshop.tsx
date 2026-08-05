@@ -2,6 +2,7 @@ import type { ChangeEvent, CSSProperties, Dispatch, SetStateAction } from 'react
 import {
   ATTACK_FORM_BEHAVIORS,
   getFighterModule,
+  getPassive,
   getPrimaryAttack,
   isCustomFighter,
   listCompatibleModules,
@@ -96,15 +97,6 @@ export function DeveloperFighterWorkshop({
   onSyncIdentity
 }: DeveloperFighterWorkshopProps) {
   const kitSource = fighters.find((fighter) => fighter.id === draft.fighter.kitSourceFighterId);
-  const selectedModuleIds = draft.fighter.defaultModuleIds ?? [];
-  const selectedModules = selectedModuleIds.flatMap((moduleId) => {
-    try {
-      return [getFighterModule(moduleId)];
-    } catch {
-      return [];
-    }
-  });
-
   return (
     <section className={active ? 'creator-workspace' : 'creator-workspace view-hidden'}>
       <aside className="creator-form-column">
@@ -192,29 +184,33 @@ export function DeveloperFighterWorkshop({
             <div><p className="eyebrow">Live recipe preview</p><h2>{draft.fighter.name || 'Unnamed Fighter'}</h2><span>{kitSource ? `${kitSource.name} kit` : 'Legacy recipe'}</span></div>
             <span className={`validation-badge ${validation.success ? 'valid' : 'invalid'}`}>{validation.success ? 'VALID' : `${validation.errors.length} ISSUES`}</span>
           </div>
-          <FighterRecipePreview fighter={draft.fighter} visual={draft.visualRecipe} motion={draft.motionRecipe} moduleIds={selectedModuleIds} />
+          <FighterRecipePreview fighter={draft.fighter} visual={draft.visualRecipe} motion={draft.motionRecipe} />
           <div className="creator-stat-board" aria-label="Fighter recipe statistics">
             <RecipeStat label="HP" value={String(draft.fighter.stats.maxHp)} hint="Maximum durability" />
             <RecipeStat label="Radius" value={draft.fighter.physics.radius.toFixed(0)} hint="Arena body size" />
             <RecipeStat label="Mass" value={draft.fighter.physics.mass.toFixed(2)} hint="Knockback resistance" />
             <RecipeStat label="Speed" value={draft.fighter.physics.maxSpeed.toFixed(1)} hint="Top movement speed" />
-            <RecipeStat label="Primary attack" value={getPrimaryAttack(draft.fighter.primaryAttackId).name} hint={`${getPrimaryAttack(draft.fighter.primaryAttackId).form} · ${getPrimaryAttack(draft.fighter.primaryAttackId).behavior}`} wide />
           </div>
           <div className="creator-preview-loadout">
             <div className="creator-skill-summary">
-              <span className="basic"><small>Basic</small><strong>{getPrimaryAttack(draft.fighter.primaryAttackId).name}</strong></span>
               {SKILL_SLOTS.map((slot) => {
                 const abilityId = draft.fighter.abilitySlots[slot];
                 const ability = abilityId ? abilities.find((item) => item.id === abilityId) : null;
                 return <span className={slot === 'ultimate' ? 'ultimate' : ''} key={slot}><small>{slot === 'ultimate' ? 'Ultimate' : slot}</small><strong>{ability?.name ?? 'Empty'}</strong></span>;
               })}
             </div>
-            <div className="creator-preview-modules">
-              <span><small>Default modules</small><strong>{selectedModules.length > 0 ? `${selectedModules.length} equipped` : 'Standard configuration'}</strong></span>
-              {selectedModules.length > 0 && <div>{selectedModules.map((module) => <b key={module.id}>{module.name}</b>)}</div>}
+            <div className="creator-passive-summary">
+              <small>Passives</small>
+              {(draft.fighter.passiveIds ?? []).length === 0
+                ? <span>No passive assigned</span>
+                : (draft.fighter.passiveIds ?? []).map((passiveId) => {
+                  const passive = safePassive(passiveId);
+                  return passive
+                    ? <span key={passive.id}><strong>{passive.name}</strong><i>{passive.description}</i></span>
+                    : <span key={passiveId}><strong>Unknown passive</strong><i>{passiveId}</i></span>;
+                })}
             </div>
           </div>
-          <p className="creator-preview-note">This preview consumes the same body recipe, authoritative primary attack and mounted-attachment definitions used by Battle Setup and Roster.</p>
         </div>
 
         <CreatorSection title="Visual recipe">
@@ -370,7 +366,7 @@ function ModuleLoadoutEditor({ draft, setDraft, kitSource }: {
 
   return (
     <div className="creator-module-editor">
-      <p className="small-note">One approved module may be selected per slot. These defaults appear in the live preview, Roster compatibility list and Save & test fight.</p>
+      <p className="small-note">One approved module may be selected per slot. Preview cards stay body-only; these defaults apply when the fighter is saved or launched in a test fight.</p>
       {MODULE_SLOTS.map((slot) => {
         const modules = listCompatibleModules(kitSource, slot);
         if (modules.length === 0) return null;
@@ -390,11 +386,10 @@ function ModuleLoadoutEditor({ draft, setDraft, kitSource }: {
   );
 }
 
-function FighterRecipePreview({ fighter, visual, motion, moduleIds }: {
+function FighterRecipePreview({ fighter, visual, motion }: {
   fighter: FighterDefinition;
   visual: VisualRecipe;
   motion: MotionRecipe;
-  moduleIds: readonly string[];
 }) {
   const style = {
     '--preview-pulse': `${Math.max(0.45, 2.4 / Math.max(0.2, motion.pulseSpeed))}s`
@@ -402,10 +397,18 @@ function FighterRecipePreview({ fighter, visual, motion, moduleIds }: {
 
   return (
     <div className="recipe-preview-stage" style={style}>
-      <FighterPortrait fighter={fighter} visual={visual} moduleIds={moduleIds} size="large" className="creator-live-portrait" />
-      <div className="preview-label"><strong>{fighter.classification.elements[0]}</strong><span>{fighter.classification.archetype}</span><span>{moduleIds.length > 0 ? 'Tuned Version' : 'Standard'}</span></div>
+      <FighterPortrait fighter={fighter} visual={visual} size="large" className="creator-live-portrait" />
     </div>
   );
+}
+
+
+function safePassive(id: string) {
+  try {
+    return getPassive(id);
+  } catch {
+    return null;
+  }
 }
 
 function RecipeStat({ label, value, hint, wide = false }: { label: string; value: string; hint: string; wide?: boolean }) {

@@ -25,10 +25,11 @@ describe('v1.1 Stage 7.4 performance phase 6', () => {
     expect(lifecycle).toContain('if (!sizeChanged && !resolutionChanged) return');
   });
 
-  it('keeps the replay export centered and restores an explicit AI hitmarker path', () => {
+  it('keeps the explicit AI hitmarker path after release diagnostics are removed', () => {
     const workspace = readFileSync(new URL('../apps/game/src/app/AppWorkspace.tsx', import.meta.url), 'utf8');
     const audio = readFileSync(new URL('../packages/audio/src/index.ts', import.meta.url), 'utf8');
-    expect(workspace).toContain('className="debug-export-row"');
+    expect(workspace).not.toContain('className="debug-export-row"');
+    expect(workspace).not.toContain('Export replay JSON');
     expect(audio).toContain('this.playAiHitmarker(strongestAiHit)');
     expect(audio).toContain('aiEntityIds: readonly number[] = []');
   });

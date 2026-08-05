@@ -26,16 +26,19 @@ describe('Stage 8.8F rematch and HUD cleanup', () => {
     expect(workspace).toContain('onClick={rematchBattle} title="Same matchup and loadout with a fresh seed">Rematch');
   });
 
-  it('removes the redundant elimination sentence from the battle objective bar', () => {
+  it('keeps the battle objective concise and delegates its spacing to a focused component', () => {
     const workspace = read('../apps/game/src/app/AppWorkspace.tsx');
+    const objective = read('../apps/game/src/features/battle/BattleObjectiveHeader.tsx');
 
     expect(workspace).not.toContain('Win by elimination');
-    expect(workspace).not.toContain('`${eliminationProgress.alive}/${eliminationProgress.total} alive');
-    expect(workspace).toContain("diagnostics.battleEnded || activeMode?.victory !== 'LAST_TEAM_STANDING'");
+    expect(workspace).toContain('<BattleObjectiveHeader');
+    expect(objective).toContain('{team.alive}/{team.total} alive');
+    expect(objective).toContain('fighterAName');
+    expect(objective).toContain('fighterBName');
   });
 
   it('keeps content and engine compatibility markers aligned', () => {
-    expect(CONTENT_VERSION).toBe('1.3.26-stage8.8f');
+    expect(CONTENT_VERSION).toBe('1.3.27-stage8.8g');
     expect(CONTENT_VERSION).toBe(ENGINE_VERSION);
   });
 });

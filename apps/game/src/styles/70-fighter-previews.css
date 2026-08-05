@@ -1,0 +1,317 @@
+/* Stage 8.8G — one compact, body-only fighter language across UI previews. */
+.shared-fighter-portrait.body-only {
+  contain: layout;
+  isolation: isolate;
+}
+
+.shared-fighter-portrait.body-only .shared-portrait-aura {
+  inset: -5%;
+  border-width: max(1px, calc(var(--portrait-size) * .016));
+  background: radial-gradient(circle, color-mix(in srgb, var(--portrait-aura) 13%, transparent), transparent 67%);
+  box-shadow:
+    0 0 18px color-mix(in srgb, var(--portrait-aura) 42%, transparent),
+    inset 0 0 18px color-mix(in srgb, var(--portrait-aura) 12%, transparent);
+}
+
+.shared-fighter-portrait.body-only .shared-portrait-shell {
+  inset: 9%;
+  overflow: visible;
+  border-width: max(3px, calc(var(--portrait-size) * .032));
+  border-radius: 50%;
+}
+
+/* Pixi draws every base body as a circle; shape identity comes from inner marks. */
+.shared-fighter-portrait.body-only .shared-portrait-shell.shape-mech,
+.shared-fighter-portrait.body-only .shared-portrait-shell.shape-water,
+.shared-fighter-portrait.body-only .shared-portrait-shell.shape-bomber {
+  inset: 9%;
+  border-radius: 50%;
+  transform: none;
+}
+
+.shared-fighter-portrait.body-only .shared-portrait-core {
+  left: 36%;
+  top: 36%;
+  width: 28%;
+  border-width: max(1px, calc(var(--portrait-size) * .018));
+}
+
+.shared-bomber-ring {
+  position: absolute;
+  inset: 16%;
+  border: max(2px, calc(var(--portrait-size) * .022)) solid color-mix(in srgb, var(--portrait-accent) 58%, transparent);
+  border-radius: 50%;
+}
+
+.shared-bomber-vents {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 9%;
+  height: 19%;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0 10%,
+    color-mix(in srgb, var(--portrait-accent) 72%, transparent) 11% 15%,
+    transparent 16% 24%
+  );
+  clip-path: polygon(0 0, 100% 0, 88% 100%, 12% 100%);
+  opacity: .82;
+}
+
+
+/* Setup previews contain only the fighter body, passive and skills. */
+.battle-fighter-preview {
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 11px;
+  min-width: 0;
+  margin-top: 8px;
+  padding: 10px;
+}
+
+.battle-fighter-preview-portrait {
+  min-width: 0;
+  min-height: 84px;
+  overflow: visible;
+}
+
+.battle-fighter-preview-portrait .shared-fighter-portrait {
+  margin: auto;
+  transform: none;
+}
+
+.battle-fighter-preview-copy {
+  align-content: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.battle-fighter-preview-passive {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 7px;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid rgba(118, 167, 208, .14);
+  border-radius: 8px;
+  background: rgba(4, 11, 20, .48);
+}
+
+.battle-fighter-preview-passive small {
+  align-self: center;
+  color: #6f879f;
+  font-size: 6px;
+  font-weight: 850;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.battle-fighter-preview-passive strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #d6e7f5;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.battle-fighter-preview-passive span {
+  grid-column: 1 / -1;
+  display: -webkit-box;
+  overflow: hidden;
+  color: #7f95a9;
+  font-size: 7px;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.battle-fighter-preview-skills {
+  gap: 5px;
+}
+
+.battle-fighter-preview-skills span {
+  min-height: 36px;
+  display: grid;
+  align-content: center;
+  padding: 5px 3px;
+}
+
+.battle-fighter-preview-skills small { font-size: 5px; }
+.battle-fighter-preview-skills b { font-size: 6px; }
+
+
+/* Module selectors: helper copy must remain subordinate to the section header. */
+.fighter-module-field-content {
+  display: grid;
+  gap: 7px;
+  padding: 8px 9px 10px;
+}
+
+.fighter-module-field-content .field-label {
+  margin: 0;
+  color: #71869b;
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: .01em;
+  text-transform: none;
+}
+
+.fighter-module-field-content select {
+  min-height: 34px;
+  padding: 6px 28px 6px 9px;
+  font-size: 9px;
+}
+
+.fighter-module-description {
+  margin-top: 0;
+  font-size: 7px;
+}
+
+.mounted-module-badge {
+  font-size: 7px;
+}
+
+/* Battle intro uses the same body renderer as every other preview. */
+.battle-intro-avatar.shared-fighter-portrait {
+  width: clamp(94px, calc(13.5vw * var(--intro-size-scale)), 176px);
+  filter: drop-shadow(0 16px 20px rgba(0, 0, 0, .52));
+}
+
+/* Creator preview: body-only stage with a stable, centered composition. */
+.recipe-preview-stage {
+  display: grid;
+  height: clamp(240px, 28vw, 330px);
+  min-height: 240px;
+  overflow: hidden;
+  place-items: center;
+}
+
+.recipe-preview-stage::before {
+  content: '';
+  position: absolute;
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  width: min(72%, 360px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(124, 196, 255, .08);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(126, 88, 255, .09), transparent 65%);
+  opacity: 1;
+  transform: translate(-50%, -50%);
+}
+
+.creator-stat-board {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.creator-skill-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.creator-passive-summary {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid rgba(130, 196, 244, .14);
+  border-radius: 11px;
+  background: rgba(7, 15, 27, .72);
+}
+
+.creator-passive-summary > small {
+  color: #7189a1;
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.creator-passive-summary > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  color: #8499ad;
+  font-size: 8px;
+}
+
+.creator-passive-summary strong { color: #d2e4f3; font-size: 9px; }
+.creator-passive-summary i { color: #7d93a8; font-size: 8px; font-style: normal; line-height: 1.45; }
+
+/* Roster information is static and bounded; mobile details no longer collapse into a narrow column. */
+.fighter-passive-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 9px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(125, 232, 255, .16);
+  border-radius: 11px;
+  background: rgba(4, 13, 24, .54);
+}
+
+.fighter-passive-card > span {
+  color: #7890a8;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.fighter-passive-card > strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #c9dfef;
+  font-size: 10px;
+}
+
+.fighter-passive-card > small {
+  grid-column: 1 / -1;
+  color: #8298ab;
+  font-size: 9px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+
+@media (max-width: 620px) {
+  .battle-intro-avatar.shared-fighter-portrait { width: clamp(76px, calc(22vw * var(--intro-size-scale)), 118px); }
+  .creator-stat-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .creator-skill-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .creator-skill-summary > span.ultimate { grid-column: auto; }
+}
+
+@media (max-width: 420px) {
+  .battle-fighter-preview {
+    grid-template-columns: 62px minmax(0, 1fr);
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .battle-fighter-preview-portrait { min-height: 72px; }
+  .battle-fighter-preview-passive { padding: 6px; }
+  .battle-fighter-preview-passive span { -webkit-line-clamp: 3; }
+
+  .release-fighter-card {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .release-fighter-copy,
+  .fighter-stat-bars,
+  .release-skill-row,
+  .fighter-identity-summary,
+  .release-fighter-actions {
+    min-width: 0;
+  }
+
+  .fighter-passive-card { grid-template-columns: 1fr; }
+  .fighter-passive-card > small { grid-column: auto; }
+}
+
+@media (max-width: 340px) {
+  .battle-fighter-preview { grid-template-columns: 1fr; }
+  .battle-fighter-preview-portrait { min-height: 64px; }
+}

@@ -1,4 +1,4 @@
-import type { CSSProperties, SyntheticEvent } from 'react';
+import type { CSSProperties } from 'react';
 import { getAbility, getFighter } from '@kinetic/content';
 import type { AbilityRejectionReason } from '@kinetic/protocol';
 import type { ReleaseView } from '../ReleaseHome';
@@ -8,7 +8,8 @@ import { RosterView } from '../RosterView';
 import { TrainingLabView } from '../TrainingLabView';
 import { AppNavigation, DrawerScrim, NeonButton } from '../ui/NeonUI';
 import { BattleIntroOverlay } from '../BattleIntroOverlay';
-import { DisclosureGroup, Metric, hexColor } from '../ui/FormControls';
+import { hexColor } from '../ui/FormControls';
+import { BattleObjectiveHeader } from '../features/battle/BattleObjectiveHeader';
 import { BattleSetupDrawer } from '../features/battle/BattleSetupDrawer';
 import { DirectionPad, FighterCard, SkillIndicator } from '../features/battle/BattleFighterControls';
 import { DeveloperFighterWorkshop } from '../features/creator/DeveloperFighterWorkshop';
@@ -24,9 +25,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
     viewportMetrics,
     touchControlsVisible,
     toastNotices,
-    dismissToast,
-    setPerformanceHudVisibility,
-    appRenderCountRef
+    dismissToast
   } = shell;
   const { fighters, abilities, aiProfiles, primaryAttacks, arenas, gameModes } = catalog;
   const {
@@ -38,8 +37,6 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
     activeSetup,
     setupPanelOpen,
     setSetupPanelOpen,
-    perfPanelOpen,
-    setPerfPanelOpen,
     landscapeHintDismissed,
     setLandscapeHintDismissed,
     battleDrawerOpen,
@@ -63,7 +60,6 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
     configuredMode,
     configuredFighterA,
     configuredFighterB,
-    activeArena,
     activeMode,
     introSetup,
     introFighterA,
@@ -83,8 +79,6 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
     setFighterModule,
     applyTypedSeed,
     toggleBattlePaused,
-    enableAudio,
-    exportReplay,
     updateAppSetting,
     selectQualityPreset,
     restoreRecommendedSettings,
@@ -232,27 +226,20 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
                 </div>
               )}
 
-              <div className={`battle-objective-bar ${diagnostics.objective.kind}`}>
-                <span className="objective-summary"><small>{activeMode?.name} · {diagnostics.objective.label}</small><strong>{getFighter(activeSetup.fighterAId).name} vs {getFighter(activeSetup.fighterBId).name}</strong></span>
-                {activeMode?.victory === 'LAST_TEAM_STANDING' ? (
-                  <span className="objective-progress elimination-progress" aria-label="Team health and fighters remaining">
-                    {eliminationProgress.teams.map((team) => (
-                      <span className="team-progress-lane" key={team.team} title={`Team ${team.team}: ${Math.round(team.hpRatio * 100)}% health, ${team.alive} of ${team.total} fighters alive`}>
-                        <span className="team-progress-heading"><b>Team {team.team}</b><small>{team.alive}/{team.total} alive</small></span>
-                        <span className="team-progress-track"><span className="team-progress-fill" style={{ width: `${team.hp > 0 ? Math.max(2, team.hpRatio * 100) : 0}%` }} /></span>
-                      </span>
-                    ))}
-                  </span>
-                ) : (
-                  <span className="objective-progress"><i style={{ width: `${Math.max(2, diagnostics.objective.progress * 100)}%` }} /></span>
-                )}
-                <span className="objective-meta">
-                  {diagnostics.objective.remainingTicks !== null && <b>{Math.ceil(diagnostics.objective.remainingTicks / 60)}s</b>}
-                  {(diagnostics.battleEnded || activeMode?.victory !== 'LAST_TEAM_STANDING') && (
-                    <em>{diagnostics.battleEnded ? resultPresentation.compact : `${diagnostics.entities.length} active`}</em>
-                  )}
-                </span>
-              </div>
+              <BattleObjectiveHeader
+                kind={diagnostics.objective.kind}
+                modeName={activeMode?.name ?? 'Battle'}
+                objectiveLabel={diagnostics.objective.label}
+                fighterAName={getFighter(activeSetup.fighterAId).name}
+                fighterBName={getFighter(activeSetup.fighterBId).name}
+                lastTeamStanding={activeMode?.victory === 'LAST_TEAM_STANDING'}
+                teams={eliminationProgress.teams}
+                objectiveProgress={diagnostics.objective.progress}
+                remainingTicks={diagnostics.objective.remainingTicks}
+                battleEnded={diagnostics.battleEnded}
+                resultLabel={resultPresentation.compact}
+                activeEntityCount={diagnostics.entities.length}
+              />
 
               <div className="arena-wrap" onPointerMove={aimFromPointer} onPointerDown={aimAndFireFromPointer} onPointerLeave={handleArenaPointerLeave}>
                 <div className="arena-frame" ref={attachBattleHost} />
@@ -263,8 +250,6 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
                     phase={battleLaunchPhase}
                     fighterA={introFighterA}
                     fighterB={introFighterB}
-                    moduleIdsA={introSetup.moduleIdsA}
-                    moduleIdsB={introSetup.moduleIdsB}
                     teamSizeA={introSetup.teamSizeA}
                     teamSizeB={introSetup.teamSizeB}
                     modeName={introMode?.name ?? 'Battle'}
@@ -297,7 +282,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
                 )}
               {playerEntity && battleLaunchPhase === 'running' && !diagnostics.battleEnded && touchControlsVisible && (
                 <div className="touch-controls">
-                  <DirectionPad onDirection={movePlayer} />
+                  <DirectionPad onDirection={movePlayer} sensitivity={settings.touchSteeringSensitivity} />
                   <div className="touch-skill-row">
                     {playerEntity.abilities.map((ability) => (
                       <SkillIndicator
@@ -317,15 +302,6 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
               )}
               </div>
             </section>
-
-            {deviceCapabilities.touchFirst && (
-              <div className="mobile-battle-dock" aria-label="Quick battle controls">
-                <NeonButton tone="random" size="small" onClick={startRandomMatchup}>Random</NeonButton>
-                <NeonButton tone={pausedByUser ? 'success' : 'pause'} size="small" onClick={toggleBattlePaused} disabled={diagnostics.battleEnded || pausedBySystem || battleLaunchPhase !== 'running'}>{pausedByUser ? 'Resume' : 'Pause'}</NeonButton>
-                <NeonButton tone="ghost" size="small" onClick={openBattleSetup} aria-controls="battle-setup-drawer" aria-expanded={battleDrawerOpen}>Setup</NeonButton>
-                <NeonButton tone="utility" size="small" onClick={() => void toggleFullscreenBattle()}>Fullscreen</NeonButton>
-              </div>
-            )}
 
             {diagnostics.recentAbilityRejection && (
               <div className="ability-rejection-strip" role="status" aria-live="polite">
@@ -400,133 +376,6 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
 
 
           <div className="battle-secondary-panels">
-            <details
-              className="panel-section battle-debug-panel"
-              open={perfPanelOpen}
-              onToggle={(event: SyntheticEvent<HTMLDetailsElement>) => {
-                const open = event.currentTarget.open;
-                setPerfPanelOpen(open);
-                if (open !== settings.showPerformanceHud) {
-                  setPerformanceHudVisibility(open);
-                }
-              }}
-            >
-              <summary className="panel-summary"><span><small>Developer</small><strong>Performance & simulation metrics</strong></span></summary>
-              <div className="debug-panel-fps-tile">
-                <small>Render FPS</small>
-                <strong>{diagnostics.performance.renderFps.toFixed(0)}</strong>
-                <span>live presentation frame rate</span>
-              </div>
-              <div className="metric-group-list">
-                <DisclosureGroup eyebrow="Rendering" title="Frame pacing & canvas" summary={`${diagnostics.performance.renderFps.toFixed(0)} FPS`} defaultOpen className="metric-disclosure-group">
-                  <div className="debug-metric-grid">
-                    <Metric label="Render FPS" value={diagnostics.performance.renderFps.toFixed(0)} />
-                    <Metric label="Render ms" value={diagnostics.performance.renderMs.toFixed(2)} />
-                    <Metric label="Render p95" value={`${diagnostics.performance.renderP95Ms.toFixed(2)} ms`} />
-                    <Metric label="Frame p95" value={`${diagnostics.performance.frameP95Ms.toFixed(2)} ms`} />
-                    <Metric label="Pressure" value={`${diagnostics.performance.pressure} · ${diagnostics.performance.bottleneck}`} />
-                    <Metric label="Adaptive scale" value={`${Math.round(diagnostics.performance.qualityScale * 100)}%`} />
-                    <Metric label="Effective resolution" value={`${diagnostics.renderDiagnostics.resolution.toFixed(2)}×`} />
-                    <Metric label="Device DPR" value={`${diagnostics.renderDiagnostics.devicePixelRatio.toFixed(2)}×`} />
-                    <Metric label="Render scale" value={`${Math.round(diagnostics.renderDiagnostics.renderScale * 100)}%`} />
-                    <Metric label="Canvas CSS size" value={`${diagnostics.renderDiagnostics.cssWidth}×${diagnostics.renderDiagnostics.cssHeight}`} />
-                    <Metric label="Canvas pixel size" value={`${diagnostics.renderDiagnostics.pixelWidth}×${diagnostics.renderDiagnostics.pixelHeight}`} />
-                    <Metric label="Viewport" value={`${viewportMetrics.width}×${viewportMetrics.height} · ${viewportMetrics.orientation}`} />
-                    <Metric label="Resize passes" value={diagnostics.renderDiagnostics.resizeCount.toLocaleString()} />
-                    <Metric label="Graphics context" value={diagnostics.renderDiagnostics.contextLost ? 'lost' : 'ready'} />
-                    <Metric label="React renders" value={appRenderCountRef.current.toLocaleString()} />
-                    <Metric label="Render target" value={`${diagnostics.renderDiagnostics.targetRenderFps} FPS`} />
-                    <Metric label="Visual LOD" value={diagnostics.renderDiagnostics.lod} />
-                    <Metric label="Mass render tier" value={diagnostics.renderDiagnostics.renderTier} />
-                  </div>
-                </DisclosureGroup>
-
-                <DisclosureGroup eyebrow="Simulation" title="Runtime & tick health" summary={`${diagnostics.performance.simulationMs.toFixed(2)} ms`} defaultOpen className="metric-disclosure-group">
-                  <div className="debug-metric-grid">
-                    <Metric label="Tick" value={diagnostics.tick.toLocaleString()} />
-                    <Metric label="Registered fighters" value={fighters.length.toString()} />
-                    <Metric label="Living fighters" value={diagnostics.entities.length.toString()} />
-                    <Metric label="Simulation total" value={`${diagnostics.performance.simulationMs.toFixed(2)} ms`} />
-                    <Metric label="Simulation core" value={`${diagnostics.performance.simulationCoreMs.toFixed(2)} ms`} />
-                    <Metric label="Runtime snapshot reuse" value={`${diagnostics.performance.snapshotMs.toFixed(2)} ms`} />
-                    <Metric label="Post simulation" value={`${diagnostics.performance.postSimulationMs.toFixed(2)} ms`} />
-                    <Metric label="Diagnostics/UI prep" value={`${diagnostics.performance.diagnosticsMs.toFixed(2)} ms`} />
-                    <Metric label="Simulation p95" value={`${diagnostics.performance.simulationP95Ms.toFixed(2)} ms`} />
-                    <Metric label="Simulation steps" value={diagnostics.performance.stepsLastFrame.toString()} />
-                    <Metric label="Dropped sim ticks" value={diagnostics.performance.droppedSimulationTicks.toLocaleString()} />
-                  </div>
-                </DisclosureGroup>
-
-                <DisclosureGroup eyebrow="Controllers" title="AI & player input" summary={`${diagnostics.aiWorkload.aiEntities} AI`} className="metric-disclosure-group">
-                  <div className="debug-metric-grid">
-                    <Metric label="AI" value={`${diagnostics.performance.aiMs.toFixed(2)} ms`} />
-                    <Metric label="Player input" value={`${diagnostics.performance.playerInputMs.toFixed(2)} ms`} />
-                    <Metric label="AI fighters" value={diagnostics.aiWorkload.aiEntities.toLocaleString()} />
-                    <Metric label="AI attack checks/tick" value={diagnostics.aiWorkload.attackEvaluations.toLocaleString()} />
-                    <Metric label="AI steering refreshes/tick" value={diagnostics.aiWorkload.reactionRefreshes.toLocaleString()} />
-                    <Metric label="AI aim refreshes/tick" value={diagnostics.aiWorkload.aimRefreshes.toLocaleString()} />
-                    <Metric label="AI attack cadence" value={`every ${diagnostics.aiWorkload.attackDecisionInterval}t`} />
-                    <Metric label="AI steering floor" value={`${diagnostics.aiWorkload.reactionIntervalFloor}t`} />
-                    <Metric label="AI cluster refresh" value={`every ${diagnostics.aiWorkload.clusterRefreshInterval}t`} />
-                    <Metric label="AI hostile queries/tick" value={diagnostics.aiWorkload.hostileQueries.toLocaleString()} />
-                    <Metric label="AI area candidates/tick" value={diagnostics.aiWorkload.areaCandidateChecks.toLocaleString()} />
-                  </div>
-                  <div className="ai-decision-debug">
-                    <h3>AI action selection</h3>
-                    {diagnostics.aiDecisions.length === 0 ? <p className="ai-decision-empty-state">No AI decision sampled yet.</p> : diagnostics.aiDecisions.slice(0, 8).map((decision) => (
-                      <div className="ai-decision-row" key={decision.entityId}>
-                        <b>#{decision.entityId}</b>
-                        <span>{decision.kind === 'ability' ? `${decision.slot?.toUpperCase()} · ${decision.abilityId}` : decision.kind}</span>
-                        <small>{decision.reason}</small>
-                      </div>
-                    ))}
-                  </div>
-                </DisclosureGroup>
-
-                <DisclosureGroup eyebrow="Physics" title="Collisions & broadphase" summary={`${diagnostics.simulationMetrics.contactsResolved} contacts`} className="metric-disclosure-group">
-                  <div className="debug-metric-grid">
-                    <Metric label="Candidate pairs" value={diagnostics.simulationMetrics.candidatePairs.toLocaleString()} />
-                    <Metric label="Broadphase cells" value={diagnostics.simulationMetrics.occupiedBroadphaseCells.toLocaleString()} />
-                    <Metric label="Largest cell" value={diagnostics.simulationMetrics.maxBroadphaseBucket.toLocaleString()} />
-                    <Metric label="Projectile checks" value={diagnostics.simulationMetrics.projectileEntityChecks.toLocaleString()} />
-                    <Metric label="Obstacle checks" value={diagnostics.simulationMetrics.projectileObstacleChecks.toLocaleString()} />
-                    <Metric label="Numeric recoveries" value={diagnostics.simulationMetrics.invalidNumericStates.toLocaleString()} />
-                    <Metric label="Contacts" value={diagnostics.simulationMetrics.contactsResolved.toLocaleString()} />
-                    <Metric label="Arena objects" value={diagnostics.obstacles.filter((item) => item.alive).length.toString()} />
-                  </div>
-                </DisclosureGroup>
-
-                <DisclosureGroup eyebrow="Presentation" title="VFX, views & audio" summary={`${diagnostics.renderDiagnostics.activeParticles} particles`} className="metric-disclosure-group">
-                  <div className="debug-metric-grid">
-                    <Metric label="Active fighter views" value={diagnostics.renderDiagnostics.fighterViews.toLocaleString()} />
-                    <Metric label="Pooled fighter views" value={diagnostics.renderDiagnostics.pooledFighterViews.toLocaleString()} />
-                    <Metric label="View reuse count" value={diagnostics.renderDiagnostics.reusedFighterViews.toLocaleString()} />
-                    <Metric label="Presented events" value={diagnostics.renderDiagnostics.presentationEvents.toLocaleString()} />
-                    <Metric label="Projectile visuals" value={diagnostics.renderDiagnostics.projectileVisuals.toLocaleString()} />
-                    <Metric label="VFX quality" value={diagnostics.renderDiagnostics.vfxQuality} />
-                    <Metric label="Particles" value={diagnostics.renderDiagnostics.activeParticles.toLocaleString()} />
-                    <Metric label="Ground marks" value={diagnostics.renderDiagnostics.groundMarks.toLocaleString()} />
-                    <Metric label="Residual FX" value={diagnostics.renderDiagnostics.residualParticles.toLocaleString()} />
-                    <Metric label="Weapon FX" value={diagnostics.renderDiagnostics.weaponEffects.toLocaleString()} />
-                    <Metric label="Projectile trails" value={diagnostics.renderDiagnostics.projectileTrails.toLocaleString()} />
-                    <Metric label="Audio voices" value={`${diagnostics.audioDiagnostics.activeVoices}/${diagnostics.audioDiagnostics.voiceLimit}`} />
-                  </div>
-                </DisclosureGroup>
-
-                <DisclosureGroup eyebrow="Replay" title="Determinism & storage" summary={`${diagnostics.replayFrames} frames`} className="metric-disclosure-group">
-                  <div className="debug-metric-grid">
-                    <Metric label="Checksum" value={diagnostics.checksum} mono />
-                    <Metric label="Replay frames" value={diagnostics.replayFrames.toLocaleString()} />
-                    <Metric label="Replay commands" value={diagnostics.replayCommands.toLocaleString()} />
-                    <Metric label="Replay stored" value={diagnostics.replayStoredCommands.toLocaleString()} />
-                    <Metric label="Replay reduction" value={`${Math.round(diagnostics.replayCompressionRatio * 100)}%`} />
-                    <Metric label="Replay record" value={`${diagnostics.performance.replayMs.toFixed(2)} ms`} />
-                  </div>
-                </DisclosureGroup>
-              </div>
-              <div className="debug-export-row"><NeonButton tone="utility" size="small" className="debug-export" onClick={exportReplay}>Export replay JSON</NeonButton></div>
-            </details>
-
             <details className="panel-section battle-activity-panel" open>
               <summary className="panel-summary"><span><small>Battle log</small><strong>Arena activity & achievements</strong></span><em>{diagnostics.recentArenaActivity.length}</em></summary>
               <div className="battle-activity-grid">

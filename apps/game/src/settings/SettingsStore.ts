@@ -1,7 +1,8 @@
 import { createDefaultAppSettings, detectDeviceCapabilities, normalizeAppSettings, type AppSettings } from '@kinetic/platform';
 
-const STORAGE_KEY = 'kinetic.app-settings.v10';
+const STORAGE_KEY = 'kinetic.app-settings.v11';
 const PREVIOUS_KEYS = [
+  'kinetic.app-settings.v10',
   'kinetic.app-settings.v9',
   'kinetic.app-settings.v8',
   'kinetic.app-settings.v7',

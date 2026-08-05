@@ -55,9 +55,9 @@ describe('v0.9 platform and settings', () => {
     expect(next.largeTouchControls).toBe(true);
   });
 
-  it('migrates partial legacy settings into the v10 schema', () => {
+  it('migrates partial legacy settings into the v11 schema', () => {
     const migrated = normalizeAppSettings({ effects: false, audio: true, renderProfile: 'minimal' }, desktop);
-    expect(migrated.schemaVersion).toBe(10);
+    expect(migrated.schemaVersion).toBe(11);
     expect(migrated.effects).toBe(false);
     expect(migrated.audio).toBe(true);
     expect(migrated.renderProfile).toBe('minimal');
@@ -70,13 +70,16 @@ describe('v0.9 platform and settings', () => {
     expect(migrated.movementMode).toBe('mouse');
     expect(migrated.cameraFollow).toBe(false);
     expect(migrated.touchControlOpacity).toBe(0.75);
+    expect(migrated.touchSteeringSensitivity).toBe(1);
   });
 
-  it('clamps the touch-control opacity while preserving explicit control preferences', () => {
-    const low = normalizeAppSettings({ touchControlOpacity: 0.05, movementMode: 'wasd', cameraFollow: true }, desktop);
-    const high = normalizeAppSettings({ touchControlOpacity: 2 }, desktop);
+  it('clamps touch opacity and steering sensitivity while preserving control preferences', () => {
+    const low = normalizeAppSettings({ touchControlOpacity: 0.05, touchSteeringSensitivity: 0.1, movementMode: 'wasd', cameraFollow: true }, desktop);
+    const high = normalizeAppSettings({ touchControlOpacity: 2, touchSteeringSensitivity: 4 }, desktop);
     expect(low.touchControlOpacity).toBe(0.3);
     expect(high.touchControlOpacity).toBe(1);
+    expect(low.touchSteeringSensitivity).toBe(0.6);
+    expect(high.touchSteeringSensitivity).toBe(1.6);
     expect(low.movementMode).toBe('wasd');
     expect(low.cameraFollow).toBe(true);
   });

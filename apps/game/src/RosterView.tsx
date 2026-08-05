@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { getAbility, getPassive, getPrimaryAttack, listCompatibleModules, type FighterDefinition } from '@kinetic/content';
+import { getAbility, getPassive, getPrimaryAttack, type FighterDefinition } from '@kinetic/content';
 import type { PlayerProfile } from '@kinetic/meta';
 import { getSkillPresentation, getVisualRecipe } from '@kinetic/visual-engine';
 import { FighterPortrait } from './ui/FighterPortrait';
@@ -22,10 +22,9 @@ export function RosterView({ fighters, profile, onPlayAs, onSetOpponent }: {
           const visual = getVisualRecipe(fighter.visualRecipeId);
           const locked = !fighter.classification.traits.includes('custom') && !unlocked.has(fighter.id);
           const passives = (fighter.passiveIds ?? []).map((passiveId) => getPassive(passiveId));
-          const compatibleModules = listCompatibleModules(fighter);
           return (
             <article className={`release-fighter-card ${locked ? 'locked' : ''}`} key={fighter.id} style={{ '--fighter-color': hex(visual.bodyColor), '--fighter-dark': hex(visual.bodyDarkColor), '--fighter-core': hex(visual.coreColor), '--fighter-aura': hex(visual.auraColor) } as CSSProperties}>
-              <div className="release-fighter-portrait"><FighterPortrait fighter={fighter} visual={visual} moduleIds={fighter.defaultModuleIds ?? []} size="medium" />{locked && <b>LOCKED</b>}</div>
+              <div className="release-fighter-portrait"><FighterPortrait fighter={fighter} visual={visual} size="medium" />{locked && <b>LOCKED</b>}</div>
               <div className="release-fighter-copy"><p className="eyebrow">{fighter.classification.elements.join(' + ')} · {fighter.classification.archetype}</p><h3>{fighter.name}</h3><div className="fighter-traits">{fighter.classification.traits.map((trait) => <span key={trait}>{trait}</span>)}</div></div>
               <div className="fighter-stat-bars">
                 <StatBar label="HP" value={fighter.stats.maxHp} max={400} />
@@ -46,31 +45,15 @@ export function RosterView({ fighters, profile, onPlayAs, onSetOpponent }: {
                   return <span className={`roster-skill ${slot === 'ultimate' ? 'ultimate' : ''}`} key={slot} title={`${ability.name} · ${(ability.cooldownTicks / 60).toFixed(1)}s`} style={{ '--skill-color': hex(recipe.color) } as CSSProperties}><b>{recipe.icon}</b><small>{recipe.shortName}</small></span>;
                 })}
               </div>
-              {(passives.length > 0 || compatibleModules.length > 0) && (
+              {passives.length > 0 && (
                 <div className="fighter-identity-summary">
                   {passives.map((passive) => (
-                    <details className="fighter-identity-disclosure" key={passive.id} open={passive.description.length <= 150}>
-                      <summary>
-                        <span>Passive</span>
-                        <strong>{passive.name}</strong>
-                        <i aria-hidden="true" />
-                      </summary>
+                    <article className="fighter-passive-card" key={passive.id}>
+                      <span>Passive</span>
+                      <strong>{passive.name}</strong>
                       <small>{passive.description}</small>
-                    </details>
+                    </article>
                   ))}
-                  {compatibleModules.length > 0 && (
-                    <details className="fighter-identity-disclosure modules">
-                      <summary>
-                        <span>Approved modules</span>
-                        <strong>{compatibleModules.length} compatible</strong>
-                        <i aria-hidden="true" />
-                      </summary>
-                      <div className="roster-module-list">
-                        {compatibleModules.map((module) => <b key={module.id}>{module.name}</b>)}
-                      </div>
-                      <small>Selected in Battle Setup; modules adjust this fighter's authored kit rather than replacing it.</small>
-                    </details>
-                  )}
                 </div>
               )}
               <div className="release-fighter-actions"><NeonButton tone="success" disabled={locked} onClick={() => onPlayAs(fighter.id)}>Play as</NeonButton><NeonButton tone="utility" disabled={locked} onClick={() => onSetOpponent(fighter.id)}>Set as opponent</NeonButton></div>

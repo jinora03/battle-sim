@@ -210,7 +210,6 @@ export function useBattleRuntime(options: UseBattleRuntimeOptions): BattleRuntim
       initial.unlockedAchievementIds
     );
     runtimeRef.current = runtime;
-    runtime.setDetailedDiagnosticsEnabled(initial.settings.showPerformanceHud);
     return () => {
       setReady(false);
       runtimeBootRef.current = null;
@@ -224,10 +223,6 @@ export function useBattleRuntime(options: UseBattleRuntimeOptions): BattleRuntim
   useEffect(() => {
     runtimeRef.current?.setSettings(settings);
   }, [settings]);
-
-  useEffect(() => {
-    runtimeRef.current?.setDetailedDiagnosticsEnabled(settings.showPerformanceHud);
-  }, [settings.showPerformanceHud]);
 
   useEffect(() => {
     runtimeRef.current?.setPointerAimEnabled(!touchControlsVisible);

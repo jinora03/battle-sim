@@ -51,7 +51,7 @@ export interface CanvasResolution {
 }
 
 export interface AppSettings {
-  schemaVersion: 10;
+  schemaVersion: 11;
   qualityPreset: QualityPresetId;
   renderProfile: RenderProfileId;
   effects: boolean;
@@ -76,8 +76,8 @@ export interface AppSettings {
   highContrast: boolean;
   largeTouchControls: boolean;
   touchControlOpacity: number;
+  touchSteeringSensitivity: number;
   touchControls: TouchControlMode;
-  showPerformanceHud: boolean;
   fullscreenBattle: boolean;
   movementMode: MovementMode;
   aimAssist: AimAssistLevel;
@@ -239,7 +239,7 @@ export function createDefaultAppSettings(capabilities = detectDeviceCapabilities
   const recommended = recommendQualityPreset(capabilities);
   const base = qualityPresets[recommended].values;
   return {
-    schemaVersion: 10,
+    schemaVersion: 11,
     qualityPreset: 'auto',
     ...base,
     cameraFollow: false,
@@ -254,8 +254,8 @@ export function createDefaultAppSettings(capabilities = detectDeviceCapabilities
     highContrast: false,
     largeTouchControls: capabilities.touchFirst,
     touchControlOpacity: 0.75,
+    touchSteeringSensitivity: 1,
     touchControls: 'auto',
-    showPerformanceHud: false,
     fullscreenBattle: false,
     movementMode: 'mouse',
     aimAssist: 'light'
@@ -294,7 +294,7 @@ export function normalizeAppSettings(input: unknown, capabilities = detectDevice
     : defaults.aimAssist;
   return {
     ...seeded,
-    schemaVersion: 10,
+    schemaVersion: 11,
     qualityPreset: preset,
     renderProfile,
     effects: typeof raw.effects === 'boolean' ? raw.effects : seeded.effects,
@@ -319,8 +319,8 @@ export function normalizeAppSettings(input: unknown, capabilities = detectDevice
     highContrast: typeof raw.highContrast === 'boolean' ? raw.highContrast : seeded.highContrast,
     largeTouchControls: typeof raw.largeTouchControls === 'boolean' ? raw.largeTouchControls : seeded.largeTouchControls,
     touchControlOpacity: clamp(raw.touchControlOpacity, seeded.touchControlOpacity, 0.3, 1),
+    touchSteeringSensitivity: clamp(raw.touchSteeringSensitivity, seeded.touchSteeringSensitivity, 0.6, 1.6),
     touchControls,
-    showPerformanceHud: typeof raw.showPerformanceHud === 'boolean' ? raw.showPerformanceHud : seeded.showPerformanceHud,
     fullscreenBattle: typeof raw.fullscreenBattle === 'boolean' ? raw.fullscreenBattle : seeded.fullscreenBattle,
     movementMode,
     aimAssist

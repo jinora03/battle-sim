@@ -63,9 +63,10 @@ describe('Stage 8.8E workshop and unified fighter preview', () => {
     const setup = read('../apps/game/src/features/battle/BattleFighterPreview.tsx');
     const roster = read('../apps/game/src/RosterView.tsx');
 
-    expect(portrait).toContain('listMountedAttachments');
-    expect(portrait).toContain('shared-portrait-weapon');
-    expect(portrait).toContain('shared-portrait-attachment');
+    expect(portrait).toContain('body-only');
+    expect(portrait).not.toContain('listMountedAttachments');
+    expect(portrait).not.toContain('shared-portrait-weapon');
+    expect(portrait).not.toContain('shared-portrait-attachment');
     expect(creator).toContain('<FighterPortrait');
     expect(setup).toContain('<FighterPortrait');
     expect(roster).toContain('<FighterPortrait');
@@ -73,19 +74,20 @@ describe('Stage 8.8E workshop and unified fighter preview', () => {
 
   it('revamps the workshop preview, module loadout and compact field spacing', () => {
     const creator = read('../apps/game/src/features/creator/DeveloperFighterWorkshop.tsx');
-    const styles = read('../apps/game/src/styles/50-refine.css');
+    const styles = read('../apps/game/src/styles/70-fighter-previews.css');
 
     expect(creator).toContain('creator-stat-board');
     expect(creator).toContain('Default module loadout');
     expect(creator).toContain('Locked kit source');
-    expect(creator).toContain('This preview consumes the same body recipe');
-    expect(styles).toContain('.creator-source-row .small-note');
-    expect(styles).toContain('.creator-workspace select { font-size: 11px; }');
+    expect(creator).toContain('creator-passive-summary');
+    expect(creator).not.toContain('creator-preview-modules');
+    expect(creator).not.toContain('creator-preview-note');
+    expect(styles).toContain('.creator-passive-summary');
     expect(styles).toContain('.creator-stat-board');
   });
 
   it('keeps content and engine compatibility markers aligned', () => {
-    expect(CONTENT_VERSION).toBe('1.3.26-stage8.8f');
+    expect(CONTENT_VERSION).toBe('1.3.27-stage8.8g');
     expect(CONTENT_VERSION).toBe(ENGINE_VERSION);
   });
 });

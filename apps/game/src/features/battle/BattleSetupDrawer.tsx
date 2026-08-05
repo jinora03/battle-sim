@@ -103,6 +103,17 @@ export function BattleSetupDrawer({
           <em>{setupDirty ? 'Changes ready' : formatModeCapacity(configuredMode)}</em>
         </summary>
         <div className="panel-content">
+          <div className="battle-setup-start-zone battle-setup-start-zone-top">
+            <div>
+              <small>{setupDirty ? 'Configuration changed' : 'Configuration ready'}</small>
+              <strong>{configuredFighterA.name} vs {configuredFighterB.name}</strong>
+              <span>{configuredArena?.name} · {configuredMode?.name}</span>
+            </div>
+            <NeonButton tone="success" fullWidth className="battle-setup-start-button" onClick={onStartConfiguredBattle}>
+              {setupDirty ? 'Start configured battle' : 'Start new battle'}
+            </NeonButton>
+          </div>
+
           <label className="field-label" htmlFor="fighter-a">Team 1 fighter</label>
           <select id="fighter-a" value={setup.fighterAId} onChange={(event: ChangeEvent<HTMLSelectElement>) => onFighterChange('A', event.target.value)}>
             {fighters.map((fighter) => {
@@ -110,7 +121,7 @@ export function BattleSetupDrawer({
               return <option value={fighter.id} key={fighter.id} disabled={locked}>{fighter.name}{isCustomFighter(fighter.id) ? ' · custom' : locked ? ' · locked' : ''}</option>;
             })}
           </select>
-          <BattleFighterPreview fighter={configuredFighterA} moduleIds={setup.moduleIdsA} side="A" />
+          <BattleFighterPreview fighter={configuredFighterA} side="A" />
           <FighterModuleSelectors fighter={configuredFighterA} selectedModuleIds={setup.moduleIdsA} side="A" onChange={onModuleChange} />
           <label className="field-label stacked-label" htmlFor="controller-a">Team 1 controller</label>
           <select id="controller-a" value={setup.controllerA} onChange={(event: ChangeEvent<HTMLSelectElement>) => onControllerChange('A', event.target.value as ControllerKind)}>
@@ -125,7 +136,7 @@ export function BattleSetupDrawer({
               return <option value={fighter.id} key={fighter.id} disabled={locked}>{fighter.name}{isCustomFighter(fighter.id) ? ' · custom' : locked ? ' · locked' : ''}</option>;
             })}
           </select>
-          <BattleFighterPreview fighter={configuredFighterB} moduleIds={setup.moduleIdsB} side="B" />
+          <BattleFighterPreview fighter={configuredFighterB} side="B" />
           <FighterModuleSelectors fighter={configuredFighterB} selectedModuleIds={setup.moduleIdsB} side="B" onChange={onModuleChange} />
           <label className="field-label stacked-label" htmlFor="controller-b">Team 2 controller</label>
           <select id="controller-b" value={setup.controllerB} onChange={(event: ChangeEvent<HTMLSelectElement>) => onControllerChange('B', event.target.value as ControllerKind)}>
@@ -189,16 +200,6 @@ export function BattleSetupDrawer({
             <p className="small-note">New battles already use a fresh cryptographic seed. Use Apply only when reproducing a battle exactly.</p>
           </details>
 
-          <div className="battle-setup-start-zone">
-            <div>
-              <small>{setupDirty ? 'Configuration changed' : 'Configuration ready'}</small>
-              <strong>{configuredFighterA.name} vs {configuredFighterB.name}</strong>
-              <span>{configuredArena?.name} · {configuredMode?.name}</span>
-            </div>
-            <NeonButton tone="success" fullWidth className="battle-setup-start-button" onClick={onStartConfiguredBattle}>
-              {setupDirty ? 'Start configured battle' : 'Start new battle'}
-            </NeonButton>
-          </div>
         </div>
       </details>
 
@@ -221,6 +222,16 @@ export function BattleSetupDrawer({
             step={0.05}
             onChange={(value) => onSettingChange('touchControlOpacity', value)}
           />
+          <div className="touch-only-setting">
+            <RangeField
+              label={`Touch steering sensitivity · ${Math.round(settings.touchSteeringSensitivity * 100)}%`}
+              value={settings.touchSteeringSensitivity}
+              min={0.6}
+              max={1.6}
+              step={0.05}
+              onChange={(value) => onSettingChange('touchSteeringSensitivity', value)}
+            />
+          </div>
           <label className="field-label stacked-label" htmlFor="touch-controls-mode">Touch controls</label>
           <select id="touch-controls-mode" value={settings.touchControls} onChange={(event: ChangeEvent<HTMLSelectElement>) => onSettingChange('touchControls', event.target.value as TouchControlMode)}>
             <option value="auto">Auto · touch-first devices</option>
@@ -296,11 +307,6 @@ export function BattleSetupDrawer({
           <DisclosureGroup eyebrow="Audio" title="Battle sound" summary={`${Math.round(settings.masterVolume * 100)}%`} defaultOpen>
             <RangeField label={`Audio volume · ${Math.round(settings.masterVolume * 100)}%`} value={settings.masterVolume} min={0} max={1} step={0.05} onChange={(value) => onSettingChange('masterVolume', value)} />
             <Toggle label="Audio" checked={settings.audio} onChange={(value) => onSettingChange('audio', value)} />
-          </DisclosureGroup>
-
-          <DisclosureGroup eyebrow="Developer" title="Diagnostics" summary={settings.showPerformanceHud ? 'panel visible' : 'panel hidden'}>
-            <Toggle label="Developer metrics panel" checked={settings.showPerformanceHud} onChange={(value) => onSettingChange('showPerformanceHud', value)} />
-            <p className="small-note">Detailed metrics add diagnostic collection and are intended for development and profiling.</p>
           </DisclosureGroup>
 
           <div className="settings-action-row">
