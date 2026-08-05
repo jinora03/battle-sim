@@ -260,6 +260,8 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
                     phase={battleLaunchPhase}
                     fighterA={introFighterA}
                     fighterB={introFighterB}
+                    moduleIdsA={introSetup.moduleIdsA}
+                    moduleIdsB={introSetup.moduleIdsB}
                     teamSizeA={introSetup.teamSizeA}
                     teamSizeB={introSetup.teamSizeB}
                     modeName={introMode?.name ?? 'Battle'}

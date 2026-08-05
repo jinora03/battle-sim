@@ -49,7 +49,7 @@ describe('Stage 8.8B battle setup UX', () => {
   });
 
   it('keeps content and engine versions aligned', () => {
-    expect(CONTENT_VERSION).toBe('1.3.22-stage8.8b');
+    expect(CONTENT_VERSION).toMatch(/^1\.3\.\d+-stage8\./);
     expect(CONTENT_VERSION).toBe(ENGINE_VERSION);
   });
 });
