@@ -310,7 +310,7 @@ export function BattleSetupDrawer({
           </DisclosureGroup>
 
           <div className="settings-action-row">
-            <button className="text-button settings-reset-button" onClick={onRestoreSettings}>Reset recommended settings</button>
+            <button type="button" className="text-button settings-reset-button" onClick={onRestoreSettings}>Reset recommended settings</button>
           </div>
         </div>
       </details>

@@ -1,59 +1,70 @@
 /* Stage 8.8G — readable battle objective and setup action hierarchy. */
 .battle-objective-bar {
-  grid-template-columns: minmax(190px, .75fr) minmax(300px, 1.4fr) minmax(70px, auto);
-  gap: 18px;
-  min-height: 62px;
-  padding: 10px 14px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  min-height: 86px;
+  padding: 12px 14px;
 }
 
 .objective-summary {
-  justify-items: start;
-  gap: 5px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: stretch;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
   text-align: left;
 }
 
 .objective-summary small,
 .objective-summary strong {
-  width: auto;
-  max-width: 100%;
-  text-align: left;
+  width: 100%;
+  min-width: 0;
 }
 
 .objective-summary small {
-  letter-spacing: .11em;
+  color: #768da4;
+  font-size: 7px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
 }
 
-.objective-summary strong {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
+.objective-summary .objective-matchup {
+  display: grid;
+  margin: 0;
   overflow: visible;
-  color: #edf7ff;
-  font-size: clamp(13px, 1.25vw, 17px);
-  line-height: 1.1;
   text-overflow: clip;
   white-space: normal;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  color: #edf7ff;
+  font-size: clamp(14px, 1.35vw, 18px);
+  line-height: 1.15;
 }
 
-.objective-summary strong span {
+.objective-summary .objective-matchup span {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
-.objective-summary strong i {
+.objective-summary .objective-matchup span:first-child { text-align: right; }
+.objective-summary .objective-matchup span:last-child { text-align: left; }
+
+.objective-summary .objective-matchup i {
   color: #7690a8;
-  font-size: .72em;
+  font-size: .68em;
   font-style: normal;
   font-weight: 800;
+  letter-spacing: .08em;
   text-transform: uppercase;
 }
 
 .elimination-progress {
   display: grid;
-  grid-template-columns: repeat(2, minmax(120px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  width: 100%;
   min-width: 0;
 }
 
@@ -90,7 +101,7 @@
 }
 
 .team-progress-track {
-  height: 5px;
+  height: 6px;
   overflow: hidden;
   border-radius: 999px;
   background: rgba(87, 112, 139, .22);
@@ -109,30 +120,63 @@
   box-shadow: 0 0 10px rgba(239, 116, 112, .28);
 }
 
-.objective-meta:empty { display: none; }
-
-
-.battle-setup-start-zone-top {
-  margin: 0 0 14px;
-  padding: 11px;
+.objective-meta {
+  grid-column: auto;
+  grid-row: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
-@media (max-width: 780px) {
-  .battle-objective-bar {
-    grid-template-columns: minmax(150px, .72fr) minmax(260px, 1.28fr);
-    gap: 12px;
-  }
+.objective-meta:empty { display: none; }
 
-  .objective-meta { display: none; }
+.battle-setup-start-zone-top {
+  margin: 0 0 13px;
+  padding: 9px;
+}
+
+.battle-setup-start-button {
+  min-height: 36px;
+  padding: 7px 11px;
+  font-size: 10px;
+}
+
+.release-settings .settings-action-row {
+  justify-items: start;
+}
+
+.settings-reset-button {
+  width: auto;
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 9px;
 }
 
 @media (max-width: 620px) {
   .battle-objective-bar {
-    grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 9px;
     padding: 10px;
   }
 
-  .objective-summary { justify-items: start; }
-  .elimination-progress { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .objective-summary .objective-matchup {
+    gap: 7px;
+    font-size: clamp(12px, 3.6vw, 15px);
+  }
+
+  .elimination-progress { gap: 9px; }
+}
+
+@media (max-width: 390px) {
+  .objective-summary .objective-matchup {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+    gap: 2px;
+  }
+
+  .objective-summary .objective-matchup span:first-child,
+  .objective-summary .objective-matchup span:last-child { text-align: left; }
+
+  .objective-summary .objective-matchup i { font-size: 7px; }
+  .elimination-progress { grid-template-columns: minmax(0, 1fr); }
 }

@@ -1,8 +1,13 @@
+import type { CSSProperties } from 'react';
 import type { FighterDefinition } from '@kinetic/content';
 import { getVisualRecipe } from '@kinetic/visual-engine';
 import { FighterPortrait } from './ui/FighterPortrait';
 import { NeonButton } from './ui/NeonUI';
 import type { BattleLaunchPhase } from './ui/battleLaunch';
+
+interface IntroFighterStyle extends CSSProperties {
+  '--intro-accent': string;
+}
 
 interface BattleIntroOverlayProps {
   phase: Exclude<BattleLaunchPhase, 'running'>;
@@ -13,6 +18,10 @@ interface BattleIntroOverlayProps {
   modeName: string;
   startDisabled: boolean;
   onStart: () => void;
+}
+
+function color(value: number): string {
+  return `#${value.toString(16).padStart(6, '0')}`;
 }
 
 function titleCase(value: string): string {
@@ -34,6 +43,7 @@ function IntroFighter({
   return (
     <article
       className={`battle-intro-fighter side-${side}`}
+      style={{ '--intro-accent': color(visual.accentColor) } as IntroFighterStyle}
       aria-label={`${fighter.name}, ${identity}`}
     >
       <header className="battle-intro-nameplate">

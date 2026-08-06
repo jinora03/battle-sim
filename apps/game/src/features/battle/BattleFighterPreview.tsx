@@ -26,7 +26,7 @@ export function BattleFighterPreview({ fighter, side }: {
   return (
     <article className={`battle-fighter-preview side-${side.toLowerCase()}`} style={style} aria-label={`${fighter.name} skills and passive`}>
       <div className="battle-fighter-preview-portrait">
-        <FighterPortrait fighter={fighter} visual={visual} facing={side === 'A' ? 'right' : 'left'} size="small" />
+        <FighterPortrait fighter={fighter} visual={visual} facing={side === 'A' ? 'right' : 'left'} size="medium" />
       </div>
       <div className="battle-fighter-preview-copy">
         {passive && (

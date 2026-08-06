@@ -1,7 +1,9 @@
 /* Stage 8.8G — one compact, body-only fighter language across UI previews. */
 .shared-fighter-portrait.body-only {
+  --portrait-scale: 1;
   contain: layout;
   isolation: isolate;
+  scale: 1;
 }
 
 .shared-fighter-portrait.body-only .shared-portrait-aura {
@@ -60,38 +62,61 @@
 }
 
 
-/* Setup previews contain only the fighter body, passive and skills. */
+/* Setup previews use a stable hero area above passive and skill information. */
 .battle-fighter-preview {
-  grid-template-columns: 72px minmax(0, 1fr);
-  gap: 11px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
   min-width: 0;
   margin-top: 8px;
-  padding: 10px;
+  padding: 12px;
 }
 
 .battle-fighter-preview-portrait {
+  display: grid;
   min-width: 0;
-  min-height: 84px;
-  overflow: visible;
+  min-height: 116px;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--setup-fighter-accent) 14%, transparent);
+  border-radius: 10px;
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--setup-fighter-aura) 12%, transparent), transparent 66%),
+    rgba(4, 11, 20, .36);
 }
 
 .battle-fighter-preview-portrait .shared-fighter-portrait {
-  margin: auto;
+  --portrait-size: 96px;
+  margin: 0;
   transform: none;
 }
 
+/* Compact setup portraits keep the body readable without reintroducing the
+   retired combat-bloom treatment. Match-intro portraits retain their own aura. */
+.battle-fighter-preview-portrait .shared-portrait-aura {
+  display: none;
+}
+
+.battle-fighter-preview-portrait .shared-portrait-shell {
+  box-shadow:
+    inset -10px -12px 18px rgba(0, 0, 0, .38),
+    inset 7px 6px 11px rgba(255, 255, 255, .08),
+    0 0 8px color-mix(in srgb, var(--portrait-aura) 22%, transparent);
+}
+
 .battle-fighter-preview-copy {
-  align-content: center;
-  gap: 8px;
-  overflow: hidden;
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  min-width: 0;
+  overflow: visible;
 }
 
 .battle-fighter-preview-passive {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 2px 7px;
+  gap: 3px 7px;
   min-width: 0;
-  padding: 7px 8px;
+  padding: 8px 9px;
   border: 1px solid rgba(118, 167, 208, .14);
   border-radius: 8px;
   background: rgba(4, 11, 20, .48);
@@ -121,24 +146,52 @@
   overflow: hidden;
   color: #7f95a9;
   font-size: 7px;
-  line-height: 1.35;
+  line-height: 1.4;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
 }
 
 .battle-fighter-preview-skills {
-  gap: 5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 1px 1px 7px;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
 }
 
 .battle-fighter-preview-skills span {
-  min-height: 36px;
-  display: grid;
-  align-content: center;
-  padding: 5px 3px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-width: max-content;
+  min-height: 28px;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 7px;
+  border-radius: 999px;
+  text-align: left;
+  white-space: nowrap;
 }
 
-.battle-fighter-preview-skills small { font-size: 5px; }
-.battle-fighter-preview-skills b { font-size: 6px; }
+.battle-fighter-preview-skills small,
+.battle-fighter-preview-skills b {
+  display: inline;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.battle-fighter-preview-skills small {
+  color: #7189a1;
+  font-size: 5px;
+}
+
+.battle-fighter-preview-skills b {
+  margin-top: 0;
+  font-size: 6px;
+}
 
 
 /* Module selectors: helper copy must remain subordinate to the section header. */
@@ -148,19 +201,24 @@
   padding: 8px 9px 10px;
 }
 
+.fighter-module-field > summary strong {
+  font-size: 8px;
+}
+
 .fighter-module-field-content .field-label {
   margin: 0;
   color: #71869b;
-  font-size: 8px;
+  font-size: 7px;
   font-weight: 650;
   letter-spacing: .01em;
   text-transform: none;
 }
 
-.fighter-module-field-content select {
-  min-height: 34px;
-  padding: 6px 28px 6px 9px;
-  font-size: 9px;
+.fighter-module-field .fighter-module-field-content select {
+  min-height: 32px;
+  padding: 5px 26px 5px 8px;
+  font-size: 8px;
+  line-height: 1.2;
 }
 
 .fighter-module-description {
@@ -174,7 +232,9 @@
 
 /* Battle intro uses the same body renderer as every other preview. */
 .battle-intro-avatar.shared-fighter-portrait {
-  width: clamp(94px, calc(13.5vw * var(--intro-size-scale)), 176px);
+  --portrait-size: clamp(142px, 18vw, 210px);
+  z-index: 1;
+  width: var(--portrait-size);
   filter: drop-shadow(0 16px 20px rgba(0, 0, 0, .52));
 }
 
@@ -275,23 +335,58 @@
 }
 
 
+@media (max-width: 760px) {
+  .release-fighter-card {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .release-fighter-portrait,
+  .release-fighter-copy,
+  .fighter-stat-bars,
+  .release-skill-row,
+  .fighter-identity-summary,
+  .release-fighter-actions,
+  .unlock-hint {
+    grid-column: 1;
+    grid-row: auto;
+    min-width: 0;
+  }
+
+  .release-fighter-portrait {
+    width: 100%;
+    min-height: 132px;
+  }
+
+  .release-fighter-portrait .shared-fighter-portrait { --portrait-size: 104px; }
+  .release-skill-row { grid-template-columns: repeat(5, minmax(58px, 1fr)); overflow-x: auto; padding-bottom: 6px; }
+  .release-fighter-actions { grid-template-columns: minmax(0, 1fr); }
+}
+
 @media (max-width: 620px) {
-  .battle-intro-avatar.shared-fighter-portrait { width: clamp(76px, calc(22vw * var(--intro-size-scale)), 118px); }
+  .battle-intro-avatar.shared-fighter-portrait { --portrait-size: clamp(104px, 30vw, 132px); }
   .creator-stat-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .creator-skill-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .creator-skill-summary > span.ultimate { grid-column: auto; }
 }
 
+@media (max-width: 520px) {
+  .roster-heading { padding: 14px; }
+  .roster-heading h2 { font-size: clamp(18px, 7vw, 22px); line-height: 1.25; }
+  .roster-heading p:not(.eyebrow) { font-size: 10px; line-height: 1.5; }
+}
+
 @media (max-width: 420px) {
   .battle-fighter-preview {
-    grid-template-columns: 62px minmax(0, 1fr);
     gap: 8px;
-    padding: 8px;
+    padding: 9px;
   }
 
-  .battle-fighter-preview-portrait { min-height: 72px; }
-  .battle-fighter-preview-passive { padding: 6px; }
-  .battle-fighter-preview-passive span { -webkit-line-clamp: 3; }
+  .battle-fighter-preview-portrait { min-height: 104px; }
+  .battle-fighter-preview-portrait .shared-fighter-portrait { --portrait-size: 88px; }
+  .battle-fighter-preview-passive { padding: 7px; }
 
   .release-fighter-card {
     width: 100%;
@@ -307,11 +402,12 @@
     min-width: 0;
   }
 
+  .fighter-stat-bars { grid-template-columns: minmax(0, 1fr); }
   .fighter-passive-card { grid-template-columns: 1fr; }
   .fighter-passive-card > small { grid-column: auto; }
 }
 
 @media (max-width: 340px) {
-  .battle-fighter-preview { grid-template-columns: 1fr; }
-  .battle-fighter-preview-portrait { min-height: 64px; }
+  .battle-fighter-preview-portrait { min-height: 96px; }
+  .battle-fighter-preview-portrait .shared-fighter-portrait { --portrait-size: 80px; }
 }

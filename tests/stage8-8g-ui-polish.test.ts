@@ -31,10 +31,36 @@ describe('Stage 8.8G UI polish', () => {
     expect(portrait).toContain('body-only');
     expect(portrait).not.toContain('getPrimaryAttack');
     expect(portrait).not.toContain('listMountedAttachments');
+    expect(portrait).not.toContain('fighter.physics.radius');
+    expect(portrait).toContain('data-fighter-id');
     expect(intro).toContain('<FighterPortrait');
     expect(setup).toContain('<FighterPortrait');
+    expect(setup).toContain('size="medium"');
     expect(roster).toContain('<FighterPortrait');
     expect(creator).toContain('<FighterPortrait');
+  });
+
+  it('keeps preview scale, matchup spacing and narrow roster cards stable', () => {
+    const previewStyles = read('../apps/game/src/styles/70-fighter-previews.css');
+    const statusStyles = read('../apps/game/src/styles/71-battle-status.css');
+    const introStyles = read('../apps/game/src/styles/60-battle-intro.css');
+    const objective = read('../apps/game/src/features/battle/BattleObjectiveHeader.tsx');
+
+    expect(previewStyles).toContain('.battle-fighter-preview-portrait .shared-fighter-portrait');
+    expect(previewStyles).toContain('--portrait-size: 96px');
+    expect(previewStyles).toContain('@media (max-width: 760px)');
+    expect(previewStyles).toContain('grid-template-columns: minmax(0, 1fr)');
+    expect(introStyles).not.toContain('--intro-size-scale');
+    expect(objective).toContain('className="objective-matchup"');
+    expect(objective).toContain('? fighterAName');
+    expect(objective).toContain('? fighterBName');
+    expect(previewStyles).toContain('.battle-fighter-preview-skills');
+    expect(previewStyles).toContain('display: flex');
+    expect(previewStyles).toContain('.battle-fighter-preview-portrait .shared-portrait-aura');
+    expect(previewStyles).toContain('display: none');
+    expect(statusStyles).toContain('.objective-matchup');
+    expect(statusStyles).toContain('.battle-setup-start-button');
+    expect(statusStyles).toContain('.settings-reset-button');
   });
 
   it('keeps mobile actions inside their owning battle and lab surfaces', () => {

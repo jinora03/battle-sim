@@ -39,22 +39,30 @@ export function BattleObjectiveHeader({
     <header className={`battle-objective-bar ${kind}`} aria-label="Battle objective and team status">
       <div className="objective-summary">
         <small>{modeName} · {objectiveLabel}</small>
-        <strong><span>{fighterAName}</span><i aria-hidden="true">vs</i><span>{fighterBName}</span></strong>
+        <strong className="objective-matchup"><span>{fighterAName}</span><i aria-hidden="true">vs</i><span>{fighterBName}</span></strong>
       </div>
 
       {lastTeamStanding ? (
         <div className="objective-progress elimination-progress" aria-label="Team health and fighters remaining">
-          {teams.map((team) => (
-            <div className="team-progress-lane" key={team.team} title={`Team ${team.team}: ${Math.round(team.hpRatio * 100)}% health, ${team.alive} of ${team.total} fighters alive`}>
-              <div className="team-progress-heading">
-                <b>Team {team.team}</b>
-                <small>{team.alive}/{team.total} alive</small>
+          {teams.map((team) => {
+            const teamName = team.team === 1
+              ? fighterAName
+              : team.team === 2
+                ? fighterBName
+                : `Team ${team.team}`;
+
+            return (
+              <div className="team-progress-lane" key={team.team} title={`${teamName}: ${Math.round(team.hpRatio * 100)}% health, ${team.alive} of ${team.total} fighters alive`}>
+                <div className="team-progress-heading">
+                  <b>{teamName}</b>
+                  <small>{team.alive}/{team.total} alive</small>
+                </div>
+                <div className="team-progress-track">
+                  <span className="team-progress-fill" style={{ width: `${team.hp > 0 ? Math.max(2, team.hpRatio * 100) : 0}%` }} />
+                </div>
               </div>
-              <div className="team-progress-track">
-                <span className="team-progress-fill" style={{ width: `${team.hp > 0 ? Math.max(2, team.hpRatio * 100) : 0}%` }} />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="objective-progress objective-single-track" aria-label={`${Math.round(objectiveProgress * 100)}% objective progress`}>
