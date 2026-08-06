@@ -180,3 +180,34 @@
   .objective-summary .objective-matchup i { font-size: 7px; }
   .elimination-progress { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Keep the compact battle header consistent with desktop: one centered matchup
+   row and two adjacent HP lanes. */
+@media (max-width: 390px) {
+  .objective-summary {
+    justify-items: center;
+  }
+
+  .objective-summary .objective-matchup {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    justify-items: stretch;
+    width: 100%;
+    gap: 5px;
+    font-size: clamp(10px, 3.4vw, 13px);
+  }
+
+  .objective-summary .objective-matchup span:first-child { text-align: right; }
+  .objective-summary .objective-matchup span:last-child { text-align: left; }
+  .objective-summary .objective-matchup i { font-size: .68em; }
+
+  .elimination-progress {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+}
+
+/* The intro animation remains, but the redundant Battle Start copy is hidden. */
+.battle-intro-start-flash {
+  display: none !important;
+}
