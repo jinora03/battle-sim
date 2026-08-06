@@ -364,7 +364,8 @@ export function useAppController() {
       window.matchMedia?.('(pointer: coarse)'),
       window.matchMedia?.('(any-pointer: coarse)'),
       window.matchMedia?.('(hover: hover)'),
-      window.matchMedia?.('(display-mode: standalone)')
+      window.matchMedia?.('(display-mode: standalone)'),
+      window.matchMedia?.('(shape: round)')
     ].filter((query): query is MediaQueryList => Boolean(query));
     window.addEventListener('resize', scheduleEnvironmentRefresh, { passive: true });
     window.addEventListener('orientationchange', scheduleEnvironmentRefresh, { passive: true });
@@ -387,6 +388,7 @@ export function useAppController() {
     document.documentElement.dataset.orientation = viewportMetrics.orientation;
     document.documentElement.dataset.viewport = viewportMetrics.viewportClass;
     document.documentElement.dataset.shortLandscape = viewportMetrics.shortLandscape ? 'true' : 'false';
+    document.documentElement.dataset.displayShape = viewportMetrics.displayShape;
     document.documentElement.dataset.touchFirst = deviceCapabilities.touchFirst ? 'true' : 'false';
   }, [deviceCapabilities.touchFirst, viewportMetrics]);
 

@@ -1,7 +1,19 @@
-# Kinetic Battle Engine — v1.3.27 Stage 8.8G
+# Kinetic Battle Engine — v1.3.28 Stage 8.9A
 
 A browser/mobile-ready 2D physics battle game and modular fighter engine built with TypeScript, PixiJS, React, Vite and Capacitor.
 
+
+
+> **Stage 8.9A adds a dedicated round-screen and near-square layout profile.** Galaxy Watch-class viewports now receive a stable square renderer host, circular-bezel safe insets, compact navigation and touch controls, and independently scrollable setup drawers without changing the rectangular Pixi arena or ordinary phone and desktop layouts.
+
+## Stage 8.9A highlights
+
+- deterministic rectangular, near-square and round viewport classification
+- a central safe rectangle for circular-display navigation, drawers and notifications
+- stable square Battle and Ability Lab renderer hosts on watch-sized screens
+- compact battle objective, intro, analog pad and skill controls inside the visible circle
+- dedicated compact-shape styles split by shell, Battle and Ability Lab ownership
+- no simulation, audio, content balance or combat-VFX behavior changes
 
 > **Stage 8.8G completes the final UI-polish pass.** Fighter previews now use one body-only visual language across Battle Setup, match intro, Roster, and Creator; mobile floating action docks are removed; Ability Lab movement is integrated beside its scrollable skill tray; touch steering sensitivity is persisted; and release-facing developer metrics are removed.
 

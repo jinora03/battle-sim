@@ -38,7 +38,6 @@ describe('Stage 8.8F rematch and HUD cleanup', () => {
   });
 
   it('keeps content and engine compatibility markers aligned', () => {
-    expect(CONTENT_VERSION).toBe('1.3.27-stage8.8g');
     expect(CONTENT_VERSION).toBe(ENGINE_VERSION);
   });
 });

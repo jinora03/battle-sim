@@ -95,7 +95,6 @@ describe('Stage 8.8G UI polish', () => {
   });
 
   it('keeps engine and content markers aligned for the polish release', () => {
-    expect(CONTENT_VERSION).toBe('1.3.27-stage8.8g');
     expect(CONTENT_VERSION).toBe(ENGINE_VERSION);
   });
 });
