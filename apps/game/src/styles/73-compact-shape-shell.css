@@ -1,0 +1,89 @@
+/* Stage 8.9A — round and near-square viewport containment.
+   The renderer remains rectangular; only the surrounding UI is moved into a
+   safe central rectangle so circular bezels cannot clip critical controls. */
+:root {
+  --compact-shape-safe-inset: 0px;
+  --compact-shape-nav-height: 48px;
+}
+
+html[data-display-shape='round'] {
+  --compact-shape-safe-inset: max(18px, 14.65vmin);
+  --compact-shape-nav-height: 44px;
+}
+
+html[data-display-shape='near-square'] {
+  --compact-shape-safe-inset: max(10px, 7vmin);
+  --compact-shape-nav-height: 44px;
+}
+
+html[data-display-shape='round'] body,
+html[data-display-shape='near-square'] body {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.app-shell:is(.display-round, .display-near-square) {
+  width: 100%;
+  min-height: 100dvh;
+  padding-top: max(var(--compact-shape-safe-inset), var(--safe-top));
+  padding-right: max(var(--compact-shape-safe-inset), var(--safe-right));
+  padding-bottom: calc(max(var(--compact-shape-safe-inset), var(--safe-bottom)) + var(--compact-shape-nav-height) + 8px);
+  padding-left: max(var(--compact-shape-safe-inset), var(--safe-left));
+}
+
+.app-shell:is(.display-round, .display-near-square) .ui-app-navigation {
+  left: max(var(--compact-shape-safe-inset), var(--safe-left));
+  right: max(var(--compact-shape-safe-inset), var(--safe-right));
+  bottom: max(var(--compact-shape-safe-inset), var(--safe-bottom));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 2px;
+  padding: 4px;
+  border-radius: 15px;
+}
+
+.app-shell:is(.display-round, .display-near-square) .ui-app-navigation button {
+  min-height: 36px;
+  padding: 4px 2px;
+  gap: 1px;
+  border-radius: 10px;
+  font-size: 7px;
+}
+
+.app-shell:is(.display-round, .display-near-square) .ui-nav-badge {
+  display: none;
+}
+
+.app-shell:is(.display-round, .display-near-square) .progress-toast-stack {
+  left: max(var(--compact-shape-safe-inset), var(--safe-left));
+  right: max(var(--compact-shape-safe-inset), var(--safe-right));
+  bottom: calc(max(var(--compact-shape-safe-inset), var(--safe-bottom)) + var(--compact-shape-nav-height) + 8px);
+  width: auto;
+}
+
+/* Drawers use the same central safe rectangle and stay independently scrollable. */
+.app-shell:is(.display-round, .display-near-square) .ui-mobile-drawer {
+  top: max(var(--compact-shape-safe-inset), var(--safe-top)) !important;
+  right: max(var(--compact-shape-safe-inset), var(--safe-right));
+  bottom: max(var(--compact-shape-safe-inset), var(--safe-bottom));
+  left: max(var(--compact-shape-safe-inset), var(--safe-left));
+  width: auto;
+  height: auto;
+  max-height: none !important;
+  padding: 8px;
+  border: 1px solid rgba(145, 209, 244, .18);
+  border-radius: 18px;
+  transform: translateY(calc(100% + var(--compact-shape-safe-inset) + 16px));
+}
+
+.app-shell:is(.display-round, .display-near-square) .ui-mobile-drawer.open {
+  transform: translateY(0);
+}
+
+/* Browser fallback: CSS shape detection reinforces the JS classification on
+   engines that expose the round-display media feature. */
+@media (shape: round) {
+  :root {
+    --compact-shape-safe-inset: max(18px, 14.65vmin);
+    --compact-shape-nav-height: 44px;
+  }
+}

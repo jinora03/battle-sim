@@ -123,14 +123,14 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
   } = creator;
   return (
     <main
-      className={`app-shell view-${view} viewport-${viewportMetrics.viewportClass} orientation-${viewportMetrics.orientation} ${viewportMetrics.shortLandscape ? 'short-landscape' : ''} ${settings.fullscreenBattle ? 'battle-focus-mode' : ''} ${settings.highContrast ? 'high-contrast' : ''}`}
+      className={`app-shell view-${view} viewport-${viewportMetrics.viewportClass} orientation-${viewportMetrics.orientation} display-${viewportMetrics.displayShape} ${viewportMetrics.shortLandscape ? 'short-landscape' : ''} ${settings.fullscreenBattle ? 'battle-focus-mode' : ''} ${settings.highContrast ? 'high-contrast' : ''}`}
       style={{ '--touch-control-opacity': settings.touchControlOpacity } as CSSProperties}
     >
       <section className="hero-panel">
         <div>
-          <p className="eyebrow">v1.2 Stage 8.0 · Fighter identity and controlled loadouts</p>
+          <p className="eyebrow">v1.3 Stage 8.9A · Round-screen safe battle UI</p>
           <h1>Kinetic Battle Engine</h1>
-          <p className="subtitle">Developer-authored fighters now support character-specific passives, setup-and-payoff skill combos, approved modules and visible attachments without branching the simulation per fighter.</p>
+          <p className="subtitle">Battle, Ability Lab and setup surfaces now adapt to round and near-square displays while preserving the same deterministic simulation and rectangular arena.</p>
         </div>
       </section>
 

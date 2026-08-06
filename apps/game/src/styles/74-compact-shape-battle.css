@@ -1,0 +1,181 @@
+/* Battle: reserve a stable square host. This prevents circular browser chrome
+   from collapsing the renderer while keeping Pixi's arena itself rectangular. */
+.app-shell:is(.display-round, .display-near-square).view-battle .workspace,
+.app-shell:is(.display-round, .display-near-square).view-battle .arena-column,
+.app-shell:is(.display-round, .display-near-square).view-battle .battle-stage {
+  width: 100%;
+  min-width: 0;
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .battle-stage,
+.app-shell:is(.display-round, .display-near-square).view-battle .battle-stage.mobile-commandless {
+  height: auto;
+  min-height: 0;
+  grid-template-rows: auto auto;
+  gap: 6px;
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .battle-objective-bar {
+  display: grid;
+  min-height: 0;
+  gap: 6px;
+  padding: 7px 8px;
+  border-radius: 12px;
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .objective-summary {
+  gap: 3px;
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .objective-summary small {
+  font-size: 6px;
+  letter-spacing: .07em;
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .objective-summary .objective-matchup {
+  gap: 5px;
+  font-size: clamp(10px, 3.2vw, 13px);
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .elimination-progress {
+  gap: 6px;
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .team-progress-lane {
+  gap: 3px;
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .team-progress-heading b,
+.app-shell:is(.display-round, .display-near-square).view-battle .team-progress-heading small {
+  font-size: 6px;
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .team-progress-track {
+  height: 4px;
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .arena-wrap {
+  width: min(100%, clamp(220px, calc(100dvw - var(--compact-shape-safe-inset) - var(--compact-shape-safe-inset)), 360px));
+  height: auto;
+  aspect-ratio: 1;
+  margin-inline: auto;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .arena-frame {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: inherit;
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .skill-activity-rail.persistent,
+.app-shell:is(.display-round, .display-near-square).view-battle .battle-secondary-panels,
+.app-shell:is(.display-round, .display-near-square).view-battle .landscape-hint-badge {
+  display: none;
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .touch-controls {
+  right: 6px;
+  bottom: 6px;
+  left: 6px;
+  gap: 6px;
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .analog-pad,
+html[data-touch-size='large'] .app-shell:is(.display-round, .display-near-square).view-battle .analog-pad {
+  width: 72px;
+  height: 72px;
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .analog-pad-ring {
+  width: 56px;
+  height: 56px;
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .analog-pad-knob,
+html[data-touch-size='large'] .app-shell:is(.display-round, .display-near-square).view-battle .analog-pad-knob {
+  width: 30px;
+  height: 30px;
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .touch-skill-row {
+  max-width: calc(100% - 78px);
+  gap: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 1px;
+  scrollbar-width: none;
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .touch-skill-row::-webkit-scrollbar {
+  display: none;
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .skill-indicator.compact,
+html[data-touch-size='large'] .app-shell:is(.display-round, .display-near-square).view-battle .skill-indicator.compact {
+  width: 36px;
+  height: 38px;
+  min-height: 38px;
+  padding: 3px 2px;
+}
+
+/* Match intro remains visual, but its body-only portraits and copy fit inside
+   the same watch-safe arena instead of being clipped by the bezel. */
+.app-shell:is(.display-round, .display-near-square) .battle-intro-content {
+  width: calc(100% - 12px);
+  gap: 6px;
+}
+
+.app-shell:is(.display-round, .display-near-square) .battle-intro-kicker {
+  font-size: .48rem;
+  letter-spacing: .1em;
+}
+
+.app-shell:is(.display-round, .display-near-square) .battle-intro-matchup {
+  gap: 5px;
+}
+
+.app-shell:is(.display-round, .display-near-square) .battle-intro-fighter {
+  gap: 5px;
+}
+
+.app-shell:is(.display-round, .display-near-square) .battle-intro-avatar.shared-fighter-portrait {
+  --portrait-size: 72px;
+}
+
+.app-shell:is(.display-round, .display-near-square) .battle-intro-nameplate {
+  min-height: 36px;
+  gap: 1px;
+}
+
+.app-shell:is(.display-round, .display-near-square) .battle-intro-nameplate strong {
+  max-width: 30vw;
+  font-size: .68rem;
+}
+
+.app-shell:is(.display-round, .display-near-square) .battle-intro-identity,
+.app-shell:is(.display-round, .display-near-square) .battle-intro-squad,
+.app-shell:is(.display-round, .display-near-square) .battle-ready-actions p {
+  display: none;
+}
+
+.app-shell:is(.display-round, .display-near-square) .battle-intro-versus {
+  gap: 3px;
+}
+
+.app-shell:is(.display-round, .display-near-square) .battle-intro-versus strong {
+  font-size: 1rem;
+}
+
+.app-shell:is(.display-round, .display-near-square) .battle-ready-actions {
+  gap: 4px;
+}
+
+.app-shell:is(.display-round, .display-near-square) .battle-ready-start {
+  min-width: min(180px, 76vw);
+  min-height: 34px;
+  padding: 5px 8px;
+  font-size: .7rem;
+}

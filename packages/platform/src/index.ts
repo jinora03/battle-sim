@@ -8,6 +8,7 @@ export type MovementMode = 'wasd' | 'mouse';
 export type AimAssistLevel = 'off' | 'light' | 'medium' | 'strong';
 export type ViewportOrientation = 'portrait' | 'landscape';
 export type ViewportClass = 'compact' | 'medium' | 'wide';
+export type DisplayShape = 'rectangular' | 'near-square' | 'round';
 
 export interface DeviceCapabilities {
   mobile: boolean;
@@ -30,6 +31,7 @@ export interface ViewportMetrics {
   layoutHeight: number;
   orientation: ViewportOrientation;
   viewportClass: ViewportClass;
+  displayShape: DisplayShape;
   compact: boolean;
   shortLandscape: boolean;
   standalone: boolean;
@@ -167,14 +169,21 @@ export function detectDeviceCapabilities(): DeviceCapabilities {
   };
 }
 
-export function classifyViewport(width: number, height: number): Pick<ViewportMetrics, 'orientation' | 'viewportClass' | 'compact' | 'shortLandscape'> {
+export function classifyViewport(
+  width: number,
+  height: number,
+  roundDisplay = false
+): Pick<ViewportMetrics, 'orientation' | 'viewportClass' | 'displayShape' | 'compact' | 'shortLandscape'> {
   const safeWidth = Math.max(1, width);
   const safeHeight = Math.max(1, height);
   const orientation: ViewportOrientation = safeWidth >= safeHeight ? 'landscape' : 'portrait';
   const shortLandscape = orientation === 'landscape' && safeHeight <= 560;
   const compact = Math.min(safeWidth, safeHeight) < 700 || safeWidth < 760;
   const viewportClass: ViewportClass = safeWidth < 700 ? 'compact' : safeWidth < 1180 ? 'medium' : 'wide';
-  return { orientation, viewportClass, compact, shortLandscape };
+  const aspectRatio = safeWidth / safeHeight;
+  const nearSquare = Math.max(safeWidth, safeHeight) <= 560 && aspectRatio >= 0.82 && aspectRatio <= 1.22;
+  const displayShape: DisplayShape = roundDisplay ? 'round' : nearSquare ? 'near-square' : 'rectangular';
+  return { orientation, viewportClass, displayShape, compact, shortLandscape };
 }
 
 export function detectViewportMetrics(): ViewportMetrics {
@@ -192,12 +201,13 @@ export function detectViewportMetrics(): ViewportMetrics {
   const visualViewport = window.visualViewport;
   const width = Math.max(1, Math.round(visualViewport?.width ?? window.innerWidth));
   const height = Math.max(1, Math.round(visualViewport?.height ?? window.innerHeight));
+  const roundDisplay = window.matchMedia?.('(shape: round)').matches === true;
   return {
     width,
     height,
     layoutWidth: Math.max(1, Math.round(window.innerWidth)),
     layoutHeight: Math.max(1, Math.round(window.innerHeight)),
-    ...classifyViewport(width, height),
+    ...classifyViewport(width, height, roundDisplay),
     standalone: window.matchMedia?.('(display-mode: standalone)').matches === true,
     fullscreen: Boolean(document.fullscreenElement)
   };

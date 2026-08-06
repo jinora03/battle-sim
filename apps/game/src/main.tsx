@@ -12,5 +12,8 @@ import './styles/60-battle-intro.css';
 import './styles/70-fighter-previews.css';
 import './styles/71-battle-status.css';
 import './styles/72-mobile-controls.css';
+import './styles/73-compact-shape-shell.css';
+import './styles/74-compact-shape-battle.css';
+import './styles/75-compact-shape-training.css';
 
 createRoot(document.getElementById('root')!).render(<ErrorBoundary><App /></ErrorBoundary>);

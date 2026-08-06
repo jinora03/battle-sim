@@ -27,18 +27,21 @@ describe('v1.1 Stage 8 mobile rendering policy', () => {
     expect(classifyViewport(390, 844)).toEqual({
       orientation: 'portrait',
       viewportClass: 'compact',
+      displayShape: 'rectangular',
       compact: true,
       shortLandscape: false
     });
     expect(classifyViewport(844, 390)).toEqual({
       orientation: 'landscape',
       viewportClass: 'medium',
+      displayShape: 'rectangular',
       compact: true,
       shortLandscape: true
     });
     expect(classifyViewport(1440, 900)).toEqual({
       orientation: 'landscape',
       viewportClass: 'wide',
+      displayShape: 'rectangular',
       compact: false,
       shortLandscape: false
     });

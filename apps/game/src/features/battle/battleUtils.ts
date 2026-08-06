@@ -66,6 +66,7 @@ export function sameViewportMetrics(a: ViewportMetrics, b: ViewportMetrics): boo
     && a.layoutHeight === b.layoutHeight
     && a.orientation === b.orientation
     && a.viewportClass === b.viewportClass
+    && a.displayShape === b.displayShape
     && a.compact === b.compact
     && a.shortLandscape === b.shortLandscape
     && a.standalone === b.standalone
