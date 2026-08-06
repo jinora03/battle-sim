@@ -2,48 +2,11 @@ import type { CSSProperties } from 'react';
 import { getAbility, type FighterDefinition } from '@kinetic/content';
 import type { PlayerProfile } from '@kinetic/meta';
 import { getSkillPresentation, getVisualRecipe } from '@kinetic/visual-engine';
-import type { BattleSetup } from './runtime/BattleRuntime';
+import type { BattleSetup } from './runtime/BattleSetup';
+import { QUICK_BATTLES, type QuickBattle } from './features/home/quickBattles';
 import { NeonButton } from './ui/NeonUI';
 
 export type ReleaseView = 'home' | 'battle' | 'training' | 'roster' | 'creator' | 'profile';
-
-interface QuickBattle {
-  id: string;
-  title: string;
-  description: string;
-  fighterAId: string;
-  fighterBId: string;
-  arenaId: string;
-  modeId: string;
-  teamSizeA: number;
-  teamSizeB: number;
-  controllerA: 'player' | 'ai';
-  controllerB: 'player' | 'ai';
-  accent: string;
-}
-
-const quickBattles: QuickBattle[] = [
-  {
-    id: 'first-splash', title: 'First Splash', description: 'Learn movement and skill timing as Water Shaper against Bomber.',
-    fighterAId: 'water-shaper', fighterBId: 'bomber', arenaId: 'pillar-court', modeId: 'duel', teamSizeA: 1, teamSizeB: 1,
-    controllerA: 'player', controllerB: 'ai', accent: '#48c9ff'
-  },
-  {
-    id: 'frozen-flame', title: 'Frozen Flame', description: 'A compact elemental duel built around burn, freeze and momentum.',
-    fighterAId: 'pyro-brawler', fighterBId: 'frost-warden', arenaId: 'cryo-ring', modeId: 'duel', teamSizeA: 1, teamSizeB: 1,
-    controllerA: 'player', controllerB: 'ai', accent: '#ff7a45'
-  },
-  {
-    id: 'arc-breaker', title: 'Arc Breaker', description: 'Fast electric offense against a massive mechanical defender.',
-    fighterAId: 'volt-striker', fighterBId: 'mech-bruiser', arenaId: 'arc-crucible', modeId: 'duel', teamSizeA: 1, teamSizeB: 1,
-    controllerA: 'player', controllerB: 'ai', accent: '#fff05b'
-  },
-  {
-    id: 'raid-the-void', title: 'Raid the Void', description: 'Three Thorn Colossi challenge a scaled Void Reaper boss.',
-    fighterAId: 'thorn-colossus', fighterBId: 'void-reaper', arenaId: 'pillar-court', modeId: 'boss-raid', teamSizeA: 3, teamSizeB: 1,
-    controllerA: 'player', controllerB: 'ai', accent: '#8ee06c'
-  }
-];
 
 export function ReleaseHome({ profile, fighters, arenaCount, modeCount, onNavigate, onStart }: {
   profile: PlayerProfile;
@@ -61,8 +24,8 @@ export function ReleaseHome({ profile, fighters, arenaCount, modeCount, onNaviga
     onStart({
       fighterAId: item.fighterAId,
       fighterBId: item.fighterBId,
-      moduleIdsA: [],
-      moduleIdsB: [],
+      moduleIdsA: [...(item.moduleIdsA ?? [])],
+      moduleIdsB: [...(item.moduleIdsB ?? [])],
       controllerA: item.controllerA,
       controllerB: item.controllerB,
       arenaId: item.arenaId,
@@ -83,7 +46,7 @@ export function ReleaseHome({ profile, fighters, arenaCount, modeCount, onNaviga
           <h2>Build a fighter. Enter the arena. Let physics decide.</h2>
           <p>Control a modular combatant directly, watch deterministic AI battles, build custom fighters, or scale the same engine into team fights and mass skirmishes.</p>
           <div className="release-hero-actions">
-            <NeonButton tone="success" size="large" onClick={() => startQuick(quickBattles[0]!)}>Quick play</NeonButton>
+            <NeonButton tone="success" size="large" onClick={() => startQuick(QUICK_BATTLES[0]!)}>Quick play</NeonButton>
             <NeonButton tone="random" size="large" onClick={() => onNavigate('battle')}>Custom battle</NeonButton>
             <NeonButton tone="utility" size="large" onClick={() => onNavigate('training')}>Open Ability Lab</NeonButton>
             <NeonButton tone="ghost" size="large" onClick={() => onNavigate('roster')}>View roster</NeonButton>
@@ -105,7 +68,7 @@ export function ReleaseHome({ profile, fighters, arenaCount, modeCount, onNaviga
       <section className="quick-battle-section">
         <div className="section-heading-row"><div><p className="eyebrow">Featured battles</p><h2>Jump into a designed matchup</h2></div><button className="text-link-button" onClick={() => onNavigate('battle')}>Open full Battle Lab →</button></div>
         <div className="quick-battle-grid">
-          {quickBattles.map((item) => {
+          {QUICK_BATTLES.map((item) => {
             const fighterA = fighters.find((fighter) => fighter.id === item.fighterAId);
             const fighterB = fighters.find((fighter) => fighter.id === item.fighterBId);
             const lockedIds = [item.fighterAId, item.fighterBId].filter((id) => !unlocked.has(id));

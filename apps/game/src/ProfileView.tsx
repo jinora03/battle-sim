@@ -10,7 +10,7 @@ import {
   type ProgressionNotice,
   type SavedBattlePreset
 } from '@kinetic/meta';
-import type { BattleSetup } from './runtime/BattleRuntime';
+import type { BattleSetup } from './runtime/BattleSetup';
 import { NeonButton } from './ui/NeonUI';
 
 export interface ProfileViewProps {

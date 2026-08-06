@@ -411,3 +411,35 @@
   .battle-fighter-preview-portrait { min-height: 96px; }
   .battle-fighter-preview-portrait .shared-fighter-portrait { --portrait-size: 80px; }
 }
+
+/* Stage 8.9A follow-up: roster portraits stay fully contained inside their card stage. */
+.release-fighter-portrait {
+  box-sizing: border-box;
+  overflow: hidden;
+  contain: paint;
+  isolation: isolate;
+  padding: 10px;
+}
+
+.release-fighter-portrait .shared-fighter-portrait {
+  --portrait-size: 94px;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0 auto;
+}
+
+.release-fighter-portrait .shared-portrait-aura {
+  inset: 1%;
+  box-shadow:
+    0 0 16px color-mix(in srgb, var(--portrait-aura) 36%, transparent),
+    inset 0 0 15px color-mix(in srgb, var(--portrait-aura) 12%, transparent);
+}
+
+@media (max-width: 760px) {
+  .release-fighter-portrait {
+    min-height: 128px;
+    padding: 12px;
+  }
+
+  .release-fighter-portrait .shared-fighter-portrait { --portrait-size: 92px; }
+}

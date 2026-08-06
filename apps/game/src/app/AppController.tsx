@@ -53,7 +53,7 @@ import {
   removeCustomMotionRecipe,
   removeCustomVisualRecipe
 } from '@kinetic/visual-engine';
-import type { BattleSetup } from '../runtime/BattleRuntime';
+import { createDefaultBattleSetup, type BattleSetup } from '../runtime/BattleSetup';
 import { loadPlayerProfile, savePlayerProfile } from '../profile/ProfileStore';
 import { loadAppSettings, resetAppSettings, saveAppSettings } from '../settings/SettingsStore';
 import type { ReleaseView } from '../ReleaseHome';
@@ -79,21 +79,6 @@ import { useBattleInput } from '../hooks/useBattleInput';
 import { useBattleRuntime } from '../hooks/useBattleRuntime';
 
 const STORAGE_KEY = 'kinetic.custom-fighter-bundles.v1';
-const DEFAULT_SETUP: BattleSetup = {
-  fighterAId: 'gunner',
-  fighterBId: 'bomber',
-  moduleIdsA: ['shoulder-missile-pod', 'deflector-plate', 'recoil-thrusters', 'targeting-drone'],
-  moduleIdsB: [],
-  controllerA: 'player',
-  controllerB: 'ai',
-  arenaId: 'iron-pit',
-  modeId: 'duel',
-  teamSizeA: 1,
-  teamSizeB: 1,
-  friendlyFire: false,
-  teamCollision: 'full',
-  difficulty: 'standard'
-};
 
 function createStarterBundle(name = 'Arc Prototype', requestedId?: string): FighterBundle {
   const id = requestedId ?? slugifyFighterId(name);
@@ -180,8 +165,8 @@ export function useAppController() {
   const [viewportMetrics, setViewportMetrics] = useState(detectViewportMetrics);
   const [seedText, setSeedText] = useState(() => String(generateRandomSeed()));
   const activeSeedRef = useRef((Number(seedText) >>> 0) || 1);
-  const [setup, setSetup] = useState<BattleSetup>(DEFAULT_SETUP);
-  const [activeSetup, setActiveSetup] = useState<BattleSetup>(DEFAULT_SETUP);
+  const [setup, setSetup] = useState<BattleSetup>(createDefaultBattleSetup);
+  const [activeSetup, setActiveSetup] = useState<BattleSetup>(createDefaultBattleSetup);
   const [setupPanelOpen, setSetupPanelOpen] = useState(true);
   const [landscapeHintDismissed, setLandscapeHintDismissed] = useState(false);
   const [battleDrawerOpen, setBattleDrawerOpen] = useState(false);
@@ -694,7 +679,7 @@ export function useAppController() {
 
   const resetProfile = () => {
     const fresh = createDefaultPlayerProfile();
-    const next = { ...DEFAULT_SETUP, difficulty: fresh.difficulty };
+    const next = { ...createDefaultBattleSetup(), difficulty: fresh.difficulty };
     setProfile(fresh);
     setSetup(next);
     setProgressNotices([]);
@@ -731,9 +716,16 @@ export function useAppController() {
     teamSizeB: 1
   });
 
+  const closeBattleSetup = () => {
+    setBattleDrawerOpen(false);
+  };
+
   const openBattleSetup = () => {
     setSetupPanelOpen(true);
-    if (viewportMetrics.width <= 900) setBattleDrawerOpen(true);
+    if (viewportMetrics.width <= 900) {
+      if (battleLaunchPhase === 'running' && !diagnostics.battleEnded) setPausedByUser(true);
+      setBattleDrawerOpen(true);
+    }
     window.setTimeout(() => setupPanelRef.current?.scrollIntoView({ behavior: settings.reducedMotion ? 'auto' : 'smooth', block: 'start' }), 0);
   };
 
@@ -807,7 +799,6 @@ export function useAppController() {
       landscapeHintDismissed,
       setLandscapeHintDismissed,
       battleDrawerOpen,
-      setBattleDrawerOpen,
       pausedByUser,
       battleLaunchPhase,
       diagnostics,
@@ -858,6 +849,7 @@ export function useAppController() {
       playAsFighter,
       setRosterOpponent,
       openBattleSetup,
+      closeBattleSetup,
       startConfiguredBattle
     },
     progression: {

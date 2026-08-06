@@ -19,13 +19,17 @@ describe('Stage 8.8D settings and metrics organization', () => {
     expect(source).not.toContain('Developer Diagnostics');
   });
 
-  it('removes the developer metrics card from the release workspace', () => {
-    const source = read('../apps/game/src/app/AppWorkspace.tsx');
+  it('keeps performance metrics in the workspace without a settings toggle', () => {
+    const workspace = read('../apps/game/src/app/AppWorkspace.tsx');
+    const metrics = read('../apps/game/src/features/battle/BattlePerformanceMetrics.tsx');
+    const settings = read('../apps/game/src/features/battle/BattleSetupDrawer.tsx');
 
-    expect(source).not.toContain('battle-debug-panel');
-    expect(source).not.toContain('Performance & simulation metrics');
-    expect(source).not.toContain('Export replay JSON');
-    expect(source).toContain('battle-activity-panel');
+    expect(workspace).toContain('<BattlePerformanceMetrics');
+    expect(metrics).toContain('battle-debug-panel');
+    expect(metrics).toContain('Performance &amp; simulation metrics');
+    expect(settings).not.toContain('showPerformanceHud');
+    expect(settings).not.toContain('Developer metrics');
+    expect(workspace).toContain('battle-activity-panel');
   });
 
   it('uses reusable stateful disclosure groups instead of fragile static open attributes', () => {

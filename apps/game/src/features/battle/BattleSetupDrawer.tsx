@@ -16,7 +16,7 @@ import {
   type QualityPresetId,
   type TouchControlMode
 } from '@kinetic/platform';
-import type { BattleSetup } from '../../runtime/BattleRuntime';
+import type { BattleSetup } from '../../runtime/BattleSetup';
 import { DrawerHeader, NeonButton } from '../../ui/NeonUI';
 import { CreatorField, DisclosureGroup, RangeField, Toggle } from '../../ui/FormControls';
 import { formatModeCapacity } from '../../ui/presentation';
