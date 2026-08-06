@@ -224,7 +224,7 @@ export function BattleSetupDrawer({
           />
           <div className="touch-only-setting">
             <RangeField
-              label={`Touch steering sensitivity · ${Math.round(settings.touchSteeringSensitivity * 100)}%`}
+              label={`Analog stick sensitivity · ${Math.round(settings.touchSteeringSensitivity * 100)}%`}
               value={settings.touchSteeringSensitivity}
               min={0.6}
               max={1.6}
@@ -252,7 +252,7 @@ export function BattleSetupDrawer({
       </details>
 
       <details className="panel-section collapsible-panel release-settings" open>
-        <summary className="panel-summary"><span><small>Settings</small><strong>Quality, presentation & tools</strong></span></summary>
+        <summary className="panel-summary"><span><small>Settings</small><strong>Quality & tools</strong></span></summary>
         <div className="panel-content settings-group-list">
           <DisclosureGroup eyebrow="Rendering" title="Quality & resolution" summary={settings.qualityPreset} defaultOpen>
             <label className="field-label" htmlFor="quality-preset">Quality preset</label>
@@ -294,7 +294,7 @@ export function BattleSetupDrawer({
           <DisclosureGroup eyebrow="Camera" title="View & motion" summary={settings.cameraFollow ? 'follow on' : 'follow off'}>
             <Toggle label="Camera shake" checked={settings.cameraShake} onChange={(value) => onSettingChange('cameraShake', value)} />
             <Toggle label="Follow player" checked={settings.cameraFollow} onChange={(value) => onSettingChange('cameraFollow', value)} />
-            <NeonButton tone="utility" fullWidth onClick={onToggleFullscreen}>Fullscreen arena</NeonButton>
+            <NeonButton tone="utility" size="small" className="fullscreen-arena-button" onClick={onToggleFullscreen}>Fullscreen arena</NeonButton>
           </DisclosureGroup>
 
           <DisclosureGroup eyebrow="Comfort" title="Accessibility" summary={settings.reducedMotion ? 'reduced motion' : 'standard motion'}>

@@ -1,0 +1,177 @@
+/* Stage 8.9A follow-up — zoom resilience, real disclosure cards, and clear
+   horizontal-scroll affordances for mouse, touch, and keyboard users. */
+
+/* Fixed-height mobile drawers are grids. Without explicit row sizing, CSS Grid
+   stretches every settings card to fill the drawer and makes the controls look
+   like large non-functional pills at high browser zoom. */
+.training-sidebar,
+.training-sidebar.ui-mobile-drawer {
+  align-content: start;
+  grid-auto-rows: max-content;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.training-sidebar > .panel-section,
+.training-settings-group {
+  min-height: 0;
+  align-self: start;
+}
+
+.training-settings-group > .disclosure-group-content {
+  padding: 12px;
+}
+
+.training-settings-group > .disclosure-group-summary {
+  min-height: 48px;
+}
+
+/* The release note is useful on desktop but should not displace actual trainer
+   controls in a narrow drawer or at accessibility zoom levels. */
+@media (max-width: 760px) {
+  .training-sidebar .training-intro-card { display: none; }
+}
+
+/* Navigation remains a normal tablist, but overflowing tabs can now be dragged
+   with a mouse. A sticky cue exposes the interaction instead of requiring the
+   user to discover Shift+wheel. */
+.ui-app-navigation[data-overflow='true'],
+.roster-peek-strip[data-overflow='true'] {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ui-app-navigation.is-dragging,
+.roster-peek-strip.is-dragging {
+  cursor: grabbing;
+  scroll-behavior: auto;
+}
+
+/* Compact and zoomed layouts keep every destination visible in one balanced
+   row. This avoids oversized scroll hints and makes navigation predictable on
+   mobile, accessibility zoom, and near-square screens. */
+@media (max-width: 900px) {
+  .ui-app-navigation {
+    display: grid !important;
+    grid-template-columns: repeat(var(--ui-nav-count, 6), minmax(0, 1fr)) !important;
+    gap: 6px;
+    overflow: hidden;
+    padding: 6px;
+    cursor: default !important;
+    scroll-snap-type: none;
+    touch-action: manipulation;
+  }
+
+  .ui-app-navigation button {
+    width: 100%;
+    min-width: 0 !important;
+    max-width: none;
+    flex: none;
+    padding-inline: 4px;
+  }
+
+  .ui-app-navigation .ui-nav-label {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 520px) {
+  .ui-app-navigation { gap: 3px; padding: 4px; }
+  .ui-app-navigation button { min-height: 46px; padding-inline: 2px; }
+  .ui-app-navigation .ui-nav-label { font-size: 9px; }
+}
+
+/* Settings cards need a visible inner gutter at mobile widths and high zoom. */
+.release-settings > .panel-content.settings-group-list {
+  padding: 14px !important;
+}
+
+.release-settings .disclosure-group-content {
+  padding: 12px 13px 14px;
+}
+
+/* Sliders retain the established shared appearance from styles.css. */
+
+.fullscreen-arena-button {
+  width: auto !important;
+  min-width: 0;
+  min-height: 30px;
+  margin-top: 8px;
+  padding: 5px 9px;
+  justify-self: start;
+  font-size: 9px;
+}
+
+/* Give movement and ability controls enough breathing room around the scroll
+   track so the scrollbar never touches the buttons. */
+@media (pointer: coarse), (max-width: 760px) {
+  .training-control-surface {
+    grid-template-columns: 112px minmax(0, 1fr);
+  }
+
+  .training-direction-pad {
+    box-sizing: border-box;
+    padding: 12px 9px;
+  }
+
+  .training-slot-scroll {
+    min-height: 112px;
+    padding: 10px 4px 16px;
+    scroll-padding-inline: 4px;
+  }
+
+  .training-control-surface {
+    padding-top: 4px;
+  }
+
+  .release-settings > .panel-content.settings-group-list {
+    padding: 11px !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .training-control-surface {
+    grid-template-columns: 98px minmax(0, 1fr);
+  }
+
+  .training-direction-pad {
+    padding-inline: 9px;
+  }
+}
+
+/* The roster preview is an intentionally horizontal sample. Preserve room on
+   both sides of its scrollbar and make mouse dragging discoverable. */
+.roster-peek-strip {
+  padding-top: 12px;
+  padding-bottom: 16px;
+  scroll-padding-inline: 4px;
+  scrollbar-gutter: stable;
+  overscroll-behavior-inline: contain;
+}
+
+.roster-peek-strip[data-overflow='true'] {
+  border-top: 1px solid rgba(137, 201, 238, .06);
+  border-bottom: 1px solid rgba(137, 201, 238, .08);
+}
+
+/* Compact watch layouts keep the same breathing room; these selectors match
+   the dedicated Stage 8.9A rules so earlier tighter values cannot win on
+   specificity. */
+@media (pointer: coarse), (max-width: 760px) {
+  .app-shell:is(.display-round, .display-near-square).view-training .training-control-surface {
+    grid-template-columns: 82px minmax(0, 1fr);
+  }
+
+  .app-shell:is(.display-round, .display-near-square).view-training .training-direction-pad {
+    padding: 8px 6px;
+  }
+
+  .app-shell:is(.display-round, .display-near-square).view-training .training-slot-scroll {
+    min-height: 92px;
+    padding: 8px 3px 14px;
+  }
+}

@@ -20,6 +20,7 @@ import {
 import type { AbilitySlot, ModuleSlot } from '@kinetic/protocol';
 import type { AppSettings, MovementMode } from '@kinetic/platform';
 import { DrawerHeader, DrawerScrim, NeonButton } from './ui/NeonUI';
+import { DisclosureGroup } from './ui/FormControls';
 import { TrainingControlDeck } from './features/training/TrainingControlDeck';
 import {
   DEFAULT_TRAINING_OPTIONS,
@@ -256,8 +257,7 @@ export function TrainingLabView({ fighters, settings, active, onSettingChange }:
           <p>The Ability Lab now shares the same responsive canvas lifecycle, internal render scaling, safe mobile sizing and visibility suspension as Battle Lab.</p>
         </div>
 
-        <div className="panel-section training-setup-card">
-          <div className="section-heading-row"><div><p className="eyebrow">Loadout</p><h3>Trainer and targets</h3></div></div>
+        <DisclosureGroup eyebrow="Loadout" title="Trainer and targets" defaultOpen className="panel-section training-setup-card training-settings-group">
           <label className="field-label stacked-label">Trainer fighter
             <select
               value={setup.trainerFighterId}
@@ -290,11 +290,9 @@ export function TrainingLabView({ fighters, settings, active, onSettingChange }:
             <NeonButton tone="danger" onClick={() => runtimeRef.current?.restart(setup)}>Reset arena</NeonButton>
             <NeonButton tone="random" onClick={() => restartWith({ ...setup, seed: (Math.random() * 0xffffffff) >>> 0 })}>New seed</NeonButton>
           </div>
-        </div>
+        </DisclosureGroup>
 
-        <div className="panel-section training-options-card">
-          <p className="eyebrow">Simulation controls</p>
-          <h3>Rules and overlays</h3>
+        <DisclosureGroup eyebrow="Simulation controls" title="Rules and overlays" defaultOpen className="panel-section training-options-card training-settings-group">
           <TrainingToggle label="Apply HP damage" checked={options.damageEnabled} onChange={(checked) => setOptions((current) => ({ ...current, damageEnabled: checked }))} />
           <TrainingToggle label="Use cooldowns" checked={options.cooldownsEnabled} onChange={(checked) => setOptions((current) => ({ ...current, cooldownsEnabled: checked }))} />
           <TrainingToggle label="Invulnerable targets" checked={options.invulnerableTargets} onChange={(checked) => setOptions((current) => ({ ...current, invulnerableTargets: checked }))} />
@@ -303,7 +301,7 @@ export function TrainingLabView({ fighters, settings, active, onSettingChange }:
           <TrainingToggle label="Show hitboxes" checked={options.showHitboxes} onChange={(checked) => setOptions((current) => ({ ...current, showHitboxes: checked }))} />
           <TrainingToggle label="Show projectile paths" checked={options.showProjectilePaths} onChange={(checked) => setOptions((current) => ({ ...current, showProjectilePaths: checked }))} />
           <TrainingToggle label="Show damage numbers" checked={options.showDamageNumbers} onChange={(checked) => setOptions((current) => ({ ...current, showDamageNumbers: checked }))} />
-        </div>
+        </DisclosureGroup>
       </aside>
       <DrawerScrim open={sidebarOpen} onClose={() => setSidebarOpen(false)} label="Close Ability Lab settings" className="training-drawer-scrim" />
 

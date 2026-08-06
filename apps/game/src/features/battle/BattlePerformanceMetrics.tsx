@@ -18,10 +18,9 @@ export function BattlePerformanceMetrics({
   renderCountRef.current += 1;
 
   return (
-    <details className="panel-section battle-debug-panel">
+    <details className="panel-section battle-debug-panel" open>
       <summary className="panel-summary">
         <span><small>Developer</small><strong>Performance &amp; simulation metrics</strong></span>
-        <em>{diagnostics.performance.renderFps.toFixed(0)} FPS</em>
       </summary>
       <div className="debug-panel-fps-tile">
         <small>Render FPS</small>
