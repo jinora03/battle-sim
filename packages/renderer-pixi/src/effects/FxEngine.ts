@@ -659,13 +659,15 @@ export class FxEngine {
     const duration = layer.durationSeconds;
     const style = resolveCombatVfxParticleStyle(layer);
     const glowStrength = layer.hierarchy === 'ultimate' ? 1 : layer.hierarchy === 'payoff' ? 0.8 : 0.58;
+    const suppressRadialShells = layer.treatment === 'root-growth' || layer.treatment === 'singularity';
+    this.playCombatVfxTreatment(layer, x, y, dirX, dirY, amount, radius, palette);
 
     if (layer.phase === 'anticipation') {
-      this.profileBloom(x, y, palette.core, palette.glow, radius * 0.42, Math.min(0.3, duration), glowStrength * 0.65);
-      this.shockwave(x, y, palette.glow, radius * 0.48, 2.5, Math.min(0.5, duration));
+      if (!suppressRadialShells) this.profileBloom(x, y, palette.core, palette.glow, radius * 0.42, Math.min(0.3, duration), glowStrength * 0.65);
+      if (!suppressRadialShells) this.shockwave(x, y, palette.glow, radius * 0.48, 2.5, Math.min(0.5, duration));
       if (layer.intent === 'pull') {
         this.inwardBurst(x, y, palette.accent, Math.round(amount * 0.7), radius * 0.88, 5.2 * layer.intensity);
-        this.shockwave(x, y, palette.core, radius * 0.3, 2, Math.min(0.34, duration));
+        if (!suppressRadialShells) this.shockwave(x, y, palette.core, radius * 0.3, 2, Math.min(0.34, duration));
       } else {
         this.burst(x, y, palette.accent, Math.round(amount * 0.55), 2.8, 1, 3, 0.14, Math.min(0.54, duration), 0.98, 0.48, style.primary);
       }
@@ -674,7 +676,7 @@ export class FxEngine {
       }
       if (layer.intent === 'ultimate' || layer.intent === 'transformation') {
         this.flash(x, y, palette.core, radius * 0.28, Math.min(0.2, duration));
-        this.shockwave(x, y, palette.accent, radius * 0.68, 4, Math.min(0.48, duration));
+        if (!suppressRadialShells) this.shockwave(x, y, palette.accent, radius * 0.68, 4, Math.min(0.48, duration));
       }
       return {
         shake: layer.hierarchy === 'ultimate' ? 2.6 * layer.intensity : 0,
@@ -684,7 +686,7 @@ export class FxEngine {
     }
 
     if (layer.phase === 'activation') {
-      this.profileBloom(x, y, palette.core, palette.glow, radius, Math.min(0.34, duration), glowStrength);
+      if (!suppressRadialShells) this.profileBloom(x, y, palette.core, palette.glow, radius, Math.min(0.34, duration), glowStrength);
       if (layer.intent === 'dash') {
         this.directionalBurst(x, y, -dirX, -dirY, palette.accent, amount, 8.5 * layer.intensity, style.primary);
         this.directionalBurst(x, y, dirX, dirY, palette.core, Math.round(amount * 0.36), 11 * layer.intensity, style.secondary);
@@ -693,32 +695,32 @@ export class FxEngine {
         this.inwardBurst(x, y, palette.accent, amount, radius * 1.05, 8.8 * layer.intensity, style.primary);
         this.inwardBurst(x, y, palette.glow, Math.round(amount * 0.52), radius * 0.72, 6.2 * layer.intensity, style.secondary);
         this.flash(x, y, palette.core, radius * 0.42, Math.min(0.22, duration));
-        this.shockwave(x, y, palette.accent, radius * 0.84, 5, Math.min(0.46, duration * 1.6));
+        if (!suppressRadialShells) this.shockwave(x, y, palette.accent, radius * 0.84, 5, Math.min(0.46, duration * 1.6));
       } else if (layer.intent === 'projectile' || layer.intent === 'beam' || layer.intent === 'burst-fire') {
         this.directionalBurst(x, y, dirX, dirY, palette.accent, amount, 10.5 * layer.intensity, style.primary);
         this.directionalBurst(x, y, -dirX, -dirY, palette.glow, Math.round(amount * 0.48), 5.8 * layer.intensity, style.secondary);
         this.flash(x, y, palette.core, radius * 0.42, Math.min(0.2, duration));
       } else if (layer.intent === 'explosion') {
         this.flash(x, y, palette.core, radius * 0.68, Math.min(0.25, duration));
-        this.shockwave(x, y, palette.accent, radius * 1.08, layer.hierarchy === 'ultimate' ? 11 : 7, Math.min(0.58, duration * 1.75));
-        this.shockwave(x, y, palette.glow, radius * 0.68, 4, Math.min(0.4, duration * 1.35));
+        if (!suppressRadialShells) this.shockwave(x, y, palette.accent, radius * 1.08, layer.hierarchy === 'ultimate' ? 11 : 7, Math.min(0.58, duration * 1.75));
+        if (!suppressRadialShells) this.shockwave(x, y, palette.glow, radius * 0.68, 4, Math.min(0.4, duration * 1.35));
         this.burst(x, y, palette.accent, Math.round(amount * 1.12), 9.2 * layer.intensity, 1.4, 5.6, 0.14, 0.52, 0.95, 0.42, style.primary);
         this.burst(x, y, palette.debris, Math.round(amount * 0.58), 5.5 * layer.intensity, 2.2, 7.2, 0.22, 0.72, 0.975, 0.9, style.secondary);
-        this.brokenShockwave(x, y, palette.glow, radius * 1.02, layer.hierarchy === 'ultimate' ? 11 : 7, Math.min(0.58, duration * 1.6));
+        if (!suppressRadialShells) this.brokenShockwave(x, y, palette.glow, radius * 1.02, layer.hierarchy === 'ultimate' ? 11 : 7, Math.min(0.58, duration * 1.6));
       } else if (layer.intent === 'knockback') {
         if (layer.directional) {
           this.directionalBurst(x, y, dirX, dirY, palette.core, Math.round(amount * 1.08), 12.5 * layer.intensity, style.primary);
           this.directionalBurst(x, y, dirX, dirY, palette.accent, Math.round(amount * 0.76), 8.8 * layer.intensity, style.secondary);
         } else {
           this.burst(x, y, palette.core, Math.round(amount * 0.78), 8.8 * layer.intensity, 1.2, 4.4, 0.12, 0.38, 0.95, 0.3, style.primary);
-          this.shockwave(x, y, palette.accent, radius * 0.98, 6, Math.min(0.45, duration * 1.55));
+          if (!suppressRadialShells) this.shockwave(x, y, palette.accent, radius * 0.98, 6, Math.min(0.45, duration * 1.55));
         }
         this.flash(x, y, palette.core, radius * 0.48, Math.min(0.2, duration));
-        this.shockwave(x, y, palette.glow, radius * 0.74, 5.5, Math.min(0.34, duration * 1.4));
+        if (!suppressRadialShells) this.shockwave(x, y, palette.glow, radius * 0.74, 5.5, Math.min(0.34, duration * 1.4));
       } else {
         this.flash(x, y, palette.core, radius * 0.62, Math.min(0.24, duration));
-        this.shockwave(x, y, palette.accent, radius, 7, Math.min(0.52, duration * 1.7));
-        this.shockwave(x, y, palette.glow, radius * 0.62, 3, Math.min(0.36, duration * 1.25));
+        if (!suppressRadialShells) this.shockwave(x, y, palette.accent, radius, 7, Math.min(0.52, duration * 1.7));
+        if (!suppressRadialShells) this.shockwave(x, y, palette.glow, radius * 0.62, 3, Math.min(0.36, duration * 1.25));
         this.burst(x, y, palette.accent, amount, 8.5 * layer.intensity, 1.4, 4.8, 0.16, 0.48, 0.95, 0.28, style.primary);
       }
       return {
@@ -729,32 +731,32 @@ export class FxEngine {
     }
 
     if (layer.phase === 'sustain') {
-      this.profileBloom(x, y, palette.core, palette.accent, radius * 0.68, Math.min(0.42, duration), glowStrength * 0.54);
+      if (!suppressRadialShells) this.profileBloom(x, y, palette.core, palette.accent, radius * 0.68, Math.min(0.42, duration), glowStrength * 0.54);
       if (layer.intent === 'burst-fire') {
         this.directionalBurst(x, y, dirX, dirY, palette.accent, Math.round(amount * 0.82), 9.6 * layer.intensity);
         this.directionalBurst(x, y, dirX, dirY, palette.core, Math.round(amount * 0.38), 12 * layer.intensity);
         this.flash(x, y, palette.glow, radius * 0.3, Math.min(0.18, duration));
       } else if (layer.intent === 'pull') {
         this.inwardBurst(x, y, palette.glow, Math.round(amount * 0.78), radius * 0.9, 5.4 * layer.intensity);
-        this.shockwave(x, y, palette.accent, radius * 0.64, 3, Math.min(0.56, duration));
+        if (!suppressRadialShells) this.shockwave(x, y, palette.accent, radius * 0.64, 3, Math.min(0.56, duration));
       } else if (layer.intent === 'channel' && layer.palette === 'fire') {
         this.fireSpiral(x, y, radius * 0.92, particleScale * 0.72 * layer.intensity);
-        this.shockwave(x, y, palette.glow, radius * 0.66, 3, Math.min(0.5, duration));
+        if (!suppressRadialShells) this.shockwave(x, y, palette.glow, radius * 0.66, 3, Math.min(0.5, duration));
       } else if (layer.intent === 'channel' && layer.palette === 'neutral') {
         this.burst(x, y, palette.debris, Math.round(amount * 0.82), 3.6 * layer.intensity, 4, 9, 0.3, Math.min(0.82, duration), 0.98, 1.05);
-        this.shockwave(x, y, palette.accent, radius * 0.82, 5, Math.min(0.68, duration));
+        if (!suppressRadialShells) this.shockwave(x, y, palette.accent, radius * 0.82, 5, Math.min(0.68, duration));
       } else if (layer.intent === 'channel' && layer.palette === 'metal') {
         this.shardBurst(x, y, palette.glow, Math.round(amount * 0.68), 4.8 * layer.intensity);
-        this.shockwave(x, y, palette.accent, radius * 0.78, 4, Math.min(0.62, duration));
+        if (!suppressRadialShells) this.shockwave(x, y, palette.accent, radius * 0.78, 4, Math.min(0.62, duration));
       } else {
-        this.shockwave(x, y, palette.accent, radius * 0.92, 4, Math.min(0.7, duration));
-        this.shockwave(x, y, palette.glow, radius * 0.58, 2, Math.min(0.5, duration * 0.8));
+        if (!suppressRadialShells) this.shockwave(x, y, palette.accent, radius * 0.92, 4, Math.min(0.7, duration));
+        if (!suppressRadialShells) this.shockwave(x, y, palette.glow, radius * 0.58, 2, Math.min(0.5, duration * 0.8));
         this.burst(x, y, palette.glow, Math.round(amount * 0.72), 4.2 * layer.intensity, 1, 3.7, 0.18, Math.min(0.65, duration), 0.97, 0.58, style.primary);
       }
       return { shake: 0, freezeMs: 0, screenFlash: 0 };
     }
 
-    this.profileBloom(x, y, palette.core, palette.glow, radius * 0.5, Math.min(0.22, duration), glowStrength * 0.52);
+    if (!suppressRadialShells) this.profileBloom(x, y, palette.core, palette.glow, radius * 0.5, Math.min(0.22, duration), glowStrength * 0.52);
     if (layer.intent === 'pull') {
       this.inwardBurst(x, y, palette.accent, Math.round(amount * 0.68), radius * 0.78, 5.8 * layer.intensity, style.primary);
     } else if (layer.intent === 'knockback') {
@@ -767,7 +769,7 @@ export class FxEngine {
       this.directionalBurst(x, y, dirX, dirY, palette.accent, Math.round(amount * 0.7), 7.2 * layer.intensity);
     }
     this.flash(x, y, palette.core, radius * 0.35, Math.min(0.16, duration));
-    this.shockwave(x, y, palette.glow, radius * 0.76, 3, Math.min(0.42, duration * 1.4));
+    if (!suppressRadialShells) this.shockwave(x, y, palette.glow, radius * 0.76, 3, Math.min(0.42, duration * 1.4));
     if (layer.intent === 'status') {
       this.burst(x, y, palette.glow, Math.round(amount * 0.54), 3.6 * layer.intensity, 1, 3.2, 0.16, 0.42, 0.97, 0.38, style.primary);
     } else {
@@ -778,6 +780,94 @@ export class FxEngine {
       freezeMs: 0,
       screenFlash: layer.hierarchy === 'ultimate' ? 0.06 * layer.intensity : 0
     };
+  }
+
+  private playCombatVfxTreatment(
+    layer: ResolvedCombatVfxLayer,
+    x: number,
+    y: number,
+    dirX: number,
+    dirY: number,
+    amount: number,
+    radius: number,
+    palette: ReturnType<typeof getElementVfxPalette>
+  ): void {
+    if (layer.treatment === 'crystalline') {
+      if (layer.phase === 'anticipation' || layer.intent === 'pull') {
+        this.inwardBurst(x, y, palette.accent, Math.max(3, Math.round(amount * 0.48)), radius * 0.86, 4.8 * layer.intensity, 'shard');
+      } else {
+        this.shardBurst(x, y, palette.core, Math.max(3, Math.round(amount * 0.46)), 5.8 * layer.intensity);
+      }
+      if (layer.phase === 'activation' || layer.phase === 'release') {
+        this.brokenShockwave(x, y, palette.glow, radius * 0.9, layer.hierarchy === 'ultimate' ? 12 : 7, Math.min(0.5, layer.durationSeconds * 1.4));
+      }
+      return;
+    }
+    if (layer.treatment === 'rocket-exhaust') {
+      this.directionalBurst(x, y, -dirX, -dirY, palette.accent, Math.max(3, Math.round(amount * 0.54)), 7.8 * layer.intensity, 'streak');
+      this.directionalBurst(x, y, -dirX, -dirY, palette.debris, Math.max(2, Math.round(amount * 0.3)), 4.4 * layer.intensity, 'debris');
+      return;
+    }
+    if (layer.treatment === 'target-lock') {
+      this.brokenShockwave(x, y, palette.accent, radius * 0.78, 8, Math.min(0.48, layer.durationSeconds));
+      this.brokenShockwave(x, y, palette.core, radius * 0.46, 4, Math.min(0.34, layer.durationSeconds));
+      this.directionalBurst(x, y, dirX, dirY, palette.glow, Math.max(2, Math.round(amount * 0.28)), 3.8 * layer.intensity, 'streak');
+      return;
+    }
+    if (layer.treatment === 'starburst') {
+      this.brokenShockwave(x, y, palette.glow, radius * 1.18, 14, Math.min(0.68, layer.durationSeconds * 1.45));
+      this.brokenShockwave(x, y, palette.accent, radius * 0.78, 9, Math.min(0.52, layer.durationSeconds));
+      this.burst(x, y, palette.debris, Math.max(4, Math.round(amount * 0.74)), 7.2 * layer.intensity, 2, 7.8, 0.18, 0.72, 0.97, 0.84, 'debris');
+      return;
+    }
+    if (layer.treatment === 'water-flow') {
+      if (layer.intent === 'pull') {
+        this.inwardBurst(x, y, palette.accent, Math.max(3, Math.round(amount * 0.68)), radius, 6.2 * layer.intensity, 'ribbon');
+        this.inwardBurst(x, y, palette.core, Math.max(2, Math.round(amount * 0.32)), radius * 0.72, 4.6 * layer.intensity, 'droplet');
+      } else if (layer.directional || layer.intent === 'dash') {
+        this.directionalBurst(x, y, -dirX, -dirY, palette.accent, Math.max(3, Math.round(amount * 0.62)), 7.4 * layer.intensity, 'ribbon');
+        this.directionalBurst(x, y, -dirX, -dirY, palette.core, Math.max(2, Math.round(amount * 0.34)), 4.8 * layer.intensity, 'droplet');
+      } else {
+        this.burst(x, y, palette.accent, Math.max(3, Math.round(amount * 0.54)), 5.8 * layer.intensity, 1.2, 4.4, 0.14, 0.5, 0.96, 0.42, 'ribbon');
+        this.burst(x, y, palette.core, Math.max(2, Math.round(amount * 0.28)), 4.2 * layer.intensity, 1, 3.2, 0.12, 0.38, 0.96, 0.34, 'droplet');
+      }
+      if (layer.phase === 'activation' || layer.phase === 'release') {
+        this.brokenShockwave(x, y, palette.glow, radius * 0.9, layer.hierarchy === 'ultimate' ? 9 : 5, Math.min(0.46, layer.durationSeconds));
+      }
+      return;
+    }
+    if (layer.treatment === 'root-growth') {
+      const sideX = -dirY;
+      const sideY = dirX;
+      const branchCount = Math.max(2, Math.round(amount * 0.22));
+      this.directionalBurst(x, y, dirX, dirY, palette.accent, branchCount, 6.8 * layer.intensity, 'wedge');
+      this.directionalBurst(x, y, -dirX, -dirY, palette.accent, branchCount, 5.4 * layer.intensity, 'wedge');
+      this.directionalBurst(x, y, sideX, sideY, palette.glow, branchCount, 5.8 * layer.intensity, 'ribbon');
+      this.directionalBurst(x, y, -sideX, -sideY, palette.glow, branchCount, 5.8 * layer.intensity, 'ribbon');
+      this.burst(x, y, palette.debris, Math.max(2, Math.round(amount * 0.34)), 4.2 * layer.intensity, 2, 6.8, 0.2, 0.62, 0.97, 0.72, 'debris');
+      return;
+    }
+    if (layer.treatment === 'void-tear') {
+      if (layer.intent === 'pull') {
+        this.inwardBurst(x, y, palette.accent, Math.max(3, Math.round(amount * 0.7)), radius, 7.2 * layer.intensity, 'streak');
+        this.inwardBurst(x, y, palette.glow, Math.max(2, Math.round(amount * 0.34)), radius * 0.72, 5.2 * layer.intensity, 'ring-fragment');
+      } else {
+        this.directionalBurst(x, y, dirX, dirY, palette.core, Math.max(3, Math.round(amount * 0.56)), 8.4 * layer.intensity, 'streak');
+        this.directionalBurst(x, y, -dirX, -dirY, palette.accent, Math.max(2, Math.round(amount * 0.32)), 5.6 * layer.intensity, 'ring-fragment');
+      }
+      if (layer.phase === 'activation' || layer.phase === 'release') {
+        this.brokenShockwave(x, y, palette.glow, radius * 0.82, 6, Math.min(0.42, layer.durationSeconds));
+      }
+      return;
+    }
+    if (layer.treatment === 'singularity') {
+      this.inwardBurst(x, y, palette.accent, Math.max(4, Math.round(amount * 0.8)), radius * 1.08, 8.2 * layer.intensity, 'streak');
+      this.inwardBurst(x, y, palette.glow, Math.max(3, Math.round(amount * 0.46)), radius * 0.76, 6.2 * layer.intensity, 'ring-fragment');
+      if (layer.phase === 'release') {
+        this.burst(x, y, palette.debris, Math.max(4, Math.round(amount * 0.7)), 7.8 * layer.intensity, 1.4, 5.8, 0.12, 0.48, 0.96, 0.5, 'streak');
+        this.brokenShockwave(x, y, palette.core, radius * 0.72, 7, Math.min(0.4, layer.durationSeconds));
+      }
+    }
   }
 
   private profileBloom(

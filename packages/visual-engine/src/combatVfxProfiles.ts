@@ -1,3 +1,10 @@
+import {
+  FROST_WARDEN_VFX_PROFILES,
+  ROCKET_VANGUARD_VFX_PROFILES,
+  THORN_COLOSSUS_VFX_PROFILES,
+  VOID_REAPER_VFX_PROFILES,
+  WATER_SHAPER_VFX_PROFILES
+} from './profiles';
 import type { Element } from '@kinetic/protocol';
 import type { VfxParticleShape } from './vfx';
 
@@ -20,6 +27,15 @@ export type CombatVfxPhase = (typeof COMBAT_VFX_PHASES)[number];
 export type CombatVfxIntent = (typeof COMBAT_VFX_INTENTS)[number];
 export type CombatVfxAnchor = 'activated' | 'resolved';
 export type CombatVfxHierarchy = 'basic' | 'skill' | 'payoff' | 'ultimate';
+export type CombatVfxTreatment =
+  | 'crystalline'
+  | 'rocket-exhaust'
+  | 'target-lock'
+  | 'starburst'
+  | 'water-flow'
+  | 'root-growth'
+  | 'void-tear'
+  | 'singularity';
 
 export interface CombatVfxColorOverride {
   core?: number;
@@ -38,6 +54,8 @@ export interface CombatVfxLayerDefinition {
   radiusScale?: number;
   /** Directional force cone instead of a radial pressure wave. */
   directional?: boolean;
+  /** Reusable renderer treatment for fighter-specific presentation without ability-ID checks. */
+  treatment?: CombatVfxTreatment;
 }
 
 export interface DualEyeBeamTelegraphDefinition {
@@ -78,6 +96,7 @@ export interface ResolvedCombatVfxLayer {
   intensity: number;
   radiusScale: number;
   directional: boolean;
+  treatment?: CombatVfxTreatment;
 }
 
 
@@ -98,6 +117,9 @@ export function resolveCombatVfxParticleStyle(
     if (layer.palette === 'fire') return { primary: 'flame', secondary: 'debris' };
     if (layer.palette === 'electric') return { primary: 'arc', secondary: 'ring-fragment' };
     if (layer.palette === 'ice') return { primary: 'shard', secondary: 'ring-fragment' };
+    if (layer.palette === 'water') return { primary: 'ribbon', secondary: 'droplet' };
+    if (layer.palette === 'nature') return { primary: 'wedge', secondary: 'debris' };
+    if (layer.palette === 'void') return { primary: 'streak', secondary: 'ring-fragment' };
     if (layer.palette === 'metal' || layer.palette === 'neutral') return { primary: 'debris', secondary: 'smoke' };
     return { primary: 'streak', secondary: 'ring-fragment' };
   }
@@ -113,24 +135,37 @@ export function resolveCombatVfxParticleStyle(
       : { primary: 'streak', secondary: 'spark' };
   }
   if (layer.intent === 'burst-fire' || layer.intent === 'projectile' || layer.intent === 'dash') {
-    return layer.palette === 'electric'
-      ? { primary: 'arc', secondary: 'streak' }
-      : { primary: 'streak', secondary: layer.palette === 'fire' ? 'ember' : 'spark' };
+    if (layer.palette === 'electric') return { primary: 'arc', secondary: 'streak' };
+    if (layer.palette === 'ice') return { primary: 'shard', secondary: 'streak' };
+    if (layer.palette === 'water') return { primary: 'ribbon', secondary: 'droplet' };
+    if (layer.palette === 'nature') return { primary: 'wedge', secondary: 'debris' };
+    if (layer.palette === 'void') return { primary: 'streak', secondary: 'ring-fragment' };
+    return { primary: 'streak', secondary: layer.palette === 'fire' ? 'ember' : 'spark' };
   }
   if (layer.intent === 'transformation' || layer.intent === 'ultimate') {
+    if (layer.palette === 'water') return { primary: 'ribbon', secondary: 'droplet' };
+    if (layer.palette === 'nature') return { primary: 'wedge', secondary: 'ribbon' };
+    if (layer.palette === 'void') return { primary: 'streak', secondary: 'ring-fragment' };
     return {
-      primary: layer.palette === 'fire' ? 'flame' : layer.palette === 'electric' ? 'arc' : 'ring-fragment',
-      secondary: layer.palette === 'metal' ? 'debris' : 'ribbon'
+      primary: layer.palette === 'fire' ? 'flame' : layer.palette === 'electric' ? 'arc' : layer.palette === 'ice' ? 'shard' : 'ring-fragment',
+      secondary: layer.palette === 'metal' ? 'debris' : layer.palette === 'ice' ? 'ring-fragment' : 'ribbon'
     };
   }
   if (layer.intent === 'status') {
     if (layer.palette === 'fire') return { primary: 'ember', secondary: 'flame' };
     if (layer.palette === 'electric') return { primary: 'arc', secondary: 'spark' };
     if (layer.palette === 'ice') return { primary: 'shard', secondary: 'spark' };
+    if (layer.palette === 'water') return { primary: 'droplet', secondary: 'ribbon' };
+    if (layer.palette === 'nature') return { primary: 'wedge', secondary: 'debris' };
+    if (layer.palette === 'void') return { primary: 'streak', secondary: 'ring-fragment' };
     return { primary: 'spark', secondary: 'ribbon' };
   }
   if (layer.intent === 'channel') {
     if (layer.palette === 'fire') return { primary: 'flame', secondary: 'ember' };
+    if (layer.palette === 'ice') return { primary: 'shard', secondary: 'ring-fragment' };
+    if (layer.palette === 'water') return { primary: 'ribbon', secondary: 'droplet' };
+    if (layer.palette === 'nature') return { primary: 'ribbon', secondary: 'debris' };
+    if (layer.palette === 'void') return { primary: 'streak', secondary: 'ring-fragment' };
     if (layer.palette === 'metal' || layer.palette === 'neutral') return { primary: 'smoke', secondary: 'debris' };
     return { primary: 'ribbon', secondary: 'spark' };
   }
@@ -473,7 +508,12 @@ const profiles: Readonly<Record<string, CombatVfxProfile>> = {
       { phase: 'sustain', intent: 'channel', anchor: 'activated', delaySeconds: 0.9, durationSeconds: 2.5, intensity: 0.8, radiusScale: 0.88 },
       { phase: 'release', intent: 'beam', anchor: 'resolved', durationSeconds: 0.28, intensity: 0.78, radiusScale: 0.82 }
     ]
-  }
+  },
+  ...FROST_WARDEN_VFX_PROFILES,
+  ...ROCKET_VANGUARD_VFX_PROFILES,
+  ...WATER_SHAPER_VFX_PROFILES,
+  ...THORN_COLOSSUS_VFX_PROFILES,
+  ...VOID_REAPER_VFX_PROFILES
 };
 
 export const COMBAT_VFX_HIERARCHY_SCALE: Readonly<Record<CombatVfxHierarchy, number>> = {
@@ -532,6 +572,7 @@ export function resolveCombatVfxLayer(
     durationSeconds: Math.max(0.06, layer.useCastDuration ? castSeconds : layer.durationSeconds ?? phaseDuration[layer.phase]),
     intensity: Math.max(0.1, (layer.intensity ?? 1) * scale),
     radiusScale: Math.max(0.2, layer.radiusScale ?? 1),
-    directional: layer.directional ?? false
+    directional: layer.directional ?? false,
+    ...(layer.treatment ? { treatment: layer.treatment } : {})
   };
 }
