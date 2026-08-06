@@ -1,4 +1,5 @@
 import { Container, Graphics } from 'pixi.js';
+import { drawDirectionalBloom, drawRadialBloom, traceWobbleOutline } from './effects/bloomShapes';
 import { classifyBlast, isMissileCascadeFrame, isMissileWeapon, shouldPresentDamage } from './combatFeedback';
 import { getPrimaryAttack, getProjectileSource, type ArenaDefinition } from '@kinetic/content';
 import type { EntitySnapshot, ProjectileSnapshot, SimulationEvent, WorldSnapshot } from '@kinetic/protocol';
@@ -47,6 +48,12 @@ interface TimedGraphic {
   active: boolean;
   life: number;
   maxLife: number;
+  /**
+   * Optional scale envelope. Shockwaves expand, pull effects contract. When
+   * omitted the historical 0.82 -> 1.1 expansion is used.
+   */
+  scaleFrom?: number | undefined;
+  scaleTo?: number | undefined;
 }
 
 interface ResidualParticle extends TimedGraphic {
@@ -444,9 +451,18 @@ export class LayeredVfxEngine {
     const style = resolveCombatVfxParticleStyle(layer);
     const shape = style.primary;
     const secondaryShape = style.secondary;
+    // Aimed intents get an oriented glow; everything else gets a wobbled shell.
+    const aimed = layer.intent === 'projectile'
+      || layer.intent === 'burst-fire'
+      || layer.intent === 'beam'
+      || layer.intent === 'dash'
+      || (layer.intent === 'knockback' && layer.directional);
+    const focus = !aimed ? 0 : layer.intent === 'beam' || layer.intent === 'projectile' ? 1 : 0.78;
+    const bloomDirX = aimed ? dirX : 0;
+    const bloomDirY = aimed ? dirY : 0;
 
     if (layer.phase === 'anticipation') {
-      this.spawnProfileBloom(x, y, palette.core, palette.glow, radius * 0.42, Math.min(0.28, layer.durationSeconds), glowStrength * 0.68);
+      this.spawnProfileBloom(x, y, palette.core, palette.glow, radius * 0.42, Math.min(0.28, layer.durationSeconds), glowStrength * 0.68, bloomDirX, bloomDirY, focus);
       if (layer.intent === 'pull') {
         this.spawnInwardResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.72), radius * 0.92, 4.4 * layer.intensity);
       } else {
@@ -458,7 +474,19 @@ export class LayeredVfxEngine {
       return;
     }
     if (layer.phase === 'activation') {
-      this.spawnProfileBloom(x, y, palette.core, palette.glow, radius, Math.min(0.32, layer.durationSeconds), glowStrength);
+      // Shaped silhouette first: it shares the weapon-effect pool with the glow,
+      // so claiming it second meant it was the piece dropped under budget
+      // pressure and only the round glow survived.
+      if (layer.intent === 'explosion') {
+        this.spawnBrokenRing(x, y, palette.glow, radius * 0.94, layer.hierarchy === 'ultimate' ? 10 : 7, Math.min(0.46, layer.durationSeconds * 1.45));
+      } else if (layer.intent === 'knockback' && !layer.directional) {
+        this.spawnBrokenRing(x, y, palette.glow, radius * 0.88, 6, Math.min(0.38, layer.durationSeconds * 1.35));
+      } else if (layer.intent === 'pull') {
+        this.spawnConvergingArcs(x, y, palette.glow, radius * 1.05, 7, Math.min(0.44, layer.durationSeconds * 1.4));
+      } else if (layer.intent === 'transformation' || layer.intent === 'ultimate') {
+        this.spawnBrokenRing(x, y, palette.accent, radius * 0.9, 9, Math.min(0.42, layer.durationSeconds * 1.3));
+      }
+      this.spawnProfileBloom(x, y, palette.core, palette.glow, radius, Math.min(0.32, layer.durationSeconds), glowStrength, bloomDirX, bloomDirY, focus);
       if (layer.intent === 'pull') {
         this.spawnInwardResidualBurst(x, y, palette.accent, shape, count, radius, 7.2 * layer.intensity);
         this.spawnInwardResidualBurst(x, y, palette.glow, shape, Math.round(count * 0.48), radius * 0.7, 5.2 * layer.intensity);
@@ -473,7 +501,6 @@ export class LayeredVfxEngine {
       } else if (layer.intent === 'explosion') {
         this.spawnResidualBurst(x, y, palette.accent, shape, Math.round(count * 1.12), 8.6 * layer.intensity);
         this.spawnResidualBurst(x, y, palette.debris, secondaryShape, Math.round(count * 0.55), 5.2 * layer.intensity);
-        this.spawnBrokenRing(x, y, palette.glow, radius * 0.94, layer.hierarchy === 'ultimate' ? 10 : 7, Math.min(0.46, layer.durationSeconds * 1.45));
       } else if (layer.intent === 'knockback') {
         if (layer.directional) {
           this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.core, shape, Math.round(count * 1.05), 10.8 * layer.intensity);
@@ -481,13 +508,12 @@ export class LayeredVfxEngine {
         } else {
           this.spawnResidualBurst(x, y, palette.core, shape, Math.round(count * 0.82), 7.8 * layer.intensity);
           this.spawnResidualBurst(x, y, palette.accent, secondaryShape, Math.round(count * 0.58), 5.8 * layer.intensity);
-          this.spawnBrokenRing(x, y, palette.glow, radius * 0.88, 6, Math.min(0.38, layer.durationSeconds * 1.35));
         }
       }
       return;
     }
     if (layer.phase === 'sustain') {
-      this.spawnProfileBloom(x, y, palette.core, palette.accent, radius * 0.72, Math.min(0.42, layer.durationSeconds), glowStrength * 0.62);
+      this.spawnProfileBloom(x, y, palette.core, palette.accent, radius * 0.72, Math.min(0.42, layer.durationSeconds), glowStrength * 0.62, bloomDirX, bloomDirY, focus);
       if (layer.intent === 'pull') {
         this.spawnInwardResidualBurst(x, y, palette.glow, shape, Math.round(count * 0.74), radius * 0.84, 4.6 * layer.intensity);
       } else {
@@ -504,7 +530,7 @@ export class LayeredVfxEngine {
       }
       return;
     }
-    this.spawnProfileBloom(x, y, palette.core, palette.glow, radius * 0.55, Math.min(0.22, layer.durationSeconds), glowStrength * 0.58);
+    this.spawnProfileBloom(x, y, palette.core, palette.glow, radius * 0.55, Math.min(0.22, layer.durationSeconds), glowStrength * 0.58, bloomDirX, bloomDirY, focus);
     if (layer.intent === 'pull') {
       this.spawnInwardResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.62), radius * 0.72, 5.2 * layer.intensity);
     } else if (layer.intent === 'knockback' && layer.directional) {
@@ -515,7 +541,14 @@ export class LayeredVfxEngine {
   }
 
   private updateTimedGraphics(dtSeconds: number): void {
-    for (const item of [...this.groundMarks, ...this.weaponEffects]) {
+    // Two explicit loops rather than a spread: this runs every frame and the
+    // spread allocated two throwaway arrays per frame.
+    this.advanceTimedGraphics(this.groundMarks, dtSeconds);
+    this.advanceTimedGraphics(this.weaponEffects, dtSeconds);
+  }
+
+  private advanceTimedGraphics(items: readonly TimedGraphic[], dtSeconds: number): void {
+    for (const item of items) {
       if (!item.active) continue;
       item.life -= dtSeconds;
       if (item.life <= 0) {
@@ -524,7 +557,11 @@ export class LayeredVfxEngine {
       }
       const ratio = item.life / item.maxLife;
       item.node.alpha = item.maxLife > 1 ? Math.min(0.72, ratio * 0.72) : ratio;
-      if (item.maxLife <= 1) item.node.scale.set(0.82 + (1 - ratio) * 0.28);
+      if (item.maxLife <= 1) {
+        const from = item.scaleFrom ?? 0.82;
+        const to = item.scaleTo ?? 1.1;
+        item.node.scale.set(from + (to - from) * (1 - ratio));
+      }
     }
   }
 
@@ -614,14 +651,40 @@ export class LayeredVfxEngine {
           if (!status) continue;
           const color = STATUS_COLORS[status.statusId] ?? palette.accent;
           const radius = entity.radius * (1.08 + statusIndex * 0.12) + Math.sin(elapsedSeconds * 4 + statusIndex) * 1.5;
-          this.fighterAnchorGraphics.circle(entity.x, entity.y, radius).stroke({ color, width: 2.2, alpha: (0.28 - statusIndex * 0.04) * quality.glowMultiplier });
+          // Segmented rather than closed: three drifting arcs still read as a
+          // status aura without stacking concentric bubbles around a fighter.
+          this.drawSegmentedRing(
+            this.fighterAnchorGraphics,
+            entity.x,
+            entity.y,
+            radius,
+            3,
+            0.6,
+            elapsedSeconds * 0.55 + statusIndex * 1.2,
+            color,
+            2.2,
+            (0.32 - statusIndex * 0.04) * quality.glowMultiplier
+          );
         }
       }
       const hit = hitByEntity.get(entity.id);
       if (hit) {
         const progress = 1 - hit.life / hit.maxLife;
         this.fighterAnchorGraphics.circle(entity.x, entity.y, entity.radius * (0.62 + progress * 0.8)).fill({ color: hit.color, alpha: (1 - progress) * 0.32 });
-        this.fighterAnchorGraphics.circle(entity.x, entity.y, entity.radius * (1 + progress * 0.65)).stroke({ color: hit.color, width: 3, alpha: (1 - progress) * 0.72 });
+        // The expanding shockwave is broken into shards so a hit reads as an
+        // impact rather than an expanding soap film.
+        this.drawSegmentedRing(
+          this.fighterAnchorGraphics,
+          entity.x,
+          entity.y,
+          entity.radius * (1 + progress * 0.65),
+          5,
+          0.52,
+          entity.id * 0.7 + progress * 0.9,
+          hit.color,
+          3,
+          (1 - progress) * 0.72
+        );
       }
     }
   }
@@ -706,13 +769,28 @@ export class LayeredVfxEngine {
     }
   }
 
-  private spawnWeaponEffect(x: number, y: number, dirX: number, dirY: number, range: number, angleDegrees: number, shape: string, color: number): void {
-    if (this.activeCount(this.weaponEffects) >= this.budget.maxWeaponEffects) return;
+  /**
+   * Reserves a pooled weapon-effect graphic and resets every field the pool can
+   * carry over between uses. Callers must claim the shape that carries the
+   * silhouette before claiming any glow, because both draw from this pool and
+   * under budget pressure the first claim is the one that survives.
+   */
+  private claimWeaponEffect(life: number): TimedGraphic | null {
+    if (this.activeCount(this.weaponEffects) >= this.budget.maxWeaponEffects) return null;
     const effect = this.weaponEffects.find((item) => !item.active);
-    if (!effect) return;
+    if (!effect) return null;
     effect.active = true;
-    effect.life = effect.maxLife = shape === 'beam' ? 0.12 : 0.24;
+    effect.life = effect.maxLife = life;
+    effect.scaleFrom = undefined;
+    effect.scaleTo = undefined;
     effect.node.clear();
+    effect.node.rotation = 0;
+    return effect;
+  }
+
+  private spawnWeaponEffect(x: number, y: number, dirX: number, dirY: number, range: number, angleDegrees: number, shape: string, color: number): void {
+    const effect = this.claimWeaponEffect(shape === 'beam' ? 0.12 : 0.24);
+    if (!effect) return;
     const facing = Math.atan2(dirY, dirX);
     if (shape === 'thrust' || shape === 'beam') {
       effect.node.moveTo(0, 0).lineTo(Math.cos(facing) * range * 0.82, Math.sin(facing) * range * 0.82).stroke({ color, width: shape === 'beam' ? 7 : 5, alpha: 0.72 });
@@ -735,6 +813,14 @@ export class LayeredVfxEngine {
     effect.node.visible = true;
   }
 
+  /**
+   * Ability glow.
+   *
+   * The silhouette is deliberately asymmetric. Aimed intents render a forward
+   * lens with a leading hot spot; radial intents render a jittered shell with an
+   * off-centre highlight. Perfectly concentric discs read as floating bubbles
+   * and made every ability look alike regardless of what it actually did.
+   */
   private spawnProfileBloom(
     x: number,
     y: number,
@@ -742,19 +828,19 @@ export class LayeredVfxEngine {
     glowColor: number,
     radius: number,
     life: number,
-    strength: number
+    strength: number,
+    dirX = 0,
+    dirY = 0,
+    focus = 0
   ): void {
-    if (this.activeCount(this.weaponEffects) >= this.budget.maxWeaponEffects) return;
-    const effect = this.weaponEffects.find((item) => !item.active);
+    const effect = this.claimWeaponEffect(Math.max(0.08, life));
     if (!effect) return;
-    effect.active = true;
-    effect.life = effect.maxLife = Math.max(0.08, life);
-    effect.node.clear();
-    effect.node.circle(0, 0, radius).fill({ color: glowColor, alpha: 0.08 * strength });
-    effect.node.circle(0, 0, radius * 0.64).fill({ color: glowColor, alpha: 0.13 * strength });
-    effect.node.circle(0, 0, radius * 0.28).fill({ color: coreColor, alpha: 0.58 * strength });
-    effect.node.circle(0, 0, radius * 0.16).fill({ color: 0xffffff, alpha: 0.76 * strength });
-    effect.node.circle(0, 0, radius * 0.78).stroke({ color: glowColor, width: Math.max(1.5, radius * 0.035), alpha: 0.34 * strength });
+    const length = Math.hypot(dirX, dirY);
+    if (focus > 0 && length > 0.0001) {
+      drawDirectionalBloom(effect.node, dirX / length, dirY / length, coreColor, glowColor, radius, strength, focus);
+    } else {
+      drawRadialBloom(effect.node, coreColor, glowColor, radius, strength, this.randomSource);
+    }
     effect.node.position.set(x, y);
     effect.node.alpha = 1;
     effect.node.scale.set(1);
@@ -762,12 +848,8 @@ export class LayeredVfxEngine {
   }
 
   private spawnBrokenRing(x: number, y: number, color: number, radius: number, segments: number, life: number): void {
-    if (this.activeCount(this.weaponEffects) >= this.budget.maxWeaponEffects) return;
-    const effect = this.weaponEffects.find((item) => !item.active);
+    const effect = this.claimWeaponEffect(Math.max(0.1, life));
     if (!effect) return;
-    effect.active = true;
-    effect.life = effect.maxLife = Math.max(0.1, life);
-    effect.node.clear();
     const count = Math.max(4, segments);
     for (let index = 0; index < count; index += 1) {
       const start = index / count * Math.PI * 2 + this.random() * 0.05;
@@ -781,10 +863,46 @@ export class LayeredVfxEngine {
         .quadraticCurveTo(Math.cos(mid) * radius * 1.08, Math.sin(mid) * radius * 1.08, x2, y2)
         .stroke({ color, width: Math.max(1.5, radius * 0.028), alpha: 0.62 });
     }
+    // Shockwaves drive outward rather than settling at the default envelope.
+    effect.scaleFrom = 0.68;
+    effect.scaleTo = 1.32;
     effect.node.position.set(x, y);
     effect.node.alpha = 1;
-    effect.node.scale.set(0.72);
+    effect.node.scale.set(0.68);
     effect.node.visible = true;
+  }
+
+  /**
+   * Inward-pointing chevrons that contract as they fade. Pull intents used to
+   * emit the same expanding glow as everything else, which read as the opposite
+   * of what the ability does.
+   */
+  private spawnConvergingArcs(x: number, y: number, color: number, radius: number, segments: number, life: number): void {
+    const effect = this.claimWeaponEffect(Math.max(0.1, life));
+    if (!effect) return;
+    const count = Math.max(4, segments);
+    const spread = Math.PI / count * 0.72;
+    const width = Math.max(1.5, radius * 0.03);
+    for (let index = 0; index < count; index += 1) {
+      const angle = index / count * Math.PI * 2 + this.random() * 0.08;
+      const outer = radius * (0.86 + this.random() * 0.2);
+      const inner = radius * 0.32;
+      effect.node.moveTo(Math.cos(angle - spread) * outer, Math.sin(angle - spread) * outer)
+        .lineTo(Math.cos(angle) * inner, Math.sin(angle) * inner)
+        .lineTo(Math.cos(angle + spread) * outer, Math.sin(angle + spread) * outer)
+        .stroke({ color, width, alpha: 0.58 });
+    }
+    effect.scaleFrom = 1.24;
+    effect.scaleTo = 0.66;
+    effect.node.position.set(x, y);
+    effect.node.alpha = 1;
+    effect.node.scale.set(1.24);
+    effect.node.visible = true;
+  }
+
+  /** Ragged closed outline used for blast decals instead of a plain disc. */
+  private traceIrregularBlob(node: Graphics, cx: number, cy: number, radius: number, points: number, jitter: number): void {
+    traceWobbleOutline(node, cx, cy, radius, points, jitter, this.random() * Math.PI * 2);
   }
 
   private spawnGroundMark(x: number, y: number, kind: string, color: number, radius: number): void {
@@ -795,8 +913,10 @@ export class LayeredVfxEngine {
     mark.node.clear();
     const r = Math.max(8, Math.min(90, radius));
     if (kind === 'scorch') {
-      mark.node.circle(0, 0, r).fill({ color, alpha: 0.2 });
-      mark.node.circle(0, 0, r * 0.72).stroke({ color: 0x130d0b, width: 4, alpha: 0.34 });
+      this.traceIrregularBlob(mark.node, 0, 0, r, 11, 0.22);
+      mark.node.fill({ color, alpha: 0.2 });
+      this.traceIrregularBlob(mark.node, 0, 0, r * 0.66, 9, 0.26);
+      mark.node.stroke({ color: 0x130d0b, width: 4, alpha: 0.34 });
     } else if (kind === 'frost') {
       mark.node.circle(0, 0, r).fill({ color, alpha: 0.08 });
       for (let index = 0; index < 6; index += 1) {
@@ -811,12 +931,15 @@ export class LayeredVfxEngine {
         mark.node.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner).lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer).stroke({ color, width: 2.5, alpha: 0.46 });
       }
     } else if (kind === 'wet') {
-      mark.node.circle(-r * 0.22, 0, r * 0.7).fill({ color, alpha: 0.12 });
-      mark.node.circle(r * 0.35, r * 0.12, r * 0.48).fill({ color, alpha: 0.1 });
+      this.traceIrregularBlob(mark.node, -r * 0.22, 0, r * 0.7, 10, 0.24);
+      mark.node.fill({ color, alpha: 0.12 });
+      this.traceIrregularBlob(mark.node, r * 0.35, r * 0.12, r * 0.48, 8, 0.28);
+      mark.node.fill({ color, alpha: 0.1 });
     } else if (kind === 'void') {
-      mark.node.circle(0, 0, r).fill({ color, alpha: 0.16 });
-      mark.node.circle(0, 0, r * 0.72).stroke({ color: 0xa868ff, width: 3, alpha: 0.36 });
-      mark.node.circle(0, 0, r * 0.38).stroke({ color: 0x6be8ff, width: 2, alpha: 0.28 });
+      this.traceIrregularBlob(mark.node, 0, 0, r, 10, 0.2);
+      mark.node.fill({ color, alpha: 0.16 });
+      this.drawSegmentedRing(mark.node, 0, 0, r * 0.72, 4, 0.58, this.random() * Math.PI, 0xa868ff, 3, 0.36);
+      this.drawSegmentedRing(mark.node, 0, 0, r * 0.38, 3, 0.5, this.random() * Math.PI, 0x6be8ff, 2, 0.28);
     }
     mark.node.position.set(x, y);
     mark.node.rotation = this.random() * Math.PI * 2;
@@ -1017,6 +1140,26 @@ export class LayeredVfxEngine {
     }
   }
 
+  /** Closed ring broken into evenly spaced arcs with gaps between them. */
+  private drawSegmentedRing(
+    graphics: Graphics,
+    x: number,
+    y: number,
+    radius: number,
+    segments: number,
+    coverage: number,
+    rotation: number,
+    color: number,
+    width: number,
+    alpha: number
+  ): void {
+    const step = Math.PI * 2 / Math.max(2, segments);
+    for (let index = 0; index < segments; index += 1) {
+      const start = rotation + index * step;
+      this.drawArc(graphics, x, y, radius, start, start + step * coverage, color, width, alpha);
+    }
+  }
+
   private drawArc(graphics: Graphics, x: number, y: number, radius: number, start: number, end: number, color: number, width: number, alpha: number): void {
     const segments = Math.max(8, Math.ceil(Math.abs(end - start) / (Math.PI / 24)));
     for (let index = 0; index <= segments; index += 1) {
@@ -1038,4 +1181,7 @@ export class LayeredVfxEngine {
     this.noiseState = (Math.imul(this.noiseState, 1664525) + 1013904223) >>> 0;
     return this.noiseState / 0x100000000;
   }
+
+  /** Bound noise source handed to the shared shape helpers. */
+  private readonly randomSource = (): number => this.random();
 }
