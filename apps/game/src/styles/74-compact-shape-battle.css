@@ -179,3 +179,20 @@ html[data-touch-size='large'] .app-shell:is(.display-round, .display-near-square
   padding: 5px 8px;
   font-size: .7rem;
 }
+
+/* Keep essential battle actions reachable on watch-class screens without
+   letting the dock enter clipped corner regions. */
+.app-shell:is(.display-round, .display-near-square).view-battle .mobile-battle-dock {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 300px) !important;
+  margin: 6px auto 0;
+  padding: 5px;
+  gap: 4px;
+  border-radius: 12px;
+}
+
+.app-shell:is(.display-round, .display-near-square).view-battle .mobile-battle-dock .ui-button {
+  min-height: 30px;
+  padding: 5px 4px;
+  font-size: 8px;
+}

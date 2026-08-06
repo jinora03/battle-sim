@@ -37,11 +37,12 @@ describe('Stage 8.8A mobile controls and renderer stability', () => {
     expect(normalizeAppSettings({ touchSteeringSensitivity: 2 }, touchPhone).touchSteeringSensitivity).toBe(1.6);
   });
 
-  it('removes duplicate floating mobile actions while retaining touch controls in the arena', () => {
+  it('keeps one in-flow mobile action dock while retaining touch controls in the arena', () => {
     const source = readFileSync(new URL('../apps/game/src/app/AppWorkspace.tsx', import.meta.url), 'utf8');
     expect(source).toContain("deviceCapabilities.touchFirst ? 'mobile-commandless' : ''");
     expect(source).toContain('!deviceCapabilities.touchFirst && (');
-    expect(source).not.toContain('className="mobile-battle-dock"');
+    expect(source).toContain('className="mobile-battle-dock"');
+    expect(source).toContain('deviceCapabilities.touchFirst && !battleDrawerOpen');
     expect(source).toContain('sensitivity={settings.touchSteeringSensitivity}');
     expect(source).toContain("'--touch-control-opacity': settings.touchControlOpacity");
   });

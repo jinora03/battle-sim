@@ -1,6 +1,7 @@
 import { getFighter, type GameModeDefinition } from '@kinetic/content';
 import type { DeviceCapabilities, ViewportMetrics } from '@kinetic/platform';
-import type { BattleSetup, RuntimeDiagnostics } from '../../runtime/BattleRuntime';
+import type { RuntimeDiagnostics } from '../../runtime/BattleRuntime';
+import type { BattleSetup } from '../../runtime/BattleSetup';
 
 export function sameBattleSetup(a: BattleSetup, b: BattleSetup): boolean {
   return a.fighterAId === b.fighterAId

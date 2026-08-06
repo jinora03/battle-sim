@@ -68,7 +68,8 @@ describe('Stage 8.8G UI polish', () => {
     const lab = read('../apps/game/src/TrainingLabView.tsx');
     const controls = read('../apps/game/src/features/training/TrainingControlDeck.tsx');
 
-    expect(workspace).not.toContain('mobile-battle-dock');
+    expect(workspace).toContain('mobile-battle-dock');
+    expect(workspace).toContain('deviceCapabilities.touchFirst && !battleDrawerOpen');
     expect(lab).not.toContain('training-mobile-dock');
     expect(lab).not.toContain('training-touch-pad');
     expect(lab).toContain('<TrainingControlDeck');
@@ -76,14 +77,14 @@ describe('Stage 8.8G UI polish', () => {
     expect(controls).toContain('training-slot-scroll');
   });
 
-  it('moves the new-battle action ahead of Team 1 and removes release diagnostics', () => {
+  it('moves the new-battle action ahead of Team 1 and keeps metrics outside settings', () => {
     const drawer = read('../apps/game/src/features/battle/BattleSetupDrawer.tsx');
     const workspace = read('../apps/game/src/app/AppWorkspace.tsx');
 
     expect(drawer.indexOf('battle-setup-start-zone-top')).toBeLessThan(drawer.indexOf('htmlFor="fighter-a"'));
     expect(drawer).toContain('Touch steering sensitivity');
-    expect(workspace).not.toContain('battle-debug-panel');
-    expect(workspace).not.toContain('Export replay JSON');
+    expect(workspace).toContain('<BattlePerformanceMetrics');
+    expect(drawer).not.toContain('showPerformanceHud');
   });
 
   it('persists and clamps touch steering sensitivity', () => {

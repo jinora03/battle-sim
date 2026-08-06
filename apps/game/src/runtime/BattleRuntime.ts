@@ -7,7 +7,6 @@ import {
   getDifficultyPreset,
   type AchievementUnlock,
   type BattleCompletionSummary,
-  type DifficultyId,
   type FighterStats
 } from '@kinetic/meta';
 import type {
@@ -20,7 +19,6 @@ import type {
   ControllerKind,
   SimulationCommand,
   SimulationEvent,
-  TeamCollisionMode,
   Vec2,
   WorldSnapshot
 } from '@kinetic/protocol';
@@ -28,6 +26,7 @@ import { PixiBattleRenderer, resolveMassBattleRenderPolicy, type RenderDiagnosti
 import { ReplayRecorder } from '@kinetic/replay';
 import { checksumSnapshot, LocalSimulationRunner, SIM_TICK_MS } from '@kinetic/simulation';
 import type { PresentationSettings } from '@kinetic/visual-engine';
+import { DEFAULT_BATTLE_SETUP, type BattleSetup } from './BattleSetup';
 import { diagnosticsIntervalForEntityCount, metaEvaluationIntervalForEntityCount, RuntimePerformanceProfiler, type PerformanceBottleneck, type PerformancePressure } from './performance';
 
 export interface RecentSkillActivity {
@@ -108,38 +107,6 @@ export interface RuntimeMetaCallbacks {
   onAchievementUnlocked?(unlock: AchievementUnlock): void;
   onBattleCompleted?(summary: BattleCompletionSummary): void;
 }
-
-export interface BattleSetup {
-  fighterAId: string;
-  fighterBId: string;
-  moduleIdsA: string[];
-  moduleIdsB: string[];
-  controllerA: ControllerKind;
-  controllerB: ControllerKind;
-  arenaId: string;
-  modeId: string;
-  teamSizeA: number;
-  teamSizeB: number;
-  friendlyFire: boolean;
-  teamCollision: TeamCollisionMode;
-  difficulty: DifficultyId;
-}
-
-const DEFAULT_SETUP: BattleSetup = {
-  fighterAId: 'gunner',
-  fighterBId: 'bomber',
-  moduleIdsA: [],
-  moduleIdsB: [],
-  controllerA: 'player',
-  controllerB: 'ai',
-  arenaId: 'iron-pit',
-  modeId: 'duel',
-  teamSizeA: 1,
-  teamSizeB: 1,
-  friendlyFire: false,
-  teamCollision: 'full',
-  difficulty: 'standard'
-};
 
 export class BattleRuntime {
   private runner!: LocalSimulationRunner;
@@ -224,7 +191,7 @@ export class BattleRuntime {
     seed: number,
     settings: PresentationSettings,
     private readonly onDiagnostics: (diagnostics: RuntimeDiagnostics) => void,
-    setup: BattleSetup = DEFAULT_SETUP,
+    setup: BattleSetup = DEFAULT_BATTLE_SETUP,
     private readonly metaCallbacks: RuntimeMetaCallbacks = {},
     initialAchievementIds: readonly string[] = []
   ) {

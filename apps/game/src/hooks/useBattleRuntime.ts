@@ -11,10 +11,10 @@ import type { AppSettings } from '@kinetic/platform';
 import type { ReleaseView } from '../ReleaseHome';
 import {
   BattleRuntime,
-  type BattleSetup,
   type RuntimeDiagnostics,
   type RuntimeMetaCallbacks
 } from '../runtime/BattleRuntime';
+import type { BattleSetup } from '../runtime/BattleSetup';
 import {
   battleIntroDurationMs,
   battleLaunchPausesSimulation,

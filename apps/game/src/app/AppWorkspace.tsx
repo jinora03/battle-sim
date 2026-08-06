@@ -10,7 +10,9 @@ import { AppNavigation, DrawerScrim, NeonButton } from '../ui/NeonUI';
 import { BattleIntroOverlay } from '../BattleIntroOverlay';
 import { hexColor } from '../ui/FormControls';
 import { BattleObjectiveHeader } from '../features/battle/BattleObjectiveHeader';
+import { BattlePerformanceMetrics } from '../features/battle/BattlePerformanceMetrics';
 import { BattleSetupDrawer } from '../features/battle/BattleSetupDrawer';
+import { LandscapeHint } from '../features/battle/LandscapeHint';
 import { DirectionPad, FighterCard, SkillIndicator } from '../features/battle/BattleFighterControls';
 import { DeveloperFighterWorkshop } from '../features/creator/DeveloperFighterWorkshop';
 import type { AppController } from './AppController';
@@ -40,7 +42,6 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
     landscapeHintDismissed,
     setLandscapeHintDismissed,
     battleDrawerOpen,
-    setBattleDrawerOpen,
     pausedByUser,
     battleLaunchPhase,
     diagnostics,
@@ -87,6 +88,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
     playAsFighter,
     setRosterOpponent,
     openBattleSetup,
+    closeBattleSetup,
     startConfiguredBattle
   } = battle;
   const {
@@ -170,7 +172,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
         <section className={`${view === 'battle' ? 'workspace' : 'workspace battle-workspace-dormant'} ${battleDrawerOpen ? 'battle-drawer-open' : ''}`}>
           <BattleSetupDrawer
             open={battleDrawerOpen}
-            onClose={() => setBattleDrawerOpen(false)}
+            onClose={closeBattleSetup}
             setupPanelRef={setupPanelRef}
             setupPanelOpen={setupPanelOpen}
             onSetupPanelToggle={setSetupPanelOpen}
@@ -200,7 +202,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
             onRestoreSettings={restoreRecommendedSettings}
             onStartConfiguredBattle={startConfiguredBattle}
           />
-          <DrawerScrim open={battleDrawerOpen} onClose={() => setBattleDrawerOpen(false)} label="Close battle setup" className="battle-drawer-scrim" />
+          <DrawerScrim open={battleDrawerOpen} onClose={closeBattleSetup} label="Close battle setup" className="battle-drawer-scrim" />
 
           <div className="arena-column">
             <section className={`battle-stage ${deviceCapabilities.touchFirst ? 'mobile-commandless' : ''}`} ref={battleStageRef}>
@@ -261,10 +263,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
                 {pausedBySystem && <div className="system-pause-badge">Paused while the app is in the background</div>}
                 {pausedByUser && !pausedBySystem && !diagnostics.battleEnded && <div className="system-pause-badge user-pause-badge">Battle paused · press Resume battle to continue</div>}
                 {touchControlsVisible && viewportMetrics.orientation === 'portrait' && !diagnostics.battleEnded && !landscapeHintDismissed && (
-                  <div className="landscape-hint-badge" role="note">
-                    <span>Rotate to landscape for a wider battle view</span>
-                    <button type="button" onClick={() => setLandscapeHintDismissed(true)} aria-label="Dismiss landscape suggestion">×</button>
-                  </div>
+                  <LandscapeHint onDismiss={() => setLandscapeHintDismissed(true)} />
                 )}
                 {diagnostics.battleEnded && diagnostics.result && (
                   <div className="match-result-overlay" role="dialog" aria-labelledby="match-result-title" aria-describedby="match-result-description">
@@ -302,6 +301,23 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
               )}
               </div>
             </section>
+
+            {deviceCapabilities.touchFirst && !battleDrawerOpen && (
+              <div className="mobile-battle-dock" aria-label="Quick battle controls">
+                <NeonButton tone="ghost" size="small" onClick={openBattleSetup} aria-controls="battle-setup-drawer" aria-expanded={battleDrawerOpen}>Setup</NeonButton>
+                <NeonButton tone="random" size="small" onClick={startRandomMatchup}>Random</NeonButton>
+                <NeonButton tone="utility" size="small" onClick={replaySameBattle}>Replay</NeonButton>
+                <NeonButton
+                  tone={pausedByUser ? 'success' : 'pause'}
+                  size="small"
+                  onClick={toggleBattlePaused}
+                  disabled={diagnostics.battleEnded || pausedBySystem || battleLaunchPhase !== 'running'}
+                  aria-pressed={pausedByUser}
+                >
+                  {pausedByUser ? 'Resume' : 'Pause'}
+                </NeonButton>
+              </div>
+            )}
 
             {diagnostics.recentAbilityRejection && (
               <div className="ability-rejection-strip" role="status" aria-live="polite">
@@ -376,6 +392,8 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
 
 
           <div className="battle-secondary-panels">
+            <BattlePerformanceMetrics diagnostics={diagnostics} viewportMetrics={viewportMetrics} fighterCount={fighters.length} />
+
             <details className="panel-section battle-activity-panel" open>
               <summary className="panel-summary"><span><small>Battle log</small><strong>Arena activity & achievements</strong></span><em>{diagnostics.recentArenaActivity.length}</em></summary>
               <div className="battle-activity-grid">

@@ -2,17 +2,26 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CONTENT_VERSION, getFighter, getFighterModule } from '@kinetic/content';
 import { ENGINE_VERSION } from '@kinetic/simulation';
+import { DEFAULT_BATTLE_SETUP } from '../apps/game/src/runtime/BattleSetup';
 
 describe('Stage 8.8B battle setup UX', () => {
   it('uses the requested Gunner tuned loadout against standard Bomber in the small arena', () => {
-    const controllerSource = readFileSync(new URL('../apps/game/src/app/AppController.tsx', import.meta.url), 'utf8');
     const expectedModules = ['shoulder-missile-pod', 'deflector-plate', 'recoil-thrusters', 'targeting-drone'];
 
-    expect(controllerSource).toContain("fighterAId: 'gunner'");
-    expect(controllerSource).toContain("fighterBId: 'bomber'");
-    expect(controllerSource).toContain("arenaId: 'iron-pit'");
+    expect(DEFAULT_BATTLE_SETUP).toMatchObject({
+      fighterAId: 'gunner',
+      fighterBId: 'bomber',
+      arenaId: 'iron-pit',
+      modeId: 'duel',
+      controllerA: 'player',
+      controllerB: 'ai',
+      teamSizeA: 1,
+      teamSizeB: 1
+    });
+    expect(DEFAULT_BATTLE_SETUP.moduleIdsA).toEqual(expectedModules);
+    expect(DEFAULT_BATTLE_SETUP.moduleIdsB).toEqual([]);
+
     for (const moduleId of expectedModules) {
-      expect(controllerSource).toContain(`'${moduleId}'`);
       expect(getFighterModule(moduleId).compatibleFighterIds).toContain('gunner');
     }
     expect(getFighter('gunner').moduleSlots).toBeDefined();
