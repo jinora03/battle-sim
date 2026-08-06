@@ -83,7 +83,7 @@ describe('Stage 8.8G UI polish', () => {
 
     expect(drawer.indexOf('battle-setup-start-zone-top')).toBeLessThan(drawer.indexOf('htmlFor="fighter-a"'));
     expect(drawer).toContain('Analog stick sensitivity');
-    expect(drawer).not.toContain('Touch steering sensitivity');    
+    expect(drawer).not.toContain('Touch steering sensitivity');
     expect(workspace).toContain('<BattlePerformanceMetrics');
     expect(drawer).not.toContain('showPerformanceHud');
   });
