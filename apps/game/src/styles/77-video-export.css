@@ -1,0 +1,178 @@
+.battle-video-export {
+  overflow: hidden;
+}
+
+.video-export-content {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.video-export-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.video-export-format {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-width: 0;
+}
+
+.video-export-format span {
+  padding: 4px 7px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .025);
+  color: #b8cbe0;
+  font-size: .64rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.video-export-capability {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 999px;
+  color: #89a4bf;
+  font-size: .62rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: .035em;
+  overflow-wrap: anywhere;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.video-export-capability.ready {
+  border-color: rgba(73, 226, 157, .45);
+  color: #80f3bd;
+}
+
+.video-export-capability.blocked {
+  border-color: rgba(255, 103, 121, .5);
+  color: #ff9eaa;
+}
+
+.video-export-note {
+  margin: 0;
+  color: #89a4bf;
+  font-size: .7rem;
+  line-height: 1.45;
+}
+
+.video-export-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.video-export-facts span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.video-export-facts small,
+.video-export-progress-meta {
+  color: #89a4bf;
+}
+
+.video-export-facts small {
+  font-size: .62rem;
+}
+
+.video-export-facts strong {
+  overflow: hidden;
+  font-size: .76rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-export-progress {
+  display: grid;
+  gap: 6px;
+}
+
+.video-export-progress-label,
+.video-export-progress-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.video-export-progress-label {
+  justify-content: space-between;
+}
+
+.video-export-progress-label strong,
+.video-export-progress-label span {
+  font-size: .7rem;
+}
+
+.video-export-progress-track {
+  height: 7px;
+  overflow: hidden;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .28);
+}
+
+.video-export-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #6f58dd, #31a8ff);
+  transition: width .15s ease-out;
+}
+
+.video-export-progress-meta {
+  flex-wrap: wrap;
+  justify-content: space-between;
+  font-size: .62rem;
+}
+
+.video-export-error {
+  margin: 0;
+  padding: 8px 9px;
+  border: 1px solid rgba(255, 103, 121, .38);
+  border-radius: 9px;
+  background: rgba(255, 71, 95, .08);
+  color: #ffb2bc;
+  font-size: .68rem;
+  line-height: 1.4;
+}
+
+.video-export-actions {
+  display: grid;
+  gap: 7px;
+}
+
+.video-export-actions small {
+  color: #89a4bf;
+  font-size: .64rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 420px) {
+  .video-export-status-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .video-export-capability {
+    text-align: left;
+  }
+}

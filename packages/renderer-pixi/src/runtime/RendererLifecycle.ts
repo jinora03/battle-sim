@@ -25,6 +25,8 @@ export class RendererLifecycle {
   private hostHeight = 0;
   private resolution = 1;
   private resizeTotal = 0;
+  private fixedSize: { width: number; height: number } | null = null;
+  private manualRendering = false;
 
   constructor(private readonly callbacks: RendererLifecycleCallbacks) {}
 
@@ -38,12 +40,34 @@ export class RendererLifecycle {
   get lastResolution(): number { return this.resolution; }
   get resizeCount(): number { return this.resizeTotal; }
 
+  setFixedSize(width: number, height: number): void {
+    this.fixedSize = {
+      width: Math.max(1, Math.round(width)),
+      height: Math.max(1, Math.round(height))
+    };
+    if (this.ready) this.syncSize(true);
+  }
+
+  setManualRendering(enabled: boolean): void {
+    this.manualRendering = enabled;
+    if (!this.ready) return;
+    if (enabled) this.app.stop();
+    else if (this.enabled) this.app.start();
+  }
+
+  renderNow(): void {
+    if (!this.ready || this.disposed || !this.enabled || this.contextRecovery.contextLost) return;
+    this.app.renderer.render(this.app.stage);
+  }
+
   async initialize(host: HTMLElement): Promise<void> {
     if (this.disposed) throw new Error('Battle renderer has been destroyed.');
     this.hostElement = host;
     if (!host.isConnected) throw new Error('Battle renderer host is not connected.');
-    const initialWidth = Math.max(1, Math.round(host.getBoundingClientRect().width || host.clientWidth));
-    const initialHeight = Math.max(1, Math.round(host.getBoundingClientRect().height || host.clientHeight));
+    const initialWidth = this.fixedSize?.width
+      ?? Math.max(1, Math.round(host.getBoundingClientRect().width || host.clientWidth));
+    const initialHeight = this.fixedSize?.height
+      ?? Math.max(1, Math.round(host.getBoundingClientRect().height || host.clientHeight));
     if (initialWidth < 32 || initialHeight < 32) throw new Error('Battle renderer host does not have a usable layout yet.');
 
     this.resolution = this.callbacks.resolveResolution();
@@ -84,6 +108,7 @@ export class RendererLifecycle {
       }
     });
     this.ready = true;
+    if (this.manualRendering) this.app.stop();
     this.callbacks.onReady();
     this.syncSize(true);
   }
@@ -117,7 +142,8 @@ export class RendererLifecycle {
       return;
     }
     this.ensureCanvasMounted();
-    this.app.start();
+    if (this.manualRendering) this.app.stop();
+    else this.app.start();
     this.hostWidth = 0;
     this.hostHeight = 0;
     this.queueResize(true);
@@ -172,8 +198,8 @@ export class RendererLifecycle {
     if (!this.ready || !this.hostElement || !this.hostElement.isConnected || this.contextRecovery.contextLost) return;
     this.ensureCanvasMounted();
     const rect = this.hostElement.getBoundingClientRect();
-    const measuredWidth = rect.width || this.hostElement.clientWidth;
-    const measuredHeight = rect.height || this.hostElement.clientHeight;
+    const measuredWidth = this.fixedSize?.width ?? (rect.width || this.hostElement.clientWidth);
+    const measuredHeight = this.fixedSize?.height ?? (rect.height || this.hostElement.clientHeight);
     if (measuredWidth < 2 || measuredHeight < 2) return;
     const width = Math.max(1, Math.round(measuredWidth));
     const height = Math.max(1, Math.round(measuredHeight));

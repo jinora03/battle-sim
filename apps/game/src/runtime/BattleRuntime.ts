@@ -26,6 +26,7 @@ import { PixiBattleRenderer, resolveMassBattleRenderPolicy, type RenderDiagnosti
 import { ReplayRecorder } from '@kinetic/replay';
 import { checksumSnapshot, LocalSimulationRunner, SIM_TICK_MS } from '@kinetic/simulation';
 import type { PresentationSettings } from '@kinetic/visual-engine';
+import type { ReplayExportSource } from '@kinetic/video-export';
 import { DEFAULT_BATTLE_SETUP, type BattleSetup } from './BattleSetup';
 import { diagnosticsIntervalForEntityCount, metaEvaluationIntervalForEntityCount, RuntimePerformanceProfiler, type PerformanceBottleneck, type PerformancePressure } from './performance';
 
@@ -427,6 +428,16 @@ export class BattleRuntime {
   exportReplay(): string {
     if (!this.replay) return '';
     return JSON.stringify(this.replay.export(), null, 2);
+  }
+
+  createReplayExportSource(): ReplayExportSource {
+    if (!this.replay || !this.runner) throw new Error('Battle replay is not ready yet.');
+    const snapshot = this.runner.getSnapshot();
+    return {
+      replay: this.replay.export(),
+      endTick: snapshot.tick,
+      checksum: checksumSnapshot(snapshot)
+    };
   }
 
   destroy(): void {

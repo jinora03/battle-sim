@@ -1,0 +1,61 @@
+import { ReplayController } from '@kinetic/controllers';
+import type { ReplayData, SimulationEvent, WorldSnapshot } from '@kinetic/protocol';
+import { LocalSimulationRunner } from '@kinetic/simulation';
+
+export interface ReplayExportFrame {
+  frameIndex: number;
+  timestampUs: number;
+  durationUs: number;
+  snapshot: WorldSnapshot;
+  events: readonly SimulationEvent[];
+}
+
+export class ReplayFrameStepper {
+  readonly totalFrames: number;
+
+  private readonly runner: LocalSimulationRunner;
+  private readonly controller: ReplayController;
+  private frameIndex = 0;
+
+  constructor(
+    replay: ReplayData,
+    endTick: number,
+    private readonly fps = 60
+  ) {
+    if (fps !== 60) throw new Error('Stage 8.10A supports fixed 60 FPS replay export only.');
+    if (!Number.isInteger(endTick) || endTick <= 0) throw new Error('Replay endTick must be a positive integer.');
+    this.totalFrames = endTick;
+    this.runner = new LocalSimulationRunner(structuredClone(replay.battle));
+    this.controller = new ReplayController(replay);
+  }
+
+  get done(): boolean {
+    return this.frameIndex >= this.totalFrames;
+  }
+
+  get currentTick(): number {
+    return this.runner.tick;
+  }
+
+  next(): ReplayExportFrame | null {
+    if (this.done) return null;
+    const before = this.runner.getRuntimeSnapshot();
+    const commands = this.controller.commandsForTick(before);
+    const events = this.runner.step(commands);
+    const snapshot = this.runner.getSnapshot();
+    const frameIndex = this.frameIndex;
+    const durationUs = Math.round(1_000_000 / this.fps);
+    this.frameIndex += 1;
+    return {
+      frameIndex,
+      timestampUs: Math.round(frameIndex * 1_000_000 / this.fps),
+      durationUs,
+      snapshot,
+      events
+    };
+  }
+
+  finalSnapshot(): WorldSnapshot {
+    return this.runner.getSnapshot();
+  }
+}

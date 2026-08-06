@@ -16,5 +16,6 @@ import './styles/73-compact-shape-shell.css';
 import './styles/74-compact-shape-battle.css';
 import './styles/75-compact-shape-training.css';
 import './styles/76-zoom-scroll-polish.css';
+import './styles/77-video-export.css';
 
 createRoot(document.getElementById('root')!).render(<ErrorBoundary><App /></ErrorBoundary>);

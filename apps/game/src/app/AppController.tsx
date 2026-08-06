@@ -77,6 +77,7 @@ import {
 } from '../features/battle/battleUtils';
 import { useBattleInput } from '../hooks/useBattleInput';
 import { useBattleRuntime } from '../hooks/useBattleRuntime';
+import { useReplayVideoExport } from '../hooks/useReplayVideoExport';
 
 const STORAGE_KEY = 'kinetic.custom-fighter-bundles.v1';
 
@@ -241,6 +242,7 @@ export function useAppController() {
     setBattleLaunchPhase,
     metaCallbacks
   });
+  const videoExport = useReplayVideoExport(runtimeRef, settings);
 
   const validation = useMemo(() => validateFighterBundle(draft), [draft]);
   const activeCasts = diagnostics.entities.flatMap((entity) =>
@@ -802,6 +804,7 @@ export function useAppController() {
       pausedByUser,
       battleLaunchPhase,
       diagnostics,
+      videoExport,
       ready,
       bootError,
       pausedBySystem,

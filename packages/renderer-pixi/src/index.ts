@@ -93,6 +93,24 @@ export class PixiBattleRenderer {
     if (hostChanged && this.lifecycle.initialized) this.camera.requestSnap();
   }
 
+  setFixedOutputSize(width: number, height: number): void {
+    if (this.lifecycle.initialized) throw new Error('Fixed output size must be configured before renderer initialization.');
+    this.settingsController.setResolutionOverride(1);
+    this.lifecycle.setFixedSize(width, height);
+    this.lifecycle.setManualRendering(true);
+  }
+
+  getCanvas(): HTMLCanvasElement {
+    if (!this.lifecycle.initialized) throw new Error('Battle renderer has not been initialized.');
+    return this.lifecycle.app.canvas as HTMLCanvasElement;
+  }
+
+  renderExportFrame(snapshot: WorldSnapshot, events: readonly SimulationEvent[], dtMs: number): RenderDiagnostics {
+    const diagnostics = this.render(snapshot, 0, events, dtMs);
+    this.lifecycle.renderNow();
+    return diagnostics;
+  }
+
   setPlayerAimPoint(point: Vec2 | null): void {
     this.playerTargeting.setAimPoint(point);
   }
