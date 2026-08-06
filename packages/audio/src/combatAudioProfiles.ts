@@ -1,3 +1,11 @@
+import {
+  FROST_WARDEN_AUDIO_PROFILES,
+  ROCKET_VANGUARD_AUDIO_PROFILES,
+  THORN_COLOSSUS_AUDIO_PROFILES,
+  VOID_REAPER_AUDIO_PROFILES,
+  WATER_SHAPER_AUDIO_PROFILES
+} from './profiles';
+
 export const COMBAT_AUDIO_PHASES = ['anticipation', 'activation', 'sustain', 'release'] as const;
 export type CombatAudioPhase = (typeof COMBAT_AUDIO_PHASES)[number];
 
@@ -18,7 +26,23 @@ export const COMBAT_AUDIO_INTENTS = [
 ] as const;
 export type CombatAudioIntent = (typeof COMBAT_AUDIO_INTENTS)[number];
 
-export const COMBAT_AUDIO_VARIANTS = ['cataclysmic-explosion'] as const;
+export const COMBAT_AUDIO_VARIANTS = [
+  'cataclysmic-explosion',
+  'crystalline-fracture',
+  'frozen-pressure',
+  'rocket-ignition',
+  'target-lock',
+  'starburst-finale',
+  'water-pressure',
+  'water-flow',
+  'undertow-pull',
+  'tidal-release',
+  'thorn-fracture',
+  'organic-growth',
+  'void-rift',
+  'void-compression',
+  'singularity-collapse'
+] as const;
 export type CombatAudioVariant = (typeof COMBAT_AUDIO_VARIANTS)[number];
 
 export const COMBAT_AUDIO_PALETTES = [
@@ -493,7 +517,7 @@ const BALLAST_AUDIO_PROFILES = [
 ] as const;
 
 const ABILITY_AUDIO_PROFILES = new Map<string, AbilityCombatAudioProfile>(
-  [...VOLT_AUDIO_PROFILES, ...PYRO_AUDIO_PROFILES, ...BALLAST_AUDIO_PROFILES, ...GUNNER_AUDIO_PROFILES, ...SOLAR_SENTINEL_AUDIO_PROFILES, ...BOMBER_AUDIO_PROFILES, ...MECH_AUDIO_PROFILES]
+  [...VOLT_AUDIO_PROFILES, ...PYRO_AUDIO_PROFILES, ...BALLAST_AUDIO_PROFILES, ...GUNNER_AUDIO_PROFILES, ...SOLAR_SENTINEL_AUDIO_PROFILES, ...BOMBER_AUDIO_PROFILES, ...MECH_AUDIO_PROFILES, ...FROST_WARDEN_AUDIO_PROFILES, ...ROCKET_VANGUARD_AUDIO_PROFILES, ...WATER_SHAPER_AUDIO_PROFILES, ...THORN_COLOSSUS_AUDIO_PROFILES, ...VOID_REAPER_AUDIO_PROFILES]
     .map((profile) => [profile.abilityId, profile])
 );
 

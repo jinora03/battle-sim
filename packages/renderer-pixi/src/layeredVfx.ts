@@ -441,12 +441,14 @@ export class LayeredVfxEngine {
     const count = Math.max(2, Math.round(18 * layer.intensity * this.quality.residualMultiplier));
     const radius = 64 * layer.radiusScale * layer.intensity * qualityScale;
     const glowStrength = layer.hierarchy === 'ultimate' ? 1 : layer.hierarchy === 'payoff' ? 0.78 : 0.56;
+    const suppressRadialShells = layer.treatment === 'root-growth' || layer.treatment === 'singularity';
     const style = resolveCombatVfxParticleStyle(layer);
     const shape = style.primary;
     const secondaryShape = style.secondary;
+    this.playCombatVfxTreatment(layer, x, y, dirX, dirY, count, radius, palette);
 
     if (layer.phase === 'anticipation') {
-      this.spawnProfileBloom(x, y, palette.core, palette.glow, radius * 0.42, Math.min(0.28, layer.durationSeconds), glowStrength * 0.68);
+      if (!suppressRadialShells) this.spawnProfileBloom(x, y, palette.core, palette.glow, radius * 0.42, Math.min(0.28, layer.durationSeconds), glowStrength * 0.68);
       if (layer.intent === 'pull') {
         this.spawnInwardResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.72), radius * 0.92, 4.4 * layer.intensity);
       } else {
@@ -458,7 +460,7 @@ export class LayeredVfxEngine {
       return;
     }
     if (layer.phase === 'activation') {
-      this.spawnProfileBloom(x, y, palette.core, palette.glow, radius, Math.min(0.32, layer.durationSeconds), glowStrength);
+      if (!suppressRadialShells) this.spawnProfileBloom(x, y, palette.core, palette.glow, radius, Math.min(0.32, layer.durationSeconds), glowStrength);
       if (layer.intent === 'pull') {
         this.spawnInwardResidualBurst(x, y, palette.accent, shape, count, radius, 7.2 * layer.intensity);
         this.spawnInwardResidualBurst(x, y, palette.glow, shape, Math.round(count * 0.48), radius * 0.7, 5.2 * layer.intensity);
@@ -473,7 +475,7 @@ export class LayeredVfxEngine {
       } else if (layer.intent === 'explosion') {
         this.spawnResidualBurst(x, y, palette.accent, shape, Math.round(count * 1.12), 8.6 * layer.intensity);
         this.spawnResidualBurst(x, y, palette.debris, secondaryShape, Math.round(count * 0.55), 5.2 * layer.intensity);
-        this.spawnBrokenRing(x, y, palette.glow, radius * 0.94, layer.hierarchy === 'ultimate' ? 10 : 7, Math.min(0.46, layer.durationSeconds * 1.45));
+        if (!suppressRadialShells) this.spawnBrokenRing(x, y, palette.glow, radius * 0.94, layer.hierarchy === 'ultimate' ? 10 : 7, Math.min(0.46, layer.durationSeconds * 1.45));
       } else if (layer.intent === 'knockback') {
         if (layer.directional) {
           this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.core, shape, Math.round(count * 1.05), 10.8 * layer.intensity);
@@ -481,13 +483,13 @@ export class LayeredVfxEngine {
         } else {
           this.spawnResidualBurst(x, y, palette.core, shape, Math.round(count * 0.82), 7.8 * layer.intensity);
           this.spawnResidualBurst(x, y, palette.accent, secondaryShape, Math.round(count * 0.58), 5.8 * layer.intensity);
-          this.spawnBrokenRing(x, y, palette.glow, radius * 0.88, 6, Math.min(0.38, layer.durationSeconds * 1.35));
+          if (!suppressRadialShells) this.spawnBrokenRing(x, y, palette.glow, radius * 0.88, 6, Math.min(0.38, layer.durationSeconds * 1.35));
         }
       }
       return;
     }
     if (layer.phase === 'sustain') {
-      this.spawnProfileBloom(x, y, palette.core, palette.accent, radius * 0.72, Math.min(0.42, layer.durationSeconds), glowStrength * 0.62);
+      if (!suppressRadialShells) this.spawnProfileBloom(x, y, palette.core, palette.accent, radius * 0.72, Math.min(0.42, layer.durationSeconds), glowStrength * 0.62);
       if (layer.intent === 'pull') {
         this.spawnInwardResidualBurst(x, y, palette.glow, shape, Math.round(count * 0.74), radius * 0.84, 4.6 * layer.intensity);
       } else {
@@ -504,13 +506,99 @@ export class LayeredVfxEngine {
       }
       return;
     }
-    this.spawnProfileBloom(x, y, palette.core, palette.glow, radius * 0.55, Math.min(0.22, layer.durationSeconds), glowStrength * 0.58);
+    if (!suppressRadialShells) this.spawnProfileBloom(x, y, palette.core, palette.glow, radius * 0.55, Math.min(0.22, layer.durationSeconds), glowStrength * 0.58);
     if (layer.intent === 'pull') {
       this.spawnInwardResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.62), radius * 0.72, 5.2 * layer.intensity);
     } else if (layer.intent === 'knockback' && layer.directional) {
       this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.accent, shape, Math.round(count * 0.68), 7.2 * layer.intensity);
     } else {
       this.spawnResidualBurst(x, y, palette.accent, shape, Math.round(count * 0.62), layer.intent === 'status' ? 3.6 * layer.intensity : 5.2 * layer.intensity);
+    }
+  }
+
+  private playCombatVfxTreatment(
+    layer: ResolvedCombatVfxLayer,
+    x: number,
+    y: number,
+    dirX: number,
+    dirY: number,
+    count: number,
+    radius: number,
+    palette: ReturnType<typeof getElementVfxPalette>
+  ): void {
+    if (layer.treatment === 'crystalline') {
+      if (layer.phase === 'anticipation' || layer.intent === 'pull') {
+        this.spawnInwardResidualBurst(x, y, palette.accent, 'shard', Math.max(2, Math.round(count * 0.5)), radius * 0.84, 4.2 * layer.intensity);
+      } else {
+        this.spawnResidualBurst(x, y, palette.core, 'shard', Math.max(2, Math.round(count * 0.46)), 4.8 * layer.intensity);
+      }
+      if (layer.phase === 'activation' || layer.phase === 'release') {
+        this.spawnBrokenRing(x, y, palette.glow, radius * 0.88, layer.hierarchy === 'ultimate' ? 10 : 6, Math.min(0.46, layer.durationSeconds * 1.35));
+      }
+      return;
+    }
+    if (layer.treatment === 'rocket-exhaust') {
+      this.spawnDirectionalResidualBurst(x, y, -dirX, -dirY, palette.accent, 'streak', Math.max(2, Math.round(count * 0.52)), 7 * layer.intensity);
+      this.spawnDirectionalResidualBurst(x, y, -dirX, -dirY, palette.debris, 'debris', Math.max(2, Math.round(count * 0.26)), 4 * layer.intensity);
+      return;
+    }
+    if (layer.treatment === 'target-lock') {
+      this.spawnBrokenRing(x, y, palette.accent, radius * 0.76, 8, Math.min(0.44, layer.durationSeconds));
+      this.spawnBrokenRing(x, y, palette.core, radius * 0.44, 4, Math.min(0.3, layer.durationSeconds));
+      return;
+    }
+    if (layer.treatment === 'starburst') {
+      this.spawnBrokenRing(x, y, palette.glow, radius * 1.16, 12, Math.min(0.62, layer.durationSeconds * 1.4));
+      this.spawnResidualBurst(x, y, palette.debris, 'debris', Math.max(3, Math.round(count * 0.72)), 6.8 * layer.intensity);
+      return;
+    }
+    if (layer.treatment === 'water-flow') {
+      if (layer.intent === 'pull') {
+        this.spawnInwardResidualBurst(x, y, palette.accent, 'ribbon', Math.max(2, Math.round(count * 0.68)), radius, 5.6 * layer.intensity);
+        this.spawnInwardResidualBurst(x, y, palette.core, 'droplet', Math.max(2, Math.round(count * 0.3)), radius * 0.7, 4 * layer.intensity);
+      } else if (layer.directional || layer.intent === 'dash') {
+        this.spawnDirectionalResidualBurst(x, y, -dirX, -dirY, palette.accent, 'ribbon', Math.max(2, Math.round(count * 0.58)), 6.6 * layer.intensity);
+        this.spawnDirectionalResidualBurst(x, y, -dirX, -dirY, palette.core, 'droplet', Math.max(2, Math.round(count * 0.28)), 4.2 * layer.intensity);
+      } else {
+        this.spawnResidualBurst(x, y, palette.accent, 'ribbon', Math.max(2, Math.round(count * 0.52)), 5 * layer.intensity);
+        this.spawnResidualBurst(x, y, palette.core, 'droplet', Math.max(2, Math.round(count * 0.26)), 3.6 * layer.intensity);
+      }
+      if (layer.phase === 'activation' || layer.phase === 'release') {
+        this.spawnBrokenRing(x, y, palette.glow, radius * 0.88, layer.hierarchy === 'ultimate' ? 8 : 5, Math.min(0.42, layer.durationSeconds));
+      }
+      return;
+    }
+    if (layer.treatment === 'root-growth') {
+      const sideX = -dirY;
+      const sideY = dirX;
+      const branchCount = Math.max(2, Math.round(count * 0.24));
+      this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.accent, 'wedge', branchCount, 5.8 * layer.intensity);
+      this.spawnDirectionalResidualBurst(x, y, -dirX, -dirY, palette.accent, 'wedge', branchCount, 4.8 * layer.intensity);
+      this.spawnDirectionalResidualBurst(x, y, sideX, sideY, palette.glow, 'ribbon', branchCount, 5 * layer.intensity);
+      this.spawnDirectionalResidualBurst(x, y, -sideX, -sideY, palette.glow, 'ribbon', branchCount, 5 * layer.intensity);
+      this.spawnResidualBurst(x, y, palette.debris, 'debris', Math.max(2, Math.round(count * 0.34)), 3.8 * layer.intensity);
+      return;
+    }
+    if (layer.treatment === 'void-tear') {
+      if (layer.intent === 'pull') {
+        this.spawnInwardResidualBurst(x, y, palette.accent, 'streak', Math.max(2, Math.round(count * 0.68)), radius, 6.2 * layer.intensity);
+        this.spawnInwardResidualBurst(x, y, palette.glow, 'ring-fragment', Math.max(2, Math.round(count * 0.32)), radius * 0.7, 4.6 * layer.intensity);
+      } else {
+        this.spawnDirectionalResidualBurst(x, y, dirX, dirY, palette.core, 'streak', Math.max(2, Math.round(count * 0.54)), 7 * layer.intensity);
+        this.spawnDirectionalResidualBurst(x, y, -dirX, -dirY, palette.accent, 'ring-fragment', Math.max(2, Math.round(count * 0.3)), 4.8 * layer.intensity);
+      }
+      if (layer.phase === 'activation' || layer.phase === 'release') {
+        this.spawnBrokenRing(x, y, palette.glow, radius * 0.8, 6, Math.min(0.4, layer.durationSeconds));
+      }
+      return;
+    }
+    if (layer.treatment === 'singularity') {
+      this.spawnInwardResidualBurst(x, y, palette.accent, 'streak', Math.max(3, Math.round(count * 0.82)), radius * 1.06, 7.2 * layer.intensity);
+      this.spawnInwardResidualBurst(x, y, palette.glow, 'ring-fragment', Math.max(2, Math.round(count * 0.44)), radius * 0.74, 5.4 * layer.intensity);
+      if (layer.phase === 'release') {
+        this.spawnResidualBurst(x, y, palette.debris, 'streak', Math.max(3, Math.round(count * 0.68)), 6.8 * layer.intensity);
+        this.spawnBrokenRing(x, y, palette.core, radius * 0.7, 7, Math.min(0.38, layer.durationSeconds));
+      }
     }
   }
 

@@ -691,16 +691,12 @@ export class BattleAudioEngine {
     const duration = Math.max(0.12, Math.min(0.75, castTicks / 60));
     const reservation = this.reserveVoice(duration + 0.02, 0, ultimate);
     if (!reservation) return;
-    const water = ['surge-dash', 'pressure-wave', 'undertow', 'tidal-cataclysm'].includes(abilityId);
-    const ice = ['glacier-charge', 'frost-nova', 'ice-anchor', 'absolute-zero'].includes(abilityId);
     const electric = ['lightning-dash', 'arc-burst', 'polarity-pull'].includes(abilityId);
-    const nature = ['bramble-charge', 'seed-burst', 'regenerate', 'overgrowth'].includes(abilityId);
-    const voidSkill = ['phase-lunge', 'gravity-well', 'void-burst', 'singularity'].includes(abilityId);
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
-    oscillator.type = electric ? 'square' : voidSkill ? 'sine' : ice || nature ? 'triangle' : water ? 'sine' : 'triangle';
-    const startFrequency = abilityId === 'tidal-cataclysm' ? 120 : ice ? 410 : electric ? 520 : nature ? 135 : voidSkill ? 96 : water ? 180 : 150;
-    const endFrequency = abilityId === 'undertow' || abilityId === 'gravity-well' || abilityId === 'singularity' ? 48 : startFrequency * (water ? 1.65 : electric ? 1.8 : ice ? 0.62 : nature ? 0.74 : 1.25);
+    oscillator.type = electric ? 'square' : 'triangle';
+    const startFrequency = electric ? 520 : 150;
+    const endFrequency = startFrequency * (electric ? 1.8 : 1.25);
     oscillator.frequency.setValueAtTime(startFrequency, now);
     oscillator.frequency.exponentialRampToValueAtTime(Math.max(24, endFrequency), now + duration);
     gain.gain.setValueAtTime(0.001, now);
@@ -712,10 +708,7 @@ export class BattleAudioEngine {
     oscillator.stop(now + duration + 0.02);
     this.trackVoice(oscillator, reservation);
 
-    if (['tidal-cataclysm', 'absolute-zero', 'overgrowth', 'singularity'].includes(abilityId)) {
-      const pulseFrequency = abilityId === 'tidal-cataclysm' ? 210 : abilityId === 'absolute-zero' ? 480 : abilityId === 'overgrowth' ? 140 : 68;
-      this.playPulseSequence(pulseFrequency, duration, 'sine');
-    }
+    if (ultimate) this.playPulseSequence(startFrequency, duration, 'sine');
   }
 
   private playAbilityResolve(event: AbilityResolvedEvent): void {
@@ -729,31 +722,13 @@ export class BattleAudioEngine {
     }
     const id = event.abilityId;
     if (id === 'riptide-contact') this.playTone(330, 180, 0.09, 'sine', 0.035);
-    else if (id === 'surge-dash') this.playTone(210, 520, 0.14, 'sine', 0.055);
-    else if (id === 'pressure-wave') this.playTone(165, 82, 0.24, 'sine', 0.065);
-    else if (id === 'undertow') this.playTone(120, 48, 0.32, 'triangle', 0.07);
-    else if (id === 'tidal-cataclysm') {
-      this.playTone(145, 48, 0.48, 'sine', 0.095);
-      this.playTone(420, 95, 0.34, 'triangle', 0.045);
-    } else if (id === 'blast-contact') this.playTone(150, 48, 0.11, 'square', 0.055);
+    else if (id === 'blast-contact') this.playTone(150, 48, 0.11, 'square', 0.055);
     else if (id === 'ember-impact') this.playTone(175, 62, 0.11, 'sawtooth', 0.045);
     else if (id === 'steel-impact') this.playTone(230, 52, 0.13, 'triangle', 0.05);
     else if (id === 'frost-impact') this.playTone(620, 310, 0.11, 'triangle', 0.04);
-    else if (id === 'glacier-charge') this.playTone(520, 150, 0.2, 'triangle', 0.06);
-    else if (id === 'frost-nova') { this.playTone(680, 180, 0.3, 'sine', 0.065); this.playPulseSequence(760, 0.2, 'triangle'); }
-    else if (id === 'ice-anchor') this.playTone(360, 120, 0.34, 'triangle', 0.065);
-    else if (id === 'absolute-zero') { this.playTone(720, 55, 0.58, 'sine', 0.095); this.playTone(980, 190, 0.32, 'triangle', 0.04); }
     else if (id === 'static-strike') this.playTone(720, 260, 0.08, 'square', 0.035);
     else if (id === 'thorn-impact') this.playTone(180, 82, 0.12, 'triangle', 0.04);
-    else if (id === 'bramble-charge') this.playTone(145, 62, 0.24, 'sawtooth', 0.06);
-    else if (id === 'seed-burst') { this.playTone(260, 95, 0.22, 'triangle', 0.055); this.playPulseSequence(350, 0.18, 'triangle'); }
-    else if (id === 'regenerate') this.playTone(160, 360, 0.4, 'sine', 0.06);
-    else if (id === 'overgrowth') { this.playTone(105, 42, 0.62, 'triangle', 0.1); this.playTone(260, 105, 0.42, 'sine', 0.045); }
     else if (id === 'phase-cut') this.playTone(310, 88, 0.1, 'sine', 0.04);
-    else if (id === 'phase-lunge') this.playTone(180, 520, 0.14, 'sine', 0.05);
-    else if (id === 'gravity-well') this.playTone(140, 34, 0.34, 'sine', 0.075);
-    else if (id === 'void-burst') this.playTone(230, 48, 0.28, 'triangle', 0.075);
-    else if (id === 'singularity') { this.playTone(96, 22, 0.68, 'sine', 0.115); this.playPulseSequence(72, 0.5, 'triangle'); }
     else this.playTone(180, 320, 0.16, 'triangle', 0.045);
   }
 
@@ -772,6 +747,63 @@ export class BattleAudioEngine {
       const duration = layer.durationSeconds;
       const delay = layer.delaySeconds;
       const critical = layer.hierarchy === 'ultimate' && (layer.phase === 'anticipation' || layer.phase === 'activation');
+
+      if (layer.variant === 'crystalline-fracture') {
+        this.playCrystallineFracture(layer, volume, delay, critical);
+        return;
+      }
+      if (layer.variant === 'frozen-pressure') {
+        this.playFrozenPressure(layer, volume, delay, critical);
+        return;
+      }
+      if (layer.variant === 'rocket-ignition') {
+        this.playRocketIgnition(layer, volume, delay, critical);
+        return;
+      }
+      if (layer.variant === 'target-lock') {
+        this.playTargetLock(layer, volume, delay, critical);
+        return;
+      }
+      if (layer.variant === 'starburst-finale') {
+        this.playStarburstFinale(layer, volume, delay, critical);
+        return;
+      }
+      if (layer.variant === 'water-pressure') {
+        this.playWaterPressure(layer, volume, delay, critical);
+        return;
+      }
+      if (layer.variant === 'water-flow') {
+        this.playWaterFlow(layer, volume, delay, critical);
+        return;
+      }
+      if (layer.variant === 'undertow-pull') {
+        this.playUndertowPull(layer, volume, delay, critical);
+        return;
+      }
+      if (layer.variant === 'tidal-release') {
+        this.playTidalRelease(layer, volume, delay, critical);
+        return;
+      }
+      if (layer.variant === 'thorn-fracture') {
+        this.playThornFracture(layer, volume, delay, critical);
+        return;
+      }
+      if (layer.variant === 'organic-growth') {
+        this.playOrganicGrowth(layer, volume, delay, critical);
+        return;
+      }
+      if (layer.variant === 'void-rift') {
+        this.playVoidRift(layer, volume, delay, critical);
+        return;
+      }
+      if (layer.variant === 'void-compression') {
+        this.playVoidCompression(layer, volume, delay, critical);
+        return;
+      }
+      if (layer.variant === 'singularity-collapse') {
+        this.playSingularityCollapse(layer, volume, delay, critical);
+        return;
+      }
 
       if (layer.phase === 'anticipation') {
         const start = layer.intent === 'pull' ? palette.mid : layer.intent === 'status-application' ? palette.mid * 0.82 : palette.low;
@@ -865,6 +897,184 @@ export class BattleAudioEngine {
       this.schedulingGainScale = previousGainScale;
       this.schedulingGroupKey = previousGroupKey;
     }
+  }
+
+  private playCrystallineFracture(
+    layer: ResolvedCombatAudioLayer,
+    volume: number,
+    delay: number,
+    critical: boolean
+  ): void {
+    const duration = layer.durationSeconds;
+    this.playTone(1480, 410, duration * 0.42, 'triangle', volume * 0.92, delay, critical);
+    this.playTone(920, 180, duration * 0.72, 'square', volume * 0.54, delay + 0.012, critical);
+    this.playTone(188, 54, duration, 'triangle', volume * 0.62, delay + 0.018, critical);
+    this.playPulseSequence(1180, Math.min(0.24, duration), 'triangle', delay, 0.48 * layer.gainScale, critical);
+  }
+
+  private playFrozenPressure(
+    layer: ResolvedCombatAudioLayer,
+    volume: number,
+    delay: number,
+    critical: boolean
+  ): void {
+    const duration = layer.durationSeconds;
+    const inward = layer.intent === 'pull' || layer.intent === 'ultimate';
+    this.playTone(inward ? 420 : 190, inward ? 72 : 340, duration, 'sine', volume * 0.84, delay, critical);
+    this.playTone(132, 42, duration * 1.08, 'triangle', volume * 0.48, delay, critical);
+    this.playPulseSequence(inward ? 360 : 620, duration, 'triangle', delay, 0.34 * layer.gainScale, critical);
+  }
+
+  private playRocketIgnition(
+    layer: ResolvedCombatAudioLayer,
+    volume: number,
+    delay: number,
+    critical: boolean
+  ): void {
+    const duration = layer.durationSeconds;
+    this.playTone(74, 280, duration * 0.72, 'sawtooth', volume * 0.96, delay, critical);
+    this.playTone(46, 88, duration, 'triangle', volume * 0.72, delay, critical);
+    this.playTone(980, 260, Math.min(0.12, duration * 0.42), 'square', volume * 0.38, delay + 0.01, critical);
+    if (layer.intent === 'burst-fire' || layer.intent === 'projectile') {
+      this.playPulseSequence(210, duration, 'square', delay, 0.56 * layer.gainScale, critical);
+    }
+  }
+
+  private playTargetLock(
+    layer: ResolvedCombatAudioLayer,
+    volume: number,
+    delay: number,
+    critical: boolean
+  ): void {
+    const duration = layer.durationSeconds;
+    this.playPulseSequence(760, duration, 'square', delay, 0.56 * layer.gainScale, critical);
+    this.playTone(340, 980, duration * 0.72, 'triangle', volume * 0.72, delay, critical);
+    this.playTone(1440, 860, Math.min(0.1, duration * 0.34), 'square', volume * 0.44, delay + duration * 0.58, critical);
+  }
+
+  private playStarburstFinale(
+    layer: ResolvedCombatAudioLayer,
+    volume: number,
+    delay: number,
+    critical: boolean
+  ): void {
+    const duration = layer.durationSeconds;
+    this.playTone(96, 22, duration * 1.35, 'sawtooth', volume * 1.48, delay, critical);
+    this.playTone(54, 20, duration * 1.55, 'sine', volume * 1.08, delay + 0.018, critical);
+    this.playTone(1320, 92, duration * 0.38, 'square', volume * 0.62, delay, critical);
+    this.playPulseSequence(68, Math.min(0.62, duration), 'square', delay + 0.012, 0.72 * layer.gainScale, critical);
+    this.playLowExplosionNoise(duration * 1.18, volume, delay, critical);
+  }
+
+  private playWaterPressure(
+    layer: ResolvedCombatAudioLayer,
+    volume: number,
+    delay: number,
+    critical: boolean
+  ): void {
+    const duration = layer.durationSeconds;
+    this.playTone(640, 118, duration * 0.72, 'sine', volume * 0.88, delay, critical);
+    this.playTone(176, 54, duration, 'triangle', volume * 0.66, delay + 0.012, critical);
+    this.playPulseSequence(310, Math.min(0.34, duration), 'triangle', delay, 0.42 * layer.gainScale, critical);
+  }
+
+  private playWaterFlow(
+    layer: ResolvedCombatAudioLayer,
+    volume: number,
+    delay: number,
+    critical: boolean
+  ): void {
+    const duration = layer.durationSeconds;
+    const descending = layer.phase === 'release';
+    this.playTone(descending ? 430 : 150, descending ? 96 : 480, duration, 'sine', volume * 0.72, delay, critical);
+    this.playTone(92, 154, duration * 0.92, 'sine', volume * 0.42, delay + 0.015, critical);
+    this.playPulseSequence(240, duration, 'triangle', delay, 0.3 * layer.gainScale, critical);
+  }
+
+  private playUndertowPull(
+    layer: ResolvedCombatAudioLayer,
+    volume: number,
+    delay: number,
+    critical: boolean
+  ): void {
+    const duration = layer.durationSeconds;
+    this.playTone(210, 42, duration * 1.08, 'sine', volume * 0.92, delay, critical);
+    this.playTone(88, 28, duration * 1.18, 'triangle', volume * 0.58, delay + 0.02, critical);
+    this.playPulseSequence(118, duration, 'sine', delay, 0.48 * layer.gainScale, critical);
+  }
+
+  private playTidalRelease(
+    layer: ResolvedCombatAudioLayer,
+    volume: number,
+    delay: number,
+    critical: boolean
+  ): void {
+    const duration = layer.durationSeconds;
+    this.playTone(520, 64, duration * 0.8, 'sine', volume * 0.98, delay, critical);
+    this.playTone(104, 24, duration * 1.28, 'triangle', volume * 1.04, delay + 0.012, critical);
+    this.playPulseSequence(164, Math.min(0.52, duration), 'triangle', delay, 0.68 * layer.gainScale, critical);
+  }
+
+  private playThornFracture(
+    layer: ResolvedCombatAudioLayer,
+    volume: number,
+    delay: number,
+    critical: boolean
+  ): void {
+    const duration = layer.durationSeconds;
+    this.playTone(760, 118, Math.min(0.16, duration * 0.46), 'sawtooth', volume * 0.78, delay, critical);
+    this.playTone(240, 58, duration * 0.86, 'triangle', volume * 0.76, delay + 0.012, critical);
+    this.playPulseSequence(390, Math.min(0.28, duration), 'triangle', delay, 0.44 * layer.gainScale, critical);
+  }
+
+  private playOrganicGrowth(
+    layer: ResolvedCombatAudioLayer,
+    volume: number,
+    delay: number,
+    critical: boolean
+  ): void {
+    const duration = layer.durationSeconds;
+    const inward = layer.intent === 'pull';
+    this.playTone(inward ? 190 : 74, inward ? 48 : 248, duration, 'triangle', volume * 0.78, delay, critical);
+    this.playTone(54, inward ? 32 : 116, duration * 1.06, 'sine', volume * 0.52, delay + 0.018, critical);
+    this.playPulseSequence(inward ? 108 : 172, duration, 'sine', delay, 0.38 * layer.gainScale, critical);
+  }
+
+  private playVoidRift(
+    layer: ResolvedCombatAudioLayer,
+    volume: number,
+    delay: number,
+    critical: boolean
+  ): void {
+    const duration = layer.durationSeconds;
+    this.playTone(980, 72, Math.min(duration, 0.3), 'sine', volume * 0.82, delay, critical);
+    this.playTone(116, 24, duration * 1.04, 'triangle', volume * 0.74, delay + 0.012, critical);
+    this.playTone(420, 132, duration * 0.48, 'square', volume * 0.28, delay + 0.018, critical);
+  }
+
+  private playVoidCompression(
+    layer: ResolvedCombatAudioLayer,
+    volume: number,
+    delay: number,
+    critical: boolean
+  ): void {
+    const duration = layer.durationSeconds;
+    this.playTone(132, 22, duration * 1.12, 'sine', volume * 0.94, delay, critical);
+    this.playTone(48, 20, duration * 1.2, 'triangle', volume * 0.68, delay + 0.018, critical);
+    this.playPulseSequence(74, duration, 'triangle', delay, 0.5 * layer.gainScale, critical);
+  }
+
+  private playSingularityCollapse(
+    layer: ResolvedCombatAudioLayer,
+    volume: number,
+    delay: number,
+    critical: boolean
+  ): void {
+    const duration = layer.durationSeconds;
+    this.playTone(148, 20, duration * 1.42, 'sine', volume * 1.32, delay, critical);
+    this.playTone(1180, 44, duration * 0.56, 'triangle', volume * 0.7, delay, critical);
+    this.playPulseSequence(54, Math.min(0.7, duration), 'square', delay + 0.015, 0.74 * layer.gainScale, critical);
+    this.playLowExplosionNoise(duration * 1.08, volume * 0.7, delay, critical);
   }
 
   private playCataclysmicExplosion(
