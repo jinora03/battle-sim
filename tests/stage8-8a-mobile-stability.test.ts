@@ -25,21 +25,24 @@ const touchPhone: DeviceCapabilities = {
 describe('Stage 8.8A mobile controls and renderer stability', () => {
   it('defaults shared player control preferences to mouse steering with camera follow disabled', () => {
     const defaults = createDefaultAppSettings(touchPhone);
-    expect(defaults.schemaVersion).toBe(10);
+    expect(defaults.schemaVersion).toBe(11);
     expect(defaults.movementMode).toBe('mouse');
     expect(defaults.cameraFollow).toBe(false);
     expect(defaults.touchControlOpacity).toBe(0.75);
+    expect(defaults.touchSteeringSensitivity).toBe(1);
 
     expect(normalizeAppSettings({ touchControlOpacity: 0.1 }, touchPhone).touchControlOpacity).toBe(0.3);
     expect(normalizeAppSettings({ touchControlOpacity: 1.5 }, touchPhone).touchControlOpacity).toBe(1);
+    expect(normalizeAppSettings({ touchSteeringSensitivity: 0.1 }, touchPhone).touchSteeringSensitivity).toBe(0.6);
+    expect(normalizeAppSettings({ touchSteeringSensitivity: 2 }, touchPhone).touchSteeringSensitivity).toBe(1.6);
   });
 
-  it('removes the duplicate desktop command panel on touch-first devices while retaining the compact dock', () => {
+  it('removes duplicate floating mobile actions while retaining touch controls in the arena', () => {
     const source = readFileSync(new URL('../apps/game/src/app/AppWorkspace.tsx', import.meta.url), 'utf8');
     expect(source).toContain("deviceCapabilities.touchFirst ? 'mobile-commandless' : ''");
     expect(source).toContain('!deviceCapabilities.touchFirst && (');
-    expect(source).toContain('deviceCapabilities.touchFirst && (');
-    expect(source).toContain('className="mobile-battle-dock"');
+    expect(source).not.toContain('className="mobile-battle-dock"');
+    expect(source).toContain('sensitivity={settings.touchSteeringSensitivity}');
     expect(source).toContain("'--touch-control-opacity': settings.touchControlOpacity");
   });
 
@@ -49,6 +52,8 @@ describe('Stage 8.8A mobile controls and renderer stability', () => {
     expect(viewSource).toContain('<option value="mouse">Mouse move + aim</option>');
     expect(viewSource).toContain('TrainingModuleSelectors');
     expect(viewSource).toContain('setPlayerMouseDriveFromClient');
+    expect(viewSource).toContain('<TrainingControlDeck');
+    expect(viewSource).not.toContain('className="training-mobile-dock"');
     expect(runtimeSource).toContain('trainerModuleIds: string[]');
     expect(runtimeSource).toContain('loadout: { moduleIds: [...this.setup.trainerModuleIds] }');
   });

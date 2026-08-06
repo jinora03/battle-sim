@@ -1,6 +1,21 @@
-# Kinetic Battle Engine — v1.3.14 Stage 8.6D
+# Kinetic Battle Engine — v1.3.27 Stage 8.8G
 
 A browser/mobile-ready 2D physics battle game and modular fighter engine built with TypeScript, PixiJS, React, Vite and Capacitor.
+
+
+> **Stage 8.8G completes the final UI-polish pass.** Fighter previews now use one body-only visual language across Battle Setup, match intro, Roster, and Creator; mobile floating action docks are removed; Ability Lab movement is integrated beside its scrollable skill tray; touch steering sensitivity is persisted; and release-facing developer metrics are removed.
+
+## Stage 8.8G highlights
+
+- shared body-only fighter portrait across preview surfaces
+- clearer battle objective and team-status spacing
+- new-battle action moved ahead of Team 1 configuration
+- compact passive-and-skill setup previews with smaller module helper typography
+- integrated Ability Lab direction pad and properly padded horizontal skill tray
+- no duplicate floating Fight or Lab action docks on mobile
+- touch steering sensitivity with settings migration to schema v11
+- body-only Creator preview and stable mobile Roster cards
+- release developer metrics card removed without changing simulation behavior
 
 
 > **Stage 8.6D closes the intent-audio milestone with stabilization and mix control.** Delayed layers now consume the voice budget only while they are actually audible, long channels stop cleanly on resolution, death, restart and Ability Lab resets, focused-player events receive priority, and crowded battles automatically reduce ambient gain and contact-cue frequency without weakening ultimates.

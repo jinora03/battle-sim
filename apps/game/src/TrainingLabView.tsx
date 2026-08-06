@@ -17,9 +17,10 @@ import {
   listCompatibleModules,
   type FighterDefinition
 } from '@kinetic/content';
-import type { AbilitySlot, ModuleSlot, Vec2 } from '@kinetic/protocol';
+import type { AbilitySlot, ModuleSlot } from '@kinetic/protocol';
 import type { AppSettings, MovementMode } from '@kinetic/platform';
 import { DrawerHeader, DrawerScrim, NeonButton } from './ui/NeonUI';
+import { TrainingControlDeck } from './features/training/TrainingControlDeck';
 import {
   DEFAULT_TRAINING_OPTIONS,
   DEFAULT_TRAINING_SETUP,
@@ -66,6 +67,20 @@ export function TrainingLabView({ fighters, settings, active, onSettingChange }:
   const selectedActionName = selectedPrimaryAttack?.name ?? selectedAbility?.name ?? 'Empty slot';
   const player = diagnostics?.snapshot.entities.find((entity) => entity.id === diagnostics.playerEntityId) ?? null;
   const targets = diagnostics?.snapshot.entities.filter((entity) => diagnostics.targetEntityIds.includes(entity.id)) ?? [];
+  const slotControls = SLOTS.map((slot) => {
+    const primary = slot === 'basic' ? getPrimaryAttack(trainer.primaryAttackId) : null;
+    const abilityId = slot === 'basic' ? null : trainer.abilitySlots[slot];
+    const ability = abilityId ? getAbility(abilityId) : null;
+    const state = player?.abilities.find((item) => item.slot === slot);
+    return {
+      slot,
+      label: slotLabel(slot),
+      name: primary?.name ?? ability?.name ?? 'Empty',
+      status: state ? `${state.phase}${state.cooldownRemainingTicks ? ` · ${state.cooldownRemainingTicks}t` : ''}` : 'unavailable',
+      available: Boolean(primary || ability),
+      selected: setup.selectedSlot === slot
+    };
+  });
 
   useEffect(() => {
     const host = hostRef.current;
@@ -324,20 +339,11 @@ export function TrainingLabView({ fighters, settings, active, onSettingChange }:
             </div>
             <NeonButton tone={setup.selectedSlot === 'ultimate' ? 'ultimate' : 'success'} size="large" className="training-fire-button" disabled={!selectedPrimaryAttack && !selectedAbility} onClick={() => runtimeRef.current?.activateAbility(setup.selectedSlot)}>Fire selected {setup.selectedSlot === 'basic' ? 'Basic' : 'skill'}</NeonButton>
           </div>
-          <div className="training-slot-grid">
-            {SLOTS.map((slot) => {
-              const primary = slot === 'basic' ? getPrimaryAttack(trainer.primaryAttackId) : null;
-              const abilityId = slot === 'basic' ? null : trainer.abilitySlots[slot];
-              const ability = abilityId ? getAbility(abilityId) : null;
-              const state = player?.abilities.find((item) => item.slot === slot);
-              const available = Boolean(primary || ability);
-              return (
-                <button key={slot} className={`training-slot ${setup.selectedSlot === slot ? 'selected' : ''}`} onClick={() => changeSetup('selectedSlot', slot, false)} disabled={!available}>
-                  <small>{slotLabel(slot)}</small><strong>{primary?.name ?? ability?.name ?? 'Empty'}</strong><span>{state ? state.phase : 'unavailable'}{state?.cooldownRemainingTicks ? ` · ${state.cooldownRemainingTicks}t` : ''}</span>
-                </button>
-              );
-            })}
-          </div>
+          <TrainingControlDeck
+            slots={slotControls}
+            onSelect={(slot) => changeSetup('selectedSlot', slot, false)}
+            onMove={(direction) => runtimeRef.current?.setPlayerMovement(direction)}
+          />
           <div className="training-control-hint">{settings.movementMode === 'mouse' ? 'Pointer steering moves + aims · 1–5 or Q/E/R/F activate skills' : 'WASD / arrows move · pointer aims · 1–5 or Q/E/R/F activate skills'}</div>
         </div>
 
@@ -382,14 +388,6 @@ export function TrainingLabView({ fighters, settings, active, onSettingChange }:
           </article>
         </div>
 
-        <div className="training-mobile-dock" aria-label="Ability Lab quick controls">
-          <NeonButton tone={paused ? 'success' : 'pause'} size="small" onClick={() => runtimeRef.current?.setPaused(!paused)}>{paused ? 'Play' : 'Pause'}</NeonButton>
-          <NeonButton tone={setup.selectedSlot === 'ultimate' ? 'ultimate' : 'success'} size="small" disabled={!selectedPrimaryAttack && !selectedAbility} onClick={() => runtimeRef.current?.activateAbility(setup.selectedSlot)}>Fire</NeonButton>
-          <NeonButton tone="danger" size="small" onClick={() => runtimeRef.current?.restart(setup)}>Reset</NeonButton>
-          <NeonButton tone="ghost" size="small" onClick={() => setSidebarOpen(true)} aria-controls="training-settings-drawer" aria-expanded={sidebarOpen}>Setup</NeonButton>
-        </div>
-
-        <TouchMovePad onMove={(direction) => runtimeRef.current?.setPlayerMovement(direction)} />
       </div>
     </section>
   );
@@ -432,23 +430,6 @@ function safeTrainingModuleSlot(moduleId: string): ModuleSlot | null {
 
 function TrainingToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return <label className="training-toggle"><input type="checkbox" checked={checked} onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.checked)} /><span>{label}</span><i /></label>;
-}
-
-function TouchMovePad({ onMove }: { onMove: (direction: Vec2) => void }) {
-  const move = (direction: Vec2) => (event: ReactPointerEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    onMove(direction);
-  };
-  const stop = () => onMove({ x: 0, y: 0 });
-  return (
-    <div className="training-touch-pad" aria-label="Training movement pad">
-      <button onPointerDown={move({ x: 0, y: -1 })} onPointerUp={stop} onPointerCancel={stop}>↑</button>
-      <button onPointerDown={move({ x: -1, y: 0 })} onPointerUp={stop} onPointerCancel={stop}>←</button>
-      <button onPointerDown={move({ x: 0, y: 1 })} onPointerUp={stop} onPointerCancel={stop}>↓</button>
-      <button onPointerDown={move({ x: 1, y: 0 })} onPointerUp={stop} onPointerCancel={stop}>→</button>
-    </div>
-  );
 }
 
 function slotLabel(slot: AbilitySlot): string {

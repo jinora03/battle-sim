@@ -19,7 +19,10 @@ import { getSkillPresentation } from '@kinetic/visual-engine';
 import type { RecentSkillActivity, RuntimeDiagnostics } from '../../runtime/BattleRuntime';
 import { hexColor } from '../../ui/FormControls';
 
-export function DirectionPad({ onDirection }: { onDirection: (direction: Vec2) => void }) {
+export function DirectionPad({ onDirection, sensitivity = 1 }: {
+  onDirection: (direction: Vec2) => void;
+  sensitivity?: number;
+}) {
   const padRef = useRef<HTMLDivElement | null>(null);
   const knobRef = useRef<HTMLDivElement | null>(null);
   const pointerIdRef = useRef<number | null>(null);
@@ -103,7 +106,7 @@ export function DirectionPad({ onDirection }: { onDirection: (direction: Vec2) =
       return;
     }
     const normalized = { x: rawX / safeLength, y: rawY / safeLength };
-    const linear = Math.max(0, Math.min(1, (length - deadzone) / Math.max(1, inputRadius - deadzone)));
+    const linear = Math.max(0, Math.min(1, ((length - deadzone) / Math.max(1, inputRadius - deadzone)) * sensitivity));
     const eased = linear * linear * (3 - 2 * linear);
     targetDirectionRef.current = { x: normalized.x * eased, y: normalized.y * eased };
   };

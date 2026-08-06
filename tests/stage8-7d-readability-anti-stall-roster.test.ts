@@ -64,16 +64,16 @@ describe('Stage 8.7D battle readability, anti-stall and roster polish', () => {
     expect(controllerSource).toContain("['ranged', 'automatic', 'throwable', 'beam']");
   });
 
-  it('normalizes roster card rows and collapses module information by default', () => {
+  it('keeps roster passive information static, readable and bounded on mobile', () => {
     const rosterSource = readFileSync(new URL('../apps/game/src/RosterView.tsx', import.meta.url), 'utf8');
-    const styles = readFileSync(new URL('../apps/game/src/styles.css', import.meta.url), 'utf8');
+    const styles = readFileSync(new URL('../apps/game/src/styles/70-fighter-previews.css', import.meta.url), 'utf8');
 
-    expect(rosterSource).toContain('fighter-identity-disclosure');
-    expect(rosterSource).toContain('<details className="fighter-identity-disclosure modules">');
-    expect(rosterSource).toContain('compatibleModules.length} compatible');
-    expect(styles).toContain('.release-roster-grid {\n  align-items: start;');
-    expect(styles).toContain('grid-row: 1 / span 2;');
-    expect(styles).toContain('.roster-module-list');
+    expect(rosterSource).toContain('fighter-passive-card');
+    expect(rosterSource).not.toContain('fighter-identity-disclosure');
+    expect(rosterSource).not.toContain('listCompatibleModules');
+    expect(styles).toContain('.fighter-passive-card');
+    expect(styles).toContain('overflow-wrap: anywhere;');
+    expect(styles).toContain('.release-fighter-card');
   });
 
   it('advances engine and content compatibility markers together', () => {

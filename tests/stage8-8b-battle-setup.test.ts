@@ -26,7 +26,7 @@ describe('Stage 8.8B battle setup UX', () => {
     expect(moduleSource).toContain('fighter-module-field-content');
   });
 
-  it('shows module-aware fighter identity, weapon, passive and skills beneath both selectors', () => {
+  it('shows a body-only fighter preview with passive and skills beneath both selectors', () => {
     const drawerSource = readFileSync(new URL('../apps/game/src/features/battle/BattleSetupDrawer.tsx', import.meta.url), 'utf8');
     const previewSource = readFileSync(new URL('../apps/game/src/features/battle/BattleFighterPreview.tsx', import.meta.url), 'utf8');
 
@@ -34,15 +34,17 @@ describe('Stage 8.8B battle setup UX', () => {
     expect(previewSource).toContain('getPrimaryAttack');
     expect(previewSource).toContain('getPassive');
     expect(previewSource).toContain('getSkillPresentation');
-    expect(previewSource).toContain("' · Tuned Version'");
-    expect(previewSource).toContain('modules.map');
+    expect(previewSource).toContain('<FighterPortrait');
+    expect(previewSource).not.toContain('Tuned Version');
+    expect(previewSource).not.toContain('modules.map');
   });
 
   it('moves the configured-battle action into Battle Setup', () => {
     const drawerSource = readFileSync(new URL('../apps/game/src/features/battle/BattleSetupDrawer.tsx', import.meta.url), 'utf8');
     const workspaceSource = readFileSync(new URL('../apps/game/src/app/AppWorkspace.tsx', import.meta.url), 'utf8');
 
-    expect(drawerSource).toContain('battle-setup-start-zone');
+    expect(drawerSource).toContain('battle-setup-start-zone-top');
+    expect(drawerSource.indexOf('battle-setup-start-zone-top')).toBeLessThan(drawerSource.indexOf('htmlFor="fighter-a"'));
     expect(drawerSource).toContain('onStartConfiguredBattle');
     expect(workspaceSource).toContain('onStartConfiguredBattle={startConfiguredBattle}');
     expect(workspaceSource).not.toContain('className="battle-start-button"');
