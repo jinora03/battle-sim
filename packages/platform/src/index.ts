@@ -172,7 +172,8 @@ export function detectDeviceCapabilities(): DeviceCapabilities {
 export function classifyViewport(
   width: number,
   height: number,
-  roundDisplay = false
+  roundDisplay = false,
+  touchFirst = false
 ): Pick<ViewportMetrics, 'orientation' | 'viewportClass' | 'displayShape' | 'compact' | 'shortLandscape'> {
   const safeWidth = Math.max(1, width);
   const safeHeight = Math.max(1, height);
@@ -181,7 +182,7 @@ export function classifyViewport(
   const compact = Math.min(safeWidth, safeHeight) < 700 || safeWidth < 760;
   const viewportClass: ViewportClass = safeWidth < 700 ? 'compact' : safeWidth < 1180 ? 'medium' : 'wide';
   const aspectRatio = safeWidth / safeHeight;
-  const nearSquare = Math.max(safeWidth, safeHeight) <= 560 && aspectRatio >= 0.82 && aspectRatio <= 1.22;
+  const nearSquare = touchFirst && Math.max(safeWidth, safeHeight) <= 560 && aspectRatio >= 0.82 && aspectRatio <= 1.22;
   const displayShape: DisplayShape = roundDisplay ? 'round' : nearSquare ? 'near-square' : 'rectangular';
   return { orientation, viewportClass, displayShape, compact, shortLandscape };
 }
@@ -202,12 +203,15 @@ export function detectViewportMetrics(): ViewportMetrics {
   const width = Math.max(1, Math.round(visualViewport?.width ?? window.innerWidth));
   const height = Math.max(1, Math.round(visualViewport?.height ?? window.innerHeight));
   const roundDisplay = window.matchMedia?.('(shape: round)').matches === true;
+  const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches === true;
+  const hoverCapable = window.matchMedia?.('(hover: hover)').matches === true;
+  const touchFirst = coarsePointer || ((navigator.maxTouchPoints || 0) > 0 && !hoverCapable);
   return {
     width,
     height,
     layoutWidth: Math.max(1, Math.round(window.innerWidth)),
     layoutHeight: Math.max(1, Math.round(window.innerHeight)),
-    ...classifyViewport(width, height, roundDisplay),
+    ...classifyViewport(width, height, roundDisplay, touchFirst),
     standalone: window.matchMedia?.('(display-mode: standalone)').matches === true,
     fullscreen: Boolean(document.fullscreenElement)
   };

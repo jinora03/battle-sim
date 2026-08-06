@@ -1,8 +1,10 @@
 import type {
   ButtonHTMLAttributes,
+  CSSProperties,
   HTMLAttributes,
   ReactNode
 } from 'react';
+import { useHorizontalDragScroll } from './useHorizontalDragScroll';
 
 export type NeonTone =
   | 'primary'
@@ -55,8 +57,23 @@ export function AppNavigation<T extends string>({
   onChange: (value: T) => void;
   className?: string;
 }) {
+  const dragScroll = useHorizontalDragScroll<HTMLElement>();
   return (
-    <nav className={`mode-tabs release-nav ui-app-navigation${className ? ` ${className}` : ''}`} aria-label="Game navigation">
+    <nav
+      ref={dragScroll.ref}
+      className={`mode-tabs release-nav ui-app-navigation${dragScroll.dragging ? ' is-dragging' : ''}${className ? ` ${className}` : ''}`}
+      aria-label="Game navigation"
+      data-overflow={dragScroll.overflow ? 'true' : 'false'}
+      style={{ '--ui-nav-count': items.length } as CSSProperties}
+      data-scroll-left={dragScroll.canScrollLeft ? 'true' : 'false'}
+      data-scroll-right={dragScroll.canScrollRight ? 'true' : 'false'}
+      onPointerDown={dragScroll.onPointerDown}
+      onPointerMove={dragScroll.onPointerMove}
+      onPointerUp={dragScroll.onPointerUp}
+      onPointerCancel={dragScroll.onPointerCancel}
+      onLostPointerCapture={dragScroll.onLostPointerCapture}
+      onClickCapture={dragScroll.onClickCapture}
+    >
       {items.map((item) => (
         <button
           type="button"

@@ -5,6 +5,7 @@ import { getSkillPresentation, getVisualRecipe } from '@kinetic/visual-engine';
 import type { BattleSetup } from './runtime/BattleSetup';
 import { QUICK_BATTLES, type QuickBattle } from './features/home/quickBattles';
 import { NeonButton } from './ui/NeonUI';
+import { useHorizontalDragScroll } from './ui/useHorizontalDragScroll';
 
 export type ReleaseView = 'home' | 'battle' | 'training' | 'roster' | 'creator' | 'profile';
 
@@ -19,6 +20,7 @@ export function ReleaseHome({ profile, fighters, arenaCount, modeCount, onNaviga
   const unlocked = new Set(profile.unlockedFighterIds);
   const unlockedBuiltins = fighters.filter((fighter) => unlocked.has(fighter.id)).length;
   const currentLevelProgress = Math.max(0, Math.min(100, ((profile.xp % Math.max(180, profile.level * 180)) / Math.max(180, profile.level * 180)) * 100));
+  const rosterScroll = useHorizontalDragScroll<HTMLDivElement>();
 
   const startQuick = (item: QuickBattle) => {
     onStart({
@@ -100,7 +102,19 @@ export function ReleaseHome({ profile, fighters, arenaCount, modeCount, onNaviga
 
       <section className="release-roster-peek">
         <div className="section-heading-row"><div><p className="eyebrow">Release roster</p><h2>Eight different movement languages</h2></div><button className="text-link-button" onClick={() => onNavigate('roster')}>Compare all fighters →</button></div>
-        <div className="roster-peek-strip">
+        <div
+          ref={rosterScroll.ref}
+          className={`roster-peek-strip${rosterScroll.dragging ? ' is-dragging' : ''}`}
+          data-overflow={rosterScroll.overflow ? 'true' : 'false'}
+          data-scroll-left={rosterScroll.canScrollLeft ? 'true' : 'false'}
+          data-scroll-right={rosterScroll.canScrollRight ? 'true' : 'false'}
+          onPointerDown={rosterScroll.onPointerDown}
+          onPointerMove={rosterScroll.onPointerMove}
+          onPointerUp={rosterScroll.onPointerUp}
+          onPointerCancel={rosterScroll.onPointerCancel}
+          onLostPointerCapture={rosterScroll.onLostPointerCapture}
+          onClickCapture={rosterScroll.onClickCapture}
+        >
           {fighters.filter((fighter) => !fighter.classification.traits.includes('custom')).slice(0, 8).map((fighter) => {
             const visual = getVisualRecipe(fighter.visualRecipeId);
             const ultimateId = fighter.abilitySlots.ultimate;

@@ -4,7 +4,7 @@ import { classifyViewport } from '@kinetic/platform';
 
 describe('Stage 8.9A round-screen and near-square UI', () => {
   it('classifies watch-sized viewports without changing ordinary phone profiles', () => {
-    expect(classifyViewport(450, 450)).toMatchObject({
+    expect(classifyViewport(450, 450, false, true)).toMatchObject({
       orientation: 'landscape',
       viewportClass: 'compact',
       displayShape: 'near-square',
@@ -12,14 +12,15 @@ describe('Stage 8.9A round-screen and near-square UI', () => {
       shortLandscape: true
     });
     expect(classifyViewport(450, 450, true).displayShape).toBe('round');
+    expect(classifyViewport(450, 450).displayShape).toBe('rectangular');
     expect(classifyViewport(390, 844).displayShape).toBe('rectangular');
     expect(classifyViewport(844, 390).displayShape).toBe('rectangular');
   });
 
   it('limits near-square fallback detection to compact watch-class dimensions', () => {
-    expect(classifyViewport(560, 500).displayShape).toBe('near-square');
-    expect(classifyViewport(700, 700).displayShape).toBe('rectangular');
-    expect(classifyViewport(520, 400).displayShape).toBe('rectangular');
+    expect(classifyViewport(560, 500, false, true).displayShape).toBe('near-square');
+    expect(classifyViewport(700, 700, false, true).displayShape).toBe('rectangular');
+    expect(classifyViewport(520, 400, false, true).displayShape).toBe('rectangular');
   });
 
   it('publishes display shape through the existing environment lifecycle', () => {
