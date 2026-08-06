@@ -8,7 +8,6 @@ interface PortraitStyle extends CSSProperties {
   '--portrait-core': string;
   '--portrait-aura': string;
   '--portrait-accent': string;
-  '--portrait-scale': number;
 }
 
 export function FighterPortrait({
@@ -29,14 +28,14 @@ export function FighterPortrait({
     '--portrait-dark': color(visual.bodyDarkColor),
     '--portrait-core': color(visual.coreColor),
     '--portrait-aura': color(visual.auraColor),
-    '--portrait-accent': color(visual.accentColor),
-    '--portrait-scale': Math.max(0.9, Math.min(1.22, fighter.physics.radius / 48))
+    '--portrait-accent': color(visual.accentColor)
   };
 
   return (
     <div
       className={`shared-fighter-portrait body-only size-${size} facing-${facing} shape-${visual.shape} ${className}`.trim()}
       style={style}
+      data-fighter-id={fighter.id}
       aria-hidden="true"
     >
       <span className="shared-portrait-aura" />

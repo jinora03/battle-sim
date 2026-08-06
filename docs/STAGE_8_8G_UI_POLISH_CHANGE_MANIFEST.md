@@ -69,3 +69,16 @@ The change intentionally avoids expanding `AppWorkspace.tsx`, `TrainingLabView.t
 - Patch application against clean commit `be56f01` — passed
 
 A complete `npm ci` / `npm run check` could not be run in the assessment container because the configured package artifact endpoint returned `404` for `vite-8.1.5.tgz`. No dependency or lockfile workaround was applied.
+
+## Follow-up refinement
+
+- Standardized preview body scale across fighters; gameplay radius no longer changes UI portrait size.
+- Reworked Battle Setup previews into a vertical composition with a dedicated body stage above passive and skills.
+- Restored large body-only match-intro portraits and removed the obsolete intro weapon/attachment CSS path.
+- Reflowed the objective header into a full-width matchup row with team lanes beneath it.
+- Reduced module selector, `Start new battle`, and `Reset recommended settings` control sizing.
+- Switched Roster cards to one-column composition at narrow widths so browser zoom and mobile layouts do not compress content into a thin strip.
+
+- Replaced the compressed setup skill tiles with a single horizontally scrollable skill row.
+- Replaced generic `Team 1` / `Team 2` lane labels with the corresponding fighter names.
+- Removed the compact setup portrait aura so it cannot be mistaken for the reverted Stage 8.9 combat-bloom experiment; no combat VFX files were changed.
