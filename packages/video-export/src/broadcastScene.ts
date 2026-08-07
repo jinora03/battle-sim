@@ -1,4 +1,5 @@
-import { getAbility, getFighter, getGameMode, getPrimaryAttack, getStatus } from '@kinetic/content';
+import { getAbility, getArena, getFighter, getGameMode, getPrimaryAttack, getStatus } from '@kinetic/content';
+import { getVisualRecipe } from '@kinetic/visual-engine';
 import type {
   AbilityStateSnapshot,
   BattleDefinition,
@@ -36,11 +37,25 @@ export interface BroadcastResourceView {
   ratio: number;
 }
 
+
+export interface BroadcastFighterVisual {
+  shape: 'orb' | 'mech' | 'water' | 'bomber';
+  bodyColor: number;
+  bodyDarkColor: number;
+  coreColor: number;
+  auraColor: number;
+  accentColor: number;
+  horns: boolean;
+}
+
 export interface BroadcastFighterView {
   entityId: EntityId | null;
   team: number;
   fighterId: string;
   name: string;
+  identity: string;
+  weaponName: string;
+  visual: BroadcastFighterVisual;
   memberCount: number;
   hp: number;
   maxHp: number;
@@ -63,6 +78,8 @@ export interface BroadcastScene {
   modeName: string;
   roundLabel: string;
   objectiveLabel: string;
+  arenaName: string;
+  arenaTypeLabel: string;
   left: BroadcastFighterView;
   right: BroadcastFighterView;
   abilityCallout: BroadcastCallout | null;
@@ -80,9 +97,14 @@ export class BroadcastSceneTracker {
   private eventCallout: TimedCallout | null = null;
   private readonly preferredTeams: number[];
   private readonly previousByTeam = new Map<number, BroadcastFighterView>();
+  private readonly arenaName: string;
+  private readonly arenaTypeLabel: string;
 
   constructor(private readonly battle: BattleDefinition) {
     this.preferredTeams = [...new Set(battle.participants.map((participant) => participant.team))].slice(0, 2);
+    const arenaPresentation = resolveArenaPresentation(battle.arenaId);
+    this.arenaName = arenaPresentation.name;
+    this.arenaTypeLabel = arenaPresentation.typeLabel;
   }
 
   update(snapshot: WorldSnapshot, events: readonly SimulationEvent[]): BroadcastScene {
@@ -138,6 +160,8 @@ export class BroadcastSceneTracker {
       modeName: resolveModeName(snapshot.modeId),
       roundLabel: 'Round 1',
       objectiveLabel: snapshot.objective.label,
+      arenaName: this.arenaName,
+      arenaTypeLabel: this.arenaTypeLabel,
       left,
       right,
       abilityCallout: this.abilityCallout?.callout ?? null,
@@ -173,12 +197,15 @@ function createTeamView(
     battle.participants.filter((item) => item.team === team).length,
     previous?.memberCount ?? 0
   );
-  const fighterName = resolveFighterName(fighterId);
+  const presentation = resolveFighterPresentation(fighterId);
   return {
     entityId: primary?.id ?? null,
     team,
     fighterId,
-    name: memberCount > 1 ? `Team ${team}` : fighterName,
+    name: memberCount > 1 ? `Team ${team}` : presentation.name,
+    identity: memberCount > 1 ? `${memberCount} fighters` : presentation.identity,
+    weaponName: memberCount > 1 ? 'Mixed loadout' : presentation.weaponName,
+    visual: presentation.visual,
     memberCount,
     hp,
     maxHp,
@@ -252,7 +279,56 @@ function createResultCallout(
 }
 
 function resolveFighterName(id: string): string {
-  return safeContentName(() => getFighter(id).name, id);
+  return resolveFighterPresentation(id).name;
+}
+
+function resolveFighterPresentation(id: string): { name: string; identity: string; weaponName: string; visual: BroadcastFighterVisual } {
+  try {
+    const fighter = getFighter(id);
+    const visual = getVisualRecipe(fighter.visualRecipeId);
+    return {
+      name: fighter.name,
+      identity: `${fighter.classification.elements.map(titleize).join(' / ')} · ${titleize(fighter.classification.archetype)}`,
+      weaponName: resolvePrimaryAttackName(fighter.primaryAttackId),
+      visual: {
+        shape: visual.shape,
+        bodyColor: visual.bodyColor,
+        bodyDarkColor: visual.bodyDarkColor,
+        coreColor: visual.coreColor,
+        auraColor: visual.auraColor,
+        accentColor: visual.accentColor,
+        horns: visual.horns
+      }
+    };
+  } catch {
+    return {
+      name: titleize(id),
+      identity: 'Arena fighter',
+      weaponName: 'Primary attack',
+      visual: {
+        shape: 'orb',
+        bodyColor: 0x3c6078,
+        bodyDarkColor: 0x132537,
+        coreColor: 0xeef8ff,
+        auraColor: 0x5eb8e8,
+        accentColor: 0x8fdcff,
+        horns: false
+      }
+    };
+  }
+}
+
+
+function resolveArenaPresentation(id: string): { name: string; typeLabel: string } {
+  try {
+    const arena = getArena(id);
+    return {
+      name: arena.name,
+      typeLabel: `${titleize(arena.size)} · ${titleize(arena.theme)} arena`
+    };
+  } catch {
+    return { name: titleize(id), typeLabel: 'Arena' };
+  }
 }
 
 function resolveAbilityName(id: string): string {

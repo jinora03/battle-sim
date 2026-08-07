@@ -8,6 +8,7 @@ import { getArena } from '@kinetic/content';
 import type { BattleDefinition, SimulationEvent, Vec2 } from '@kinetic/protocol';
 
 export type ReplayAudioWaveform = 'sine' | 'triangle' | 'square' | 'sawtooth' | 'noise';
+export type ReplayAudioPriority = 'detail' | 'attack' | 'ability' | 'impact' | 'hero';
 
 export interface ReplayAudioCue {
   id: string;
@@ -21,6 +22,7 @@ export interface ReplayAudioCue {
   attackSeconds: number;
   releaseSeconds: number;
   seed: number;
+  priority: ReplayAudioPriority;
 }
 
 interface PaletteTuning {
@@ -32,19 +34,19 @@ interface PaletteTuning {
 
 const PALETTE_TUNING: Readonly<Record<ResolvedCombatAudioLayer['palette'], PaletteTuning>> = {
   kinetic: { low: 82, mid: 260, high: 760, waveform: 'triangle' },
-  explosive: { low: 42, mid: 165, high: 1280, waveform: 'sawtooth' },
-  fire: { low: 58, mid: 180, high: 520, waveform: 'sawtooth' },
-  electric: { low: 52, mid: 620, high: 1180, waveform: 'square' },
+  explosive: { low: 42, mid: 150, high: 720, waveform: 'triangle' },
+  fire: { low: 58, mid: 170, high: 460, waveform: 'triangle' },
+  electric: { low: 52, mid: 460, high: 880, waveform: 'triangle' },
   gravity: { low: 34, mid: 96, high: 260, waveform: 'sine' },
-  mechanical: { low: 64, mid: 210, high: 920, waveform: 'sawtooth' },
+  mechanical: { low: 64, mid: 190, high: 620, waveform: 'triangle' },
   water: { low: 78, mid: 245, high: 620, waveform: 'sine' },
   ice: { low: 120, mid: 520, high: 1080, waveform: 'triangle' },
   nature: { low: 72, mid: 180, high: 460, waveform: 'triangle' },
   void: { low: 38, mid: 115, high: 430, waveform: 'sine' },
-  solar: { low: 96, mid: 360, high: 920, waveform: 'sawtooth' }
+  solar: { low: 96, mid: 320, high: 720, waveform: 'triangle' }
 };
 
-const MAX_CUES_PER_TICK = 14;
+const MAX_CUES_PER_TICK = 10;
 
 export interface ReplayAudioTimelineOptions {
   startOffsetSeconds?: number;
@@ -85,8 +87,11 @@ export class ReplayAudioTimeline {
     let strongestDamage = 0;
     let strongestDamagePosition: Vec2 | undefined;
     let missileBlast = false;
+    let heroEvent = false;
     for (const event of events) {
       if (event.type === 'blast' && isMissileAbility(event.abilityId)) missileBlast = true;
+      if (event.type === 'blast' || event.type === 'death' || event.type === 'battleEnded') heroEvent = true;
+      if ((event.type === 'abilityActivated' || event.type === 'abilityResolved') && event.slot === 'ultimate') heroEvent = true;
     }
 
     for (const event of events) {
@@ -105,7 +110,7 @@ export class ReplayAudioTimeline {
           this.addImpact(event.tick, event.position, isMissileWeapon(event.weaponId) ? 0.72 : 0.42, event.sourceId, event.weaponId);
         }
       } else if (event.type === 'weaponAttackStarted') {
-        this.addWeaponCommit(event.tick, event.position, event.category, event.entityId, event.weaponId);
+        if (!heroEvent) this.addWeaponCommit(event.tick, event.position, event.category, event.entityId, event.weaponId);
       } else if (event.type === 'weaponHit' && event.presentation !== 'continuous') {
         this.addImpact(event.tick, event.position, Math.min(1, 0.34 + event.damage / 180), event.sourceId, event.weaponId);
       } else if (event.type === 'damage' && !event.prevented && event.amount > strongestDamage) {
@@ -144,7 +149,8 @@ export class ReplayAudioTimeline {
         startFrequency: anchor === 'activated' ? 190 : 310,
         endFrequency: anchor === 'activated' ? 340 : 120,
         gain: 0.065,
-        seedSalt: hashString(abilityId)
+        seedSalt: hashString(abilityId),
+        priority: 'ability'
       });
       return;
     }
@@ -160,7 +166,12 @@ export class ReplayAudioTimeline {
     const direction = layer.phase === 'anticipation' || layer.intent === 'pull' ? 1 : -1;
     const startFrequency = direction > 0 ? tuning.low : tuning.high;
     const endFrequency = direction > 0 ? tuning.mid : tuning.low;
-    const baseGain = 0.055 * layer.gainScale;
+    const baseGain = 0.046 * layer.gainScale;
+    const priority: ReplayAudioPriority = layer.intent === 'ultimate' || layer.intent === 'explosion'
+      ? 'hero'
+      : layer.phase === 'release' || layer.phase === 'activation'
+        ? 'ability'
+        : 'impact';
     const id = `${tick}:profile:${entityId}:${layer.abilityId}:${layer.phase}:${layer.anchor}`;
     this.addCue({
       id,
@@ -172,7 +183,8 @@ export class ReplayAudioTimeline {
       startFrequency,
       endFrequency,
       gain: baseGain,
-      seedSalt: hashString(`${layer.abilityId}:${layer.phase}`)
+      seedSalt: hashString(`${layer.abilityId}:${layer.phase}`),
+      priority
     });
 
     if (layer.intent === 'explosion' || layer.intent === 'ultimate' || layer.variant?.includes('collapse') || layer.variant?.includes('finale')) {
@@ -185,8 +197,9 @@ export class ReplayAudioTimeline {
         waveform: 'noise',
         startFrequency: tuning.low,
         endFrequency: tuning.low,
-        gain: baseGain * 0.72,
-        seedSalt: hashString(`${layer.abilityId}:${layer.phase}:noise`)
+        gain: baseGain * 0.42,
+        seedSalt: hashString(`${layer.abilityId}:${layer.phase}:noise`),
+        priority: 'hero'
       });
     } else if (layer.intent === 'channel' || layer.intent === 'burst-fire' || layer.variant?.includes('flow')) {
       this.addCue({
@@ -195,11 +208,12 @@ export class ReplayAudioTimeline {
         position,
         delaySeconds: layer.delaySeconds + 0.012,
         durationSeconds: layer.durationSeconds,
-        waveform: layer.intent === 'burst-fire' ? 'square' : 'sine',
+        waveform: layer.intent === 'burst-fire' ? 'triangle' : 'sine',
         startFrequency: tuning.mid,
         endFrequency: tuning.high,
-        gain: baseGain * 0.38,
-        seedSalt: hashString(`${layer.abilityId}:${layer.phase}:texture`)
+        gain: baseGain * 0.26,
+        seedSalt: hashString(`${layer.abilityId}:${layer.phase}:texture`),
+        priority: 'detail'
       });
     }
   }
@@ -208,11 +222,11 @@ export class ReplayAudioTimeline {
     const strength = Math.max(0.45, Math.min(1.25, radius / 260 + force / 28));
     this.addCue({
       id: `${tick}:blast:${sourceId}:${id}:low`, tick, position, delaySeconds: 0, durationSeconds: 0.42,
-      waveform: 'sawtooth', startFrequency: 92, endFrequency: 28, gain: 0.105 * strength, seedSalt: 91
+      waveform: 'sine', startFrequency: 82, endFrequency: 30, gain: 0.095 * strength, seedSalt: 91, priority: 'hero'
     });
     this.addCue({
       id: `${tick}:blast:${sourceId}:${id}:noise`, tick, position, delaySeconds: 0.006, durationSeconds: 0.32,
-      waveform: 'noise', startFrequency: 0, endFrequency: 0, gain: 0.075 * strength, seedSalt: 191
+      waveform: 'noise', startFrequency: 0, endFrequency: 0, gain: 0.034 * strength, seedSalt: 191, priority: 'hero'
     });
   }
 
@@ -224,11 +238,12 @@ export class ReplayAudioTimeline {
       position,
       delaySeconds: 0,
       durationSeconds: missile ? 0.16 : 0.045,
-      waveform: missile ? 'sawtooth' : 'square',
-      startFrequency: missile ? 120 : 1550,
-      endFrequency: missile ? 330 : 520,
-      gain: missile ? 0.055 : 0.027,
-      seedSalt: hashString(weaponId) ^ projectileId
+      waveform: 'triangle',
+      startFrequency: missile ? 110 : 860,
+      endFrequency: missile ? 260 : 280,
+      gain: missile ? 0.044 : 0.017,
+      seedSalt: hashString(weaponId) ^ projectileId,
+      priority: missile ? 'attack' : 'detail'
     });
   }
 
@@ -240,11 +255,12 @@ export class ReplayAudioTimeline {
       position,
       delaySeconds: 0,
       durationSeconds: ranged ? 0.055 : 0.11,
-      waveform: ranged ? 'square' : 'triangle',
-      startFrequency: ranged ? 760 : 340,
-      endFrequency: ranged ? 190 : 95,
-      gain: ranged ? 0.026 : 0.038,
-      seedSalt: hashString(weaponId)
+      waveform: 'triangle',
+      startFrequency: ranged ? 540 : 310,
+      endFrequency: ranged ? 160 : 90,
+      gain: ranged ? 0.018 : 0.032,
+      seedSalt: hashString(weaponId),
+      priority: 'attack'
     });
   }
 
@@ -256,10 +272,11 @@ export class ReplayAudioTimeline {
       delaySeconds: 0,
       durationSeconds: 0.1 + 0.08 * strength,
       waveform: 'triangle',
-      startFrequency: 420 + 250 * strength,
-      endFrequency: 68,
-      gain: 0.045 * strength,
-      seedSalt: hashString(id)
+      startFrequency: 330 + 170 * strength,
+      endFrequency: 72,
+      gain: 0.036 * strength,
+      seedSalt: hashString(id),
+      priority: 'impact'
     });
   }
 
@@ -268,14 +285,14 @@ export class ReplayAudioTimeline {
     const resolvedPosition = position ?? { x: this.arenaWidth / 2, y: 0 };
     this.addCue({
       id: `${tick}:hitmarker`, tick, position: resolvedPosition, delaySeconds: 0.004, durationSeconds: 0.055,
-      waveform: 'square', startFrequency: 1850, endFrequency: 640, gain: 0.035 * strength, seedSalt: 771
+      waveform: 'triangle', startFrequency: 980, endFrequency: 420, gain: 0.012 * strength, seedSalt: 771, priority: 'detail'
     });
   }
 
   private addDeath(tick: number, position: Vec2, entityId: number): void {
     this.addCue({
       id: `${tick}:death:${entityId}`, tick, position, delaySeconds: 0, durationSeconds: 0.42,
-      waveform: 'sawtooth', startFrequency: 105, endFrequency: 28, gain: 0.11, seedSalt: entityId
+      waveform: 'triangle', startFrequency: 96, endFrequency: 30, gain: 0.09, seedSalt: entityId, priority: 'hero'
     });
   }
 
@@ -284,12 +301,12 @@ export class ReplayAudioTimeline {
     this.addCue({
       id: `${tick}:result:body`, tick, position: center, delaySeconds: this.resultDelaySeconds + 0.16, durationSeconds: 0.75,
       waveform: 'triangle', startFrequency: winningTeam === 0 ? 170 : 210, endFrequency: winningTeam === 0 ? 95 : 520,
-      gain: 0.075, seedSalt: winningTeam + 3001
+      gain: 0.066, seedSalt: winningTeam + 3001, priority: 'hero'
     });
     this.addCue({
       id: `${tick}:result:accent`, tick, position: center, delaySeconds: this.resultDelaySeconds + 0.32, durationSeconds: 0.38,
       waveform: 'sine', startFrequency: 420, endFrequency: winningTeam === 0 ? 260 : 860,
-      gain: 0.042, seedSalt: winningTeam + 4001
+      gain: 0.032, seedSalt: winningTeam + 4001, priority: 'ability'
     });
   }
 
@@ -304,6 +321,7 @@ export class ReplayAudioTimeline {
     endFrequency: number;
     gain: number;
     seedSalt: number;
+    priority: ReplayAudioPriority;
   }): void {
     if (this.cueKeys.has(input.id)) return;
     this.cueKeys.add(input.id);
@@ -319,7 +337,8 @@ export class ReplayAudioTimeline {
       pan: Math.max(-0.82, Math.min(0.82, input.position.x / this.arenaWidth * 2 - 1)),
       attackSeconds: Math.min(0.018, durationSeconds * 0.16),
       releaseSeconds: Math.min(0.16, durationSeconds * 0.45),
-      seed: mixSeed(this.battleSeed, input.tick, input.seedSalt)
+      seed: mixSeed(this.battleSeed, input.tick, input.seedSalt),
+      priority: input.priority
     });
   }
 }

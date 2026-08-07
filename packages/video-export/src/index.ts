@@ -10,6 +10,7 @@ export * from './creatorPresets';
 export * from './creatorThumbnail';
 export * from './replayFrameStepper';
 export * from './replayVideoExporter';
+export * from './runtimeReplayAudio';
 export * from './settings';
 export * from './types';
 export * from './webCodecs';

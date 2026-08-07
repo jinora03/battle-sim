@@ -6,6 +6,7 @@ import { BroadcastFrameRenderer } from './broadcastRenderer';
 import { CreatorReplayAnalyzer } from './creatorHighlights';
 import { captureCreatorThumbnail, encodeCreatorThumbnail } from './creatorThumbnail';
 import { ReplayFrameStepper } from './replayFrameStepper';
+import { RuntimeReplayAudioTimeline, renderRuntimeReplayAudio } from './runtimeReplayAudio';
 import {
   calculateCreatorIntroFrameCount,
   calculateKnockoutSlowMotionFrameCount,
@@ -94,6 +95,8 @@ export class ReplayVideoExporter {
       startOffsetSeconds: introFrames / settings.fps,
       resultDelaySeconds: knockoutSlowMotionFrames / settings.fps
     });
+    const runtimeAudioTimeline = new RuntimeReplayAudioTimeline();
+    const initialSnapshot = stepper.currentSnapshot();
     const arenaSize = broadcastRenderer.layout.arena;
     const host = createExportHost(arenaSize.width, arenaSize.height);
     const renderer = new PixiBattleRenderer();
@@ -135,7 +138,6 @@ export class ReplayVideoExporter {
       };
 
       if (introFrames > 0) {
-        const initialSnapshot = stepper.currentSnapshot();
         renderer.renderExportFrame(initialSnapshot, [], 1000 / settings.fps);
         report('rendering', 'Rendering the creator matchup intro.', true);
         for (let introFrame = 0; introFrame < introFrames; introFrame += 1) {
@@ -161,6 +163,7 @@ export class ReplayVideoExporter {
         const frame = stepper.next();
         if (!frame) break;
         audioTimeline.addEvents(frame.events);
+        runtimeAudioTimeline.addEvents(frame.events);
         const highlightChanged = creatorAnalyzer.update(frame.snapshot, frame.events);
         renderer.renderExportFrame(frame.snapshot, frame.events, 1000 / settings.fps);
         const hideResult = settings.camera.mode === 'cinematic' && frame.snapshot.battleEnded;
@@ -229,7 +232,17 @@ export class ReplayVideoExporter {
 
       if (audioEncoder) {
         report('audio', 'Rendering deterministic replay audio and encoding Opus.', true);
-        const synthesizer = new ReplayAudioSynthesizer(
+        const runtimeAudio = await renderRuntimeReplayAudio({
+          battle: source.replay.battle,
+          initialSnapshot,
+          timeline: runtimeAudioTimeline,
+          durationSeconds: renderedFrames / settings.fps,
+          startOffsetSeconds: introFrames / settings.fps,
+          resultDelaySeconds: knockoutSlowMotionFrames / settings.fps,
+          sampleRate: settings.audio.sampleRate,
+          channels: settings.audio.channels
+        });
+        const audioSource = runtimeAudio ?? new ReplayAudioSynthesizer(
           audioTimeline.finalize(),
           settings.audio.sampleRate,
           settings.audio.channels
@@ -238,7 +251,7 @@ export class ReplayVideoExporter {
         for (let startFrame = 0; startFrame < totalAudioFrames; startFrame += audioEncoder.framesPerChunk) {
           this.throwIfCancelled(signal);
           const frameCount = audioEncoder.framesPerChunk;
-          const pcm = synthesizer.renderInterleaved(startFrame, frameCount);
+          const pcm = audioSource.renderInterleaved(startFrame, frameCount);
           audioEncoder.encode(pcm, Math.round(startFrame * 1_000_000 / settings.audio.sampleRate), frameCount);
           for (const sample of audioEncoder.drainSamples()) muxer.addAudioSample(sample);
           encodedBytes = muxer.byteLength;
@@ -288,7 +301,6 @@ export class ReplayVideoExporter {
         thumbnailHeight: thumbnailBlob ? thumbnailCanvas?.height ?? null : null
       };
       encodedBytes = blob.size;
-      report('complete', 'Video export complete.', true);
       return result;
     } catch (reason) {
       if (reason instanceof ReplayVideoExportError) throw reason;
@@ -299,8 +311,13 @@ export class ReplayVideoExporter {
     } finally {
       encoder.close();
       audioEncoder?.close();
-      renderer.destroy();
-      broadcastRenderer.destroy();
+      // Export cleanup must never turn an already encoded video into a false
+      // user-facing failure. Chromium can report transient WebGL teardown
+      // errors after large 4K contexts; cleanup remains best-effort here while
+      // the live renderer recovery owns the fresh-context guarantee.
+      try { renderer.setActive(false); } catch { /* best-effort export cleanup */ }
+      try { renderer.destroy(); } catch { /* best-effort export cleanup */ }
+      try { broadcastRenderer.destroy(); } catch { /* best-effort export cleanup */ }
       if (thumbnailCanvas) {
         thumbnailCanvas.width = 1;
         thumbnailCanvas.height = 1;

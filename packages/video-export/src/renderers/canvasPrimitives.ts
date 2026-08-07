@@ -215,10 +215,16 @@ export function drawText(
   const glyphWidths = glyphs.map((glyph) => ctx.measureText(glyph).width);
   const totalWidth = glyphWidths.reduce((sum, width) => sum + width, 0) + letterSpacing * (glyphs.length - 1);
   let cursor = align === 'center' ? x - totalWidth / 2 : align === 'right' ? x - totalWidth : x;
+  // Manual letter spacing must draw each glyph from its left edge. Keeping
+  // center/right alignment here offsets every glyph independently and produces
+  // broken labels such as "W INNER" in exported winner cards.
+  const previousAlign = ctx.textAlign;
+  ctx.textAlign = 'left';
   for (let index = 0; index < glyphs.length; index += 1) {
     ctx.fillText(glyphs[index]!, cursor, y);
     cursor += glyphWidths[index]! + letterSpacing;
   }
+  ctx.textAlign = previousAlign;
 }
 
 export function drawFittedText(

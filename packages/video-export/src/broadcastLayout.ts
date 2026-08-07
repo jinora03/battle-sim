@@ -24,8 +24,10 @@ export const BROADCAST_LAYOUTS: Readonly<Record<BroadcastLayoutId, BroadcastLayo
     aspectLabel: '16:9',
     width: 1920,
     height: 1080,
-    arena: { x: 280, y: 132, width: 1360, height: 818 },
-    safeArea: { x: 28, y: 24, width: 1864, height: 1032 }
+    // Keep the arena dominant while giving both fighter rails a little more
+    // physical width for phone playback of 16:9 uploads.
+    arena: { x: 330, y: 48, width: 1260, height: 984 },
+    safeArea: { x: 20, y: 24, width: 1880, height: 1032 }
   },
   vertical: {
     id: 'vertical',
@@ -33,8 +35,10 @@ export const BROADCAST_LAYOUTS: Readonly<Record<BroadcastLayoutId, BroadcastLayo
     aspectLabel: '9:16',
     width: 1080,
     height: 1920,
-    arena: { x: 40, y: 382, width: 1000, height: 1000 },
-    safeArea: { x: 48, y: 38, width: 900, height: 1750 }
+    // Restore the fuller Shorts/Reels composition: a near-edge-to-edge square
+    // arena with enough room above for matchup identity and below for skills.
+    arena: { x: 40, y: 350, width: 1000, height: 1000 },
+    safeArea: { x: 48, y: 54, width: 900, height: 1740 }
   }
 };
 

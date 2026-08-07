@@ -206,14 +206,53 @@ export function useReplayVideoExport(
       exportSettings,
       { onProgress: setProgress },
       abortController.signal
-    ).then((result) => {
+    ).then(async (result) => {
       const audioSuffix = result.audioCodec ? '-audio' : '-silent';
       const baseName = `kinetic-battle-${source.replay.battle.seed}-${result.layout}-${result.cameraMode}-${result.resolution}-${result.fps}fps${audioSuffix}`;
       const filename = `${baseName}.webm`;
       downloadBlob(result.blob, filename);
       if (result.thumbnailBlob) downloadBlob(result.thumbnailBlob, `${baseName}-thumbnail.png`);
       setHistory(addReplayExportHistoryEntry(result, filename));
-    }).catch((reason: unknown) => {
+
+      // Renderer recovery is a post-export lifecycle concern. A transient first
+      // recovery attempt must not relabel an already downloaded video as a
+      // failed export; retry once at the controller boundary after the runtime's
+      // own fresh-context retries have been exhausted.
+      let recoveryFailure: unknown = null;
+      try {
+        await runtime.restoreRendererAfterVideoExport();
+      } catch (reason) {
+        recoveryFailure = reason;
+        try {
+          await runtime.restoreRendererAfterVideoExport();
+          recoveryFailure = null;
+        } catch (retryReason) {
+          recoveryFailure = retryReason;
+        }
+      }
+
+      if (recoveryFailure) {
+        const detail = recoveryFailure instanceof Error ? recoveryFailure.message : 'unknown renderer error';
+        const message = `Video exported, but the battle renderer could not recover: ${detail}`;
+        setError(message);
+        setProgress((current) => ({ ...current, phase: 'error', progress: 1, estimatedRemainingMs: 0, message }));
+        return;
+      }
+
+      setProgress((current) => ({
+        ...current,
+        phase: 'complete',
+        progress: 1,
+        estimatedRemainingMs: 0,
+        message: 'Video export complete. Battle renderer restored.'
+      }));
+    }).catch(async (reason: unknown) => {
+      try {
+        await runtime.restoreRendererAfterVideoExport();
+      } catch {
+        // Preserve the original encoder/cancellation error. Renderer recovery is
+        // retried automatically on the next export lifecycle.
+      }
       const message = reason instanceof Error ? reason.message : 'Video export failed.';
       setError(message);
       setProgress((current) => ({

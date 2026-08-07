@@ -111,7 +111,7 @@ export function createStage810eExportSettings(
     ...settings,
     creator: {
       preset: presetId,
-      introSeconds: options.intro === false ? 0 : 1.4,
+      introSeconds: options.intro === false ? 0 : 3,
       captionsEnabled: options.captions ?? true,
       thumbnailEnabled: options.thumbnail ?? true
     }

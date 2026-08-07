@@ -49,9 +49,10 @@ export class BroadcastFrameRenderer {
     options: BroadcastRenderOptions = {}
   ): HTMLCanvasElement {
     const trackedScene = this.sceneTracker.update(snapshot, events);
+    const creatorSummaryVisible = options.creatorCard?.kind === 'summary';
     const scene = {
       ...trackedScene,
-      ...(options.showResult === false ? { resultCallout: null } : {}),
+      ...((options.showResult === false || creatorSummaryVisible) ? { resultCallout: null } : {}),
       ...(options.showCaptions === false ? { abilityCallout: null, eventCallout: null } : {})
     };
     const cameraFrame = this.cameraTracker.update(arenaCanvas, snapshot, events, options);
