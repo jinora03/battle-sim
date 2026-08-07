@@ -1,6 +1,7 @@
 import type { ReplayVideoExportSettings, VideoExportCapability, VideoExportCodec } from './types';
 import type { EncodedVideoSample } from './webmMuxer';
 import { resolveAudioEncoderConfig } from './webCodecsAudio';
+import { resolveAacEncoderConfig, resolveH264EncoderConfig } from './mp4Codecs';
 
 interface ResolvedEncoderConfig {
   codec: VideoExportCodec;
@@ -23,38 +24,65 @@ export async function detectVideoExportCapability(
 ): Promise<VideoExportCapability> {
   if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') {
     return {
-      supported: false,
-      codec: null,
-      audioSupported: false,
-      audioCodec: null,
+      supported: false, requestedFormat: settings.format, container: null, fallback: false, notice: null,
+      codec: null, audioSupported: false, audioCodec: null,
       reason: 'This browser does not expose the WebCodecs video encoder required for fixed-frame export.'
     };
   }
-  const resolved = await resolveEncoderConfig(settings);
-  if (!resolved) {
+
+  if (settings.format !== 'webm') {
+    const h264 = await resolveH264EncoderConfig(settings);
+    const aac = settings.audio.enabled ? await resolveAacEncoderConfig(settings.audio) : null;
+    const mp4AudioReady = !settings.audio.enabled || aac !== null;
+    if (h264 && mp4AudioReady) {
+      return {
+        supported: true, requestedFormat: settings.format, container: 'mp4', fallback: false, notice: null,
+        codec: 'h264', audioSupported: settings.audio.enabled, audioCodec: settings.audio.enabled ? 'aac' : null, reason: null
+      };
+    }
+    if (settings.format === 'mp4') {
+      const detail = !h264
+        ? `This browser cannot encode ${settings.width}×${settings.height} ${settings.fps} FPS H.264 for MP4.`
+        : 'H.264 MP4 video is available, but AAC audio encoding is unavailable. Turn Audio off or choose Auto/WebM.';
+      return {
+        supported: false, requestedFormat: settings.format, container: null, fallback: false, notice: null,
+        codec: h264 ? 'h264' : null, audioSupported: false, audioCodec: null, reason: detail
+      };
+    }
+  }
+
+  const webm = await resolveEncoderConfig(settings);
+  if (!webm) {
     const fallback = settings.resolution === '4k' ? ' Choose 1080p if this device cannot encode 4K.' : '';
     return {
-      supported: false,
-      codec: null,
-      audioSupported: false,
-      audioCodec: null,
-      reason: `This browser cannot encode ${settings.width}×${settings.height} ${settings.fps} FPS VP9 or VP8 WebM video.${fallback}`
+      supported: false, requestedFormat: settings.format, container: null, fallback: false, notice: null,
+      codec: null, audioSupported: false, audioCodec: null,
+      reason: `This browser cannot encode ${settings.width}×${settings.height} ${settings.fps} FPS in the available MP4 or WebM paths.${fallback}`
     };
   }
+
   if (!settings.audio.enabled) {
-    return { supported: true, codec: resolved.codec, audioSupported: false, audioCodec: null, reason: null };
-  }
-  const audioResolved = await resolveAudioEncoderConfig(settings.audio);
-  if (!audioResolved) {
     return {
-      supported: false,
-      codec: resolved.codec,
-      audioSupported: false,
-      audioCodec: null,
-      reason: 'Video encoding is available, but this browser cannot encode Opus audio. Turn Audio off to export video-only.'
+      supported: true, requestedFormat: settings.format, container: 'webm', fallback: settings.format === 'auto',
+      notice: settings.format === 'auto' ? 'MP4 is unavailable for this configuration; Auto will export WebM instead.' : null,
+      codec: webm.codec, audioSupported: false, audioCodec: null, reason: null
     };
   }
-  return { supported: true, codec: resolved.codec, audioSupported: true, audioCodec: 'opus', reason: null };
+
+  const opus = await resolveAudioEncoderConfig({ ...settings.audio, codec: 'opus' });
+  if (!opus) {
+    return {
+      supported: false, requestedFormat: settings.format, container: null, fallback: false, notice: null,
+      codec: webm.codec, audioSupported: false, audioCodec: null,
+      reason: 'Video encoding is available, but this browser cannot encode either AAC MP4 audio or Opus WebM audio. Turn Audio off.'
+    };
+  }
+
+  return {
+    supported: true, requestedFormat: settings.format, container: 'webm', fallback: settings.format === 'auto',
+    notice: settings.format === 'auto' ? 'MP4 is unavailable for this configuration; Auto will export WebM instead.' : null,
+    codec: webm.codec, audioSupported: true, audioCodec: 'opus', reason: null
+  };
 }
 
 export async function resolveEncoderConfig(

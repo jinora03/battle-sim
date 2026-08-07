@@ -26,7 +26,7 @@ export const BROADCAST_LAYOUTS: Readonly<Record<BroadcastLayoutId, BroadcastLayo
     height: 1080,
     // Keep the arena dominant while giving both fighter rails a little more
     // physical width for phone playback of 16:9 uploads.
-    arena: { x: 330, y: 48, width: 1260, height: 984 },
+    arena: { x: 350, y: 48, width: 1220, height: 984 },
     safeArea: { x: 20, y: 24, width: 1880, height: 1032 }
   },
   vertical: {

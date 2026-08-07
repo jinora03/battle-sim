@@ -5,7 +5,7 @@ import {
   calculateCreatorIntroFrameCount,
   calculateKnockoutSlowMotionFrameCount,
   calculateReplayFrameCount,
-  createStage810eExportSettings,
+  createStage810hExportSettings,
   detectVideoExportCapability,
   getCreatorExportPreset,
   type BroadcastLayoutId,
@@ -14,6 +14,7 @@ import {
   type ReplayVideoExportProgress,
   type VideoExportCameraMode,
   type VideoExportCapability,
+  type VideoExportFormat,
   type VideoExportFrameRate,
   type VideoExportQuality,
   type VideoExportResolution
@@ -31,6 +32,7 @@ export interface ReplayVideoExportController {
   progress: ReplayVideoExportProgress;
   running: boolean;
   error: string | null;
+  format: VideoExportFormat;
   layout: BroadcastLayoutId;
   resolution: VideoExportResolution;
   fps: VideoExportFrameRate;
@@ -42,6 +44,7 @@ export interface ReplayVideoExportController {
   captionsEnabled: boolean;
   thumbnailEnabled: boolean;
   history: ReplayExportHistoryEntry[];
+  setFormat(format: VideoExportFormat): void;
   setLayout(layout: BroadcastLayoutId): void;
   setResolution(resolution: VideoExportResolution): void;
   setFps(fps: VideoExportFrameRate): void;
@@ -65,13 +68,14 @@ const INITIAL_PROGRESS: ReplayVideoExportProgress = {
   elapsedMs: 0,
   estimatedRemainingMs: null,
   encodedBytes: 0,
-  message: 'Ready to export the current replay as broadcast WebM.'
+  message: 'Ready to export the current replay as MP4 or WebM.'
 };
 
 export function useReplayVideoExport(
   runtimeRef: RefObject<BattleRuntime | null>,
   settings: AppSettings
 ): ReplayVideoExportController {
+  const [format, setFormatState] = useState<VideoExportFormat>('auto');
   const [layout, setLayoutState] = useState<BroadcastLayoutId>('landscape');
   const [resolution, setResolutionState] = useState<VideoExportResolution>('1080p');
   const [fps, setFpsState] = useState<VideoExportFrameRate>(60);
@@ -83,10 +87,10 @@ export function useReplayVideoExport(
   const [captionsEnabled, setCaptionsEnabledState] = useState(true);
   const [thumbnailEnabled, setThumbnailEnabledState] = useState(true);
   const [history, setHistory] = useState<ReplayExportHistoryEntry[]>(readReplayExportHistory);
-  const exportSettings = useMemo(() => createStage810eExportSettings(settings, {
-    preset, layout, resolution, fps, quality, audio: audioEnabled, camera: cameraMode,
+  const exportSettings = useMemo(() => createStage810hExportSettings(settings, {
+    format, preset, layout, resolution, fps, quality, audio: audioEnabled, camera: cameraMode,
     intro: introEnabled, captions: captionsEnabled, thumbnail: thumbnailEnabled
-  }), [audioEnabled, cameraMode, captionsEnabled, fps, introEnabled, layout, preset, quality, resolution, settings, thumbnailEnabled]);
+  }), [audioEnabled, cameraMode, captionsEnabled, format, fps, introEnabled, layout, preset, quality, resolution, settings, thumbnailEnabled]);
   const exporterRef = useRef(new ReplayVideoExporter());
   const abortRef = useRef<AbortController | null>(null);
   const [capability, setCapability] = useState<VideoExportCapability | null>(null);
@@ -97,6 +101,9 @@ export function useReplayVideoExport(
     || progress.phase === 'audio'
     || progress.phase === 'muxing';
 
+  const setFormat = useCallback((value: VideoExportFormat) => {
+    setFormatState(value);
+  }, []);
   const setLayout = useCallback((value: BroadcastLayoutId) => {
     setPreset('custom');
     setLayoutState(value);
@@ -209,7 +216,8 @@ export function useReplayVideoExport(
     ).then(async (result) => {
       const audioSuffix = result.audioCodec ? '-audio' : '-silent';
       const baseName = `kinetic-battle-${source.replay.battle.seed}-${result.layout}-${result.cameraMode}-${result.resolution}-${result.fps}fps${audioSuffix}`;
-      const filename = `${baseName}.webm`;
+      const extension = result.container === 'mp4' ? 'mp4' : 'webm';
+      const filename = `${baseName}.${extension}`;
       downloadBlob(result.blob, filename);
       if (result.thumbnailBlob) downloadBlob(result.thumbnailBlob, `${baseName}-thumbnail.png`);
       setHistory(addReplayExportHistoryEntry(result, filename));
@@ -274,6 +282,7 @@ export function useReplayVideoExport(
     progress,
     running,
     error,
+    format,
     layout,
     resolution,
     fps,
@@ -285,6 +294,7 @@ export function useReplayVideoExport(
     captionsEnabled,
     thumbnailEnabled,
     history,
+    setFormat,
     setLayout,
     setResolution,
     setFps,

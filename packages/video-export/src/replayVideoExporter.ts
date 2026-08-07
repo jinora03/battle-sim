@@ -20,9 +20,7 @@ import {
   type ReplayVideoExportResult,
   type ReplayVideoExportSettings
 } from './types';
-import { WebCodecsFrameEncoder } from './webCodecs';
-import { WebCodecsAudioEncoder } from './webCodecsAudio';
-import { WebmMuxer } from './webmMuxer';
+import { createExportMediaPipeline } from './mediaPipeline';
 
 const KEYFRAME_INTERVAL_SECONDS = 2;
 const PROGRESS_INTERVAL_FRAMES = 6;
@@ -73,18 +71,11 @@ export class ReplayVideoExporter {
     };
 
     report('preparing', `Preparing the dedicated ${settings.width}×${settings.height} broadcast renderer.`, true);
-    const encoder = await WebCodecsFrameEncoder.create(settings);
-    if (!encoder) {
+    const media = await createExportMediaPipeline(settings);
+    if (!media) {
+      const formatLabel = settings.format === 'mp4' ? 'H.264/AAC MP4' : settings.format === 'webm' ? 'VP9/VP8 WebM' : 'MP4 or WebM';
       throw new ReplayVideoExportError(
-        `This browser cannot encode ${settings.width}×${settings.height} ${settings.fps} FPS VP9 or VP8 WebM output.`,
-        'unsupported'
-      );
-    }
-    const audioEncoder = settings.audio.enabled ? await WebCodecsAudioEncoder.create(settings.audio) : null;
-    if (settings.audio.enabled && !audioEncoder) {
-      encoder.close();
-      throw new ReplayVideoExportError(
-        'This browser cannot encode the requested Opus audio track. Turn Audio off to export video-only.',
+        `This browser cannot encode the requested ${settings.width}×${settings.height} ${settings.fps} FPS ${formatLabel} output.`,
         'unsupported'
       );
     }
@@ -100,20 +91,6 @@ export class ReplayVideoExporter {
     const arenaSize = broadcastRenderer.layout.arena;
     const host = createExportHost(arenaSize.width, arenaSize.height);
     const renderer = new PixiBattleRenderer();
-    const muxer = new WebmMuxer({
-      width: settings.width,
-      height: settings.height,
-      fps: settings.fps,
-      codec: encoder.codec,
-      maxEncodedBytes: settings.maxEncodedBytes,
-      ...(settings.audio.enabled ? {
-        audio: {
-          codec: 'opus' as const,
-          sampleRate: settings.audio.sampleRate,
-          channels: settings.audio.channels
-        }
-      } : {})
-    });
     let thumbnailCanvas: HTMLCanvasElement | null = null;
 
     try {
@@ -124,14 +101,12 @@ export class ReplayVideoExporter {
 
       const encodeFrame = async (canvas: HTMLCanvasElement, timestampUs: number, durationUs: number) => {
         const keyFrame = renderedFrames % (settings.fps * KEYFRAME_INTERVAL_SECONDS) === 0;
-        encoder.encode(canvas, timestampUs, durationUs, keyFrame);
+        media.encodeVideo(canvas, timestampUs, durationUs, keyFrame);
         renderedFrames += 1;
-        for (const sample of encoder.drainSamples()) muxer.addVideoSample(sample);
-        encodedBytes = muxer.byteLength;
-        if (encoder.encodeQueueSize >= ENCODER_QUEUE_LIMIT) {
-          await encoder.flush();
-          for (const sample of encoder.drainSamples()) muxer.addVideoSample(sample);
-          encodedBytes = muxer.byteLength;
+        encodedBytes = media.byteLength;
+        if (media.videoQueueSize >= ENCODER_QUEUE_LIMIT) {
+          await media.flushVideo();
+          encodedBytes = media.byteLength;
         }
         report('rendering', `Rendered ${renderedFrames.toLocaleString()} of ${totalFrames.toLocaleString()} frames.`);
         if (renderedFrames % 2 === 0) await yieldToBrowser();
@@ -226,12 +201,11 @@ export class ReplayVideoExporter {
         }
       }
 
-      await encoder.flush();
-      for (const sample of encoder.drainSamples()) muxer.addVideoSample(sample);
-      encodedBytes = muxer.byteLength;
+      await media.flushVideo();
+      encodedBytes = media.byteLength;
 
-      if (audioEncoder) {
-        report('audio', 'Rendering deterministic replay audio and encoding Opus.', true);
+      if (settings.audio.enabled && media.audioCodec) {
+        report('audio', `Rendering deterministic replay audio and encoding ${media.audioCodec.toUpperCase()}.`, true);
         const runtimeAudio = await renderRuntimeReplayAudio({
           battle: source.replay.battle,
           initialSnapshot,
@@ -248,28 +222,25 @@ export class ReplayVideoExporter {
           settings.audio.channels
         );
         const totalAudioFrames = Math.ceil(renderedFrames / settings.fps * settings.audio.sampleRate);
-        for (let startFrame = 0; startFrame < totalAudioFrames; startFrame += audioEncoder.framesPerChunk) {
+        for (let startFrame = 0; startFrame < totalAudioFrames; startFrame += media.audioFramesPerChunk) {
           this.throwIfCancelled(signal);
-          const frameCount = audioEncoder.framesPerChunk;
+          const frameCount = Math.min(media.audioFramesPerChunk, totalAudioFrames - startFrame);
           const pcm = audioSource.renderInterleaved(startFrame, frameCount);
-          audioEncoder.encode(pcm, Math.round(startFrame * 1_000_000 / settings.audio.sampleRate), frameCount);
-          for (const sample of audioEncoder.drainSamples()) muxer.addAudioSample(sample);
-          encodedBytes = muxer.byteLength;
-          if (audioEncoder.encodeQueueSize >= ENCODER_QUEUE_LIMIT) {
-            await audioEncoder.flush();
-            for (const sample of audioEncoder.drainSamples()) muxer.addAudioSample(sample);
-            encodedBytes = muxer.byteLength;
+          media.encodeAudio(pcm, Math.round(startFrame * 1_000_000 / settings.audio.sampleRate), frameCount);
+          encodedBytes = media.byteLength;
+          if (media.audioQueueSize >= ENCODER_QUEUE_LIMIT) {
+            await media.flushAudio();
+            encodedBytes = media.byteLength;
           }
-          if (startFrame % (audioEncoder.framesPerChunk * 20) === 0) await yieldToBrowser();
+          if (startFrame % (media.audioFramesPerChunk * 20) === 0) await yieldToBrowser();
         }
-        await audioEncoder.flush();
-        for (const sample of audioEncoder.drainSamples()) muxer.addAudioSample(sample);
-        encodedBytes = muxer.byteLength;
+        await media.flushAudio();
+        encodedBytes = media.byteLength;
       }
 
       this.throwIfCancelled(signal);
-      report('muxing', 'Packaging synchronized video and audio into a WebM file.', true);
-      const blob = muxer.finalize();
+      report('muxing', `Packaging synchronized video and audio into a ${media.container.toUpperCase()} file.`, true);
+      const blob = media.finalize();
       const thumbnailBlob = thumbnailCanvas ? await safeEncodeCreatorThumbnail(thumbnailCanvas) : null;
       const finalChecksum = checksumSnapshot(stepper.finalSnapshot());
       if (finalChecksum !== source.checksum) {
@@ -280,9 +251,10 @@ export class ReplayVideoExporter {
       }
       const result: ReplayVideoExportResult = {
         blob,
-        codec: encoder.codec,
-        audioCodec: audioEncoder?.codec ?? null,
-        mimeType: 'video/webm',
+        container: media.container,
+        codec: media.videoCodec,
+        audioCodec: media.audioCodec,
+        mimeType: media.container === 'mp4' ? 'video/mp4' : 'video/webm',
         width: settings.width,
         height: settings.height,
         fps: settings.fps,
@@ -309,8 +281,7 @@ export class ReplayVideoExporter {
       const code = message.includes('memory safeguard') ? 'memory-limit' : 'encoder-failure';
       throw new ReplayVideoExportError(message, code);
     } finally {
-      encoder.close();
-      audioEncoder?.close();
+      media.close();
       // Export cleanup must never turn an already encoded video into a false
       // user-facing failure. Chromium can report transient WebGL teardown
       // errors after large 4K contexts; cleanup remains best-effort here while

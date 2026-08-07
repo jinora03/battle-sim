@@ -10,6 +10,7 @@ import {
   type ReplayVideoExportSettings,
   type CreatorExportPresetId,
   type VideoExportCameraMode,
+  type VideoExportFormat,
   type VideoExportFrameRate,
   type VideoExportQuality,
   type VideoExportResolution
@@ -34,6 +35,10 @@ export interface Stage810eExportOptions extends Stage810dExportOptions {
   thumbnail?: boolean;
 }
 
+export interface Stage810hExportOptions extends Stage810eExportOptions {
+  format?: VideoExportFormat;
+}
+
 const VIDEO_BITRATES: Readonly<Record<VideoExportResolution, Readonly<Record<VideoExportFrameRate, Readonly<Record<VideoExportQuality, number>>>>>> = {
   '1080p': {
     30: { balanced: 7_000_000, high: 10_000_000, maximum: 14_000_000 },
@@ -56,7 +61,7 @@ export function createStage810aExportSettings(
 ): ReplayVideoExportSettings {
   return createExportSettings(presentation, {
     layout: 'landscape', resolution: '1080p', fps: 60, quality: 'balanced', audio: false
-  }, 0, 'broadcast', 0);
+  }, 0, 'broadcast', 0, 'webm');
 }
 
 export function createStage810bExportSettings(
@@ -65,7 +70,7 @@ export function createStage810bExportSettings(
 ): ReplayVideoExportSettings {
   return createExportSettings(presentation, {
     layout: layoutId, resolution: '1080p', fps: 60, quality: 'balanced', audio: false
-  }, 2, 'broadcast', 0);
+  }, 2, 'broadcast', 0, 'webm');
 }
 
 export function createStage810cExportSettings(
@@ -78,7 +83,7 @@ export function createStage810cExportSettings(
     fps: options.fps ?? VIDEO_EXPORT_FPS,
     quality: options.quality ?? 'high',
     audio: options.audio ?? true
-  }, 2, 'broadcast', 0);
+  }, 2, 'broadcast', 0, 'webm');
 }
 
 export function createStage810dExportSettings(
@@ -91,7 +96,7 @@ export function createStage810dExportSettings(
     fps: options.fps ?? VIDEO_EXPORT_FPS,
     quality: options.quality ?? 'high',
     audio: options.audio ?? true
-  }, 2, options.camera ?? 'cinematic', options.camera === 'broadcast' ? 0 : 0.45);
+  }, 2, options.camera ?? 'cinematic', options.camera === 'broadcast' ? 0 : 0.45, 'webm');
 }
 
 export function createStage810eExportSettings(
@@ -106,14 +111,29 @@ export function createStage810eExportSettings(
     fps: options.fps ?? preset.fps,
     quality: options.quality ?? preset.quality,
     audio: options.audio ?? preset.audio
-  }, 2.8, options.camera ?? preset.camera, (options.camera ?? preset.camera) === 'broadcast' ? 0 : 0.45);
+  }, 2.8, options.camera ?? preset.camera, (options.camera ?? preset.camera) === 'broadcast' ? 0 : 0.45, 'webm');
   return {
     ...settings,
     creator: {
       preset: presetId,
-      introSeconds: options.intro === false ? 0 : 3,
+      introSeconds: options.intro === false ? 0 : 2,
       captionsEnabled: options.captions ?? true,
       thumbnailEnabled: options.thumbnail ?? true
+    }
+  };
+}
+
+export function createStage810hExportSettings(
+  presentation: Partial<PresentationSettings> = {},
+  options: Stage810hExportOptions = {}
+): ReplayVideoExportSettings {
+  const base = createStage810eExportSettings(presentation, options);
+  return {
+    ...base,
+    format: options.format ?? 'auto',
+    audio: {
+      ...base.audio,
+      codec: 'auto'
     }
   };
 }
@@ -123,11 +143,13 @@ function createExportSettings(
   options: Required<Stage810cExportOptions>,
   resultHoldSeconds: number,
   cameraMode: VideoExportCameraMode,
-  knockoutSlowMotionSeconds: number
+  knockoutSlowMotionSeconds: number,
+  format: VideoExportFormat
 ): ReplayVideoExportSettings {
   const scale = options.resolution === '4k' ? 2 : 1;
   const layout = getBroadcastLayout(options.layout, scale);
   return {
+    format,
     layout: layout.id,
     resolution: options.resolution,
     quality: options.quality,

@@ -10,8 +10,11 @@ export const VIDEO_EXPORT_MAX_ENCODED_BYTES = 1024 * 1024 * 1024;
 export const VIDEO_EXPORT_AUDIO_SAMPLE_RATE = 48_000;
 export const VIDEO_EXPORT_AUDIO_CHANNELS = 2;
 
-export type VideoExportCodec = 'vp9' | 'vp8';
-export type VideoExportAudioCodec = 'opus';
+export type VideoExportCodec = 'h264' | 'vp9' | 'vp8';
+export type VideoExportContainer = 'mp4' | 'webm';
+export type VideoExportFormat = 'auto' | VideoExportContainer;
+export type VideoExportAudioCodec = 'aac' | 'opus';
+export type VideoExportAudioPreference = 'auto' | VideoExportAudioCodec;
 export type VideoExportResolution = '1080p' | '4k';
 export type VideoExportFrameRate = 30 | 60;
 export type VideoExportQuality = 'balanced' | 'high' | 'maximum';
@@ -57,7 +60,7 @@ export interface ReplayExportSource {
 
 export interface ReplayAudioExportSettings {
   enabled: boolean;
-  codec: VideoExportAudioCodec;
+  codec: VideoExportAudioPreference;
   sampleRate: 48_000;
   channels: 2;
   bitrate: number;
@@ -77,6 +80,7 @@ export interface ReplayVideoCreatorSettings {
 }
 
 export interface ReplayVideoExportSettings {
+  format: VideoExportFormat;
   layout: BroadcastLayoutId;
   resolution: VideoExportResolution;
   quality: VideoExportQuality;
@@ -106,9 +110,10 @@ export interface ReplayVideoExportProgress {
 
 export interface ReplayVideoExportResult {
   blob: Blob;
+  container: VideoExportContainer;
   codec: VideoExportCodec;
   audioCodec: VideoExportAudioCodec | null;
-  mimeType: 'video/webm';
+  mimeType: 'video/mp4' | 'video/webm';
   width: number;
   height: number;
   fps: VideoExportFrameRate;
@@ -129,6 +134,10 @@ export interface ReplayVideoExportResult {
 
 export interface VideoExportCapability {
   supported: boolean;
+  requestedFormat: VideoExportFormat;
+  container: VideoExportContainer | null;
+  fallback: boolean;
+  notice: string | null;
   codec: VideoExportCodec | null;
   audioSupported: boolean;
   audioCodec: VideoExportAudioCodec | null;

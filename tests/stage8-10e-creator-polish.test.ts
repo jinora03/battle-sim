@@ -64,12 +64,12 @@ describe('Stage 8.10E creator polish', () => {
       resultHoldSeconds: 2.8,
       creator: {
         preset: 'shorts',
-        introSeconds: 3,
+        introSeconds: 2,
         captionsEnabled: true,
         thumbnailEnabled: true
       }
     });
-    expect(calculateCreatorIntroFrameCount(shorts)).toBe(180);
+    expect(calculateCreatorIntroFrameCount(shorts)).toBe(120);
 
     const custom = createStage810eExportSettings({}, {
       preset: 'custom', layout: 'landscape', resolution: '4k', fps: 30,

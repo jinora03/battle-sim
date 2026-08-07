@@ -13,6 +13,7 @@ export interface ReplayExportHistoryEntry {
   fps: ReplayVideoExportResult['fps'];
   durationSeconds: number;
   encodedBytes: number;
+  container: ReplayVideoExportResult['container'];
   codec: ReplayVideoExportResult['codec'];
   audio: boolean;
   winnerName: string;
@@ -46,6 +47,7 @@ export function addReplayExportHistoryEntry(
     fps: result.fps,
     durationSeconds: result.durationSeconds,
     encodedBytes: result.encodedBytes,
+    container: result.container,
     codec: result.codec,
     audio: result.audioCodec !== null,
     winnerName: result.summary.winnerName,

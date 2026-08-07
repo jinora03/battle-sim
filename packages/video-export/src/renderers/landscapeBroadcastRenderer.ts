@@ -17,7 +17,7 @@ export function drawLandscapeBroadcast(
   cameraFrame: BroadcastCameraFrame
 ): void {
   drawArenaFrame(ctx, arenaCanvas, layout.arena, false, cameraFrame);
-  drawLandscapeFighterPanel(ctx, scene.left, { x: 20, y: 64, width: 300, height: 952 }, LEFT_ACCENT, false);
-  drawLandscapeFighterPanel(ctx, scene.right, { x: 1600, y: 64, width: 300, height: 952 }, RIGHT_ACCENT, true);
+  drawLandscapeFighterPanel(ctx, scene.left, { x: 20, y: 56, width: 320, height: 968 }, LEFT_ACCENT, false);
+  drawLandscapeFighterPanel(ctx, scene.right, { x: 1580, y: 56, width: 320, height: 968 }, RIGHT_ACCENT, true);
   drawResult(ctx, scene.resultCallout, layout.arena, false);
 }

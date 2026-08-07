@@ -26,45 +26,46 @@ export function drawLandscapeFighterPanel(
   accent: string,
   alignRight: boolean
 ): void {
-  const textX = alignRight ? rect.x + rect.width - 20 : rect.x + 20;
+  const padding = 24;
+  const textX = alignRight ? rect.x + rect.width - padding : rect.x + padding;
   const textAlign: CanvasTextAlign = alignRight ? 'right' : 'left';
   drawPanel(ctx, rect.x, rect.y, rect.width, rect.height, 18, PANEL_FILL, PANEL_BORDER);
-  drawText(ctx, alignRight ? 'FIGHTER B' : 'FIGHTER A', textX, rect.y + 30, 12, 900, accent, textAlign, 1.2);
-  drawFittedText(ctx, fighter.name, textX, rect.y + 68, rect.width - 40, 29, 950, TEXT_PRIMARY, textAlign);
+  drawText(ctx, alignRight ? 'FIGHTER B' : 'FIGHTER A', textX, rect.y + 34, 13, 900, accent, textAlign, 1.2);
+  drawFittedText(ctx, fighter.name, textX, rect.y + 76, rect.width - padding * 2, 31, 950, TEXT_PRIMARY, textAlign);
   if (fighter.memberCount > 1) {
-    drawText(ctx, `${fighter.memberCount} fighters`, textX, rect.y + 95, 12, 750, TEXT_SECONDARY, textAlign);
+    drawText(ctx, `${fighter.memberCount} fighters`, textX, rect.y + 106, 13, 750, TEXT_SECONDARY, textAlign);
   } else {
-    drawFittedText(ctx, fighter.identity, textX, rect.y + 95, rect.width - 40, 12, 800, accent, textAlign);
-    drawFittedText(ctx, fighter.weaponName, textX, rect.y + 118, rect.width - 40, 12, 750, TEXT_SECONDARY, textAlign);
+    drawFittedText(ctx, fighter.identity, textX, rect.y + 106, rect.width - padding * 2, 14, 800, accent, textAlign);
+    drawFittedText(ctx, fighter.weaponName, textX, rect.y + 133, rect.width - padding * 2, 14, 750, TEXT_SECONDARY, textAlign);
   }
 
-  drawText(ctx, 'HP', textX, rect.y + 151, 11, 900, TEXT_SECONDARY, textAlign, 1.1);
-  drawHpBar(ctx, fighter, rect.x + 20, rect.y + 162, rect.width - 40, 22, accent, alignRight);
+  drawText(ctx, 'HP', textX, rect.y + 169, 13, 900, TEXT_SECONDARY, textAlign, 1.1);
+  drawHpBar(ctx, fighter, rect.x + padding, rect.y + 182, rect.width - padding * 2, 24, accent, alignRight);
   drawText(
     ctx,
     `${Math.ceil(fighter.hp).toLocaleString()} / ${Math.ceil(fighter.maxHp).toLocaleString()}`,
     textX,
-    rect.y + 203,
-    13,
+    rect.y + 226,
+    15,
     850,
     TEXT_PRIMARY,
     textAlign
   );
 
-  const abilityHeadingY = fighter.resource ? rect.y + 304 : rect.y + 248;
+  const abilityHeadingY = fighter.resource ? rect.y + 324 : rect.y + 270;
   if (fighter.resource) {
     drawLandscapeResource(ctx, fighter.resource, rect, accent, alignRight);
   }
 
-  drawText(ctx, 'ABILITY READINESS', textX, abilityHeadingY, 11, 900, TEXT_SECONDARY, textAlign, 1.05);
-  const abilityStartY = abilityHeadingY + 16;
+  drawText(ctx, 'ABILITY READINESS', textX, abilityHeadingY, 13, 900, TEXT_SECONDARY, textAlign, 1.05);
+  const abilityStartY = abilityHeadingY + 20;
   fighter.abilities.slice(0, 5).forEach((ability, index) => {
-    drawAbilityTile(ctx, ability, rect.x + 20, abilityStartY + index * 72, rect.width - 40, 60, accent);
+    drawAbilityTile(ctx, ability, rect.x + padding, abilityStartY + index * 78, rect.width - padding * 2, 66, accent);
   });
 
-  const statusY = abilityStartY + 5 * 72 + 22;
-  drawText(ctx, 'STATUS', textX, statusY, 11, 900, TEXT_SECONDARY, textAlign, 1.05);
-  drawStatuses(ctx, fighter, rect.x + 20, statusY + 14, rect.width - 40, accent);
+  const statusY = rect.y + rect.height - 122;
+  drawText(ctx, 'STATUS', textX, statusY, 13, 900, TEXT_SECONDARY, textAlign, 1.05);
+  drawStatuses(ctx, fighter, rect.x + padding, statusY + 18, rect.width - padding * 2, accent);
 }
 
 export function drawVerticalFighterHeader(
@@ -74,24 +75,24 @@ export function drawVerticalFighterHeader(
   accent: string,
   alignRight: boolean
 ): void {
-  const padding = 24;
+  const padding = 28;
   const textX = alignRight ? rect.x + rect.width - padding : rect.x + padding;
   const textAlign: CanvasTextAlign = alignRight ? 'right' : 'left';
   drawPanel(ctx, rect.x, rect.y, rect.width, rect.height, 20, 'rgba(9, 18, 33, 0.92)', PANEL_BORDER);
-  drawFittedText(ctx, fighter.name, textX, rect.y + 39, rect.width - padding * 2, 28, 950, TEXT_PRIMARY, textAlign);
+  drawFittedText(ctx, fighter.name, textX, rect.y + 42, rect.width - padding * 2, 30, 950, TEXT_PRIMARY, textAlign);
   if (fighter.memberCount > 1) {
-    drawFittedText(ctx, fighter.identity, textX, rect.y + 69, rect.width - padding * 2, 13, 800, accent, textAlign);
+    drawFittedText(ctx, fighter.identity, textX, rect.y + 78, rect.width - padding * 2, 14, 800, accent, textAlign);
   } else {
-    drawFittedText(ctx, fighter.identity, textX, rect.y + 69, rect.width - padding * 2, 12, 850, accent, textAlign);
-    drawFittedText(ctx, fighter.weaponName, textX, rect.y + 93, rect.width - padding * 2, 12, 750, TEXT_SECONDARY, textAlign);
+    drawFittedText(ctx, fighter.identity, textX, rect.y + 78, rect.width - padding * 2, 14, 850, accent, textAlign);
+    drawFittedText(ctx, fighter.weaponName, textX, rect.y + 104, rect.width - padding * 2, 14, 750, TEXT_SECONDARY, textAlign);
   }
-  drawHpBar(ctx, fighter, rect.x + padding, rect.y + 119, rect.width - padding * 2, 22, accent, alignRight);
+  drawHpBar(ctx, fighter, rect.x + padding, rect.y + 130, rect.width - padding * 2, 22, accent, alignRight);
   drawText(
     ctx,
     `${Math.ceil(fighter.hp).toLocaleString()} HP`,
     textX,
-    rect.y + 171,
-    13,
+    rect.y + 180,
+    14,
     800,
     TEXT_SECONDARY,
     textAlign
@@ -105,20 +106,21 @@ export function drawVerticalSkillsPanel(
   accent: string,
   alignRight: boolean
 ): void {
-  const padding = 18;
+  const padding = 22;
   const textX = alignRight ? rect.x + rect.width - padding : rect.x + padding;
   const textAlign: CanvasTextAlign = alignRight ? 'right' : 'left';
   drawPanel(ctx, rect.x, rect.y, rect.width, rect.height, 18, PANEL_FILL, PANEL_BORDER);
-  drawFittedText(ctx, `${fighter.name.toUpperCase()} SKILLS`, textX, rect.y + 29, rect.width - padding * 2, 13, 900, accent, textAlign);
+  drawFittedText(ctx, `${fighter.name.toUpperCase()} SKILLS`, textX, rect.y + 32, rect.width - padding * 2, 14, 900, accent, textAlign);
 
-  let abilityStartY = rect.y + 47;
+  let abilityStartY = rect.y + 54;
   if (fighter.resource) {
-    drawVerticalResource(ctx, fighter.resource, rect.x + padding, rect.y + 39, rect.width - padding * 2, accent, alignRight);
-    abilityStartY = rect.y + 82;
+    drawVerticalResource(ctx, fighter.resource, rect.x + padding, rect.y + 43, rect.width - padding * 2, accent, alignRight);
+    abilityStartY = rect.y + 92;
   }
 
-  fighter.abilities.slice(0, 5).forEach((ability, index) => {
-    drawAbilityTile(ctx, ability, rect.x + padding, abilityStartY + index * 57, rect.width - padding * 2, 49, accent);
+  const visibleAbilities = fighter.abilities.filter((ability) => ability.slot !== 'basic').slice(0, 4);
+  visibleAbilities.forEach((ability, index) => {
+    drawAbilityTile(ctx, ability, rect.x + padding, abilityStartY + index * 64, rect.width - padding * 2, 56, accent);
   });
 
   const statusY = rect.y + rect.height - 43;
@@ -198,12 +200,13 @@ function drawLandscapeResource(
   accent: string,
   alignRight: boolean
 ): void {
-  const textX = alignRight ? rect.x + rect.width - 20 : rect.x + 20;
+  const padding = 24;
+  const textX = alignRight ? rect.x + rect.width - padding : rect.x + padding;
   const textAlign: CanvasTextAlign = alignRight ? 'right' : 'left';
   drawText(ctx, resource.name.toUpperCase(), textX, rect.y + 235, 11, 900, TEXT_SECONDARY, textAlign, 1.05);
-  const barX = rect.x + 20;
+  const barX = rect.x + padding;
   const barY = rect.y + 246;
-  const barWidth = rect.width - 40;
+  const barWidth = rect.width - padding * 2;
   roundedRectPath(ctx, barX, barY, barWidth, 10, 5);
   ctx.fillStyle = 'rgba(255,255,255,0.08)';
   ctx.fill();
@@ -234,14 +237,25 @@ function drawAbilityTile(
   height: number,
   accent: string
 ): void {
-  drawPanel(ctx, x, y, width, height, 11, 'rgba(255,255,255,0.025)', 'rgba(154,190,227,0.13)');
-  drawText(ctx, ability.slot === 'ultimate' ? 'ULT' : ability.slot.toUpperCase(), x + 11, y + 17, 10, 900, ability.slot === 'ultimate' ? '#ffd06b' : accent, 'left', 0.8);
-  drawFittedText(ctx, ability.name, x + 11, y + 38, width - 22, 14, 850, TEXT_PRIMARY, 'left');
-  roundedRectPath(ctx, x + 11, y + height - 9, width - 22, 4, 2);
+  const active = ability.phase === 'casting' || ability.phase === 'armed';
+  drawPanel(
+    ctx,
+    x,
+    y,
+    width,
+    height,
+    11,
+    active ? 'rgba(255,255,255,0.075)' : 'rgba(255,255,255,0.025)',
+    active ? accent : 'rgba(154,190,227,0.13)'
+  );
+  drawText(ctx, ability.slot === 'ultimate' ? 'ULT' : ability.slot.toUpperCase(), x + 12, y + 18, 11, 900, ability.slot === 'ultimate' ? '#ffd06b' : accent, 'left', 0.7);
+  if (active) drawText(ctx, 'ACTIVE', x + width - 12, y + 18, 9, 900, accent, 'right', 0.55);
+  drawFittedText(ctx, ability.name, x + 12, y + 41, width - 24, 15, 850, TEXT_PRIMARY, 'left');
+  roundedRectPath(ctx, x + 12, y + height - 10, width - 24, 5, 2.5);
   ctx.fillStyle = 'rgba(255,255,255,0.08)';
   ctx.fill();
-  roundedRectPath(ctx, x + 11, y + height - 9, Math.max(2, (width - 22) * ability.readiness), 4, 2);
-  ctx.fillStyle = ability.phase === 'ready' ? READY_ACCENT : accent;
+  roundedRectPath(ctx, x + 12, y + height - 10, Math.max(2, (width - 24) * ability.readiness), 5, 2.5);
+  ctx.fillStyle = active ? '#ffffff' : ability.phase === 'ready' ? READY_ACCENT : accent;
   ctx.fill();
 }
 

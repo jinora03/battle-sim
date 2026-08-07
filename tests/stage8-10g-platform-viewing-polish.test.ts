@@ -57,14 +57,16 @@ describe('Stage 8.10G platform viewing polish', () => {
     expect(hud).toContain('fighter.weaponName');
     expect(hud).toContain('if (fighter.resource)');
     expect(hud).toContain('drawLandscapeResource(');
+    expect(hud).toContain("ability.slot !== 'basic'");
+    expect(hud).toContain("ability.phase === 'casting' || ability.phase === 'armed'");
   });
 
   it('widens landscape fighter rails for mobile YouTube playback while keeping the arena dominant', () => {
     const landscape = BROADCAST_LAYOUTS.landscape;
-    expect(landscape.arena.width / landscape.width).toBeGreaterThan(0.65);
+    expect(landscape.arena.width / landscape.width).toBeGreaterThan(0.62);
     const source = readFileSync(new URL('../packages/video-export/src/renderers/landscapeBroadcastRenderer.ts', import.meta.url), 'utf8');
-    expect(source).toContain("{ x: 20, y: 64, width: 300, height: 952 }");
-    expect(source).toContain("{ x: 1600, y: 64, width: 300, height: 952 }");
+    expect(source).toContain("{ x: 20, y: 56, width: 320, height: 968 }");
+    expect(source).toContain("{ x: 1580, y: 56, width: 320, height: 968 }");
   });
 
   it('fixes manual letter spacing and prevents stacked result overlays from colliding', () => {

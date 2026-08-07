@@ -5,6 +5,7 @@ import {
   listCreatorExportPresets,
   type BroadcastLayoutId,
   type VideoExportCameraMode,
+  type VideoExportFormat,
   type VideoExportFrameRate,
   type VideoExportQuality,
   type VideoExportResolution
@@ -23,9 +24,9 @@ export function BattleVideoExport({
 }) {
   const {
     capability, progress, running, error,
-    layout, resolution, fps, quality, audioEnabled, cameraMode,
+    format, layout, resolution, fps, quality, audioEnabled, cameraMode,
     preset, introEnabled, captionsEnabled, thumbnailEnabled, history,
-    setLayout, setResolution, setFps, setQuality, setAudioEnabled, setCameraMode,
+    setFormat, setLayout, setResolution, setFps, setQuality, setAudioEnabled, setCameraMode,
     applyPreset, setIntroEnabled, setCaptionsEnabled, setThumbnailEnabled, clearHistory,
     start, cancel
   } = controller;
@@ -35,7 +36,7 @@ export function BattleVideoExport({
   const status = capability === null
     ? 'Checking encoder…'
     : capability.supported
-      ? `${capability.codec?.toUpperCase()}${capability.audioCodec ? ' + OPUS' : ''} ready`
+      ? `${capability.container?.toUpperCase()} · ${capability.codec?.toUpperCase()}${capability.audioCodec ? ` + ${capability.audioCodec.toUpperCase()}` : ''}`
       : 'Unavailable';
 
   return (
@@ -52,7 +53,7 @@ export function BattleVideoExport({
             <span>{resolution}</span>
             <span>{fps} FPS</span>
             <span>{cameraMode === 'cinematic' ? 'Cinematic' : 'Broadcast'}</span>
-            <span>{audioEnabled ? 'Opus audio' : 'Silent'}</span>
+            <span>{audioEnabled ? (capability?.audioCodec?.toUpperCase() ?? 'Audio') : 'Silent'}</span>
           </div>
           <span className={`video-export-capability ${capability?.supported ? 'ready' : capability ? 'blocked' : ''}`}>{status}</span>
         </div>
@@ -85,6 +86,14 @@ export function BattleVideoExport({
         />
 
         <div className="video-export-compact-options">
+          <label>
+            <span>Format</span>
+            <select value={format} onChange={(event: ChangeEvent<HTMLSelectElement>) => setFormat(event.target.value as VideoExportFormat)} disabled={running}>
+              <option value="auto">Auto · MP4 preferred</option>
+              <option value="mp4">MP4 · H.264/AAC</option>
+              <option value="webm">WebM · VP9/VP8</option>
+            </select>
+          </label>
           <label>
             <span>Resolution</span>
             <select value={resolution} onChange={(event: ChangeEvent<HTMLSelectElement>) => setResolution(event.target.value as VideoExportResolution)} disabled={running}>
@@ -125,9 +134,10 @@ export function BattleVideoExport({
           <ToggleOption label="Thumbnail" enabled={thumbnailEnabled} disabled={running} onChange={setThumbnailEnabled} />
         </div>
 
-        <p className="video-export-note">Creator presets add a matchup intro, automatic highlight selection, winner statistics, and an optional PNG thumbnail without changing replay outcomes.</p>
+        <p className="video-export-note">Auto prefers H.264/AAC MP4 for broad upload compatibility and falls back to VP9/VP8 + Opus WebM when MP4 is unavailable.</p>
 
         <div className="video-export-facts" aria-label="Video export details">
+          <span><small>Format</small><strong>{capability?.container?.toUpperCase() ?? format.toUpperCase()}</strong></span>
           <span><small>Duration</small><strong>{formatDuration(durationSeconds)}</strong></span>
           <span><small>Replay ticks</small><strong>{replayTick.toLocaleString()}</strong></span>
           <span><small>Audio</small><strong>{audioEnabled ? 'Deterministic' : 'Disabled'}</strong></span>
@@ -155,6 +165,10 @@ export function BattleVideoExport({
           </div>
         )}
 
+        {capability?.notice && !error && (
+          <p className="video-export-note">{capability.notice}</p>
+        )}
+
         {(error || capability?.reason) && (
           <p className="video-export-error" role="alert">{error ?? capability?.reason}</p>
         )}
@@ -179,7 +193,7 @@ export function BattleVideoExport({
                   <article key={entry.id}>
                     <div>
                       <strong>{entry.winnerName}</strong>
-                      <small>{entry.layout} · {entry.resolution} · {entry.fps} FPS · {formatBytes(entry.encodedBytes)}</small>
+                      <small>{entry.container?.toUpperCase() ?? 'VIDEO'} · {entry.layout} · {entry.resolution} · {entry.fps} FPS · {formatBytes(entry.encodedBytes)}</small>
                     </div>
                     <time dateTime={entry.createdAt}>{formatHistoryDate(entry.createdAt)}</time>
                     {entry.highlight && <span>{entry.highlight}</span>}

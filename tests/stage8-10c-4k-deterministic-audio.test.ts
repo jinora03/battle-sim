@@ -42,6 +42,11 @@ function recordReplay(ticks = 240) {
   };
 }
 
+const mediaPipeline = readFileSync(
+  new URL('../packages/video-export/src/mediaPipeline.ts', import.meta.url),
+  'utf8'
+);
+
 describe('Stage 8.10C 4K and deterministic audio', () => {
   it('creates exact vertical and landscape 4K presets with 30 and 60 FPS options', () => {
     const landscape = createStage810cExportSettings({}, {
@@ -149,7 +154,7 @@ describe('Stage 8.10C 4K and deterministic audio', () => {
     expect(exporter).toContain("report('audio'");
     expect(exporter).toContain('audioTimeline.addEvents(frame.events)');
     expect(exporter).toContain('new ReplayAudioSynthesizer(');
-    expect(exporter).toContain('muxer.addAudioSample(sample)');
+    expect(mediaPipeline).toContain('this.muxer.addAudioSample(sample)');
     expect(timeline).toContain('input.tick / 60');
     expect(synthesis).toContain('deterministicNoise(');
     expect(synthesis).not.toContain('Math.random(');

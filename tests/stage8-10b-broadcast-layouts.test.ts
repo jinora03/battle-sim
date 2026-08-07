@@ -34,7 +34,7 @@ describe('Stage 8.10B broadcast layouts', () => {
       width: 1080,
       height: 1920
     });
-    expect(BROADCAST_LAYOUTS.landscape.arena.width / BROADCAST_LAYOUTS.landscape.width).toBeGreaterThan(0.65);
+    expect(BROADCAST_LAYOUTS.landscape.arena.width / BROADCAST_LAYOUTS.landscape.width).toBeGreaterThan(0.63);
     expect(BROADCAST_LAYOUTS.vertical.arena.width).toBe(BROADCAST_LAYOUTS.vertical.arena.height);
     expect(BROADCAST_LAYOUTS.vertical.safeArea.x + BROADCAST_LAYOUTS.vertical.safeArea.width).toBeLessThanOrEqual(948);
     expect(BROADCAST_LAYOUTS.vertical.safeArea.y + BROADCAST_LAYOUTS.vertical.safeArea.height).toBeLessThan(1800);
