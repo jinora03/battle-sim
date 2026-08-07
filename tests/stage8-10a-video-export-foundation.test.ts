@@ -151,7 +151,9 @@ describe('Stage 8.10A replay video export foundation', () => {
     const exporter = readFileSync(new URL('../packages/video-export/src/replayVideoExporter.ts', import.meta.url), 'utf8');
     const renderer = readFileSync(new URL('../packages/renderer-pixi/src/index.ts', import.meta.url), 'utf8');
     expect(exporter).toContain('new PixiBattleRenderer()');
-    expect(exporter).toContain('setFixedOutputSize(settings.width, settings.height)');
+    expect(exporter).toContain('setFixedOutputSize(arenaSize.width, arenaSize.height)');
+    expect(exporter).toContain('new BroadcastFrameRenderer(settings, source.replay.battle)');
+    expect(exporter).toContain('broadcastRenderer.render(');
     expect(exporter).toContain('renderer.destroy()');
     expect(exporter).toContain('host.remove()');
     expect(exporter).not.toContain('captureStream(');

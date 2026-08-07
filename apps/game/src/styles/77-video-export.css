@@ -176,3 +176,102 @@
     text-align: left;
   }
 }
+
+.video-export-layout-picker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.video-export-layout-picker button {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .025);
+  color: #91a8c1;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.video-export-layout-picker button:hover:not(:disabled) {
+  border-color: rgba(91, 174, 255, .45);
+  background: rgba(70, 142, 220, .08);
+}
+
+.video-export-layout-picker button.selected {
+  border-color: rgba(91, 174, 255, .6);
+  background: linear-gradient(135deg, rgba(65, 137, 220, .15), rgba(115, 85, 210, .1));
+  color: #f3f8ff;
+}
+
+.video-export-layout-picker button:disabled {
+  cursor: not-allowed;
+  opacity: .58;
+}
+
+.video-export-layout-picker strong {
+  font-size: .72rem;
+  line-height: 1.15;
+}
+
+.video-export-layout-picker small {
+  color: #7f98b2;
+  font-size: .6rem;
+  line-height: 1.2;
+}
+
+.video-export-facts > span:last-child {
+  grid-column: 1 / -1;
+}
+
+.video-export-compact-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.video-export-compact-options label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.video-export-compact-options label > span {
+  color: #89a4bf;
+  font-size: .6rem;
+  font-weight: 700;
+}
+
+.video-export-compact-options select,
+.video-export-audio-toggle button {
+  width: 100%;
+  min-height: 31px;
+  padding: 6px 8px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .035);
+  color: #dcecff;
+  font: inherit;
+  font-size: .68rem;
+  font-weight: 750;
+}
+
+.video-export-compact-options select:disabled,
+.video-export-audio-toggle button:disabled {
+  cursor: not-allowed;
+  opacity: .58;
+}
+
+.video-export-audio-toggle button {
+  cursor: pointer;
+}
+
+.video-export-audio-toggle button.selected {
+  border-color: rgba(73, 226, 157, .48);
+  background: rgba(73, 226, 157, .1);
+  color: #91f4c6;
+}

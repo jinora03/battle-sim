@@ -1,5 +1,6 @@
 import type { ReplayVideoExportSettings, VideoExportCapability, VideoExportCodec } from './types';
 import type { EncodedVideoSample } from './webmMuxer';
+import { resolveAudioEncoderConfig } from './webCodecsAudio';
 
 interface ResolvedEncoderConfig {
   codec: VideoExportCodec;
@@ -24,13 +25,36 @@ export async function detectVideoExportCapability(
     return {
       supported: false,
       codec: null,
+      audioSupported: false,
+      audioCodec: null,
       reason: 'This browser does not expose the WebCodecs video encoder required for fixed-frame export.'
     };
   }
   const resolved = await resolveEncoderConfig(settings);
-  return resolved
-    ? { supported: true, codec: resolved.codec, reason: null }
-    : { supported: false, codec: null, reason: 'This browser cannot encode 1080p60 VP9 or VP8 WebM video.' };
+  if (!resolved) {
+    const fallback = settings.resolution === '4k' ? ' Choose 1080p if this device cannot encode 4K.' : '';
+    return {
+      supported: false,
+      codec: null,
+      audioSupported: false,
+      audioCodec: null,
+      reason: `This browser cannot encode ${settings.width}×${settings.height} ${settings.fps} FPS VP9 or VP8 WebM video.${fallback}`
+    };
+  }
+  if (!settings.audio.enabled) {
+    return { supported: true, codec: resolved.codec, audioSupported: false, audioCodec: null, reason: null };
+  }
+  const audioResolved = await resolveAudioEncoderConfig(settings.audio);
+  if (!audioResolved) {
+    return {
+      supported: false,
+      codec: resolved.codec,
+      audioSupported: false,
+      audioCodec: null,
+      reason: 'Video encoding is available, but this browser cannot encode Opus audio. Turn Audio off to export video-only.'
+    };
+  }
+  return { supported: true, codec: resolved.codec, audioSupported: true, audioCodec: 'opus', reason: null };
 }
 
 export async function resolveEncoderConfig(

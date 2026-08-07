@@ -5,6 +5,8 @@
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
+    "@kinetic/audio": "1.0.0",
+    "@kinetic/content": "1.0.0",
     "@kinetic/controllers": "1.0.0",
     "@kinetic/protocol": "1.0.0",
     "@kinetic/renderer-pixi": "1.0.0",

@@ -7,12 +7,31 @@ export interface EncodedVideoSample {
   data: Uint8Array;
 }
 
+export interface EncodedAudioSample {
+  timestampUs: number;
+  durationUs: number;
+  data: Uint8Array;
+}
+
 export interface WebmMuxerOptions {
   width: number;
   height: number;
   fps: number;
   codec: VideoExportCodec;
   maxEncodedBytes: number;
+  audio?: {
+    codec: 'opus';
+    sampleRate: number;
+    channels: number;
+  };
+}
+
+interface MuxSample {
+  trackNumber: 1 | 2;
+  timestampUs: number;
+  durationUs: number;
+  keyFrame: boolean;
+  data: Uint8Array;
 }
 
 const IDS = {
@@ -30,20 +49,30 @@ const IDS = {
   trackType: 0x83,
   flagLacing: 0x9c,
   codecId: 0x86,
+  codecPrivate: 0x63a2,
+  codecDelay: 0x56aa,
+  seekPreRoll: 0x56bb,
   defaultDuration: 0x23e383,
   video: 0xe0,
   pixelWidth: 0xb0,
   pixelHeight: 0xba,
+  audio: 0xe1,
+  samplingFrequency: 0xb5,
+  channels: 0x9f,
+  bitDepth: 0x6264,
   cluster: 0x1f43b675,
   timestamp: 0xe7,
   simpleBlock: 0xa3
 } as const;
 
 const SAMPLE_OVERHEAD_BYTES = 16;
+const OPUS_PRE_SKIP = 312;
+const OPUS_CODEC_DELAY_NS = Math.round(OPUS_PRE_SKIP / 48_000 * 1_000_000_000);
+const OPUS_SEEK_PRE_ROLL_NS = 80_000_000;
 const textEncoder = new TextEncoder();
 
 export class WebmMuxer {
-  private readonly samples: EncodedVideoSample[] = [];
+  private readonly samples: MuxSample[] = [];
   private encodedBytes = 0;
 
   constructor(private readonly options: WebmMuxerOptions) {}
@@ -53,41 +82,34 @@ export class WebmMuxer {
   }
 
   addSample(sample: EncodedVideoSample): void {
-    const nextBytes = this.encodedBytes + sample.data.byteLength + SAMPLE_OVERHEAD_BYTES;
-    if (nextBytes > this.options.maxEncodedBytes) {
-      throw new Error('Encoded video exceeded the configured memory safeguard.');
-    }
-    this.encodedBytes = nextBytes;
-    this.samples.push({
-      timestampUs: sample.timestampUs,
-      durationUs: sample.durationUs,
-      keyFrame: sample.keyFrame,
-      data: sample.data
-    });
+    this.addVideoSample(sample);
+  }
+
+  addVideoSample(sample: EncodedVideoSample): void {
+    this.collectSample({ ...sample, trackNumber: 1 });
+  }
+
+  addAudioSample(sample: EncodedAudioSample): void {
+    if (!this.options.audio) throw new Error('Cannot add audio without an audio track configuration.');
+    this.collectSample({ ...sample, keyFrame: true, trackNumber: 2 });
   }
 
   finalize(): Blob {
-    if (this.samples.length === 0) throw new Error('Cannot create a WebM file without encoded frames.');
-    this.samples.sort((a, b) => a.timestampUs - b.timestampUs);
+    if (!this.samples.some((sample) => sample.trackNumber === 1)) {
+      throw new Error('Cannot create a WebM file without encoded video frames.');
+    }
+    this.samples.sort((a, b) => a.timestampUs - b.timestampUs || a.trackNumber - b.trackNumber);
     const durationMs = Math.max(...this.samples.map((sample) => (sample.timestampUs + sample.durationUs) / 1000));
     const info = element(IDS.info, concat(
       element(IDS.timecodeScale, unsigned(1_000_000)),
       element(IDS.duration, float64(durationMs)),
       element(IDS.muxingApp, text('Kinetic Battle Engine')),
-      element(IDS.writingApp, text('Kinetic Stage 8.10A'))
+      element(IDS.writingApp, text('Kinetic Stage 8.10C'))
     ));
-    const tracks = element(IDS.tracks, element(IDS.trackEntry, concat(
-      element(IDS.trackNumber, unsigned(1)),
-      element(IDS.trackUid, unsigned(1)),
-      element(IDS.trackType, unsigned(1)),
-      element(IDS.flagLacing, unsigned(0)),
-      element(IDS.codecId, text(this.options.codec === 'vp9' ? 'V_VP9' : 'V_VP8')),
-      element(IDS.defaultDuration, unsigned(Math.round(1_000_000_000 / this.options.fps))),
-      element(IDS.video, concat(
-        element(IDS.pixelWidth, unsigned(this.options.width)),
-        element(IDS.pixelHeight, unsigned(this.options.height))
-      ))
-    )));
+    const tracks = element(IDS.tracks, concat(
+      this.createVideoTrack(),
+      ...(this.options.audio ? [this.createAudioTrack(this.options.audio)] : [])
+    ));
     const clusters = this.createClusterParts();
     const segmentPayloadSize = info.byteLength + tracks.byteLength
       + clusters.reduce((total, cluster) => total + cluster.byteLength, 0);
@@ -104,6 +126,54 @@ export class WebmMuxer {
     this.samples.length = 0;
     this.encodedBytes = blob.size;
     return blob;
+  }
+
+  private collectSample(sample: MuxSample): void {
+    const nextBytes = this.encodedBytes + sample.data.byteLength + SAMPLE_OVERHEAD_BYTES;
+    if (nextBytes > this.options.maxEncodedBytes) {
+      throw new Error('Encoded media exceeded the configured memory safeguard.');
+    }
+    this.encodedBytes = nextBytes;
+    this.samples.push({
+      trackNumber: sample.trackNumber,
+      timestampUs: sample.timestampUs,
+      durationUs: sample.durationUs,
+      keyFrame: sample.keyFrame,
+      data: sample.data
+    });
+  }
+
+  private createVideoTrack(): Uint8Array {
+    return element(IDS.trackEntry, concat(
+      element(IDS.trackNumber, unsigned(1)),
+      element(IDS.trackUid, unsigned(1)),
+      element(IDS.trackType, unsigned(1)),
+      element(IDS.flagLacing, unsigned(0)),
+      element(IDS.codecId, text(this.options.codec === 'vp9' ? 'V_VP9' : 'V_VP8')),
+      element(IDS.defaultDuration, unsigned(Math.round(1_000_000_000 / this.options.fps))),
+      element(IDS.video, concat(
+        element(IDS.pixelWidth, unsigned(this.options.width)),
+        element(IDS.pixelHeight, unsigned(this.options.height))
+      ))
+    ));
+  }
+
+  private createAudioTrack(audio: NonNullable<WebmMuxerOptions['audio']>): Uint8Array {
+    return element(IDS.trackEntry, concat(
+      element(IDS.trackNumber, unsigned(2)),
+      element(IDS.trackUid, unsigned(2)),
+      element(IDS.trackType, unsigned(2)),
+      element(IDS.flagLacing, unsigned(0)),
+      element(IDS.codecId, text('A_OPUS')),
+      element(IDS.codecPrivate, opusHead(audio.channels, audio.sampleRate)),
+      element(IDS.codecDelay, unsigned(OPUS_CODEC_DELAY_NS)),
+      element(IDS.seekPreRoll, unsigned(OPUS_SEEK_PRE_ROLL_NS)),
+      element(IDS.audio, concat(
+        element(IDS.samplingFrequency, float64(audio.sampleRate)),
+        element(IDS.channels, unsigned(audio.channels)),
+        element(IDS.bitDepth, unsigned(32))
+      ))
+    ));
   }
 
   private createClusterParts(): ClusterParts[] {
@@ -129,13 +199,13 @@ export class WebmMuxer {
       const timestampMs = Math.round(sample.timestampUs / 1000);
       const shouldStartCluster = clusterTimestampMs < 0
         || timestampMs - clusterTimestampMs > 30_000
-        || (sample.keyFrame && blockParts.length > 0);
+        || (sample.trackNumber === 1 && sample.keyFrame && blockParts.length > 0);
       if (shouldStartCluster) {
         flush();
         clusterTimestampMs = timestampMs;
       }
       const relativeTimestamp = timestampMs - clusterTimestampMs;
-      const payloadHeader = simpleBlockHeader(relativeTimestamp, sample.keyFrame);
+      const payloadHeader = simpleBlockHeader(sample.trackNumber, relativeTimestamp, sample.keyFrame);
       const size = vint(payloadHeader.byteLength + sample.data.byteLength);
       const id = idBytes(IDS.simpleBlock);
       blockParts.push(id, size, payloadHeader, sample.data);
@@ -163,12 +233,25 @@ function ebmlHeader(): Uint8Array {
   ));
 }
 
-function simpleBlockHeader(relativeTimestamp: number, keyFrame: boolean): Uint8Array {
+function opusHead(channels: number, sampleRate: number): Uint8Array {
+  const bytes = new Uint8Array(19);
+  bytes.set(textEncoder.encode('OpusHead'), 0);
+  bytes[8] = 1;
+  bytes[9] = channels;
+  const view = new DataView(bytes.buffer);
+  view.setUint16(10, OPUS_PRE_SKIP, true);
+  view.setUint32(12, sampleRate, true);
+  view.setInt16(16, 0, true);
+  bytes[18] = 0;
+  return bytes;
+}
+
+function simpleBlockHeader(trackNumber: 1 | 2, relativeTimestamp: number, keyFrame: boolean): Uint8Array {
   if (relativeTimestamp < -32768 || relativeTimestamp > 32767) {
     throw new Error(`WebM block timestamp ${relativeTimestamp}ms exceeds the signed 16-bit cluster range.`);
   }
   const header = new Uint8Array(4);
-  header[0] = 0x81;
+  header[0] = 0x80 | trackNumber;
   new DataView(header.buffer).setInt16(1, relativeTimestamp);
   header[3] = keyFrame ? 0x80 : 0;
   return header;

@@ -55,7 +55,7 @@ describe('content definitions', () => {
   });
 
   it('registers the current roster, arena and mode catalog', () => {
-    expect(CONTENT_VERSION).toBe('1.3.31-stage8.10a');
+    expect(CONTENT_VERSION).toBe('1.3.33-stage8.10c');
     expect(listFighters().length).toBeGreaterThanOrEqual(9);
     expect(listArenas().map((arena) => arena.id)).toEqual(
       expect.arrayContaining(['iron-pit', 'pillar-court', 'elemental-foundry', 'war-basin', 'cryo-ring', 'arc-crucible', 'training-grid'])

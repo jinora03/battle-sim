@@ -436,7 +436,8 @@ export class BattleRuntime {
     return {
       replay: this.replay.export(),
       endTick: snapshot.tick,
-      checksum: checksumSnapshot(snapshot)
+      checksum: checksumSnapshot(snapshot),
+      battleEnded: snapshot.battleEnded
     };
   }
 

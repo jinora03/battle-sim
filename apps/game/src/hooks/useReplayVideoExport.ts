@@ -2,11 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import type { AppSettings } from '@kinetic/platform';
 import {
   ReplayVideoExporter,
-  createStage810aExportSettings,
+  calculateReplayFrameCount,
+  createStage810cExportSettings,
   detectVideoExportCapability,
+  type BroadcastLayoutId,
   type ReplayExportSource,
   type ReplayVideoExportProgress,
-  type VideoExportCapability
+  type VideoExportCapability,
+  type VideoExportFrameRate,
+  type VideoExportQuality,
+  type VideoExportResolution
 } from '@kinetic/video-export';
 import type { BattleRuntime } from '../runtime/BattleRuntime';
 
@@ -15,6 +20,16 @@ export interface ReplayVideoExportController {
   progress: ReplayVideoExportProgress;
   running: boolean;
   error: string | null;
+  layout: BroadcastLayoutId;
+  resolution: VideoExportResolution;
+  fps: VideoExportFrameRate;
+  quality: VideoExportQuality;
+  audioEnabled: boolean;
+  setLayout(layout: BroadcastLayoutId): void;
+  setResolution(resolution: VideoExportResolution): void;
+  setFps(fps: VideoExportFrameRate): void;
+  setQuality(quality: VideoExportQuality): void;
+  setAudioEnabled(enabled: boolean): void;
   start(): void;
   cancel(): void;
 }
@@ -27,14 +42,21 @@ const INITIAL_PROGRESS: ReplayVideoExportProgress = {
   elapsedMs: 0,
   estimatedRemainingMs: null,
   encodedBytes: 0,
-  message: 'Ready to export the current replay as 1080p60 WebM.'
+  message: 'Ready to export the current replay as broadcast WebM.'
 };
 
 export function useReplayVideoExport(
   runtimeRef: RefObject<BattleRuntime | null>,
   settings: AppSettings
 ): ReplayVideoExportController {
-  const exportSettings = useMemo(() => createStage810aExportSettings(settings), [settings]);
+  const [layout, setLayout] = useState<BroadcastLayoutId>('landscape');
+  const [resolution, setResolution] = useState<VideoExportResolution>('1080p');
+  const [fps, setFps] = useState<VideoExportFrameRate>(60);
+  const [quality, setQuality] = useState<VideoExportQuality>('high');
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const exportSettings = useMemo(() => createStage810cExportSettings(settings, {
+    layout, resolution, fps, quality, audio: audioEnabled
+  }), [audioEnabled, fps, layout, quality, resolution, settings]);
   const exporterRef = useRef(new ReplayVideoExporter());
   const abortRef = useRef<AbortController | null>(null);
   const [capability, setCapability] = useState<VideoExportCapability | null>(null);
@@ -42,10 +64,13 @@ export function useReplayVideoExport(
   const [error, setError] = useState<string | null>(null);
   const running = progress.phase === 'preparing'
     || progress.phase === 'rendering'
+    || progress.phase === 'audio'
     || progress.phase === 'muxing';
 
   useEffect(() => {
     let cancelled = false;
+    setCapability(null);
+    setError(null);
     void detectVideoExportCapability(exportSettings).then((result) => {
       if (!cancelled) setCapability(result);
     });
@@ -82,11 +107,13 @@ export function useReplayVideoExport(
     const abortController = new AbortController();
     abortRef.current = abortController;
     setError(null);
+    const replayFrames = calculateReplayFrameCount(source.endTick, exportSettings.fps);
+    const holdFrames = source.battleEnded ? Math.round(exportSettings.resultHoldSeconds * exportSettings.fps) : 0;
     setProgress({
       ...INITIAL_PROGRESS,
       phase: 'preparing',
-      totalFrames: source.endTick,
-      message: 'Preparing the dedicated video renderer.'
+      totalFrames: replayFrames + holdFrames,
+      message: 'Preparing the dedicated video and audio renderer.'
     });
 
     void exporterRef.current.export(
@@ -95,7 +122,11 @@ export function useReplayVideoExport(
       { onProgress: setProgress },
       abortController.signal
     ).then((result) => {
-      downloadBlob(result.blob, `kinetic-battle-${source.replay.battle.seed}-1080p60.webm`);
+      const audioSuffix = result.audioCodec ? '-audio' : '-silent';
+      downloadBlob(
+        result.blob,
+        `kinetic-battle-${source.replay.battle.seed}-${result.layout}-${result.resolution}-${result.fps}fps${audioSuffix}.webm`
+      );
     }).catch((reason: unknown) => {
       const message = reason instanceof Error ? reason.message : 'Video export failed.';
       setError(message);
@@ -113,7 +144,24 @@ export function useReplayVideoExport(
     abortRef.current?.abort();
   }, []);
 
-  return { capability, progress, running, error, start, cancel };
+  return {
+    capability,
+    progress,
+    running,
+    error,
+    layout,
+    resolution,
+    fps,
+    quality,
+    audioEnabled,
+    setLayout,
+    setResolution,
+    setFps,
+    setQuality,
+    setAudioEnabled,
+    start,
+    cancel
+  };
 }
 
 function downloadBlob(blob: Blob, filename: string): void {
