@@ -11,6 +11,7 @@ export interface RendererSettingsChanges {
 export class RendererSettingsController {
   private value: PresentationSettings | null = null;
   private adaptivePerformanceScale = 1;
+  private resolutionOverride: number | null = null;
 
   get hasSettings(): boolean {
     return this.value !== null;
@@ -38,6 +39,10 @@ export class RendererSettingsController {
     };
   }
 
+  setResolutionOverride(resolution: number | null): void {
+    this.resolutionOverride = resolution === null ? null : Math.max(0.5, Math.min(3, resolution));
+  }
+
   setPerformanceScale(scale: number): boolean {
     const next = Math.max(0.35, Math.min(1, scale));
     if (Math.abs(next - this.adaptivePerformanceScale) < 0.001) return false;
@@ -46,6 +51,7 @@ export class RendererSettingsController {
   }
 
   resolveResolution(): number {
+    if (this.resolutionOverride !== null) return this.resolutionOverride;
     const settings = this.value;
     const adaptiveScale = settings?.adaptiveQuality
       ? 0.58 + this.adaptivePerformanceScale * 0.42

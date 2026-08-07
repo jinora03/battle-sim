@@ -11,6 +11,7 @@ import { BattleIntroOverlay } from '../BattleIntroOverlay';
 import { hexColor } from '../ui/FormControls';
 import { BattleObjectiveHeader } from '../features/battle/BattleObjectiveHeader';
 import { BattlePerformanceMetrics } from '../features/battle/BattlePerformanceMetrics';
+import { BattleVideoExport } from '../features/battle/BattleVideoExport';
 import { BattleSetupDrawer } from '../features/battle/BattleSetupDrawer';
 import { LandscapeHint } from '../features/battle/LandscapeHint';
 import { DirectionPad, FighterCard, SkillIndicator } from '../features/battle/BattleFighterControls';
@@ -45,6 +46,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
     pausedByUser,
     battleLaunchPhase,
     diagnostics,
+    videoExport,
     ready,
     bootError,
     pausedBySystem,
@@ -130,9 +132,9 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
     >
       <section className="hero-panel">
         <div>
-          <p className="eyebrow">v1.3 Stage 8.9A · Round-screen safe battle UI</p>
+          <p className="eyebrow">v1.3 Stage 8.10A · Replay video export foundation</p>
           <h1>Kinetic Battle Engine</h1>
-          <p className="subtitle">Battle, Ability Lab and setup surfaces now adapt to round and near-square displays while preserving the same deterministic simulation and rectangular arena.</p>
+          <p className="subtitle">Export the current deterministic replay through a dedicated fixed-frame 1080p60 WebM renderer without recording the application interface.</p>
         </div>
       </section>
 
@@ -393,6 +395,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
 
           <div className="battle-secondary-panels">
             <BattlePerformanceMetrics diagnostics={diagnostics} viewportMetrics={viewportMetrics} fighterCount={fighters.length} />
+            <BattleVideoExport controller={videoExport} replayTick={diagnostics.tick} />
 
             <details className="panel-section battle-activity-panel" open>
               <summary className="panel-summary"><span><small>Battle log</small><strong>Arena activity & achievements</strong></span><em>{diagnostics.recentArenaActivity.length}</em></summary>

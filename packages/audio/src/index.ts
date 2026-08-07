@@ -45,6 +45,12 @@ export interface AudioDiagnostics {
   voiceLimit: number;
 }
 
+export interface BattleAudioEngineOptions {
+  context?: AudioContext | OfflineAudioContext;
+  enabled?: boolean;
+  deterministicSeed?: number;
+  masterGain?: number;
+}
 
 export interface BattleAudioMix {
   eventLimit: number;
@@ -77,7 +83,7 @@ interface ActiveContactAbility {
 }
 
 export class BattleAudioEngine {
-  private context: AudioContext | null = null;
+  private context: AudioContext | OfflineAudioContext | null = null;
   private master: GainNode | null = null;
   private enabled = false;
   private voiceLimit = 22;
@@ -103,6 +109,20 @@ export class BattleAudioEngine {
   private readonly aiIds = new Set<number>();
   private readonly activeContactAbilities = new Map<number, ActiveContactAbility>();
   private readonly lastContactCueAt = new Map<number, number>();
+  private readonly deterministicSeed: number | null;
+  private deterministicNoiseCursor = 0;
+  private schedulingAudioTimeSeconds: number | null = null;
+  private schedulingClockMs: number | null = null;
+
+  constructor(options: BattleAudioEngineOptions = {}) {
+    this.deterministicSeed = options.deterministicSeed === undefined ? null : options.deterministicSeed >>> 0;
+    if (!options.context) return;
+    this.context = options.context;
+    this.master = this.context.createGain();
+    this.master.gain.value = Math.max(0, Math.min(1, options.masterGain ?? 0.32));
+    this.master.connect(this.context.destination);
+    this.enabled = options.enabled ?? true;
+  }
 
   async enable(): Promise<void> {
     if (!this.context) {
@@ -111,7 +131,11 @@ export class BattleAudioEngine {
       this.master.gain.value = 0.32;
       this.master.connect(this.context.destination);
     }
-    await this.context.resume();
+    if (typeof OfflineAudioContext !== 'undefined' && this.context instanceof OfflineAudioContext) {
+      this.enabled = true;
+      return;
+    }
+    await (this.context as AudioContext).resume();
     this.enabled = true;
   }
 
@@ -135,12 +159,33 @@ export class BattleAudioEngine {
 
   async setPaused(paused: boolean): Promise<void> {
     if (!this.context) return;
+    if (typeof OfflineAudioContext !== 'undefined' && this.context instanceof OfflineAudioContext) return;
+    const context = this.context as AudioContext;
     try {
-      if (paused && this.context.state === 'running') await this.context.suspend();
-      else if (!paused && this.enabled && this.context.state === 'suspended') await this.context.resume();
+      if (paused && context.state === 'running') await context.suspend();
+      else if (!paused && this.enabled && context.state === 'suspended') await context.resume();
     } catch {
       // Browser lifecycle/autoplay policies can reject a resume. The existing
       // first-gesture audio unlock path retries without interrupting gameplay.
+    }
+  }
+
+  consumeAtTime(
+    events: readonly SimulationEvent[],
+    atSeconds: number,
+    entityCount = 2,
+    focusEntityIds: readonly number[] = [],
+    aiEntityIds: readonly number[] = []
+  ): AudioDiagnostics {
+    const previousAudioTime = this.schedulingAudioTimeSeconds;
+    const previousClock = this.schedulingClockMs;
+    this.schedulingAudioTimeSeconds = Math.max(0, atSeconds);
+    this.schedulingClockMs = this.schedulingAudioTimeSeconds * 1000;
+    try {
+      return this.consume(events, entityCount, focusEntityIds, aiEntityIds);
+    } finally {
+      this.schedulingAudioTimeSeconds = previousAudioTime;
+      this.schedulingClockMs = previousClock;
     }
   }
 
@@ -213,7 +258,7 @@ export class BattleAudioEngine {
         const missile = event.weaponId.includes('rocket') || event.weaponId.includes('missile');
         missileEvent ||= missile;
         if (RAPID_RIFLE_ROUNDS.has(event.weaponId) && focused.has(event.sourceId)) {
-          const now = performance.now();
+          const now = this.clockNowMs();
           if (event.weaponId === 'kill-zone-round') {
             if (now - this.lastFocusedGatlingAt >= 16) {
               this.lastFocusedGatlingAt = now;
@@ -266,7 +311,7 @@ export class BattleAudioEngine {
       }
     }
 
-    const now = performance.now();
+    const now = this.clockNowMs();
     if (strongestPlayerHit > 0 && now - this.lastHitmarkerAt >= 24) {
       this.lastHitmarkerAt = now;
       this.playHitmarker(strongestPlayerHit);
@@ -557,14 +602,14 @@ export class BattleAudioEngine {
     if (!reservation) return;
     const ctx = this.context!;
     const master = this.master!;
-    const now = ctx.currentTime;
+    const now = this.audioNowSeconds();
     const sampleCount = Math.max(1, Math.floor(ctx.sampleRate * duration));
     const buffer = ctx.createBuffer(1, sampleCount, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let index = 0; index < sampleCount; index += 1) {
       const progress = index / sampleCount;
       const envelope = Math.pow(1 - progress, 5.2);
-      data[index] = (Math.random() * 2 - 1) * envelope;
+      data[index] = this.randomSigned() * envelope;
     }
     const source = ctx.createBufferSource();
     const highpass = ctx.createBiquadFilter();
@@ -589,7 +634,7 @@ export class BattleAudioEngine {
   }
 
   private playWallImpact(magnitude: number): void {
-    const now = performance.now();
+    const now = this.clockNowMs();
     if (now - this.lastWallImpactAt < 55) return;
     this.lastWallImpactAt = now;
     const strength = Math.max(0, Math.min(1, (magnitude - 4) / 14));
@@ -602,7 +647,7 @@ export class BattleAudioEngine {
     if (!reservation) return;
     const ctx = this.context!;
     const master = this.master!;
-    const now = ctx.currentTime;
+    const now = this.audioNowSeconds();
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
     oscillator.type = magnitude > 9 ? 'sawtooth' : 'triangle';
@@ -620,7 +665,7 @@ export class BattleAudioEngine {
   private playBlast(event: BlastEvent): void {
     const ctx = this.context!;
     const master = this.master!;
-    const now = ctx.currentTime;
+    const now = this.audioNowSeconds();
     const duration = event.kind === 'explosion' ? Math.min(0.48, 0.18 + event.radius / 900) : 0.28;
     const lowReservation = this.reserveVoice(duration + 0.02);
     if (!lowReservation) return;
@@ -646,7 +691,7 @@ export class BattleAudioEngine {
     const data = buffer.getChannelData(0);
     for (let i = 0; i < sampleCount; i += 1) {
       const envelope = Math.pow(1 - i / sampleCount, event.kind === 'explosion' ? 2.2 : 1.4);
-      data[i] = (Math.random() * 2 - 1) * envelope;
+      data[i] = this.randomSigned() * envelope;
     }
     const noise = ctx.createBufferSource();
     const filter = ctx.createBiquadFilter();
@@ -687,7 +732,7 @@ export class BattleAudioEngine {
     }
     const ctx = this.context!;
     const master = this.master!;
-    const now = ctx.currentTime;
+    const now = this.audioNowSeconds();
     const duration = Math.max(0.12, Math.min(0.75, castTicks / 60));
     const reservation = this.reserveVoice(duration + 0.02, 0, ultimate);
     if (!reservation) return;
@@ -1112,7 +1157,7 @@ export class BattleAudioEngine {
     if (!reservation) return;
     const ctx = this.context!;
     const master = this.master!;
-    const now = ctx.currentTime + delay;
+    const now = this.audioNowSeconds() + delay;
     const sampleCount = Math.max(1, Math.floor(ctx.sampleRate * duration));
     const buffer = ctx.createBuffer(1, sampleCount, ctx.sampleRate);
     const data = buffer.getChannelData(0);
@@ -1120,7 +1165,7 @@ export class BattleAudioEngine {
       const progress = index / sampleCount;
       const attack = Math.min(1, progress / 0.025);
       const decay = Math.pow(1 - progress, 1.65);
-      data[index] = (Math.random() * 2 - 1) * attack * decay;
+      data[index] = this.randomSigned() * attack * decay;
     }
     const source = ctx.createBufferSource();
     const filter = ctx.createBiquadFilter();
@@ -1189,13 +1234,13 @@ export class BattleAudioEngine {
     if (!reservation) return;
     const ctx = this.context!;
     const master = this.master!;
-    const now = ctx.currentTime;
+    const now = this.audioNowSeconds();
     const sampleCount = Math.max(1, Math.floor(ctx.sampleRate * duration));
     const buffer = ctx.createBuffer(1, sampleCount, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let index = 0; index < sampleCount; index += 1) {
       const envelope = Math.pow(1 - index / sampleCount, 5.4);
-      data[index] = (Math.random() * 2 - 1) * envelope;
+      data[index] = this.randomSigned() * envelope;
     }
     const noise = ctx.createBufferSource();
     const highpass = ctx.createBiquadFilter();
@@ -1231,14 +1276,14 @@ export class BattleAudioEngine {
     if (!reservation) return;
     const ctx = this.context!;
     const master = this.master!;
-    const now = ctx.currentTime;
+    const now = this.audioNowSeconds();
     const sampleCount = Math.max(1, Math.floor(ctx.sampleRate * duration));
     const buffer = ctx.createBuffer(1, sampleCount, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let index = 0; index < sampleCount; index += 1) {
       const progress = index / sampleCount;
       const envelope = Math.sin(Math.PI * progress) * Math.pow(1 - progress, spinning ? 0.65 : 1.15);
-      data[index] = (Math.random() * 2 - 1) * envelope;
+      data[index] = this.randomSigned() * envelope;
     }
     const noise = ctx.createBufferSource();
     const filter = ctx.createBiquadFilter();
@@ -1270,7 +1315,7 @@ export class BattleAudioEngine {
     if (!reservation) return;
     const ctx = this.context!;
     const master = this.master!;
-    const now = ctx.currentTime;
+    const now = this.audioNowSeconds();
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
     oscillator.type = type;
@@ -1291,7 +1336,7 @@ export class BattleAudioEngine {
     if (!reservation) return;
     const ctx = this.context!;
     const master = this.master!;
-    const now = ctx.currentTime + delay;
+    const now = this.audioNowSeconds() + delay;
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
     oscillator.type = type;
@@ -1312,7 +1357,7 @@ export class BattleAudioEngine {
     if (!reservation) return;
     const ctx = this.context!;
     const master = this.master!;
-    const now = ctx.currentTime + delay;
+    const now = this.audioNowSeconds() + delay;
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
     oscillator.type = type;
@@ -1337,7 +1382,7 @@ export class BattleAudioEngine {
     if (!reservation) return;
     const ctx = this.context!;
     const master = this.master!;
-    const now = ctx.currentTime;
+    const now = this.audioNowSeconds();
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
     oscillator.type = 'sawtooth';
@@ -1355,7 +1400,7 @@ export class BattleAudioEngine {
   private reserveVoice(durationSeconds: number, delaySeconds = 0, critical = false): AudioVoiceReservation | undefined {
     const ctx = this.context;
     if (!ctx) return undefined;
-    const now = ctx.currentTime;
+    const now = this.audioNowSeconds();
     this.pruneVoiceReservations(now);
     const startsAt = now + Math.max(0, delaySeconds);
     const endsAt = startsAt + Math.max(0.01, durationSeconds);
@@ -1369,7 +1414,7 @@ export class BattleAudioEngine {
     return reservation;
   }
 
-  private pruneVoiceReservations(now = this.context?.currentTime ?? 0): void {
+  private pruneVoiceReservations(now = this.audioNowSeconds()): void {
     let write = 0;
     for (const reservation of this.voiceReservations) {
       if (reservation.endsAt <= now) continue;
@@ -1380,7 +1425,7 @@ export class BattleAudioEngine {
   }
 
   private getActiveVoiceCount(): number {
-    const now = this.context?.currentTime ?? 0;
+    const now = this.audioNowSeconds();
     this.pruneVoiceReservations(now);
     let active = 0;
     for (const reservation of this.voiceReservations) {
@@ -1403,12 +1448,32 @@ export class BattleAudioEngine {
     }
     node.addEventListener('ended', () => {
       this.activeSources.delete(node);
-      reservation.endsAt = Math.min(reservation.endsAt, this.context?.currentTime ?? reservation.endsAt);
+      reservation.endsAt = Math.min(reservation.endsAt, this.audioNowSeconds());
       if (!groupKey) return;
       const sources = this.abilitySources.get(groupKey);
       sources?.delete(node);
       if (sources?.size === 0) this.abilitySources.delete(groupKey);
     }, { once: true });
+  }
+
+  private audioNowSeconds(): number {
+    return this.schedulingAudioTimeSeconds ?? this.context?.currentTime ?? 0;
+  }
+
+  private clockNowMs(): number {
+    return this.schedulingClockMs ?? performance.now();
+  }
+
+  private randomSigned(): number {
+    if (this.deterministicSeed === null) return Math.random() * 2 - 1;
+    this.deterministicNoiseCursor += 1;
+    let value = (this.deterministicSeed ^ Math.imul(this.deterministicNoiseCursor, 0x9e3779b1)) >>> 0;
+    value ^= value >>> 16;
+    value = Math.imul(value, 0x7feb352d);
+    value ^= value >>> 15;
+    value = Math.imul(value, 0x846ca68b);
+    value ^= value >>> 16;
+    return (value / 0xffffffff) * 2 - 1;
   }
 
   private abilityGroupKey(entityId: number, abilityId: string): string {
@@ -1418,7 +1483,7 @@ export class BattleAudioEngine {
   private cancelAbilitySourceGroup(groupKey: string): void {
     const sources = this.abilitySources.get(groupKey);
     if (!sources) return;
-    const now = this.context?.currentTime ?? 0;
+    const now = this.audioNowSeconds();
     for (const source of sources) {
       const reservation = this.sourceReservations.get(source);
       if (reservation) reservation.endsAt = Math.min(reservation.endsAt, now);
@@ -1440,7 +1505,7 @@ export class BattleAudioEngine {
   }
 
   private cancelAllSources(): void {
-    const now = this.context?.currentTime ?? 0;
+    const now = this.audioNowSeconds();
     for (const source of [...this.activeSources]) {
       const reservation = this.sourceReservations.get(source);
       if (reservation) reservation.endsAt = Math.min(reservation.endsAt, now);

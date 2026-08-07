@@ -1,6 +1,6 @@
 {
   "name": "@kinetic/game",
-  "version": "1.3.30-stage8.9c",
+  "version": "1.3.38-stage8.10h",
   "private": true,
   "type": "module",
   "scripts": {
@@ -26,6 +26,7 @@
     "@kinetic/renderer-pixi": "1.0.0",
     "@kinetic/replay": "1.0.0",
     "@kinetic/simulation": "1.0.0",
+    "@kinetic/video-export": "1.0.0",
     "@kinetic/visual-engine": "1.0.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",

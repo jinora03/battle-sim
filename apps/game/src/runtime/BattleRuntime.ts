@@ -26,6 +26,7 @@ import { PixiBattleRenderer, resolveMassBattleRenderPolicy, type RenderDiagnosti
 import { ReplayRecorder } from '@kinetic/replay';
 import { checksumSnapshot, LocalSimulationRunner, SIM_TICK_MS } from '@kinetic/simulation';
 import type { PresentationSettings } from '@kinetic/visual-engine';
+import type { ReplayExportSource } from '@kinetic/video-export';
 import { DEFAULT_BATTLE_SETUP, type BattleSetup } from './BattleSetup';
 import { diagnosticsIntervalForEntityCount, metaEvaluationIntervalForEntityCount, RuntimePerformanceProfiler, type PerformanceBottleneck, type PerformancePressure } from './performance';
 
@@ -115,7 +116,7 @@ export class BattleRuntime {
   private readonly stats = new BattleStatsTracker();
   private readonly achievements: AchievementEngine;
   private readonly audio = new BattleAudioEngine();
-  private readonly renderer = new PixiBattleRenderer();
+  private renderer = new PixiBattleRenderer();
   private replay!: ReplayRecorder;
   private settings: PresentationSettings;
   private raf = 0;
@@ -185,6 +186,7 @@ export class BattleRuntime {
   private started = false;
   private destroyed = false;
   private lastActivityPruneTick = -1;
+  private rendererRecoveryPromise: Promise<void> | null = null;
 
   constructor(
     private host: HTMLElement,
@@ -301,7 +303,9 @@ export class BattleRuntime {
       bottleneck: 'balanced'
     };
     this.configureControllers();
+    this.renderer.attachHost(this.host);
     this.renderer.setActive(this.active);
+    this.renderer.refreshLayout();
     this.renderCurrentSnapshot();
     this.emitDiagnostics();
   }
@@ -362,6 +366,60 @@ export class BattleRuntime {
 
   refreshRendererLayout(): void {
     this.renderer.refreshLayout();
+  }
+
+  restoreRendererAfterVideoExport(): Promise<void> {
+    if (this.destroyed || !this.started) return Promise.resolve();
+    if (this.rendererRecoveryPromise) return this.rendererRecoveryPromise;
+
+    const recover = async () => {
+      // Large hidden export contexts can evict the live WebGL context on mobile
+      // Chromium. Release the old renderer first, allow the browser a couple of
+      // frames to reclaim GPU resources, then initialize a fresh renderer. Some
+      // drivers transiently reject the first new context after teardown, so the
+      // recovery path retries with a brand-new Pixi renderer instead of leaking
+      // that implementation error into an otherwise successful export.
+      const previousRenderer = this.renderer;
+      try { previousRenderer.setActive(false); } catch { /* best effort */ }
+      try { previousRenderer.destroy(); } catch { /* the context may already be evicted */ }
+      await waitForRendererCleanup(2);
+
+      let lastFailure: unknown = null;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        if (this.destroyed || !this.started) return;
+        const replacement = new PixiBattleRenderer();
+        replacement.setActive(false);
+        this.renderer = replacement;
+        try {
+          await replacement.init(this.host, this.currentBattle.arenaId, this.settings);
+          if (this.destroyed || !this.started) {
+            replacement.destroy();
+            return;
+          }
+          replacement.setPerformanceScale(this.adaptiveQualityScale);
+          replacement.setActive(this.active);
+          this.configureControllers();
+          replacement.refreshLayout();
+          if (this.active && this.latestSnapshot) this.renderCurrentSnapshot();
+          return;
+        } catch (reason) {
+          lastFailure = reason;
+          try { replacement.setActive(false); } catch { /* best effort */ }
+          try { replacement.destroy(); } catch { /* partially initialized Pixi app */ }
+          await waitForRendererCleanup(2 + attempt);
+        }
+      }
+
+      throw lastFailure instanceof Error
+        ? new Error(`Battle renderer recovery failed after export: ${lastFailure.message}`)
+        : new Error('Battle renderer recovery failed after export.');
+    };
+
+    const recovery = recover().finally(() => {
+      if (this.rendererRecoveryPromise === recovery) this.rendererRecoveryPromise = null;
+    });
+    this.rendererRecoveryPromise = recovery;
+    return recovery;
   }
 
   queuePlayerCommand(command: SimulationCommand): void {
@@ -427,6 +485,17 @@ export class BattleRuntime {
   exportReplay(): string {
     if (!this.replay) return '';
     return JSON.stringify(this.replay.export(), null, 2);
+  }
+
+  createReplayExportSource(): ReplayExportSource {
+    if (!this.replay || !this.runner) throw new Error('Battle replay is not ready yet.');
+    const snapshot = this.runner.getSnapshot();
+    return {
+      replay: this.replay.export(),
+      endTick: snapshot.tick,
+      checksum: checksumSnapshot(snapshot),
+      battleEnded: snapshot.battleEnded
+    };
   }
 
   destroy(): void {
@@ -809,4 +878,18 @@ export class BattleRuntime {
       }
     };
   }
+}
+
+
+function waitForRendererCleanup(frameCount: number): Promise<void> {
+  return new Promise((resolve) => {
+    const next = (remaining: number) => {
+      if (remaining <= 0) {
+        resolve();
+        return;
+      }
+      requestAnimationFrame(() => next(remaining - 1));
+    };
+    next(Math.max(1, frameCount));
+  });
 }
