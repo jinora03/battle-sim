@@ -1,5 +1,6 @@
 import type { BroadcastLayoutDefinition, BroadcastRect } from '../broadcastLayout';
 import type { BroadcastFighterView } from '../broadcastScene';
+import type { BroadcastCameraFrame } from '../cinematicCamera';
 
 export const LEFT_ACCENT = '#59d8ff';
 export const RIGHT_ACCENT = '#ff6f91';
@@ -47,7 +48,8 @@ export function drawArenaFrame(
   ctx: CanvasRenderingContext2D,
   arenaCanvas: HTMLCanvasElement,
   rect: BroadcastRect,
-  vertical: boolean
+  vertical: boolean,
+  cameraFrame?: BroadcastCameraFrame
 ): void {
   ctx.save();
   ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
@@ -61,7 +63,18 @@ export function drawArenaFrame(
   ctx.save();
   roundedRectPath(ctx, rect.x, rect.y, rect.width, rect.height, 18);
   ctx.clip();
-  ctx.drawImage(arenaCanvas, rect.x, rect.y, rect.width, rect.height);
+  const source = cameraFrame?.source ?? { x: 0, y: 0, width: arenaCanvas.width, height: arenaCanvas.height };
+  ctx.drawImage(
+    arenaCanvas,
+    source.x,
+    source.y,
+    source.width,
+    source.height,
+    rect.x,
+    rect.y,
+    rect.width,
+    rect.height
+  );
   const vignette = ctx.createRadialGradient(
     rect.x + rect.width / 2,
     rect.y + rect.height / 2,
@@ -74,6 +87,21 @@ export function drawArenaFrame(
   vignette.addColorStop(1, 'rgba(0, 0, 0, 0.22)');
   ctx.fillStyle = vignette;
   ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+  if (cameraFrame && cameraFrame.emphasis > 0.01) {
+    const emphasis = Math.min(1, cameraFrame.emphasis);
+    const edge = ctx.createRadialGradient(
+      rect.x + rect.width / 2,
+      rect.y + rect.height / 2,
+      rect.width * 0.36,
+      rect.x + rect.width / 2,
+      rect.y + rect.height / 2,
+      rect.width * 0.72
+    );
+    edge.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    edge.addColorStop(1, `rgba(5, 10, 22, ${0.08 + emphasis * 0.16})`);
+    ctx.fillStyle = edge;
+    ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+  }
   ctx.restore();
 
   roundedRectPath(ctx, rect.x - 2, rect.y - 2, rect.width + 4, rect.height + 4, 20);

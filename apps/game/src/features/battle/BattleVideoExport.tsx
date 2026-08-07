@@ -2,7 +2,9 @@ import type { ChangeEvent } from 'react';
 import {
   formatBytes,
   getBroadcastLayout,
+  listCreatorExportPresets,
   type BroadcastLayoutId,
+  type VideoExportCameraMode,
   type VideoExportFrameRate,
   type VideoExportQuality,
   type VideoExportResolution
@@ -21,8 +23,10 @@ export function BattleVideoExport({
 }) {
   const {
     capability, progress, running, error,
-    layout, resolution, fps, quality, audioEnabled,
-    setLayout, setResolution, setFps, setQuality, setAudioEnabled,
+    layout, resolution, fps, quality, audioEnabled, cameraMode,
+    preset, introEnabled, captionsEnabled, thumbnailEnabled, history,
+    setLayout, setResolution, setFps, setQuality, setAudioEnabled, setCameraMode,
+    applyPreset, setIntroEnabled, setCaptionsEnabled, setThumbnailEnabled, clearHistory,
     start, cancel
   } = controller;
   const layoutDefinition = getBroadcastLayout(layout, resolution === '4k' ? 2 : 1);
@@ -47,10 +51,28 @@ export function BattleVideoExport({
             <span>{layoutDefinition.aspectLabel}</span>
             <span>{resolution}</span>
             <span>{fps} FPS</span>
+            <span>{cameraMode === 'cinematic' ? 'Cinematic' : 'Broadcast'}</span>
             <span>{audioEnabled ? 'Opus audio' : 'Silent'}</span>
           </div>
           <span className={`video-export-capability ${capability?.supported ? 'ready' : capability ? 'blocked' : ''}`}>{status}</span>
         </div>
+
+        <label className="video-export-preset-picker">
+          <span>Creator preset</span>
+          <select
+            value={preset}
+            disabled={running}
+            onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+              const value = event.target.value;
+              if (value !== 'custom') applyPreset(value as Exclude<typeof preset, 'custom'>);
+            }}
+          >
+            {listCreatorExportPresets().map((option) => (
+              <option key={option.id} value={option.id}>{option.name} · {option.detail}</option>
+            ))}
+            <option value="custom">Custom settings</option>
+          </select>
+        </label>
 
         <OptionPicker
           label="Broadcast layout"
@@ -85,22 +107,35 @@ export function BattleVideoExport({
               <option value="maximum">Maximum</option>
             </select>
           </label>
+          <label>
+            <span>Camera</span>
+            <select value={cameraMode} onChange={(event: ChangeEvent<HTMLSelectElement>) => setCameraMode(event.target.value as VideoExportCameraMode)} disabled={running}>
+              <option value="cinematic">Cinematic</option>
+              <option value="broadcast">Arena-wide</option>
+            </select>
+          </label>
           <label className="video-export-audio-toggle">
             <span>Audio</span>
             <button type="button" className={audioEnabled ? 'selected' : ''} onClick={() => setAudioEnabled(!audioEnabled)} disabled={running}>
               {audioEnabled ? 'On' : 'Off'}
             </button>
           </label>
+          <ToggleOption label="Intro" enabled={introEnabled} disabled={running} onChange={setIntroEnabled} />
+          <ToggleOption label="Captions" enabled={captionsEnabled} disabled={running} onChange={setCaptionsEnabled} />
+          <ToggleOption label="Thumbnail" enabled={thumbnailEnabled} disabled={running} onChange={setThumbnailEnabled} />
         </div>
 
-        <p className="video-export-note">Replay-timestamped broadcast video with deterministic synthesized combat audio. 4K support depends on your browser, GPU, and available memory.</p>
+        <p className="video-export-note">Creator presets add a matchup intro, automatic highlight selection, winner statistics, and an optional PNG thumbnail without changing replay outcomes.</p>
 
         <div className="video-export-facts" aria-label="Video export details">
           <span><small>Duration</small><strong>{formatDuration(durationSeconds)}</strong></span>
           <span><small>Replay ticks</small><strong>{replayTick.toLocaleString()}</strong></span>
           <span><small>Audio</small><strong>{audioEnabled ? 'Deterministic' : 'Disabled'}</strong></span>
           <span><small>Preset</small><strong>{quality}</strong></span>
+          <span><small>Camera</small><strong>{cameraMode === 'cinematic' ? 'Cinematic' : 'Arena-wide'}</strong></span>
           <span><small>Canvas</small><strong>{layoutDefinition.width} × {layoutDefinition.height}</strong></span>
+          <span><small>Creator cards</small><strong>{introEnabled ? 'Intro + summary' : 'Summary only'}</strong></span>
+          <span><small>Thumbnail</small><strong>{thumbnailEnabled ? 'Auto highlight' : 'Disabled'}</strong></span>
         </div>
 
         {(running || progress.phase === 'complete' || progress.phase === 'cancelled' || progress.phase === 'error') && (
@@ -129,10 +164,55 @@ export function BattleVideoExport({
             {running ? 'Exporting replay…' : 'Export current replay'}
           </NeonButton>
           {running && <NeonButton tone="danger" size="small" fullWidth onClick={cancel}>Cancel export</NeonButton>}
-          <small>4K, 30/60 FPS, quality presets, and deterministic Opus audio are active in Stage 8.10C.</small>
+          <small>Cinematic framing stays export-only and never changes replay simulation outcomes.</small>
         </div>
+
+        <details className="video-export-history">
+          <summary>
+            <span>Export history</span>
+            <em>{history.length}</em>
+          </summary>
+          <div className="video-export-history-content">
+            {history.length === 0
+              ? <p>No completed exports recorded on this device.</p>
+              : history.slice(0, 5).map((entry) => (
+                  <article key={entry.id}>
+                    <div>
+                      <strong>{entry.winnerName}</strong>
+                      <small>{entry.layout} · {entry.resolution} · {entry.fps} FPS · {formatBytes(entry.encodedBytes)}</small>
+                    </div>
+                    <time dateTime={entry.createdAt}>{formatHistoryDate(entry.createdAt)}</time>
+                    {entry.highlight && <span>{entry.highlight}</span>}
+                  </article>
+                ))}
+            {history.length > 0 && (
+              <button type="button" onClick={clearHistory} disabled={running}>Clear history</button>
+            )}
+          </div>
+        </details>
       </div>
     </details>
+  );
+}
+
+function ToggleOption({
+  label,
+  enabled,
+  disabled,
+  onChange
+}: {
+  label: string;
+  enabled: boolean;
+  disabled: boolean;
+  onChange(enabled: boolean): void;
+}) {
+  return (
+    <label className="video-export-audio-toggle">
+      <span>{label}</span>
+      <button type="button" className={enabled ? 'selected' : ''} onClick={() => onChange(!enabled)} disabled={disabled}>
+        {enabled ? 'On' : 'Off'}
+      </button>
+    </label>
   );
 }
 
@@ -166,4 +246,10 @@ function formatDuration(seconds: number): string {
   const rounded = Math.ceil(seconds);
   const minutes = Math.floor(rounded / 60);
   return `${minutes}:${String(rounded % 60).padStart(2, '0')}`;
+}
+
+function formatHistoryDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Unknown date';
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }

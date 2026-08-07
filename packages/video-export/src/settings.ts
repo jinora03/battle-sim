@@ -1,5 +1,6 @@
 import { defaultPresentationSettings, type PresentationSettings } from '@kinetic/visual-engine';
 import { getBroadcastLayout, type BroadcastLayoutId } from './broadcastLayout';
+import { getCreatorExportPreset } from './creatorPresets';
 import {
   VIDEO_EXPORT_AUDIO_CHANNELS,
   VIDEO_EXPORT_AUDIO_SAMPLE_RATE,
@@ -7,6 +8,8 @@ import {
   VIDEO_EXPORT_MAX_DURATION_SECONDS,
   VIDEO_EXPORT_MAX_ENCODED_BYTES,
   type ReplayVideoExportSettings,
+  type CreatorExportPresetId,
+  type VideoExportCameraMode,
   type VideoExportFrameRate,
   type VideoExportQuality,
   type VideoExportResolution
@@ -18,6 +21,17 @@ export interface Stage810cExportOptions {
   fps?: VideoExportFrameRate;
   quality?: VideoExportQuality;
   audio?: boolean;
+}
+
+export interface Stage810dExportOptions extends Stage810cExportOptions {
+  camera?: VideoExportCameraMode;
+}
+
+export interface Stage810eExportOptions extends Stage810dExportOptions {
+  preset?: CreatorExportPresetId;
+  intro?: boolean;
+  captions?: boolean;
+  thumbnail?: boolean;
 }
 
 const VIDEO_BITRATES: Readonly<Record<VideoExportResolution, Readonly<Record<VideoExportFrameRate, Readonly<Record<VideoExportQuality, number>>>>>> = {
@@ -42,7 +56,7 @@ export function createStage810aExportSettings(
 ): ReplayVideoExportSettings {
   return createExportSettings(presentation, {
     layout: 'landscape', resolution: '1080p', fps: 60, quality: 'balanced', audio: false
-  }, 0);
+  }, 0, 'broadcast', 0);
 }
 
 export function createStage810bExportSettings(
@@ -51,7 +65,7 @@ export function createStage810bExportSettings(
 ): ReplayVideoExportSettings {
   return createExportSettings(presentation, {
     layout: layoutId, resolution: '1080p', fps: 60, quality: 'balanced', audio: false
-  }, 2);
+  }, 2, 'broadcast', 0);
 }
 
 export function createStage810cExportSettings(
@@ -64,13 +78,52 @@ export function createStage810cExportSettings(
     fps: options.fps ?? VIDEO_EXPORT_FPS,
     quality: options.quality ?? 'high',
     audio: options.audio ?? true
-  }, 2);
+  }, 2, 'broadcast', 0);
+}
+
+export function createStage810dExportSettings(
+  presentation: Partial<PresentationSettings> = {},
+  options: Stage810dExportOptions = {}
+): ReplayVideoExportSettings {
+  return createExportSettings(presentation, {
+    layout: options.layout ?? 'landscape',
+    resolution: options.resolution ?? '1080p',
+    fps: options.fps ?? VIDEO_EXPORT_FPS,
+    quality: options.quality ?? 'high',
+    audio: options.audio ?? true
+  }, 2, options.camera ?? 'cinematic', options.camera === 'broadcast' ? 0 : 0.45);
+}
+
+export function createStage810eExportSettings(
+  presentation: Partial<PresentationSettings> = {},
+  options: Stage810eExportOptions = {}
+): ReplayVideoExportSettings {
+  const presetId = options.preset ?? 'youtube';
+  const preset = presetId === 'custom' ? getCreatorExportPreset('youtube') : getCreatorExportPreset(presetId);
+  const settings = createExportSettings(presentation, {
+    layout: options.layout ?? preset.layout,
+    resolution: options.resolution ?? preset.resolution,
+    fps: options.fps ?? preset.fps,
+    quality: options.quality ?? preset.quality,
+    audio: options.audio ?? preset.audio
+  }, 2.8, options.camera ?? preset.camera, (options.camera ?? preset.camera) === 'broadcast' ? 0 : 0.45);
+  return {
+    ...settings,
+    creator: {
+      preset: presetId,
+      introSeconds: options.intro === false ? 0 : 1.4,
+      captionsEnabled: options.captions ?? true,
+      thumbnailEnabled: options.thumbnail ?? true
+    }
+  };
 }
 
 function createExportSettings(
   presentation: Partial<PresentationSettings>,
   options: Required<Stage810cExportOptions>,
-  resultHoldSeconds: number
+  resultHoldSeconds: number,
+  cameraMode: VideoExportCameraMode,
+  knockoutSlowMotionSeconds: number
 ): ReplayVideoExportSettings {
   const scale = options.resolution === '4k' ? 2 : 1;
   const layout = getBroadcastLayout(options.layout, scale);
@@ -85,6 +138,17 @@ function createExportSettings(
     maxDurationSeconds: VIDEO_EXPORT_MAX_DURATION_SECONDS,
     maxEncodedBytes: VIDEO_EXPORT_MAX_ENCODED_BYTES,
     resultHoldSeconds,
+    camera: {
+      mode: cameraMode,
+      maxZoom: cameraMode === 'cinematic' ? 1.28 : 1,
+      knockoutSlowMotionSeconds
+    },
+    creator: {
+      preset: 'custom',
+      introSeconds: 0,
+      captionsEnabled: true,
+      thumbnailEnabled: false
+    },
     audio: {
       enabled: options.audio,
       codec: 'opus',
@@ -101,9 +165,26 @@ function createExportSettings(
       renderScale: 1,
       targetRenderFps: options.fps,
       adaptiveQuality: false,
-      reducedMotion: false
+      reducedMotion: false,
+      cameraFollow: false,
+      // The Pixi camera uses live random shake; export applies seeded shake while compositing.
+      cameraShake: false,
+      impactFreeze: cameraMode === 'cinematic'
     }
   };
+}
+
+export function calculateCreatorIntroFrameCount(settings: ReplayVideoExportSettings): number {
+  return Math.max(0, Math.round(settings.creator.introSeconds * settings.fps));
+}
+
+
+export function calculateKnockoutSlowMotionFrameCount(
+  settings: ReplayVideoExportSettings,
+  battleEnded: boolean
+): number {
+  if (!battleEnded || settings.camera.mode !== 'cinematic') return 0;
+  return Math.max(0, Math.round(settings.camera.knockoutSlowMotionSeconds * settings.fps));
 }
 
 export function calculateReplayFrameCount(endTick: number, fps: VideoExportFrameRate): number {

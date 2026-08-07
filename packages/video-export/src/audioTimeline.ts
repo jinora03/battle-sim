@@ -46,15 +46,24 @@ const PALETTE_TUNING: Readonly<Record<ResolvedCombatAudioLayer['palette'], Palet
 
 const MAX_CUES_PER_TICK = 14;
 
+export interface ReplayAudioTimelineOptions {
+  startOffsetSeconds?: number;
+  resultDelaySeconds?: number;
+}
+
 export class ReplayAudioTimeline {
   private readonly cues: ReplayAudioCue[] = [];
   private readonly cueKeys = new Set<string>();
   private readonly arenaWidth: number;
   private readonly battleSeed: number;
+  private readonly startOffsetSeconds: number;
+  private readonly resultDelaySeconds: number;
 
-  constructor(battle: BattleDefinition) {
+  constructor(battle: BattleDefinition, options: ReplayAudioTimelineOptions = {}) {
     this.arenaWidth = Math.max(1, getArena(battle.arenaId).width);
     this.battleSeed = battle.seed;
+    this.startOffsetSeconds = Math.max(0, options.startOffsetSeconds ?? 0);
+    this.resultDelaySeconds = Math.max(0, options.resultDelaySeconds ?? 0);
   }
 
   addEvents(events: readonly SimulationEvent[]): void {
@@ -273,12 +282,12 @@ export class ReplayAudioTimeline {
   private addBattleResult(tick: number, winningTeam: number): void {
     const center = { x: this.arenaWidth / 2, y: 0 };
     this.addCue({
-      id: `${tick}:result:body`, tick, position: center, delaySeconds: 0.16, durationSeconds: 0.75,
+      id: `${tick}:result:body`, tick, position: center, delaySeconds: this.resultDelaySeconds + 0.16, durationSeconds: 0.75,
       waveform: 'triangle', startFrequency: winningTeam === 0 ? 170 : 210, endFrequency: winningTeam === 0 ? 95 : 520,
       gain: 0.075, seedSalt: winningTeam + 3001
     });
     this.addCue({
-      id: `${tick}:result:accent`, tick, position: center, delaySeconds: 0.32, durationSeconds: 0.38,
+      id: `${tick}:result:accent`, tick, position: center, delaySeconds: this.resultDelaySeconds + 0.32, durationSeconds: 0.38,
       waveform: 'sine', startFrequency: 420, endFrequency: winningTeam === 0 ? 260 : 860,
       gain: 0.042, seedSalt: winningTeam + 4001
     });
@@ -301,7 +310,7 @@ export class ReplayAudioTimeline {
     const durationSeconds = Math.max(0.02, Math.min(2.4, input.durationSeconds));
     this.cues.push({
       id: input.id,
-      startsAtSeconds: input.tick / 60 + Math.max(0, input.delaySeconds),
+      startsAtSeconds: this.startOffsetSeconds + input.tick / 60 + Math.max(0, input.delaySeconds),
       durationSeconds,
       waveform: input.waveform,
       startFrequency: Math.max(20, input.startFrequency || 20),

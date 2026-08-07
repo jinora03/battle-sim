@@ -1,6 +1,6 @@
 {
   "name": "@kinetic/game",
-  "version": "1.3.33-stage8.10c",
+  "version": "1.3.35-stage8.10e",
   "private": true,
   "type": "module",
   "scripts": {

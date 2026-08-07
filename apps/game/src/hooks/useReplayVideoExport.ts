@@ -2,18 +2,29 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import type { AppSettings } from '@kinetic/platform';
 import {
   ReplayVideoExporter,
+  calculateCreatorIntroFrameCount,
+  calculateKnockoutSlowMotionFrameCount,
   calculateReplayFrameCount,
-  createStage810cExportSettings,
+  createStage810eExportSettings,
   detectVideoExportCapability,
+  getCreatorExportPreset,
   type BroadcastLayoutId,
+  type CreatorExportPresetId,
   type ReplayExportSource,
   type ReplayVideoExportProgress,
+  type VideoExportCameraMode,
   type VideoExportCapability,
   type VideoExportFrameRate,
   type VideoExportQuality,
   type VideoExportResolution
 } from '@kinetic/video-export';
 import type { BattleRuntime } from '../runtime/BattleRuntime';
+import {
+  addReplayExportHistoryEntry,
+  clearReplayExportHistory,
+  readReplayExportHistory,
+  type ReplayExportHistoryEntry
+} from '../features/battle/replayExportHistory';
 
 export interface ReplayVideoExportController {
   capability: VideoExportCapability | null;
@@ -25,11 +36,23 @@ export interface ReplayVideoExportController {
   fps: VideoExportFrameRate;
   quality: VideoExportQuality;
   audioEnabled: boolean;
+  cameraMode: VideoExportCameraMode;
+  preset: CreatorExportPresetId;
+  introEnabled: boolean;
+  captionsEnabled: boolean;
+  thumbnailEnabled: boolean;
+  history: ReplayExportHistoryEntry[];
   setLayout(layout: BroadcastLayoutId): void;
   setResolution(resolution: VideoExportResolution): void;
   setFps(fps: VideoExportFrameRate): void;
   setQuality(quality: VideoExportQuality): void;
   setAudioEnabled(enabled: boolean): void;
+  setCameraMode(mode: VideoExportCameraMode): void;
+  applyPreset(preset: Exclude<CreatorExportPresetId, 'custom'>): void;
+  setIntroEnabled(enabled: boolean): void;
+  setCaptionsEnabled(enabled: boolean): void;
+  setThumbnailEnabled(enabled: boolean): void;
+  clearHistory(): void;
   start(): void;
   cancel(): void;
 }
@@ -49,14 +72,21 @@ export function useReplayVideoExport(
   runtimeRef: RefObject<BattleRuntime | null>,
   settings: AppSettings
 ): ReplayVideoExportController {
-  const [layout, setLayout] = useState<BroadcastLayoutId>('landscape');
-  const [resolution, setResolution] = useState<VideoExportResolution>('1080p');
-  const [fps, setFps] = useState<VideoExportFrameRate>(60);
-  const [quality, setQuality] = useState<VideoExportQuality>('high');
-  const [audioEnabled, setAudioEnabled] = useState(true);
-  const exportSettings = useMemo(() => createStage810cExportSettings(settings, {
-    layout, resolution, fps, quality, audio: audioEnabled
-  }), [audioEnabled, fps, layout, quality, resolution, settings]);
+  const [layout, setLayoutState] = useState<BroadcastLayoutId>('landscape');
+  const [resolution, setResolutionState] = useState<VideoExportResolution>('1080p');
+  const [fps, setFpsState] = useState<VideoExportFrameRate>(60);
+  const [quality, setQualityState] = useState<VideoExportQuality>('high');
+  const [audioEnabled, setAudioEnabledState] = useState(true);
+  const [cameraMode, setCameraModeState] = useState<VideoExportCameraMode>('cinematic');
+  const [preset, setPreset] = useState<CreatorExportPresetId>('youtube');
+  const [introEnabled, setIntroEnabledState] = useState(true);
+  const [captionsEnabled, setCaptionsEnabledState] = useState(true);
+  const [thumbnailEnabled, setThumbnailEnabledState] = useState(true);
+  const [history, setHistory] = useState<ReplayExportHistoryEntry[]>(readReplayExportHistory);
+  const exportSettings = useMemo(() => createStage810eExportSettings(settings, {
+    preset, layout, resolution, fps, quality, audio: audioEnabled, camera: cameraMode,
+    intro: introEnabled, captions: captionsEnabled, thumbnail: thumbnailEnabled
+  }), [audioEnabled, cameraMode, captionsEnabled, fps, introEnabled, layout, preset, quality, resolution, settings, thumbnailEnabled]);
   const exporterRef = useRef(new ReplayVideoExporter());
   const abortRef = useRef<AbortController | null>(null);
   const [capability, setCapability] = useState<VideoExportCapability | null>(null);
@@ -66,6 +96,59 @@ export function useReplayVideoExport(
     || progress.phase === 'rendering'
     || progress.phase === 'audio'
     || progress.phase === 'muxing';
+
+  const setLayout = useCallback((value: BroadcastLayoutId) => {
+    setPreset('custom');
+    setLayoutState(value);
+  }, []);
+  const setResolution = useCallback((value: VideoExportResolution) => {
+    setPreset('custom');
+    setResolutionState(value);
+  }, []);
+  const setFps = useCallback((value: VideoExportFrameRate) => {
+    setPreset('custom');
+    setFpsState(value);
+  }, []);
+  const setQuality = useCallback((value: VideoExportQuality) => {
+    setPreset('custom');
+    setQualityState(value);
+  }, []);
+  const setAudioEnabled = useCallback((value: boolean) => {
+    setPreset('custom');
+    setAudioEnabledState(value);
+  }, []);
+  const setCameraMode = useCallback((value: VideoExportCameraMode) => {
+    setPreset('custom');
+    setCameraModeState(value);
+  }, []);
+  const setIntroEnabled = useCallback((value: boolean) => {
+    setPreset('custom');
+    setIntroEnabledState(value);
+  }, []);
+  const setCaptionsEnabled = useCallback((value: boolean) => {
+    setPreset('custom');
+    setCaptionsEnabledState(value);
+  }, []);
+  const setThumbnailEnabled = useCallback((value: boolean) => {
+    setPreset('custom');
+    setThumbnailEnabledState(value);
+  }, []);
+  const applyPreset = useCallback((value: Exclude<CreatorExportPresetId, 'custom'>) => {
+    const definition = getCreatorExportPreset(value);
+    setPreset(value);
+    setLayoutState(definition.layout);
+    setResolutionState(definition.resolution);
+    setFpsState(definition.fps);
+    setQualityState(definition.quality);
+    setAudioEnabledState(definition.audio);
+    setCameraModeState(definition.camera);
+    setIntroEnabledState(true);
+    setCaptionsEnabledState(true);
+    setThumbnailEnabledState(true);
+  }, []);
+  const clearHistory = useCallback(() => {
+    setHistory(clearReplayExportHistory());
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,11 +191,13 @@ export function useReplayVideoExport(
     abortRef.current = abortController;
     setError(null);
     const replayFrames = calculateReplayFrameCount(source.endTick, exportSettings.fps);
+    const introFrames = calculateCreatorIntroFrameCount(exportSettings);
+    const knockoutFrames = calculateKnockoutSlowMotionFrameCount(exportSettings, source.battleEnded);
     const holdFrames = source.battleEnded ? Math.round(exportSettings.resultHoldSeconds * exportSettings.fps) : 0;
     setProgress({
       ...INITIAL_PROGRESS,
       phase: 'preparing',
-      totalFrames: replayFrames + holdFrames,
+      totalFrames: introFrames + replayFrames + knockoutFrames + holdFrames,
       message: 'Preparing the dedicated video and audio renderer.'
     });
 
@@ -123,10 +208,11 @@ export function useReplayVideoExport(
       abortController.signal
     ).then((result) => {
       const audioSuffix = result.audioCodec ? '-audio' : '-silent';
-      downloadBlob(
-        result.blob,
-        `kinetic-battle-${source.replay.battle.seed}-${result.layout}-${result.resolution}-${result.fps}fps${audioSuffix}.webm`
-      );
+      const baseName = `kinetic-battle-${source.replay.battle.seed}-${result.layout}-${result.cameraMode}-${result.resolution}-${result.fps}fps${audioSuffix}`;
+      const filename = `${baseName}.webm`;
+      downloadBlob(result.blob, filename);
+      if (result.thumbnailBlob) downloadBlob(result.thumbnailBlob, `${baseName}-thumbnail.png`);
+      setHistory(addReplayExportHistoryEntry(result, filename));
     }).catch((reason: unknown) => {
       const message = reason instanceof Error ? reason.message : 'Video export failed.';
       setError(message);
@@ -154,11 +240,23 @@ export function useReplayVideoExport(
     fps,
     quality,
     audioEnabled,
+    cameraMode,
+    preset,
+    introEnabled,
+    captionsEnabled,
+    thumbnailEnabled,
+    history,
     setLayout,
     setResolution,
     setFps,
     setQuality,
     setAudioEnabled,
+    setCameraMode,
+    applyPreset,
+    setIntroEnabled,
+    setCaptionsEnabled,
+    setThumbnailEnabled,
+    clearHistory,
     start,
     cancel
   };

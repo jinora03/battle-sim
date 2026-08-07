@@ -1,5 +1,6 @@
 import type { BroadcastLayoutDefinition } from '../broadcastLayout';
 import type { BroadcastScene } from '../broadcastScene';
+import type { BroadcastCameraFrame } from '../cinematicCamera';
 import {
   LEFT_ACCENT,
   PANEL_BORDER,
@@ -22,13 +23,14 @@ export function drawLandscapeBroadcast(
   ctx: CanvasRenderingContext2D,
   layout: BroadcastLayoutDefinition,
   scene: BroadcastScene,
-  arenaCanvas: HTMLCanvasElement
+  arenaCanvas: HTMLCanvasElement,
+  cameraFrame: BroadcastCameraFrame
 ): void {
   drawText(ctx, 'KINETIC BATTLE', 960, 39, 22, 900, '#81bfff', 'center', 2.8);
   drawText(ctx, `${scene.modeName.toUpperCase()} · ${scene.roundLabel.toUpperCase()} · ${scene.objectiveLabel.toUpperCase()}`, 960, 74, 18, 800, TEXT_SECONDARY, 'center', 1.2);
   drawPill(ctx, scene.timerLabel, 886, 92, 148, 42, '#16263b', '#5f91c8', TEXT_PRIMARY, 21);
 
-  drawArenaFrame(ctx, arenaCanvas, layout.arena, false);
+  drawArenaFrame(ctx, arenaCanvas, layout.arena, false, cameraFrame);
   drawLandscapeFighterPanel(ctx, scene.left, { x: 28, y: 132, width: 224, height: 818 }, LEFT_ACCENT, false);
   drawLandscapeFighterPanel(ctx, scene.right, { x: 1668, y: 132, width: 224, height: 818 }, RIGHT_ACCENT, true);
 

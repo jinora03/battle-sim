@@ -275,3 +275,129 @@
   background: rgba(73, 226, 157, .1);
   color: #91f4c6;
 }
+
+.video-export-preset-picker {
+  display: grid;
+  gap: 5px;
+}
+
+.video-export-preset-picker > span {
+  color: #89a4bf;
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+
+.video-export-preset-picker select {
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 1px solid rgba(91, 174, 255, .4);
+  border-radius: 9px;
+  background: linear-gradient(135deg, rgba(65, 137, 220, .12), rgba(115, 85, 210, .08));
+  color: #e8f3ff;
+  font: inherit;
+  font-size: .7rem;
+  font-weight: 800;
+}
+
+.video-export-history {
+  overflow: hidden;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .02);
+}
+
+.video-export-history > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 9px;
+  color: #b8cbe0;
+  cursor: pointer;
+  font-size: .68rem;
+  font-weight: 800;
+  list-style: none;
+}
+
+.video-export-history > summary::-webkit-details-marker {
+  display: none;
+}
+
+.video-export-history > summary em {
+  display: grid;
+  min-width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(91, 174, 255, .12);
+  color: #8bc9ff;
+  font-size: .62rem;
+  font-style: normal;
+}
+
+.video-export-history-content {
+  display: grid;
+  gap: 6px;
+  padding: 0 8px 8px;
+}
+
+.video-export-history-content > p {
+  margin: 0;
+  padding: 8px;
+  color: #7f98b2;
+  font-size: .65rem;
+}
+
+.video-export-history article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 8px;
+  padding: 8px;
+  border: 1px solid rgba(151, 190, 231, .12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .02);
+}
+
+.video-export-history article div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.video-export-history article strong,
+.video-export-history article small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-export-history article strong {
+  color: #edf6ff;
+  font-size: .68rem;
+}
+
+.video-export-history article small,
+.video-export-history article time,
+.video-export-history article > span {
+  color: #7f98b2;
+  font-size: .58rem;
+}
+
+.video-export-history article > span {
+  grid-column: 1 / -1;
+  color: #b7a8ff;
+}
+
+.video-export-history-content > button {
+  justify-self: end;
+  padding: 5px 7px;
+  border: 0;
+  background: transparent;
+  color: #ff9eaa;
+  cursor: pointer;
+  font: inherit;
+  font-size: .6rem;
+  font-weight: 800;
+}

@@ -3,8 +3,14 @@ import { checksumSnapshot } from '@kinetic/simulation';
 import { ReplayAudioSynthesizer } from './audioSynthesis';
 import { ReplayAudioTimeline } from './audioTimeline';
 import { BroadcastFrameRenderer } from './broadcastRenderer';
+import { CreatorReplayAnalyzer } from './creatorHighlights';
+import { captureCreatorThumbnail, encodeCreatorThumbnail } from './creatorThumbnail';
 import { ReplayFrameStepper } from './replayFrameStepper';
-import { validateExportPlan } from './settings';
+import {
+  calculateCreatorIntroFrameCount,
+  calculateKnockoutSlowMotionFrameCount,
+  validateExportPlan
+} from './settings';
 import {
   ReplayVideoExportError,
   type ReplayExportSource,
@@ -30,8 +36,10 @@ export class ReplayVideoExporter {
   ): Promise<ReplayVideoExportResult> {
     this.assertSource(source);
     const stepper = new ReplayFrameStepper(source.replay, source.endTick, settings.fps);
+    const introFrames = calculateCreatorIntroFrameCount(settings);
+    const knockoutSlowMotionFrames = calculateKnockoutSlowMotionFrameCount(settings, source.battleEnded);
     const resultHoldFrames = source.battleEnded ? Math.round(settings.resultHoldSeconds * settings.fps) : 0;
-    const totalFrames = stepper.totalFrames + resultHoldFrames;
+    const totalFrames = introFrames + stepper.totalFrames + knockoutSlowMotionFrames + resultHoldFrames;
     try {
       validateExportPlan(settings, totalFrames);
     } catch (reason) {
@@ -81,7 +89,11 @@ export class ReplayVideoExporter {
     }
 
     const broadcastRenderer = new BroadcastFrameRenderer(settings, source.replay.battle);
-    const audioTimeline = new ReplayAudioTimeline(source.replay.battle);
+    const creatorAnalyzer = new CreatorReplayAnalyzer(source.replay.battle);
+    const audioTimeline = new ReplayAudioTimeline(source.replay.battle, {
+      startOffsetSeconds: introFrames / settings.fps,
+      resultDelaySeconds: knockoutSlowMotionFrames / settings.fps
+    });
     const arenaSize = broadcastRenderer.layout.arena;
     const host = createExportHost(arenaSize.width, arenaSize.height);
     const renderer = new PixiBattleRenderer();
@@ -99,6 +111,7 @@ export class ReplayVideoExporter {
         }
       } : {})
     });
+    let thumbnailCanvas: HTMLCanvasElement | null = null;
 
     try {
       renderer.setFixedOutputSize(arenaSize.width, arenaSize.height);
@@ -121,22 +134,90 @@ export class ReplayVideoExporter {
         if (renderedFrames % 2 === 0) await yieldToBrowser();
       };
 
+      if (introFrames > 0) {
+        const initialSnapshot = stepper.currentSnapshot();
+        renderer.renderExportFrame(initialSnapshot, [], 1000 / settings.fps);
+        report('rendering', 'Rendering the creator matchup intro.', true);
+        for (let introFrame = 0; introFrame < introFrames; introFrame += 1) {
+          this.throwIfCancelled(signal);
+          const broadcastCanvas = broadcastRenderer.render(renderer.getCanvas(), initialSnapshot, [], {
+            phase: 'intro',
+            phaseProgress: introFrames <= 1 ? 1 : introFrame / (introFrames - 1),
+            showResult: false,
+            showCaptions: false,
+            creatorCard: {
+              kind: 'intro',
+              progress: introFrames <= 1 ? 1 : introFrame / (introFrames - 1)
+            }
+          });
+          const timestampUs = Math.round(renderedFrames * 1_000_000 / settings.fps);
+          const durationUs = Math.round(1_000_000 / settings.fps);
+          await encodeFrame(broadcastCanvas, timestampUs, durationUs);
+        }
+      }
+
       while (!stepper.done) {
         this.throwIfCancelled(signal);
         const frame = stepper.next();
         if (!frame) break;
         audioTimeline.addEvents(frame.events);
+        const highlightChanged = creatorAnalyzer.update(frame.snapshot, frame.events);
         renderer.renderExportFrame(frame.snapshot, frame.events, 1000 / settings.fps);
-        const broadcastCanvas = broadcastRenderer.render(renderer.getCanvas(), frame.snapshot, frame.events);
-        await encodeFrame(broadcastCanvas, frame.timestampUs, frame.durationUs);
+        const hideResult = settings.camera.mode === 'cinematic' && frame.snapshot.battleEnded;
+        const broadcastCanvas = hideResult
+          ? broadcastRenderer.render(renderer.getCanvas(), frame.snapshot, frame.events, {
+              showResult: false,
+              showCaptions: settings.creator.captionsEnabled
+            })
+          : broadcastRenderer.render(renderer.getCanvas(), frame.snapshot, frame.events, {
+              showCaptions: settings.creator.captionsEnabled
+            });
+        if (settings.creator.thumbnailEnabled && highlightChanged) {
+          if (thumbnailCanvas) {
+            thumbnailCanvas.width = 1;
+            thumbnailCanvas.height = 1;
+          }
+          thumbnailCanvas = captureCreatorThumbnail(broadcastCanvas, settings.layout);
+        }
+        const timestampUs = Math.round(renderedFrames * 1_000_000 / settings.fps);
+        await encodeFrame(broadcastCanvas, timestampUs, frame.durationUs);
+      }
+
+      const finalSnapshot = stepper.finalSnapshot();
+      const creatorSummary = creatorAnalyzer.finalize(finalSnapshot);
+      const durationUs = Math.round(1_000_000 / settings.fps);
+      if (knockoutSlowMotionFrames > 0) {
+        report('rendering', 'Holding the knockout with deterministic cinematic framing.', true);
+        for (let slowFrame = 0; slowFrame < knockoutSlowMotionFrames; slowFrame += 1) {
+          this.throwIfCancelled(signal);
+          const broadcastCanvas = broadcastRenderer.render(renderer.getCanvas(), finalSnapshot, [], {
+            phase: 'knockout',
+            phaseProgress: knockoutSlowMotionFrames <= 1 ? 1 : slowFrame / (knockoutSlowMotionFrames - 1),
+            showResult: false,
+            showCaptions: settings.creator.captionsEnabled
+          });
+          const timestampUs = Math.round(renderedFrames * 1_000_000 / settings.fps);
+          await encodeFrame(broadcastCanvas, timestampUs, durationUs);
+        }
       }
 
       if (resultHoldFrames > 0) {
-        const finalSnapshot = stepper.finalSnapshot();
-        const durationUs = Math.round(1_000_000 / settings.fps);
         for (let holdFrame = 0; holdFrame < resultHoldFrames; holdFrame += 1) {
           this.throwIfCancelled(signal);
-          const broadcastCanvas = broadcastRenderer.render(renderer.getCanvas(), finalSnapshot, []);
+          const broadcastCanvas = broadcastRenderer.render(renderer.getCanvas(), finalSnapshot, [], {
+            phase: 'result',
+            phaseProgress: resultHoldFrames <= 1 ? 1 : holdFrame / (resultHoldFrames - 1),
+            showResult: true,
+            showCaptions: settings.creator.captionsEnabled,
+            creatorCard: {
+              kind: 'summary',
+              progress: resultHoldFrames <= 1 ? 1 : holdFrame / (resultHoldFrames - 1),
+              summary: creatorSummary
+            }
+          });
+          if (settings.creator.thumbnailEnabled && !thumbnailCanvas && holdFrame === 0) {
+            thumbnailCanvas = captureCreatorThumbnail(broadcastCanvas, settings.layout);
+          }
           const timestampUs = Math.round(renderedFrames * 1_000_000 / settings.fps);
           await encodeFrame(broadcastCanvas, timestampUs, durationUs);
         }
@@ -176,6 +257,7 @@ export class ReplayVideoExporter {
       this.throwIfCancelled(signal);
       report('muxing', 'Packaging synchronized video and audio into a WebM file.', true);
       const blob = muxer.finalize();
+      const thumbnailBlob = thumbnailCanvas ? await safeEncodeCreatorThumbnail(thumbnailCanvas) : null;
       const finalChecksum = checksumSnapshot(stepper.finalSnapshot());
       if (finalChecksum !== source.checksum) {
         throw new ReplayVideoExportError(
@@ -197,7 +279,13 @@ export class ReplayVideoExporter {
         sourceChecksum: source.checksum,
         layout: settings.layout,
         resolution: settings.resolution,
-        quality: settings.quality
+        quality: settings.quality,
+        cameraMode: settings.camera.mode,
+        creatorPreset: settings.creator.preset,
+        summary: creatorSummary,
+        thumbnailBlob,
+        thumbnailWidth: thumbnailBlob ? thumbnailCanvas?.width ?? null : null,
+        thumbnailHeight: thumbnailBlob ? thumbnailCanvas?.height ?? null : null
       };
       encodedBytes = blob.size;
       report('complete', 'Video export complete.', true);
@@ -213,6 +301,10 @@ export class ReplayVideoExporter {
       audioEncoder?.close();
       renderer.destroy();
       broadcastRenderer.destroy();
+      if (thumbnailCanvas) {
+        thumbnailCanvas.width = 1;
+        thumbnailCanvas.height = 1;
+      }
       host.remove();
     }
   }
@@ -256,4 +348,13 @@ async function yieldToBrowser(): Promise<void> {
     return;
   }
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
+
+async function safeEncodeCreatorThumbnail(canvas: HTMLCanvasElement): Promise<Blob | null> {
+  try {
+    return await encodeCreatorThumbnail(canvas);
+  } catch {
+    // Thumbnail generation is optional and must never invalidate a completed video.
+    return null;
+  }
 }

@@ -40,6 +40,10 @@ export class ReplayFrameStepper {
     return this.runner.tick;
   }
 
+  currentSnapshot(): WorldSnapshot {
+    return this.runner.getSnapshot();
+  }
+
   next(): ReplayExportFrame | null {
     if (this.done) return null;
     const events: SimulationEvent[] = [];

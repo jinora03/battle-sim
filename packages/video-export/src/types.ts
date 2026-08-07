@@ -15,7 +15,38 @@ export type VideoExportAudioCodec = 'opus';
 export type VideoExportResolution = '1080p' | '4k';
 export type VideoExportFrameRate = 30 | 60;
 export type VideoExportQuality = 'balanced' | 'high' | 'maximum';
+export type VideoExportCameraMode = 'broadcast' | 'cinematic';
+export type CreatorExportPresetId = 'youtube' | 'shorts' | 'master' | 'quick' | 'custom';
 export type VideoExportPhase = 'idle' | 'preparing' | 'rendering' | 'audio' | 'muxing' | 'complete' | 'cancelled' | 'error';
+
+export interface CreatorBattleHighlight {
+  tick: number;
+  kind: 'ultimate' | 'heavy-hit' | 'knockout';
+  title: string;
+  detail: string | null;
+}
+
+export interface CreatorBattleSummary {
+  winnerName: string;
+  winningTeam: number | null;
+  durationSeconds: number;
+  remainingHp: number;
+  remainingHpRatio: number;
+  largestHit: {
+    amount: number;
+    tick: number;
+    sourceName: string;
+    targetName: string;
+    abilityName: string | null;
+  } | null;
+  topAbility: {
+    abilityId: string;
+    abilityName: string;
+    sourceName: string;
+    totalDamage: number;
+  } | null;
+  highlight: CreatorBattleHighlight | null;
+}
 
 export interface ReplayExportSource {
   replay: ReplayData;
@@ -32,6 +63,19 @@ export interface ReplayAudioExportSettings {
   bitrate: number;
 }
 
+export interface ReplayVideoExportCameraSettings {
+  mode: VideoExportCameraMode;
+  maxZoom: number;
+  knockoutSlowMotionSeconds: number;
+}
+
+export interface ReplayVideoCreatorSettings {
+  preset: CreatorExportPresetId;
+  introSeconds: number;
+  captionsEnabled: boolean;
+  thumbnailEnabled: boolean;
+}
+
 export interface ReplayVideoExportSettings {
   layout: BroadcastLayoutId;
   resolution: VideoExportResolution;
@@ -43,6 +87,8 @@ export interface ReplayVideoExportSettings {
   maxDurationSeconds: number;
   maxEncodedBytes: number;
   resultHoldSeconds: number;
+  camera: ReplayVideoExportCameraSettings;
+  creator: ReplayVideoCreatorSettings;
   audio: ReplayAudioExportSettings;
   presentation: PresentationSettings;
 }
@@ -73,6 +119,12 @@ export interface ReplayVideoExportResult {
   layout: BroadcastLayoutId;
   resolution: VideoExportResolution;
   quality: VideoExportQuality;
+  cameraMode: VideoExportCameraMode;
+  creatorPreset: CreatorExportPresetId;
+  summary: CreatorBattleSummary;
+  thumbnailBlob: Blob | null;
+  thumbnailWidth: number | null;
+  thumbnailHeight: number | null;
 }
 
 export interface VideoExportCapability {
