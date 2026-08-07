@@ -89,7 +89,10 @@ describe('Stage 8.10G platform viewing polish', () => {
     const exporter = readFileSync(new URL('../packages/video-export/src/replayVideoExporter.ts', import.meta.url), 'utf8');
     expect(runtime).toContain('for (let attempt = 0; attempt < 3; attempt += 1)');
     expect(runtime).toContain('await waitForRendererCleanup(2);');
-    expect(hook).toContain('let recoveryFailure: unknown = null;');
+    expect(hook).toContain('async function recoverLiveRenderer(runtime: BattleRuntime)');
+    expect(hook).toContain('const recoveryFailure = runtime ? await recoverLiveRenderer(runtime) : null;');
+    const recoveryHelper = hook.slice(hook.indexOf('async function recoverLiveRenderer'));
+    expect(recoveryHelper.match(/await runtime\.restoreRendererAfterVideoExport\(\);/g)).toHaveLength(2);
     expect(hook).toContain('Video exported, but the battle renderer could not recover');
     expect(exporter).toContain('Export cleanup must never turn an already encoded video into a false');
   });

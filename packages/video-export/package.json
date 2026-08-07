@@ -10,6 +10,7 @@
     "@kinetic/controllers": "1.0.0",
     "@kinetic/protocol": "1.0.0",
     "@kinetic/renderer-pixi": "1.0.0",
+    "@kinetic/replay": "1.0.0",
     "@kinetic/simulation": "1.0.0",
     "@kinetic/visual-engine": "1.0.0"
   }

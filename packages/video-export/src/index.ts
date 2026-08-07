@@ -14,6 +14,7 @@ export * from './creatorThumbnail';
 export * from './replayFrameStepper';
 export * from './replayVideoExporter';
 export * from './runtimeReplayAudio';
+export * from './seedReplayGenerator';
 export * from './settings';
 export * from './types';
 export * from './webCodecs';

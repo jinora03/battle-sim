@@ -10,7 +10,7 @@ import {
   type VideoExportQuality,
   type VideoExportResolution
 } from '@kinetic/video-export';
-import type { ReplayVideoExportController } from '../../hooks/useReplayVideoExport';
+import type { ReplayVideoExportController, ReplayVideoSourceMode } from '../../hooks/useReplayVideoExport';
 import { NeonButton } from '../../ui/NeonUI';
 
 const BROADCAST_LAYOUT_OPTIONS = ['landscape', 'vertical'] as const;
@@ -23,16 +23,19 @@ export function BattleVideoExport({
   replayTick: number;
 }) {
   const {
-    capability, progress, running, error,
+    capability, progress, seedProgress, preparingReplay, running, error,
+    sourceMode, generationSeedText, preparedReplayTick,
     format, layout, resolution, fps, quality, audioEnabled, cameraMode,
     preset, introEnabled, captionsEnabled, thumbnailEnabled, history,
+    setSourceMode, setGenerationSeedText, randomizeSeed, reuseCurrentSeed,
     setFormat, setLayout, setResolution, setFps, setQuality, setAudioEnabled, setCameraMode,
     applyPreset, setIntroEnabled, setCaptionsEnabled, setThumbnailEnabled, clearHistory,
     start, cancel
   } = controller;
   const layoutDefinition = getBroadcastLayout(layout, resolution === '4k' ? 2 : 1);
-  const durationSeconds = replayTick / 60;
-  const exportDisabled = running || replayTick <= 0 || capability?.supported !== true;
+  const sourceTick = sourceMode === 'current-replay' ? replayTick : preparedReplayTick;
+  const durationSeconds = (sourceTick ?? 0) / 60;
+  const exportDisabled = running || capability?.supported !== true || (sourceMode === 'current-replay' && replayTick <= 0);
   const status = capability === null
     ? 'Checking encoder…'
     : capability.supported
@@ -57,6 +60,38 @@ export function BattleVideoExport({
           </div>
           <span className={`video-export-capability ${capability?.supported ? 'ready' : capability ? 'blocked' : ''}`}>{status}</span>
         </div>
+
+        <OptionPicker
+          label="Replay source"
+          value={sourceMode}
+          disabled={running}
+          options={[
+            ['current-replay', 'Current replay', 'Use battle already run'],
+            ['setup-seed', 'Setup + seed', 'Simulate offscreen']
+          ] as const}
+          onChange={(value) => setSourceMode(value as ReplayVideoSourceMode)}
+        />
+
+        {sourceMode === 'setup-seed' && (
+          <div className="video-export-seed-source">
+            <label>
+              <span>Seed</span>
+              <input
+                value={generationSeedText}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                disabled={running}
+                aria-label="Seed for generated replay"
+                onChange={(event) => setGenerationSeedText(event.target.value)}
+              />
+            </label>
+            <div className="video-export-seed-actions">
+              <button type="button" onClick={randomizeSeed} disabled={running}>Randomize</button>
+              <button type="button" onClick={reuseCurrentSeed} disabled={running}>Reuse current</button>
+            </div>
+            <small>Player-controlled fighters use neutral input in headless generation; choose AI controllers for a fully autonomous battle.</small>
+          </div>
+        )}
 
         <label className="video-export-preset-picker">
           <span>Creator preset</span>
@@ -138,8 +173,8 @@ export function BattleVideoExport({
 
         <div className="video-export-facts" aria-label="Video export details">
           <span><small>Format</small><strong>{capability?.container?.toUpperCase() ?? format.toUpperCase()}</strong></span>
-          <span><small>Duration</small><strong>{formatDuration(durationSeconds)}</strong></span>
-          <span><small>Replay ticks</small><strong>{replayTick.toLocaleString()}</strong></span>
+          <span><small>Duration</small><strong>{sourceTick === null ? 'Pending' : formatDuration(durationSeconds)}</strong></span>
+          <span><small>Replay ticks</small><strong>{sourceTick === null ? 'Pending' : sourceTick.toLocaleString()}</strong></span>
           <span><small>Audio</small><strong>{audioEnabled ? 'Deterministic' : 'Disabled'}</strong></span>
           <span><small>Preset</small><strong>{quality}</strong></span>
           <span><small>Camera</small><strong>{cameraMode === 'cinematic' ? 'Cinematic' : 'Arena-wide'}</strong></span>
@@ -148,7 +183,23 @@ export function BattleVideoExport({
           <span><small>Thumbnail</small><strong>{thumbnailEnabled ? 'Auto highlight' : 'Disabled'}</strong></span>
         </div>
 
-        {(running || progress.phase === 'complete' || progress.phase === 'cancelled' || progress.phase === 'error') && (
+        {preparingReplay && seedProgress && (
+          <div className="video-export-progress" role="status" aria-live="polite">
+            <div className="video-export-progress-label">
+              <strong>{seedProgress.message}</strong>
+              <span>{Math.round(seedProgress.progress * 100)}%</span>
+            </div>
+            <div className="video-export-progress-track" aria-hidden="true">
+              <span style={{ width: `${Math.max(0, Math.min(100, seedProgress.progress * 100))}%` }} />
+            </div>
+            <div className="video-export-progress-meta">
+              <span>{seedProgress.simulatedTicks.toLocaleString()} / {seedProgress.maxTicks.toLocaleString()} ticks</span>
+              <span>Preparing battle replay</span>
+            </div>
+          </div>
+        )}
+
+        {!preparingReplay && (running || progress.phase === 'complete' || progress.phase === 'cancelled' || progress.phase === 'error') && (
           <div className="video-export-progress" role="status" aria-live="polite">
             <div className="video-export-progress-label">
               <strong>{progress.message}</strong>
@@ -175,9 +226,9 @@ export function BattleVideoExport({
 
         <div className="video-export-actions">
           <NeonButton tone="primary" size="small" fullWidth onClick={start} disabled={exportDisabled}>
-            {running ? 'Exporting replay…' : 'Export current replay'}
+            {preparingReplay ? 'Preparing replay…' : running ? 'Rendering video…' : sourceMode === 'setup-seed' ? 'Generate & export video' : 'Export current replay'}
           </NeonButton>
-          {running && <NeonButton tone="danger" size="small" fullWidth onClick={cancel}>Cancel export</NeonButton>}
+          {running && <NeonButton tone="danger" size="small" fullWidth onClick={cancel}>Cancel</NeonButton>}
           <small>Cinematic framing stays export-only and never changes replay simulation outcomes.</small>
         </div>
 

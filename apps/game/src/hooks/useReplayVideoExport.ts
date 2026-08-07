@@ -7,11 +7,13 @@ import {
   calculateReplayFrameCount,
   createStage810hExportSettings,
   detectVideoExportCapability,
+  generateSeedReplay,
   getCreatorExportPreset,
   type BroadcastLayoutId,
   type CreatorExportPresetId,
   type ReplayExportSource,
   type ReplayVideoExportProgress,
+  type SeedReplayGenerationProgress,
   type VideoExportCameraMode,
   type VideoExportCapability,
   type VideoExportFormat,
@@ -20,6 +22,8 @@ import {
   type VideoExportResolution
 } from '@kinetic/video-export';
 import type { BattleRuntime } from '../runtime/BattleRuntime';
+import type { BattleSetup } from '../runtime/BattleSetup';
+import { createBattleDefinition, normalizeBattleSeed } from '../runtime/createBattleDefinition';
 import {
   addReplayExportHistoryEntry,
   clearReplayExportHistory,
@@ -27,11 +31,18 @@ import {
   type ReplayExportHistoryEntry
 } from '../features/battle/replayExportHistory';
 
+export type ReplayVideoSourceMode = 'current-replay' | 'setup-seed';
+
 export interface ReplayVideoExportController {
   capability: VideoExportCapability | null;
   progress: ReplayVideoExportProgress;
+  seedProgress: SeedReplayGenerationProgress | null;
+  preparingReplay: boolean;
   running: boolean;
   error: string | null;
+  sourceMode: ReplayVideoSourceMode;
+  generationSeedText: string;
+  preparedReplayTick: number | null;
   format: VideoExportFormat;
   layout: BroadcastLayoutId;
   resolution: VideoExportResolution;
@@ -44,6 +55,10 @@ export interface ReplayVideoExportController {
   captionsEnabled: boolean;
   thumbnailEnabled: boolean;
   history: ReplayExportHistoryEntry[];
+  setSourceMode(mode: ReplayVideoSourceMode): void;
+  setGenerationSeedText(value: string): void;
+  randomizeSeed(): void;
+  reuseCurrentSeed(): void;
   setFormat(format: VideoExportFormat): void;
   setLayout(layout: BroadcastLayoutId): void;
   setResolution(resolution: VideoExportResolution): void;
@@ -73,8 +88,12 @@ const INITIAL_PROGRESS: ReplayVideoExportProgress = {
 
 export function useReplayVideoExport(
   runtimeRef: RefObject<BattleRuntime | null>,
-  settings: AppSettings
+  settings: AppSettings,
+  setup: BattleSetup,
+  currentSeed: number
 ): ReplayVideoExportController {
+  const [sourceMode, setSourceMode] = useState<ReplayVideoSourceMode>('current-replay');
+  const [generationSeedText, setGenerationSeedTextState] = useState(() => String(normalizeBattleSeed(currentSeed)));
   const [format, setFormatState] = useState<VideoExportFormat>('auto');
   const [layout, setLayoutState] = useState<BroadcastLayoutId>('landscape');
   const [resolution, setResolutionState] = useState<VideoExportResolution>('1080p');
@@ -93,14 +112,39 @@ export function useReplayVideoExport(
   }), [audioEnabled, cameraMode, captionsEnabled, format, fps, introEnabled, layout, preset, quality, resolution, settings, thumbnailEnabled]);
   const exporterRef = useRef(new ReplayVideoExporter());
   const abortRef = useRef<AbortController | null>(null);
+  const preparedSourceRef = useRef<{ key: string; source: ReplayExportSource } | null>(null);
+  const [preparedSourceKey, setPreparedSourceKey] = useState<string | null>(null);
   const [capability, setCapability] = useState<VideoExportCapability | null>(null);
   const [progress, setProgress] = useState<ReplayVideoExportProgress>(INITIAL_PROGRESS);
+  const [seedProgress, setSeedProgress] = useState<SeedReplayGenerationProgress | null>(null);
+  const [preparingReplay, setPreparingReplay] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const running = progress.phase === 'preparing'
+
+  const generationSeed = normalizeBattleSeed(Number(generationSeedText) || 1);
+  const configuredBattle = useMemo(
+    () => createBattleDefinition(setup, generationSeed),
+    [generationSeed, setup]
+  );
+  const configuredBattleKey = useMemo(() => JSON.stringify(configuredBattle), [configuredBattle]);
+  const preparedReplayTick = preparedSourceKey === configuredBattleKey
+    ? preparedSourceRef.current?.source.endTick ?? null
+    : null;
+  const running = preparingReplay
+    || progress.phase === 'preparing'
     || progress.phase === 'rendering'
     || progress.phase === 'audio'
     || progress.phase === 'muxing';
 
+  const setGenerationSeedText = useCallback((value: string) => {
+    const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
+    setGenerationSeedTextState(digitsOnly);
+  }, []);
+  const randomizeSeed = useCallback(() => {
+    setGenerationSeedTextState(String(generateRandomSeed()));
+  }, []);
+  const reuseCurrentSeed = useCallback(() => {
+    setGenerationSeedTextState(String(normalizeBattleSeed(currentSeed)));
+  }, [currentSeed]);
   const setFormat = useCallback((value: VideoExportFormat) => {
     setFormatState(value);
   }, []);
@@ -176,44 +220,65 @@ export function useReplayVideoExport(
 
   const start = useCallback(() => {
     if (running || abortRef.current) return;
-    const runtime = runtimeRef.current;
-    if (!runtime) {
-      setError('The battle runtime is not ready yet.');
-      return;
-    }
     if (!capability?.supported) {
       setError(capability?.reason ?? 'Video export support is still being checked.');
       return;
     }
 
-    let source: ReplayExportSource;
-    try {
-      source = runtime.createReplayExportSource();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'The replay is not ready for export.');
-      return;
-    }
-
     const abortController = new AbortController();
+    let videoRenderingStarted = false;
     abortRef.current = abortController;
     setError(null);
-    const replayFrames = calculateReplayFrameCount(source.endTick, exportSettings.fps);
-    const introFrames = calculateCreatorIntroFrameCount(exportSettings);
-    const knockoutFrames = calculateKnockoutSlowMotionFrameCount(exportSettings, source.battleEnded);
-    const holdFrames = source.battleEnded ? Math.round(exportSettings.resultHoldSeconds * exportSettings.fps) : 0;
-    setProgress({
-      ...INITIAL_PROGRESS,
-      phase: 'preparing',
-      totalFrames: introFrames + replayFrames + knockoutFrames + holdFrames,
-      message: 'Preparing the dedicated video and audio renderer.'
-    });
+    setSeedProgress(null);
+    setProgress(INITIAL_PROGRESS);
 
-    void exporterRef.current.export(
-      source,
-      exportSettings,
-      { onProgress: setProgress },
-      abortController.signal
-    ).then(async (result) => {
+    const run = async () => {
+      const runtime = runtimeRef.current;
+      let source: ReplayExportSource;
+
+      if (sourceMode === 'setup-seed') {
+        const cached = preparedSourceRef.current;
+        if (cached?.key === configuredBattleKey) {
+          source = cached.source;
+        } else {
+          setPreparingReplay(true);
+          try {
+            source = await generateSeedReplay(configuredBattle, {
+              signal: abortController.signal,
+              onProgress: setSeedProgress
+            });
+            preparedSourceRef.current = { key: configuredBattleKey, source };
+            setPreparedSourceKey(configuredBattleKey);
+          } finally {
+            setPreparingReplay(false);
+          }
+        }
+      } else {
+        if (!runtime) throw new Error('The battle runtime is not ready yet.');
+        source = runtime.createReplayExportSource();
+      }
+
+      if (abortController.signal.aborted) throw new Error('Video export was cancelled.');
+      const replayFrames = calculateReplayFrameCount(source.endTick, exportSettings.fps);
+      const introFrames = calculateCreatorIntroFrameCount(exportSettings);
+      const knockoutFrames = calculateKnockoutSlowMotionFrameCount(exportSettings, source.battleEnded);
+      const holdFrames = source.battleEnded ? Math.round(exportSettings.resultHoldSeconds * exportSettings.fps) : 0;
+      setProgress({
+        ...INITIAL_PROGRESS,
+        phase: 'preparing',
+        totalFrames: introFrames + replayFrames + knockoutFrames + holdFrames,
+        message: sourceMode === 'setup-seed'
+          ? 'Replay ready. Preparing the dedicated video and audio renderer.'
+          : 'Preparing the dedicated video and audio renderer.'
+      });
+
+      videoRenderingStarted = true;
+      const result = await exporterRef.current.export(
+        source,
+        exportSettings,
+        { onProgress: setProgress },
+        abortController.signal
+      );
       const audioSuffix = result.audioCodec ? '-audio' : '-silent';
       const baseName = `kinetic-battle-${source.replay.battle.seed}-${result.layout}-${result.cameraMode}-${result.resolution}-${result.fps}fps${audioSuffix}`;
       const extension = result.container === 'mp4' ? 'mp4' : 'webm';
@@ -222,23 +287,7 @@ export function useReplayVideoExport(
       if (result.thumbnailBlob) downloadBlob(result.thumbnailBlob, `${baseName}-thumbnail.png`);
       setHistory(addReplayExportHistoryEntry(result, filename));
 
-      // Renderer recovery is a post-export lifecycle concern. A transient first
-      // recovery attempt must not relabel an already downloaded video as a
-      // failed export; retry once at the controller boundary after the runtime's
-      // own fresh-context retries have been exhausted.
-      let recoveryFailure: unknown = null;
-      try {
-        await runtime.restoreRendererAfterVideoExport();
-      } catch (reason) {
-        recoveryFailure = reason;
-        try {
-          await runtime.restoreRendererAfterVideoExport();
-          recoveryFailure = null;
-        } catch (retryReason) {
-          recoveryFailure = retryReason;
-        }
-      }
-
+      const recoveryFailure = runtime ? await recoverLiveRenderer(runtime) : null;
       if (recoveryFailure) {
         const detail = recoveryFailure instanceof Error ? recoveryFailure.message : 'unknown renderer error';
         const message = `Video exported, but the battle renderer could not recover: ${detail}`;
@@ -252,14 +301,19 @@ export function useReplayVideoExport(
         phase: 'complete',
         progress: 1,
         estimatedRemainingMs: 0,
-        message: 'Video export complete. Battle renderer restored.'
+        message: runtime ? 'Video export complete. Battle renderer restored.' : 'Video export complete.'
       }));
-    }).catch(async (reason: unknown) => {
-      try {
-        await runtime.restoreRendererAfterVideoExport();
-      } catch {
-        // Preserve the original encoder/cancellation error. Renderer recovery is
-        // retried automatically on the next export lifecycle.
+    };
+
+    void run().catch(async (reason: unknown) => {
+      setPreparingReplay(false);
+      const runtime = runtimeRef.current;
+      if (runtime && videoRenderingStarted) {
+        try {
+          await runtime.restoreRendererAfterVideoExport();
+        } catch {
+          // Preserve the original simulation/encoder/cancellation error.
+        }
       }
       const message = reason instanceof Error ? reason.message : 'Video export failed.';
       setError(message);
@@ -271,7 +325,7 @@ export function useReplayVideoExport(
     }).finally(() => {
       if (abortRef.current === abortController) abortRef.current = null;
     });
-  }, [capability, exportSettings, running, runtimeRef]);
+  }, [capability, configuredBattle, configuredBattleKey, exportSettings, running, runtimeRef, sourceMode]);
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();
@@ -280,8 +334,13 @@ export function useReplayVideoExport(
   return {
     capability,
     progress,
+    seedProgress,
+    preparingReplay,
     running,
     error,
+    sourceMode,
+    generationSeedText,
+    preparedReplayTick,
     format,
     layout,
     resolution,
@@ -294,6 +353,10 @@ export function useReplayVideoExport(
     captionsEnabled,
     thumbnailEnabled,
     history,
+    setSourceMode,
+    setGenerationSeedText,
+    randomizeSeed,
+    reuseCurrentSeed,
     setFormat,
     setLayout,
     setResolution,
@@ -309,6 +372,29 @@ export function useReplayVideoExport(
     start,
     cancel
   };
+}
+
+async function recoverLiveRenderer(runtime: BattleRuntime): Promise<unknown | null> {
+  try {
+    await runtime.restoreRendererAfterVideoExport();
+    return null;
+  } catch (reason) {
+    try {
+      await runtime.restoreRendererAfterVideoExport();
+      return null;
+    } catch (retryReason) {
+      return retryReason ?? reason;
+    }
+  }
+}
+
+function generateRandomSeed(): number {
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const value = new Uint32Array(1);
+    crypto.getRandomValues(value);
+    return value[0] || 1;
+  }
+  return ((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0) || 1;
 }
 
 function downloadBlob(blob: Blob, filename: string): void {

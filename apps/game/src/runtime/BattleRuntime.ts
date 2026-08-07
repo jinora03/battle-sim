@@ -1,10 +1,8 @@
 import { BattleAudioEngine, type AudioDiagnostics } from '@kinetic/audio';
-import { getGameMode } from '@kinetic/content';
 import { AiController, PlayerController, type AiDecisionDebug, type AiWorkloadStats } from '@kinetic/controllers';
 import {
   AchievementEngine,
   BattleStatsTracker,
-  getDifficultyPreset,
   type AchievementUnlock,
   type BattleCompletionSummary,
   type FighterStats
@@ -15,8 +13,6 @@ import type {
   BattleDefinition,
   BattleResultSnapshot,
   BattleObjectiveSnapshot,
-  BattleParticipant,
-  ControllerKind,
   SimulationCommand,
   SimulationEvent,
   Vec2,
@@ -28,6 +24,7 @@ import { checksumSnapshot, LocalSimulationRunner, SIM_TICK_MS } from '@kinetic/s
 import type { PresentationSettings } from '@kinetic/visual-engine';
 import type { ReplayExportSource } from '@kinetic/video-export';
 import { DEFAULT_BATTLE_SETUP, type BattleSetup } from './BattleSetup';
+import { createBattleDefinition } from './createBattleDefinition';
 import { diagnosticsIntervalForEntityCount, metaEvaluationIntervalForEntityCount, RuntimePerformanceProfiler, type PerformanceBottleneck, type PerformancePressure } from './performance';
 
 export interface RecentSkillActivity {
@@ -801,82 +798,7 @@ export class BattleRuntime {
   }
 
   private createBattle(seed: number): BattleDefinition {
-    const mode = getGameMode(this.setup.modeId);
-    const participants: BattleParticipant[] = [];
-    const addTeam = (
-      fighterId: string,
-      moduleIds: readonly string[],
-      team: number,
-      count: number,
-      firstController: ControllerKind,
-      statScale?: BattleParticipant['statScale']
-    ) => {
-      for (let index = 0; index < count; index += 1) {
-        participants.push({
-          fighterId,
-          team,
-          controller: index === 0 ? firstController : 'ai',
-          loadout: { moduleIds: [...moduleIds] },
-          ...(statScale ? { statScale } : {})
-        });
-      }
-    };
-
-    if (mode.id === 'duel') {
-      addTeam(this.setup.fighterAId, this.setup.moduleIdsA, 1, 1, this.setup.controllerA);
-      addTeam(this.setup.fighterBId, this.setup.moduleIdsB, 2, 1, this.setup.controllerB);
-    } else if (mode.id === 'team-battle' || mode.id === 'mass-skirmish') {
-      const minTeamSize = mode.id === 'mass-skirmish' ? 5 : 2;
-      const maxPerTeam = Math.floor(mode.maxUnits / 2);
-      addTeam(this.setup.fighterAId, this.setup.moduleIdsA, 1, Math.max(minTeamSize, Math.min(maxPerTeam, this.setup.teamSizeA)), this.setup.controllerA);
-      addTeam(this.setup.fighterBId, this.setup.moduleIdsB, 2, Math.max(minTeamSize, Math.min(maxPerTeam, this.setup.teamSizeB)), this.setup.controllerB);
-    } else if (mode.id === 'battle-royale') {
-      const total = Math.max(3, Math.min(mode.maxUnits, this.setup.teamSizeA + this.setup.teamSizeB));
-      for (let index = 0; index < total; index += 1) {
-        participants.push({
-          fighterId: index % 2 === 0 ? this.setup.fighterAId : this.setup.fighterBId,
-          team: index + 1,
-          controller: index === 0 ? this.setup.controllerA : 'ai',
-          loadout: { moduleIds: [...(index % 2 === 0 ? this.setup.moduleIdsA : this.setup.moduleIdsB)] }
-        });
-      }
-    } else if (mode.id === 'boss-raid') {
-      addTeam(this.setup.fighterAId, this.setup.moduleIdsA, 1, Math.max(1, Math.min(6, this.setup.teamSizeA)), this.setup.controllerA);
-      addTeam(this.setup.fighterBId, this.setup.moduleIdsB, mode.bossTeam ?? 2, 1, this.setup.controllerB, { hp: 4.5, radius: 1.65, mass: 3.2, damage: 1.65, speed: 0.86 });
-    } else {
-      addTeam(this.setup.fighterAId, this.setup.moduleIdsA, mode.survivorTeam ?? 1, 1, this.setup.controllerA, { hp: 1.35 });
-      addTeam(this.setup.fighterBId, this.setup.moduleIdsB, 2, Math.max(2, Math.min(12, this.setup.teamSizeB)), this.setup.controllerB);
-    }
-
-    const playerTeam = participants.find((participant) => participant.controller === 'player')?.team ?? null;
-    const scaledEnemyTeam = playerTeam ?? (participants.some((participant) => participant.team === 2) ? 2 : null);
-    if (scaledEnemyTeam !== null) {
-      const difficulty = getDifficultyPreset(this.setup.difficulty);
-      for (const participant of participants) {
-        if (participant.team !== scaledEnemyTeam) continue;
-        const current = participant.statScale ?? {};
-        participant.statScale = {
-          hp: (current.hp ?? 1) * difficulty.enemyHpScale,
-          radius: current.radius ?? 1,
-          mass: current.mass ?? 1,
-          damage: (current.damage ?? 1) * difficulty.enemyDamageScale,
-          speed: (current.speed ?? 1) * difficulty.enemySpeedScale
-        };
-      }
-    }
-
-    return {
-      seed: seed >>> 0,
-      arenaId: this.setup.arenaId,
-      modeId: this.setup.modeId,
-      participants,
-      rules: {
-        friendlyFire: this.setup.friendlyFire,
-        teamCollision: this.setup.teamCollision,
-        teamCollisionScale: this.setup.teamCollision === 'soft' ? 0.24 : 1,
-        maxBattleTicks: mode.id === 'mass-skirmish' ? 5400 : 9000
-      }
-    };
+    return createBattleDefinition(this.setup, seed);
   }
 }
 

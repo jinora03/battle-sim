@@ -242,7 +242,7 @@ export function useAppController() {
     setBattleLaunchPhase,
     metaCallbacks
   });
-  const videoExport = useReplayVideoExport(runtimeRef, settings);
+  const videoExport = useReplayVideoExport(runtimeRef, settings, setup, Number(seedText) || 1);
 
   const validation = useMemo(() => validateFighterBundle(draft), [draft]);
   const activeCasts = diagnostics.entities.flatMap((entity) =>
