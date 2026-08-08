@@ -124,7 +124,10 @@ export class ReplayVideoExporter {
         renderedFrames += 1;
         encodedBytes = media.byteLength;
         if (media.videoQueueSize >= ENCODER_QUEUE_LIMIT) {
-          await media.flushVideo();
+          await flushEncoderStage(
+            () => media.flushVideo(),
+            'Video encoder flush failed while draining queued frames.'
+          );
           encodedBytes = media.byteLength;
         }
         report('rendering', `Rendered ${renderedFrames.toLocaleString()} of ${totalFrames.toLocaleString()} frames.`);
@@ -234,7 +237,11 @@ export class ReplayVideoExporter {
         }
       }
 
-      await media.flushVideo();
+      report('finalizing', 'Finalizing the video encoder and committing buffered frames.', true);
+      await flushEncoderStage(
+        () => media.flushVideo(),
+        'Video encoder flush failed while finalizing the exported video.'
+      );
       encodedBytes = media.byteLength;
 
       if (settings.audio.enabled && media.audioCodec) {
@@ -263,18 +270,25 @@ export class ReplayVideoExporter {
           media.encodeAudio(pcm, Math.round(startFrame * 1_000_000 / settings.audio.sampleRate), frameCount);
           encodedBytes = media.byteLength;
           if (media.audioQueueSize >= ENCODER_QUEUE_LIMIT) {
-            await media.flushAudio();
+            await flushEncoderStage(
+              () => media.flushAudio(),
+              'Audio encoder flush failed while draining queued samples.'
+            );
             encodedBytes = media.byteLength;
           }
           if (startFrame % (media.audioFramesPerChunk * 20) === 0) await yieldToBrowser();
         }
-        await media.flushAudio();
+        report('finalizing', 'Finalizing deterministic audio and committing buffered samples.', true);
+        await flushEncoderStage(
+          () => media.flushAudio(),
+          'Audio encoder flush failed while finalizing deterministic replay audio.'
+        );
         encodedBytes = media.byteLength;
       }
 
       this.throwIfCancelled(signal);
       report('muxing', `Packaging synchronized video and audio into a ${media.container.toUpperCase()} file.`, true);
-      const blob = media.finalize();
+      const blob = finalizeMediaFile(() => media.finalize());
       const thumbnailBlob = thumbnailCanvas ? await safeEncodeCreatorThumbnail(thumbnailCanvas) : null;
       const finalChecksum = checksumSnapshot(stepper.finalSnapshot());
       if (finalChecksum !== source.checksum) {
@@ -370,6 +384,24 @@ async function yieldToBrowser(): Promise<void> {
     return;
   }
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
+
+async function flushEncoderStage(action: () => Promise<void>, context: string): Promise<void> {
+  try {
+    await action();
+  } catch (reason) {
+    const detail = reason instanceof Error && reason.message ? ` ${reason.message}` : '';
+    throw new ReplayVideoExportError(`${context}${detail}`.trim(), 'encoder-failure');
+  }
+}
+
+function finalizeMediaFile(action: () => Blob): Blob {
+  try {
+    return action();
+  } catch (reason) {
+    const detail = reason instanceof Error && reason.message ? ` ${reason.message}` : '';
+    throw new ReplayVideoExportError(`Container finalization failed.${detail}`.trim(), 'encoder-failure');
+  }
 }
 
 async function safeEncodeCreatorThumbnail(canvas: HTMLCanvasElement): Promise<Blob | null> {

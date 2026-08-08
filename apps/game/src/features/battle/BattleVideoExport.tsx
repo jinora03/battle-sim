@@ -24,15 +24,16 @@ export function BattleVideoExport({
   replayTick: number;
 }) {
   const {
-    capability, progress, seedProgress, batchProgress, batchSearching, batchSize, batchResults,
+    capability, deviceProfile, memoryForecast, progress, seedProgress, batchProgress, batchSearching, batchSize, batchResults,
     queueItems, queueRunning, queuePackaging, queueMessage, preparingReplay, running, error,
     sourceMode, generationSeedText, preparedReplayTick,
     format, layout, resolution, fps, quality, audioEnabled, cameraMode,
-    preset, introEnabled, captionsEnabled, thumbnailEnabled, history,
+    preset, introEnabled, highlightsEnabled, captionsEnabled, thumbnailEnabled, autoDownloadEnabled, directDownload, history,
     setSourceMode, setGenerationSeedText, randomizeSeed, reuseCurrentSeed, setBatchSize, searchSeeds, selectRankedSeed,
     addToQueue, queueTopRankedSeeds, startQueue, removeQueueItem, retryQueueItem, downloadQueueItem, downloadQueueArchive, clearQueue,
     setFormat, setLayout, setResolution, setFps, setQuality, setAudioEnabled, setCameraMode,
-    applyPreset, setIntroEnabled, setCaptionsEnabled, setThumbnailEnabled, clearHistory,
+    applyPreset, setIntroEnabled, setHighlightsEnabled, setCaptionsEnabled, setThumbnailEnabled, setAutoDownloadEnabled,
+    downloadLatest, downloadLatestThumbnail, clearHistory,
     start, cancel
   } = controller;
   const layoutDefinition = getBroadcastLayout(layout, resolution === '4k' ? 2 : 1);
@@ -47,6 +48,27 @@ export function BattleVideoExport({
     : capability.supported
       ? `${capability.container?.toUpperCase()} · ${capability.codec?.toUpperCase()}${capability.audioCodec ? ` + ${capability.audioCodec.toUpperCase()}` : ''}`
       : 'Unavailable';
+  const actionLabel = batchSearching
+    ? 'Searching seeds…'
+    : queueRunning
+      ? 'Running export queue…'
+      : queuePackaging
+        ? 'Packaging ZIP…'
+        : preparingReplay
+          ? 'Preparing replay…'
+          : progress.phase === 'audio'
+            ? 'Encoding audio…'
+            : progress.phase === 'finalizing'
+              ? 'Finalizing video…'
+              : progress.phase === 'muxing'
+                ? 'Packaging file…'
+                : progress.phase === 'downloading'
+                  ? 'Sending download…'
+                  : running
+                    ? 'Rendering video…'
+                    : sourceMode === 'setup-seed'
+                      ? 'Generate & export video'
+                      : 'Export current replay';
 
   return (
     <details className="panel-section battle-video-export" open>
@@ -232,11 +254,35 @@ export function BattleVideoExport({
             </button>
           </label>
           <ToggleOption label="Intro" enabled={introEnabled} disabled={running} onChange={setIntroEnabled} />
+          <ToggleOption
+            label="Highlights"
+            enabled={highlightsEnabled}
+            disabled={running || cameraMode !== 'cinematic'}
+            onChange={setHighlightsEnabled}
+          />
           <ToggleOption label="Captions" enabled={captionsEnabled} disabled={running} onChange={setCaptionsEnabled} />
           <ToggleOption label="Thumbnail" enabled={thumbnailEnabled} disabled={running} onChange={setThumbnailEnabled} />
         </div>
 
-        <p className="video-export-note">Auto prefers H.264/AAC MP4 for broad upload compatibility and falls back to VP9/VP8 + Opus WebM when MP4 is unavailable.</p>
+        <div className="video-export-delivery">
+          <div>
+            <strong>Download delivery</strong>
+            <small>
+              {autoDownloadEnabled
+                ? 'Automatically send completed single exports to the browser.'
+                : 'Keep completed single exports ready until you press Download video.'}
+            </small>
+          </div>
+          <ToggleOption label="Auto download" enabled={autoDownloadEnabled} disabled={running} onChange={setAutoDownloadEnabled} />
+        </div>
+
+        <p className="video-export-note">Auto prefers H.264/AAC MP4 for broad upload compatibility and falls back to VP9/VP8 + Opus WebM when MP4 is unavailable. Queue downloads always stay manual so the browser is not flooded with download prompts.</p>
+
+        {memoryForecast && memoryForecast.risk !== 'low' && (
+          <p className={`video-export-reliability risk-${memoryForecast.risk}`}>
+            {memoryForecast.notice} If the encoder fails, the same replay will retry with safer codec/quality settings automatically.
+          </p>
+        )}
 
         <div className="video-export-facts" aria-label="Video export details">
           <span><small>Format</small><strong>{capability?.container?.toUpperCase() ?? format.toUpperCase()}</strong></span>
@@ -246,8 +292,20 @@ export function BattleVideoExport({
           <span><small>Preset</small><strong>{quality}</strong></span>
           <span><small>Camera</small><strong>{cameraMode === 'cinematic' ? 'Cinematic' : 'Arena-wide'}</strong></span>
           <span><small>Canvas</small><strong>{layoutDefinition.width} × {layoutDefinition.height}</strong></span>
-          <span><small>Creator cards</small><strong>{introEnabled ? 'Intro + summary' : 'Summary only'}</strong></span>
+          <span>
+            <small>Memory forecast</small>
+            <strong className={memoryForecast ? `risk-${memoryForecast.risk}` : ''}>
+              {memoryForecast ? `${formatBytes(memoryForecast.estimatedPeakBytes)} · ${memoryForecast.risk}` : 'Pending replay'}
+            </strong>
+          </span>
+          <span>
+            <small>Device budget</small>
+            <strong>{deviceProfile.deviceMemoryGiB ? `${deviceProfile.deviceMemoryGiB} GB RAM` : 'RAM unknown'}{deviceProfile.hardwareConcurrency ? ` · ${deviceProfile.hardwareConcurrency} threads` : ''}</strong>
+          </span>
+          <span><small>Creator cards</small><strong>{introEnabled ? 'Match Prepared intro + summary' : 'Summary only'}</strong></span>
+          <span><small>Highlights</small><strong>{cameraMode !== 'cinematic' ? 'Cinematic only' : highlightsEnabled ? 'Automatic' : 'Disabled'}</strong></span>
           <span><small>Thumbnail</small><strong>{thumbnailEnabled ? 'Auto highlight' : 'Disabled'}</strong></span>
+          <span><small>Delivery</small><strong>{autoDownloadEnabled ? 'Auto download' : 'Manual download'}</strong></span>
         </div>
 
         <details className="video-export-queue">
@@ -309,7 +367,7 @@ export function BattleVideoExport({
             {queueItems.length > 0 && (
               <button type="button" className="video-export-queue-clear" onClick={clearQueue} disabled={running}>Clear queue</button>
             )}
-            <small>Queue encoding is sequential. A replay is generated once per unique source and reused across its queued output variants.</small>
+            <small>Queue encoding is sequential. A replay is generated once per unique source and reused across variants; failed encodes can automatically retry or fall back without resimulating.</small>
           </div>
         </details>
 
@@ -340,8 +398,33 @@ export function BattleVideoExport({
             </div>
             <div className="video-export-progress-meta">
               <span>{progress.renderedFrames.toLocaleString()} / {progress.totalFrames.toLocaleString()} frames</span>
-              <span>{progress.estimatedRemainingMs === null ? progress.phase === 'audio' ? 'Encoding audio…' : 'Estimating…' : `${formatDuration(progress.estimatedRemainingMs / 1000)} left`}</span>
+              <span>{progressStageDetail(progress)}</span>
               <span>{formatBytes(progress.encodedBytes)}</span>
+            </div>
+          </div>
+        )}
+
+        {directDownload.status !== 'idle' && (
+          <div className={`video-export-download status-${directDownload.status}`} role="status" aria-live="polite">
+            <div className="video-export-download-copy">
+              <small>{directDownloadStatusLabel(directDownload.status)}</small>
+              <strong>{directDownload.filename ?? 'Completed export'}</strong>
+              <span>{directDownload.message}</span>
+              {directDownload.encodedBytes > 0 && <em>{formatBytes(directDownload.encodedBytes)}</em>}
+            </div>
+            <div className="video-export-download-actions">
+              <button
+                type="button"
+                onClick={downloadLatest}
+                disabled={directDownload.status === 'requesting'}
+              >
+                {directDownload.status === 'requesting' ? 'Sending…' : directDownload.status === 'requested' ? 'Download again' : 'Download video'}
+              </button>
+              {directDownload.thumbnailFilename && (
+                <button type="button" onClick={downloadLatestThumbnail} disabled={directDownload.status === 'requesting'}>
+                  Download thumbnail
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -356,10 +439,10 @@ export function BattleVideoExport({
 
         <div className="video-export-actions">
           <NeonButton tone="primary" size="small" fullWidth onClick={start} disabled={exportDisabled}>
-            {batchSearching ? 'Searching seeds…' : queueRunning ? 'Running export queue…' : queuePackaging ? 'Packaging ZIP…' : preparingReplay ? 'Preparing replay…' : running ? 'Rendering video…' : sourceMode === 'setup-seed' ? 'Generate & export video' : 'Export current replay'}
+            {actionLabel}
           </NeonButton>
-          {running && <NeonButton tone="danger" size="small" fullWidth onClick={cancel}>Cancel</NeonButton>}
-          <small>Cinematic framing stays export-only and never changes replay simulation outcomes.</small>
+          {running && progress.phase !== 'downloading' && <NeonButton tone="danger" size="small" fullWidth onClick={cancel}>Cancel</NeonButton>}
+          <small>Export progress now separates rendering, encoder finalization, file packaging and browser download handoff. Cinematic presentation never changes replay simulation outcomes.</small>
         </div>
 
         <details className="video-export-history">
@@ -388,6 +471,22 @@ export function BattleVideoExport({
       </div>
     </details>
   );
+}
+
+function progressStageDetail(progress: ReplayVideoExportController['progress']): string {
+  if (progress.phase === 'audio') return 'Encoding audio…';
+  if (progress.phase === 'finalizing') return 'Flushing encoder buffers…';
+  if (progress.phase === 'muxing') return 'Packaging final file…';
+  if (progress.phase === 'downloading') return 'Sending to browser…';
+  if (progress.estimatedRemainingMs !== null) return `${formatDuration(progress.estimatedRemainingMs / 1000)} left`;
+  if (progress.phase === 'complete') return 'Ready';
+  return 'Estimating…';
+}
+
+function directDownloadStatusLabel(status: ReplayVideoExportController['directDownload']['status']): string {
+  if (status === 'requesting') return 'Sending download';
+  if (status === 'requested') return 'Download requested';
+  return 'Ready to download';
 }
 
 function ToggleOption({

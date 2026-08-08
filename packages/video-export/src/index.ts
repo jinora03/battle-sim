@@ -15,6 +15,7 @@ export * from './creatorPresets';
 export * from './creatorThumbnail';
 export * from './exportArchive';
 export * from './exportQueue';
+export * from './exportReliability';
 export * from './replayFrameStepper';
 export * from './replayVideoExporter';
 export * from './runtimeReplayAudio';

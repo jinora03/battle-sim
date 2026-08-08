@@ -1,6 +1,6 @@
 {
   "name": "kinetic-battle-engine",
-  "version": "1.3.42-stage8.11d",
+  "version": "1.3.44-stage8.11f",
   "private": true,
   "type": "module",
   "workspaces": [

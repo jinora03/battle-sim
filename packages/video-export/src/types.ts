@@ -20,7 +20,7 @@ export type VideoExportFrameRate = 30 | 60;
 export type VideoExportQuality = 'balanced' | 'high' | 'maximum';
 export type VideoExportCameraMode = 'broadcast' | 'cinematic';
 export type CreatorExportPresetId = 'youtube' | 'shorts' | 'master' | 'quick' | 'custom';
-export type VideoExportPhase = 'idle' | 'preparing' | 'rendering' | 'audio' | 'muxing' | 'complete' | 'cancelled' | 'error';
+export type VideoExportPhase = 'idle' | 'preparing' | 'rendering' | 'audio' | 'finalizing' | 'muxing' | 'downloading' | 'complete' | 'cancelled' | 'error';
 
 export interface CreatorBattleHighlight {
   tick: number;

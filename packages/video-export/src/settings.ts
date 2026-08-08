@@ -31,12 +31,21 @@ export interface Stage810dExportOptions extends Stage810cExportOptions {
 export interface Stage810eExportOptions extends Stage810dExportOptions {
   preset?: CreatorExportPresetId;
   intro?: boolean;
+  highlights?: boolean;
   captions?: boolean;
   thumbnail?: boolean;
 }
 
 export interface Stage810hExportOptions extends Stage810eExportOptions {
   format?: VideoExportFormat;
+}
+
+export interface ReplayVideoExportSettingOverrides {
+  format?: VideoExportFormat;
+  resolution?: VideoExportResolution;
+  fps?: VideoExportFrameRate;
+  quality?: VideoExportQuality;
+  audio?: boolean;
 }
 
 const VIDEO_BITRATES: Readonly<Record<VideoExportResolution, Readonly<Record<VideoExportFrameRate, Readonly<Record<VideoExportQuality, number>>>>>> = {
@@ -112,8 +121,18 @@ export function createStage810eExportSettings(
     quality: options.quality ?? preset.quality,
     audio: options.audio ?? preset.audio
   }, 2.8, options.camera ?? preset.camera, (options.camera ?? preset.camera) === 'broadcast' ? 0 : 0.45, 'webm');
+  const highlightsEnabled = options.highlights ?? true;
   return {
     ...settings,
+    camera: {
+      ...settings.camera,
+      highlightSlowMotionSeconds: highlightsEnabled && settings.camera.mode === 'cinematic'
+        ? settings.camera.highlightSlowMotionSeconds
+        : 0,
+      maxHighlightSlowMotionMoments: highlightsEnabled && settings.camera.mode === 'cinematic'
+        ? settings.camera.maxHighlightSlowMotionMoments
+        : 0
+    },
     creator: {
       preset: presetId,
       introSeconds: options.intro === false ? 0 : 2,
@@ -194,6 +213,36 @@ function createExportSettings(
       // The Pixi camera uses live random shake; export applies seeded shake while compositing.
       cameraShake: false,
       impactFreeze: cameraMode === 'cinematic'
+    }
+  };
+}
+
+export function reconfigureReplayVideoExportSettings(
+  settings: ReplayVideoExportSettings,
+  overrides: ReplayVideoExportSettingOverrides
+): ReplayVideoExportSettings {
+  const resolution = overrides.resolution ?? settings.resolution;
+  const fps = overrides.fps ?? settings.fps;
+  const quality = overrides.quality ?? settings.quality;
+  const scale = resolution === '4k' ? 2 : 1;
+  const layout = getBroadcastLayout(settings.layout, scale);
+  return {
+    ...settings,
+    format: overrides.format ?? settings.format,
+    resolution,
+    quality,
+    width: layout.width,
+    height: layout.height,
+    fps,
+    bitrate: VIDEO_BITRATES[resolution][fps][quality],
+    audio: {
+      ...settings.audio,
+      enabled: overrides.audio ?? settings.audio.enabled,
+      bitrate: AUDIO_BITRATES[quality]
+    },
+    presentation: {
+      ...settings.presentation,
+      targetRenderFps: fps
     }
   };
 }
