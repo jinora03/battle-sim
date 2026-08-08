@@ -1,4 +1,5 @@
 import type { EncodedMp4AudioSample, EncodedMp4VideoSample } from './mp4Codecs';
+import { normalizeEncodedAudioTimeline } from './encodedAudioTimeline';
 
 export interface Mp4MuxerOptions {
   width: number;
@@ -53,20 +54,23 @@ export class Mp4Muxer {
     if (this.options.audioEnabled && !this.aacConfig) throw new Error('The AAC encoder did not provide the audio configuration required for MP4.');
 
     this.videoSamples.sort((a, b) => a.timestampUs - b.timestampUs);
-    this.audioSamples.sort((a, b) => a.timestampUs - b.timestampUs);
+    const videoEndUs = Math.max(...this.videoSamples.map((sample) => sample.timestampUs + sample.durationUs));
+    const normalizedAudio = this.options.audioEnabled
+      ? normalizeEncodedAudioTimeline(this.audioSamples, videoEndUs).samples
+      : [];
 
     const ftyp = createFtyp();
     const moov = createMoov(this.options, this.avcConfig, this.aacConfig);
-    const placeholderMoof = createMoof(this.videoSamples, this.audioSamples, 0, 0, this.options.audioEnabled);
+    const placeholderMoof = createMoof(this.videoSamples, normalizedAudio, 0, 0, this.options.audioEnabled);
     const videoBytes = sumBytes(this.videoSamples);
     const videoOffset = placeholderMoof.byteLength + 8;
     const audioOffset = videoOffset + videoBytes;
-    const moof = createMoof(this.videoSamples, this.audioSamples, videoOffset, audioOffset, this.options.audioEnabled);
-    const payloadBytes = videoBytes + sumBytes(this.audioSamples);
+    const moof = createMoof(this.videoSamples, normalizedAudio, videoOffset, audioOffset, this.options.audioEnabled);
+    const payloadBytes = videoBytes + sumBytes(normalizedAudio);
     const mdatHeader = boxHeader('mdat', payloadBytes);
     const parts: BlobPart[] = [ftyp as unknown as BlobPart, moov as unknown as BlobPart, moof as unknown as BlobPart, mdatHeader as unknown as BlobPart];
     for (const sample of this.videoSamples) parts.push(sample.data as unknown as BlobPart);
-    for (const sample of this.audioSamples) parts.push(sample.data as unknown as BlobPart);
+    for (const sample of normalizedAudio) parts.push(sample.data as unknown as BlobPart);
     const blob = new Blob(parts, { type: 'video/mp4' });
     this.encodedBytes = blob.size;
     this.videoSamples.length = 0;

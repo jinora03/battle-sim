@@ -2,6 +2,7 @@ import type { ReplayAudioExportSettings } from './types';
 import type { EncodedAudioSample } from './webmMuxer';
 
 const OPUS_FRAME_DURATION_MS = 20;
+const OPUS_FRAME_DURATION_US = OPUS_FRAME_DURATION_MS * 1000;
 
 export interface ResolvedAudioEncoderConfig {
   config: AudioEncoderConfig;
@@ -14,24 +15,31 @@ export async function resolveAudioEncoderConfig(
 ): Promise<ResolvedAudioEncoderConfig | null> {
   if (!settings.enabled) return null;
   if (typeof AudioEncoder === 'undefined' || typeof AudioData === 'undefined') return null;
-  const config: AudioEncoderConfig = {
+  const baseConfig: AudioEncoderConfig = {
     codec: 'opus',
     sampleRate: settings.sampleRate,
     numberOfChannels: settings.channels,
     bitrate: settings.bitrate
   };
-  try {
-    const support = await AudioEncoder.isConfigSupported(config);
-    if (!support.supported) return null;
-    const framesPerChunk = Math.round(settings.sampleRate * OPUS_FRAME_DURATION_MS / 1000);
-    return {
-      config: support.config ?? config,
-      framesPerChunk,
-      chunkDurationUs: OPUS_FRAME_DURATION_MS * 1000
-    };
-  } catch {
-    return null;
+  const preferredConfig = {
+    ...baseConfig,
+    opus: { frameDuration: OPUS_FRAME_DURATION_US }
+  } as AudioEncoderConfig;
+  const framesPerChunk = Math.round(settings.sampleRate * OPUS_FRAME_DURATION_MS / 1000);
+  for (const config of [preferredConfig, baseConfig]) {
+    try {
+      const support = await AudioEncoder.isConfigSupported(config);
+      if (!support.supported) continue;
+      return {
+        config: support.config ?? config,
+        framesPerChunk,
+        chunkDurationUs: OPUS_FRAME_DURATION_US
+      };
+    } catch {
+      // Older WebCodecs implementations may reject the Opus-specific extension.
+    }
   }
+  return null;
 }
 
 export class WebCodecsAudioEncoder {

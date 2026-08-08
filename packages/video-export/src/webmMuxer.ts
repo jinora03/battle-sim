@@ -1,4 +1,5 @@
 import type { VideoExportCodec } from './types';
+import { normalizeEncodedAudioTimeline } from './encodedAudioTimeline';
 
 export interface EncodedVideoSample {
   timestampUs: number;
@@ -98,8 +99,13 @@ export class WebmMuxer {
     if (!this.samples.some((sample) => sample.trackNumber === 1)) {
       throw new Error('Cannot create a WebM file without encoded video frames.');
     }
-    this.samples.sort((a, b) => a.timestampUs - b.timestampUs || a.trackNumber - b.trackNumber);
-    const durationMs = Math.max(...this.samples.map((sample) => (sample.timestampUs + sample.durationUs) / 1000));
+    const videoSamples = this.samples.filter((sample) => sample.trackNumber === 1);
+    const videoEndUs = Math.max(...videoSamples.map((sample) => sample.timestampUs + sample.durationUs));
+    const audioSamples = this.samples.filter((sample) => sample.trackNumber === 2);
+    const normalizedAudio = normalizeEncodedAudioTimeline(audioSamples, videoEndUs).samples;
+    const muxSamples = [...videoSamples, ...normalizedAudio]
+      .sort((a, b) => a.timestampUs - b.timestampUs || a.trackNumber - b.trackNumber);
+    const durationMs = videoEndUs / 1000;
     const info = element(IDS.info, concat(
       element(IDS.timecodeScale, unsigned(1_000_000)),
       element(IDS.duration, float64(durationMs)),
@@ -110,7 +116,7 @@ export class WebmMuxer {
       this.createVideoTrack(),
       ...(this.options.audio ? [this.createAudioTrack(this.options.audio)] : [])
     ));
-    const clusters = this.createClusterParts();
+    const clusters = this.createClusterParts(muxSamples);
     const segmentPayloadSize = info.byteLength + tracks.byteLength
       + clusters.reduce((total, cluster) => total + cluster.byteLength, 0);
     const parts: Uint8Array[] = [
@@ -176,7 +182,7 @@ export class WebmMuxer {
     ));
   }
 
-  private createClusterParts(): ClusterParts[] {
+  private createClusterParts(samples: readonly MuxSample[]): ClusterParts[] {
     const clusters: ClusterParts[] = [];
     let clusterTimestampMs = -1;
     let blockParts: Uint8Array[] = [];
@@ -195,7 +201,7 @@ export class WebmMuxer {
       blockBytes = 0;
     };
 
-    for (const sample of this.samples) {
+    for (const sample of samples) {
       const timestampMs = Math.round(sample.timestampUs / 1000);
       const shouldStartCluster = clusterTimestampMs < 0
         || timestampMs - clusterTimestampMs > 30_000
