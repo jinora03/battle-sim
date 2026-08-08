@@ -11,6 +11,7 @@ import {
   type SavedBattlePreset
 } from '@kinetic/meta';
 import type { BattleSetup } from './runtime/BattleSetup';
+import { requestDeveloperAccess } from './developerAccess';
 import { NeonButton } from './ui/NeonUI';
 
 export interface ProfileViewProps {
@@ -86,7 +87,7 @@ export function ProfileView({
               );
             })}
           </div>
-          <NeonButton tone="ghost" fullWidth onClick={onUnlockAll}>Developer: unlock all fighters</NeonButton>
+          <NeonButton tone="ghost" fullWidth onClick={() => { if (requestDeveloperAccess('unlock all fighters')) onUnlockAll(); }}>Developer: unlock all fighters</NeonButton>
         </section>
 
         <section className="profile-panel">

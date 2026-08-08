@@ -3,6 +3,7 @@ export * from './mp4Codecs';
 export * from './mediaPipeline';
 export * from './webCodecsAudio';
 export * from './audioTimeline';
+export * from './encodedAudioTimeline';
 export * from './audioSynthesis';
 export * from './broadcastLayout';
 export * from './broadcastRenderer';
