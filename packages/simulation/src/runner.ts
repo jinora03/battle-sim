@@ -41,7 +41,7 @@ import { PrimaryAttackSystem } from './systems/PrimaryAttackSystem';
 import { CombatResourceSystem } from './systems/CombatResourceSystem';
 import { ModuleEffectSystem } from './systems/ModuleEffectSystem';
 
-export const ENGINE_VERSION = '1.3.39-stage8.11a';
+export const ENGINE_VERSION = '1.3.41-stage8.11c';
 export { CONTENT_VERSION };
 export const SIM_TICK_RATE = 60;
 export const SIM_TICK_MS = 1000 / SIM_TICK_RATE;

@@ -163,7 +163,9 @@ function createExportSettings(
     camera: {
       mode: cameraMode,
       maxZoom: cameraMode === 'cinematic' ? 1.28 : 1,
-      knockoutSlowMotionSeconds
+      knockoutSlowMotionSeconds,
+      highlightSlowMotionSeconds: cameraMode === 'cinematic' ? 0.35 : 0,
+      maxHighlightSlowMotionMoments: cameraMode === 'cinematic' ? 2 : 0
     },
     creator: {
       preset: 'custom',

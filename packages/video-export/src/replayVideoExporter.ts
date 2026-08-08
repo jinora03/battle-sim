@@ -3,6 +3,12 @@ import { checksumSnapshot } from '@kinetic/simulation';
 import { ReplayAudioSynthesizer } from './audioSynthesis';
 import { ReplayAudioTimeline } from './audioTimeline';
 import { BroadcastFrameRenderer } from './broadcastRenderer';
+import {
+  buildCinematicHighlightPlan,
+  cinematicHighlightOffsetSecondsAtTick,
+  getCinematicHighlightFocus,
+  isCinematicHighlightSlowMotionFrame
+} from './cinematicHighlights';
 import { CreatorReplayAnalyzer } from './creatorHighlights';
 import { captureCreatorThumbnail, encodeCreatorThumbnail } from './creatorThumbnail';
 import { ReplayFrameStepper } from './replayFrameStepper';
@@ -34,11 +40,22 @@ export class ReplayVideoExporter {
     signal?: AbortSignal
   ): Promise<ReplayVideoExportResult> {
     this.assertSource(source);
+    this.throwIfCancelled(signal);
+    let highlightPlan: Awaited<ReturnType<typeof buildCinematicHighlightPlan>>;
+    try {
+      highlightPlan = await buildCinematicHighlightPlan(source, settings.camera, settings.fps, signal);
+    } catch (reason) {
+      if (signal?.aborted || (reason instanceof Error && reason.name === 'AbortError')) {
+        throw new ReplayVideoExportError('Video export was cancelled.', 'cancelled');
+      }
+      throw reason;
+    }
+    this.throwIfCancelled(signal);
     const stepper = new ReplayFrameStepper(source.replay, source.endTick, settings.fps);
     const introFrames = calculateCreatorIntroFrameCount(settings);
     const knockoutSlowMotionFrames = calculateKnockoutSlowMotionFrameCount(settings, source.battleEnded);
     const resultHoldFrames = source.battleEnded ? Math.round(settings.resultHoldSeconds * settings.fps) : 0;
-    const totalFrames = introFrames + stepper.totalFrames + knockoutSlowMotionFrames + resultHoldFrames;
+    const totalFrames = introFrames + stepper.totalFrames + highlightPlan.extraFrames + knockoutSlowMotionFrames + resultHoldFrames;
     try {
       validateExportPlan(settings, totalFrames);
     } catch (reason) {
@@ -82,9 +99,11 @@ export class ReplayVideoExporter {
 
     const broadcastRenderer = new BroadcastFrameRenderer(settings, source.replay.battle);
     const creatorAnalyzer = new CreatorReplayAnalyzer(source.replay.battle);
+    const presentationOffsetSecondsAtTick = (tick: number) => cinematicHighlightOffsetSecondsAtTick(highlightPlan, tick);
     const audioTimeline = new ReplayAudioTimeline(source.replay.battle, {
       startOffsetSeconds: introFrames / settings.fps,
-      resultDelaySeconds: knockoutSlowMotionFrames / settings.fps
+      resultDelaySeconds: knockoutSlowMotionFrames / settings.fps,
+      presentationOffsetSecondsAtTick
     });
     const runtimeAudioTimeline = new RuntimeReplayAudioTimeline();
     const initialSnapshot = stepper.currentSnapshot();
@@ -140,15 +159,18 @@ export class ReplayVideoExporter {
         audioTimeline.addEvents(frame.events);
         runtimeAudioTimeline.addEvents(frame.events);
         const highlightChanged = creatorAnalyzer.update(frame.snapshot, frame.events);
+        const cinematicHighlight = getCinematicHighlightFocus(highlightPlan, frame.snapshot.tick);
         renderer.renderExportFrame(frame.snapshot, frame.events, 1000 / settings.fps);
         const hideResult = settings.camera.mode === 'cinematic' && frame.snapshot.battleEnded;
         const broadcastCanvas = hideResult
           ? broadcastRenderer.render(renderer.getCanvas(), frame.snapshot, frame.events, {
               showResult: false,
-              showCaptions: settings.creator.captionsEnabled
+              showCaptions: settings.creator.captionsEnabled,
+              highlight: cinematicHighlight
             })
           : broadcastRenderer.render(renderer.getCanvas(), frame.snapshot, frame.events, {
-              showCaptions: settings.creator.captionsEnabled
+              showCaptions: settings.creator.captionsEnabled,
+              highlight: cinematicHighlight
             });
         if (settings.creator.thumbnailEnabled && highlightChanged) {
           if (thumbnailCanvas) {
@@ -159,6 +181,17 @@ export class ReplayVideoExporter {
         }
         const timestampUs = Math.round(renderedFrames * 1_000_000 / settings.fps);
         await encodeFrame(broadcastCanvas, timestampUs, frame.durationUs);
+
+        if (isCinematicHighlightSlowMotionFrame(highlightPlan, frame.snapshot.tick)) {
+          this.throwIfCancelled(signal);
+          const slowMotionCanvas = broadcastRenderer.render(renderer.getCanvas(), frame.snapshot, [], {
+            ...(hideResult ? { showResult: false } : {}),
+            showCaptions: settings.creator.captionsEnabled,
+            highlight: cinematicHighlight ? { ...cinematicHighlight, slowMotion: true } : null
+          });
+          const slowTimestampUs = Math.round(renderedFrames * 1_000_000 / settings.fps);
+          await encodeFrame(slowMotionCanvas, slowTimestampUs, frame.durationUs);
+        }
       }
 
       const finalSnapshot = stepper.finalSnapshot();
@@ -213,6 +246,7 @@ export class ReplayVideoExporter {
           durationSeconds: renderedFrames / settings.fps,
           startOffsetSeconds: introFrames / settings.fps,
           resultDelaySeconds: knockoutSlowMotionFrames / settings.fps,
+          presentationOffsetSecondsAtTick,
           sampleRate: settings.audio.sampleRate,
           channels: settings.audio.channels
         });

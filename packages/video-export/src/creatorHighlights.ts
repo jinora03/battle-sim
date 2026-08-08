@@ -9,10 +9,9 @@ import type {
   CreatorBattleHighlight,
   CreatorBattleSummary
 } from './types';
+import { scoreCreatorHighlightEvent } from './creatorHighlightScoring';
 
 const ABILITY_ATTRIBUTION_TICKS = 180;
-const ULTIMATE_SCORE = 760;
-const KNOCKOUT_SCORE = 1_600;
 
 interface RecentAbility {
   abilityId: string;
@@ -61,7 +60,7 @@ export class CreatorReplayAnalyzer {
         if (event.type === 'abilityActivated' && event.slot === 'ultimate') {
           const actor = this.entityNames.get(event.entityId) ?? 'Fighter';
           this.considerHighlight(
-            ULTIMATE_SCORE + Math.max(0, event.castTicks),
+            scoreCreatorHighlightEvent(event)?.score ?? 0,
             {
               tick: event.tick,
               kind: 'ultimate',
@@ -104,7 +103,7 @@ export class CreatorReplayAnalyzer {
         }
 
         this.considerHighlight(
-          420 + event.amount * 2.2 + (event.hpAfter <= 0 ? 650 : 0),
+          scoreCreatorHighlightEvent(event)?.score ?? 0,
           {
             tick: event.tick,
             kind: event.hpAfter <= 0 ? 'knockout' : 'heavy-hit',
@@ -116,7 +115,7 @@ export class CreatorReplayAnalyzer {
         const defeated = this.entityNames.get(event.entityId) ?? 'Fighter';
         const killer = event.killerId === undefined ? null : this.entityNames.get(event.killerId) ?? 'Opponent';
         this.considerHighlight(
-          KNOCKOUT_SCORE,
+          scoreCreatorHighlightEvent(event)?.score ?? 0,
           {
             tick: event.tick,
             kind: 'knockout',

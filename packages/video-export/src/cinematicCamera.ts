@@ -1,6 +1,7 @@
 import { getArena } from '@kinetic/content';
 import type { BattleDefinition, SimulationEvent, Vec2, WorldSnapshot } from '@kinetic/protocol';
 import type { BroadcastRect } from './broadcastLayout';
+import type { CinematicHighlightFocus } from './cinematicHighlights';
 import type { ReplayVideoExportCameraSettings, VideoExportFrameRate } from './types';
 
 export type CinematicCameraPhase = 'intro' | 'battle' | 'knockout' | 'result';
@@ -8,6 +9,7 @@ export type CinematicCameraPhase = 'intro' | 'battle' | 'knockout' | 'result';
 export interface CinematicCameraRenderOptions {
   phase?: CinematicCameraPhase;
   phaseProgress?: number;
+  highlight?: CinematicHighlightFocus | null;
 }
 
 export interface BroadcastCameraFrame {
@@ -82,6 +84,7 @@ export class CinematicCameraTracker {
     const points = this.collectFocusPoints(snapshot, fit, width, height, phase);
     const bounds = boundsFor(points, width, height);
     const phaseProgress = clamp01(options.phaseProgress ?? 0);
+    const highlight = phase === 'battle' ? options.highlight ?? null : null;
     const ultimateActive = phase === 'battle' && snapshot.tick <= this.ultimateUntilTick;
     const importantActive = phase === 'battle' && snapshot.tick <= this.importantUntilTick;
     const wallSensitive = isSnapshotNearArenaWall(snapshot, this.arena.width, this.arena.height);
@@ -95,6 +98,7 @@ export class CinematicCameraTracker {
     const coverageZoom = calculateCoverageZoom(width, height, bounds, maxZoom);
     let desiredZoom = coverageZoom;
     if (importantActive && !ultimateActive) desiredZoom = Math.min(maxZoom, desiredZoom + 0.035);
+    if (highlight && !ultimateActive) desiredZoom = Math.min(maxZoom, desiredZoom + 0.045 + highlight.intensity * 0.035);
     if (phase === 'knockout') desiredZoom = Math.min(maxZoom, 1.08 + easeOutCubic(phaseProgress) * 0.1);
     if (phase === 'intro' || phase === 'result') desiredZoom = 1;
     desiredZoom = Math.min(desiredZoom, coverageZoom);
@@ -106,6 +110,13 @@ export class CinematicCameraTracker {
       const weight = ultimateActive ? 0.12 : 0.18;
       desiredCenterX = lerp(desiredCenterX, emphasis.x, weight);
       desiredCenterY = lerp(desiredCenterY, emphasis.y, weight);
+    }
+    if (highlight?.position) {
+      const highlightPoint = worldToSource(highlight.position, fit);
+      const peak = 1 - Math.abs(highlight.progress * 2 - 1);
+      const weight = 0.16 + highlight.intensity * 0.13 + peak * 0.05;
+      desiredCenterX = lerp(desiredCenterX, highlightPoint.x, weight);
+      desiredCenterY = lerp(desiredCenterY, highlightPoint.y, weight);
     }
     if (phase === 'knockout' && this.knockoutPosition) {
       const knockout = worldToSource(this.knockoutPosition, fit);
@@ -156,13 +167,17 @@ export class CinematicCameraTracker {
       source = clampSourceRect({ ...source, x: source.x + shakeX, y: source.y + shakeY }, width, height);
     }
 
+    const eventEmphasis = ultimateActive
+      ? 0.7
+      : importantActive
+        ? 0.35
+        : Math.min(0.3, this.shakeEnergy * 0.3);
+    const highlightEmphasis = highlight
+      ? Math.min(0.92, 0.42 + highlight.intensity * 0.42 + (highlight.slowMotion ? 0.08 : 0))
+      : 0;
     const emphasis = phase === 'knockout'
       ? 1 - phaseProgress * 0.35
-      : ultimateActive
-        ? 0.7
-        : importantActive
-          ? 0.35
-          : Math.min(0.3, this.shakeEnergy * 0.3);
+      : Math.max(eventEmphasis, highlightEmphasis);
 
     this.shakeEnergy *= Math.exp(-10 / this.frameRate);
     this.frameIndex += 1;

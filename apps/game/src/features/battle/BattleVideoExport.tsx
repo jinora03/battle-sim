@@ -4,6 +4,7 @@ import {
   getBroadcastLayout,
   listCreatorExportPresets,
   type BroadcastLayoutId,
+  type SeedBatchSize,
   type VideoExportCameraMode,
   type VideoExportFormat,
   type VideoExportFrameRate,
@@ -23,11 +24,11 @@ export function BattleVideoExport({
   replayTick: number;
 }) {
   const {
-    capability, progress, seedProgress, preparingReplay, running, error,
+    capability, progress, seedProgress, batchProgress, batchSearching, batchSize, batchResults, preparingReplay, running, error,
     sourceMode, generationSeedText, preparedReplayTick,
     format, layout, resolution, fps, quality, audioEnabled, cameraMode,
     preset, introEnabled, captionsEnabled, thumbnailEnabled, history,
-    setSourceMode, setGenerationSeedText, randomizeSeed, reuseCurrentSeed,
+    setSourceMode, setGenerationSeedText, randomizeSeed, reuseCurrentSeed, setBatchSize, searchSeeds, selectRankedSeed,
     setFormat, setLayout, setResolution, setFps, setQuality, setAudioEnabled, setCameraMode,
     applyPreset, setIntroEnabled, setCaptionsEnabled, setThumbnailEnabled, clearHistory,
     start, cancel
@@ -89,7 +90,63 @@ export function BattleVideoExport({
               <button type="button" onClick={randomizeSeed} disabled={running}>Randomize</button>
               <button type="button" onClick={reuseCurrentSeed} disabled={running}>Reuse current</button>
             </div>
-            <small>Player-controlled fighters use neutral input in headless generation; choose AI controllers for a fully autonomous battle.</small>
+            <div className="video-export-seed-search">
+              <label>
+                <span>Search</span>
+                <select
+                  value={batchSize}
+                  disabled={running}
+                  onChange={(event) => setBatchSize(Number(event.target.value) as SeedBatchSize)}
+                >
+                  <option value={10}>10 seeds</option>
+                  <option value={25}>25 seeds</option>
+                  <option value={50}>50 seeds</option>
+                </select>
+              </label>
+              <button type="button" onClick={batchSearching ? cancel : searchSeeds} disabled={running && !batchSearching}>
+                {batchSearching ? 'Cancel search' : 'Find best seeds'}
+              </button>
+            </div>
+
+            {batchProgress && (batchSearching || batchProgress.phase === 'complete' || batchProgress.phase === 'cancelled') && (
+              <div className="video-export-progress video-export-batch-progress" role="status" aria-live="polite">
+                <div className="video-export-progress-label">
+                  <strong>{batchProgress.message}</strong>
+                  <span>{Math.round(batchProgress.progress * 100)}%</span>
+                </div>
+                <div className="video-export-progress-track" aria-hidden="true">
+                  <span style={{ width: `${Math.max(0, Math.min(100, batchProgress.progress * 100))}%` }} />
+                </div>
+                <div className="video-export-progress-meta">
+                  <span>{batchProgress.completed} / {batchProgress.total} seeds</span>
+                  {batchProgress.activeSeed !== null && <span>Seed {batchProgress.activeSeed.toLocaleString()}</span>}
+                  {batchProgress.best && <span>Best {batchProgress.best.score}</span>}
+                </div>
+              </div>
+            )}
+
+            {batchResults.length > 0 && (
+              <div className="video-export-seed-results" aria-label="Top ranked battle seeds">
+                {batchResults.slice(0, 5).map((result) => {
+                  const selected = Number(generationSeedText) === result.seed;
+                  return (
+                    <button
+                      key={result.seed}
+                      type="button"
+                      className={selected ? 'selected' : ''}
+                      onClick={() => selectRankedSeed(result.seed)}
+                      disabled={running}
+                    >
+                      <strong>#{result.rank} · {result.score}</strong>
+                      <span>Seed {result.seed.toLocaleString()}</span>
+                      <small>{Math.round(result.metrics.durationSeconds)}s · {result.labels.join(' · ')}</small>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <small>Seed search simulates only deterministic battle metrics—no replay recording or video encoding. The selected seed is generated once when you export.</small>
           </div>
         )}
 
@@ -199,7 +256,7 @@ export function BattleVideoExport({
           </div>
         )}
 
-        {!preparingReplay && (running || progress.phase === 'complete' || progress.phase === 'cancelled' || progress.phase === 'error') && (
+        {!batchSearching && !preparingReplay && (running || progress.phase === 'complete' || progress.phase === 'cancelled' || progress.phase === 'error') && (
           <div className="video-export-progress" role="status" aria-live="polite">
             <div className="video-export-progress-label">
               <strong>{progress.message}</strong>
@@ -226,7 +283,7 @@ export function BattleVideoExport({
 
         <div className="video-export-actions">
           <NeonButton tone="primary" size="small" fullWidth onClick={start} disabled={exportDisabled}>
-            {preparingReplay ? 'Preparing replay…' : running ? 'Rendering video…' : sourceMode === 'setup-seed' ? 'Generate & export video' : 'Export current replay'}
+            {batchSearching ? 'Searching seeds…' : preparingReplay ? 'Preparing replay…' : running ? 'Rendering video…' : sourceMode === 'setup-seed' ? 'Generate & export video' : 'Export current replay'}
           </NeonButton>
           {running && <NeonButton tone="danger" size="small" fullWidth onClick={cancel}>Cancel</NeonButton>}
           <small>Cinematic framing stays export-only and never changes replay simulation outcomes.</small>

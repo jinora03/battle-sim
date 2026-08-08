@@ -9,10 +9,14 @@ import {
   detectVideoExportCapability,
   generateSeedReplay,
   getCreatorExportPreset,
+  rankBattleSeeds,
   type BroadcastLayoutId,
   type CreatorExportPresetId,
   type ReplayExportSource,
+  type RankedSeedBattle,
   type ReplayVideoExportProgress,
+  type SeedBatchProgress,
+  type SeedBatchSize,
   type SeedReplayGenerationProgress,
   type VideoExportCameraMode,
   type VideoExportCapability,
@@ -37,6 +41,10 @@ export interface ReplayVideoExportController {
   capability: VideoExportCapability | null;
   progress: ReplayVideoExportProgress;
   seedProgress: SeedReplayGenerationProgress | null;
+  batchProgress: SeedBatchProgress | null;
+  batchSearching: boolean;
+  batchSize: SeedBatchSize;
+  batchResults: RankedSeedBattle[];
   preparingReplay: boolean;
   running: boolean;
   error: string | null;
@@ -59,6 +67,9 @@ export interface ReplayVideoExportController {
   setGenerationSeedText(value: string): void;
   randomizeSeed(): void;
   reuseCurrentSeed(): void;
+  setBatchSize(size: SeedBatchSize): void;
+  searchSeeds(): void;
+  selectRankedSeed(seed: number): void;
   setFormat(format: VideoExportFormat): void;
   setLayout(layout: BroadcastLayoutId): void;
   setResolution(resolution: VideoExportResolution): void;
@@ -106,6 +117,10 @@ export function useReplayVideoExport(
   const [captionsEnabled, setCaptionsEnabledState] = useState(true);
   const [thumbnailEnabled, setThumbnailEnabledState] = useState(true);
   const [history, setHistory] = useState<ReplayExportHistoryEntry[]>(readReplayExportHistory);
+  const [batchSize, setBatchSize] = useState<SeedBatchSize>(10);
+  const [batchResults, setBatchResults] = useState<RankedSeedBattle[]>([]);
+  const [batchProgress, setBatchProgress] = useState<SeedBatchProgress | null>(null);
+  const [batchSearching, setBatchSearching] = useState(false);
   const exportSettings = useMemo(() => createStage810hExportSettings(settings, {
     format, preset, layout, resolution, fps, quality, audio: audioEnabled, camera: cameraMode,
     intro: introEnabled, captions: captionsEnabled, thumbnail: thumbnailEnabled
@@ -126,10 +141,12 @@ export function useReplayVideoExport(
     [generationSeed, setup]
   );
   const configuredBattleKey = useMemo(() => JSON.stringify(configuredBattle), [configuredBattle]);
+  const configuredSetupKey = useMemo(() => JSON.stringify(setup), [setup]);
   const preparedReplayTick = preparedSourceKey === configuredBattleKey
     ? preparedSourceRef.current?.source.endTick ?? null
     : null;
-  const running = preparingReplay
+  const running = batchSearching
+    || preparingReplay
     || progress.phase === 'preparing'
     || progress.phase === 'rendering'
     || progress.phase === 'audio'
@@ -145,6 +162,9 @@ export function useReplayVideoExport(
   const reuseCurrentSeed = useCallback(() => {
     setGenerationSeedTextState(String(normalizeBattleSeed(currentSeed)));
   }, [currentSeed]);
+  const selectRankedSeed = useCallback((seed: number) => {
+    setGenerationSeedTextState(String(normalizeBattleSeed(seed)));
+  }, []);
   const setFormat = useCallback((value: VideoExportFormat) => {
     setFormatState(value);
   }, []);
@@ -213,10 +233,52 @@ export function useReplayVideoExport(
     };
   }, [exportSettings]);
 
+  useEffect(() => {
+    setBatchResults([]);
+    setBatchProgress(null);
+  }, [configuredSetupKey]);
+
   useEffect(() => () => {
     abortRef.current?.abort();
     abortRef.current = null;
   }, []);
+
+  const searchSeeds = useCallback(() => {
+    if (running || abortRef.current) return;
+
+    const abortController = new AbortController();
+    abortRef.current = abortController;
+    setError(null);
+    setBatchResults([]);
+    setBatchProgress(null);
+    setBatchSearching(true);
+
+    const run = async () => {
+      const results = await rankBattleSeeds(configuredBattle, {
+        count: batchSize,
+        startSeed: generationSeed,
+        signal: abortController.signal,
+        onProgress: setBatchProgress
+      });
+      setBatchResults(results);
+      if (results[0]) setGenerationSeedTextState(String(results[0].seed));
+    };
+
+    void run().catch((reason: unknown) => {
+      if (abortController.signal.aborted) {
+        setBatchProgress((current) => current ? {
+          ...current,
+          phase: 'cancelled',
+          message: 'Seed search cancelled.'
+        } : null);
+        return;
+      }
+      setError(reason instanceof Error ? reason.message : 'Seed search failed.');
+    }).finally(() => {
+      setBatchSearching(false);
+      if (abortRef.current === abortController) abortRef.current = null;
+    });
+  }, [batchSize, configuredBattle, generationSeed, running]);
 
   const start = useCallback(() => {
     if (running || abortRef.current) return;
@@ -335,6 +397,10 @@ export function useReplayVideoExport(
     capability,
     progress,
     seedProgress,
+    batchProgress,
+    batchSearching,
+    batchSize,
+    batchResults,
     preparingReplay,
     running,
     error,
@@ -357,6 +423,9 @@ export function useReplayVideoExport(
     setGenerationSeedText,
     randomizeSeed,
     reuseCurrentSeed,
+    setBatchSize,
+    searchSeeds,
+    selectRankedSeed,
     setFormat,
     setLayout,
     setResolution,

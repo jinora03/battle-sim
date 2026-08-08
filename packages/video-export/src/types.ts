@@ -70,6 +70,10 @@ export interface ReplayVideoExportCameraSettings {
   mode: VideoExportCameraMode;
   maxZoom: number;
   knockoutSlowMotionSeconds: number;
+  /** Per selected mid-battle moment. Zero disables highlight slow motion. */
+  highlightSlowMotionSeconds: number;
+  /** Hard cap so creator exports do not overuse mid-battle slow motion. */
+  maxHighlightSlowMotionMoments: number;
 }
 
 export interface ReplayVideoCreatorSettings {

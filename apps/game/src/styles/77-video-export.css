@@ -487,3 +487,125 @@
     flex: 1;
   }
 }
+
+.video-export-seed-search {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, .8fr);
+  gap: 7px;
+}
+
+.video-export-seed-search label {
+  display: grid;
+  gap: 4px;
+}
+
+.video-export-seed-search label > span {
+  color: #89a4bf;
+  font-size: .6rem;
+  font-weight: 800;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+
+.video-export-seed-search select,
+.video-export-seed-search button {
+  width: 100%;
+  min-height: 31px;
+  padding: 6px 8px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .035);
+  color: #dcecff;
+  font: inherit;
+  font-size: .68rem;
+  font-weight: 750;
+}
+
+.video-export-seed-search button {
+  align-self: end;
+  cursor: pointer;
+}
+
+.video-export-seed-search button:hover:not(:disabled) {
+  border-color: rgba(91, 174, 255, .45);
+  background: rgba(70, 142, 220, .08);
+}
+
+.video-export-seed-search select:disabled,
+.video-export-seed-search button:disabled {
+  cursor: not-allowed;
+  opacity: .58;
+}
+
+.video-export-batch-progress,
+.video-export-seed-results {
+  grid-column: 1 / -1;
+}
+
+.video-export-seed-results {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.video-export-seed-results button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 7px;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid rgba(151, 190, 231, .14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .02);
+  color: #dcecff;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.video-export-seed-results button:hover:not(:disabled) {
+  border-color: rgba(91, 174, 255, .42);
+  background: rgba(70, 142, 220, .07);
+}
+
+.video-export-seed-results button.selected {
+  border-color: rgba(73, 226, 157, .5);
+  background: rgba(73, 226, 157, .08);
+}
+
+.video-export-seed-results strong {
+  color: #b7a8ff;
+  font-size: .66rem;
+}
+
+.video-export-seed-results span {
+  overflow: hidden;
+  color: #edf6ff;
+  font-size: .64rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-export-seed-results small {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: #7f98b2;
+  font-size: .57rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-export-seed-results button:disabled {
+  cursor: not-allowed;
+  opacity: .58;
+}
+
+@media (max-width: 520px) {
+  .video-export-seed-search,
+  .video-export-seed-results {
+    grid-template-columns: 1fr;
+  }
+}
