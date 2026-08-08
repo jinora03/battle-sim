@@ -13,6 +13,8 @@ export * from './creatorHighlights';
 export * from './creatorHighlightScoring';
 export * from './creatorPresets';
 export * from './creatorThumbnail';
+export * from './exportArchive';
+export * from './exportQueue';
 export * from './replayFrameStepper';
 export * from './replayVideoExporter';
 export * from './runtimeReplayAudio';

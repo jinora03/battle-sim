@@ -24,11 +24,13 @@ export function BattleVideoExport({
   replayTick: number;
 }) {
   const {
-    capability, progress, seedProgress, batchProgress, batchSearching, batchSize, batchResults, preparingReplay, running, error,
+    capability, progress, seedProgress, batchProgress, batchSearching, batchSize, batchResults,
+    queueItems, queueRunning, queuePackaging, queueMessage, preparingReplay, running, error,
     sourceMode, generationSeedText, preparedReplayTick,
     format, layout, resolution, fps, quality, audioEnabled, cameraMode,
     preset, introEnabled, captionsEnabled, thumbnailEnabled, history,
     setSourceMode, setGenerationSeedText, randomizeSeed, reuseCurrentSeed, setBatchSize, searchSeeds, selectRankedSeed,
+    addToQueue, queueTopRankedSeeds, startQueue, removeQueueItem, retryQueueItem, downloadQueueItem, downloadQueueArchive, clearQueue,
     setFormat, setLayout, setResolution, setFps, setQuality, setAudioEnabled, setCameraMode,
     applyPreset, setIntroEnabled, setCaptionsEnabled, setThumbnailEnabled, clearHistory,
     start, cancel
@@ -37,6 +39,9 @@ export function BattleVideoExport({
   const sourceTick = sourceMode === 'current-replay' ? replayTick : preparedReplayTick;
   const durationSeconds = (sourceTick ?? 0) / 60;
   const exportDisabled = running || capability?.supported !== true || (sourceMode === 'current-replay' && replayTick <= 0);
+  const queuedCount = queueItems.filter((item) => item.status === 'queued').length;
+  const completedQueueCount = queueItems.filter((item) => item.status === 'complete').length;
+  const queueAddDisabled = exportDisabled || queueItems.length >= 8;
   const status = capability === null
     ? 'Checking encoder…'
     : capability.supported
@@ -146,6 +151,11 @@ export function BattleVideoExport({
               </div>
             )}
 
+            {batchResults.length > 0 && (
+              <button type="button" className="video-export-queue-ranked" onClick={queueTopRankedSeeds} disabled={running || queueItems.length >= 8}>
+                Queue top 3 for export
+              </button>
+            )}
             <small>Seed search simulates only deterministic battle metrics—no replay recording or video encoding. The selected seed is generated once when you export.</small>
           </div>
         )}
@@ -240,6 +250,69 @@ export function BattleVideoExport({
           <span><small>Thumbnail</small><strong>{thumbnailEnabled ? 'Auto highlight' : 'Disabled'}</strong></span>
         </div>
 
+        <details className="video-export-queue">
+          <summary>
+            <span>Export queue</span>
+            <em>{queueItems.length}/8</em>
+          </summary>
+          <div className="video-export-queue-content">
+            <div className="video-export-queue-actions">
+              <button type="button" onClick={addToQueue} disabled={queueAddDisabled}>Add current settings</button>
+              <button type="button" onClick={startQueue} disabled={running || queuedCount === 0}>
+                {queueRunning ? 'Running queue…' : `Run queue${queuedCount > 0 ? ` (${queuedCount})` : ''}`}
+              </button>
+              <button type="button" onClick={downloadQueueArchive} disabled={running || completedQueueCount === 0}>
+                {queuePackaging ? 'Packaging…' : `Download ZIP${completedQueueCount > 0 ? ` (${completedQueueCount})` : ''}`}
+              </button>
+            </div>
+
+            {queueMessage && <p className="video-export-queue-message">{queueMessage}</p>}
+
+            {queueItems.length === 0 ? (
+              <p className="video-export-queue-empty">Add the current source/settings, change the output format if needed, then add another variant.</p>
+            ) : (
+              <div className="video-export-queue-list">
+                {queueItems.map((item, index) => (
+                  <article key={item.id} className={`status-${item.status}`}>
+                    <div className="video-export-queue-item-main">
+                      <strong>#{index + 1} · {item.sourceLabel}</strong>
+                      <small>
+                        {item.settings.layout} · {item.settings.resolution} · {item.settings.fps} FPS · {item.settings.format.toUpperCase()} · {item.settings.camera.mode === 'cinematic' ? 'Cinematic' : 'Arena-wide'}
+                      </small>
+                      <span>{item.message}</span>
+                    </div>
+                    <div className="video-export-queue-item-status">
+                      <em>{queueStatusLabel(item.status)}</em>
+                      {item.encodedBytes > 0 && <small>{formatBytes(item.encodedBytes)}</small>}
+                    </div>
+                    {(item.status === 'preparing' || item.status === 'rendering') && (
+                      <div className="video-export-progress-track" aria-hidden="true">
+                        <span style={{ width: `${Math.max(0, Math.min(100, item.progress * 100))}%` }} />
+                      </div>
+                    )}
+                    <div className="video-export-queue-item-actions">
+                      {item.status === 'complete' && (
+                        <button type="button" onClick={() => downloadQueueItem(item.id)} disabled={running}>Download</button>
+                      )}
+                      {(item.status === 'error' || item.status === 'cancelled') && (
+                        <button type="button" onClick={() => retryQueueItem(item.id)} disabled={running}>Retry</button>
+                      )}
+                      {item.status !== 'preparing' && item.status !== 'rendering' && (
+                        <button type="button" onClick={() => removeQueueItem(item.id)} disabled={running}>Remove</button>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+
+            {queueItems.length > 0 && (
+              <button type="button" className="video-export-queue-clear" onClick={clearQueue} disabled={running}>Clear queue</button>
+            )}
+            <small>Queue encoding is sequential. A replay is generated once per unique source and reused across its queued output variants.</small>
+          </div>
+        </details>
+
         {preparingReplay && seedProgress && (
           <div className="video-export-progress" role="status" aria-live="polite">
             <div className="video-export-progress-label">
@@ -256,7 +329,7 @@ export function BattleVideoExport({
           </div>
         )}
 
-        {!batchSearching && !preparingReplay && (running || progress.phase === 'complete' || progress.phase === 'cancelled' || progress.phase === 'error') && (
+        {!batchSearching && !queueRunning && !queuePackaging && !preparingReplay && (running || progress.phase === 'complete' || progress.phase === 'cancelled' || progress.phase === 'error') && (
           <div className="video-export-progress" role="status" aria-live="polite">
             <div className="video-export-progress-label">
               <strong>{progress.message}</strong>
@@ -283,7 +356,7 @@ export function BattleVideoExport({
 
         <div className="video-export-actions">
           <NeonButton tone="primary" size="small" fullWidth onClick={start} disabled={exportDisabled}>
-            {batchSearching ? 'Searching seeds…' : preparingReplay ? 'Preparing replay…' : running ? 'Rendering video…' : sourceMode === 'setup-seed' ? 'Generate & export video' : 'Export current replay'}
+            {batchSearching ? 'Searching seeds…' : queueRunning ? 'Running export queue…' : queuePackaging ? 'Packaging ZIP…' : preparingReplay ? 'Preparing replay…' : running ? 'Rendering video…' : sourceMode === 'setup-seed' ? 'Generate & export video' : 'Export current replay'}
           </NeonButton>
           {running && <NeonButton tone="danger" size="small" fullWidth onClick={cancel}>Cancel</NeonButton>}
           <small>Cinematic framing stays export-only and never changes replay simulation outcomes.</small>
@@ -361,6 +434,15 @@ function OptionPicker({
       ))}
     </div>
   );
+}
+
+function queueStatusLabel(status: string): string {
+  if (status === 'preparing') return 'Preparing';
+  if (status === 'rendering') return 'Rendering';
+  if (status === 'complete') return 'Ready';
+  if (status === 'error') return 'Failed';
+  if (status === 'cancelled') return 'Cancelled';
+  return 'Queued';
 }
 
 function formatDuration(seconds: number): string {
