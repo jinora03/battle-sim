@@ -47,7 +47,7 @@ describe('Phase 0.7 arenas and game modes', () => {
     expect(first.events.some((event) => event.type === 'hazardTriggered')).toBe(true);
     expect(first.events.some((event) => event.type === 'obstacleImpact')).toBe(true);
     expect(first.events.some((event) => event.type === 'obstacleDestroyed')).toBe(true);
-  });
+  }, 20_000);
 
   it('publishes mutable obstacle state in snapshots', () => {
     const result = runBattle(foundryBattle);

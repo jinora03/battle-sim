@@ -83,7 +83,7 @@ export function BattleIntroOverlay({
     >
       <div className="battle-intro-vignette" aria-hidden="true" />
       <div className="battle-intro-content">
-        <p className="battle-intro-kicker">{isReady ? 'Match prepared' : modeName}</p>
+        <p className="battle-intro-kicker">{isReady ? 'Who will win?' : modeName}</p>
         <div className="battle-intro-matchup">
           <IntroFighter fighter={fighterA} teamSize={teamSizeA} side="a" />
           <div className="battle-intro-versus" aria-hidden="true">

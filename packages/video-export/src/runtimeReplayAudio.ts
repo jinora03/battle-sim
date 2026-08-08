@@ -12,6 +12,7 @@ export interface RuntimeReplayAudioRenderOptions {
   durationSeconds: number;
   startOffsetSeconds: number;
   resultDelaySeconds: number;
+  presentationOffsetSecondsAtTick?(tick: number): number;
   sampleRate: number;
   channels: number;
 }
@@ -107,7 +108,9 @@ export async function renderRuntimeReplayAudio(
   const entityCount = options.initialSnapshot.entities.length;
 
   for (const batch of options.timeline.batches()) {
-    const atSeconds = options.startOffsetSeconds + batch.tick / 60;
+    const atSeconds = options.startOffsetSeconds
+      + batch.tick / 60
+      + Math.max(0, options.presentationOffsetSecondsAtTick?.(batch.tick) ?? 0);
     engine.consumeAtTime(batch.events, atSeconds, entityCount, focusEntityIds, aiEntityIds);
     const battleEnded = batch.events.find((event) => event.type === 'battleEnded');
     if (battleEnded) scheduleResultAccent(context, atSeconds + options.resultDelaySeconds, battleEnded.winningTeam ?? 0);

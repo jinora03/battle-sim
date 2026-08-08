@@ -50,11 +50,17 @@
   text-align: center;
 }
 
+@media (min-width: 721px) {
+  .battle-intro-content {
+    width: min(900px, calc(100% - 32px));
+  }
+}
+
 .battle-intro-kicker {
   margin: 0;
   color: rgba(226, 244, 255, 0.76);
-  font-size: 0.76rem;
-  font-weight: 800;
+  font-size: 0.9rem;
+  font-weight: 850;
   letter-spacing: 0.22em;
   text-transform: uppercase;
 }
@@ -86,7 +92,7 @@
 .battle-intro-nameplate strong {
   max-width: 360px;
   color: #f5fbff;
-  font-size: clamp(1.35rem, 3.2vw, 2.35rem);
+  font-size: clamp(1.55rem, 3.5vw, 2.65rem);
   line-height: 1;
   letter-spacing: 0.02em;
   overflow-wrap: anywhere;
@@ -100,7 +106,7 @@
 
 .battle-intro-identity {
   color: color-mix(in srgb, var(--intro-accent) 70%, white);
-  font-size: clamp(0.58rem, 1.2vw, 0.76rem);
+  font-size: clamp(0.68rem, 1.35vw, 0.9rem);
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -123,7 +129,7 @@
 }
 
 .battle-intro-versus strong {
-  font-size: clamp(1.55rem, 5vw, 3.4rem);
+  font-size: clamp(1.8rem, 5.4vw, 3.8rem);
   line-height: 1;
   font-style: italic;
   letter-spacing: -0.08em;

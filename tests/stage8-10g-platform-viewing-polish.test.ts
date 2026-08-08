@@ -79,8 +79,9 @@ describe('Stage 8.10G platform viewing polish', () => {
     expect(renderer).toContain('options.showResult === false || creatorSummaryVisible');
     expect(cards).toContain('drawVerticalSummary(');
     expect(cards).toContain('drawLandscapeSummary(');
-    expect(cards).toContain('y + height - 82');
-    expect(cards).toContain('y + height - 48');
+    expect(cards).toContain('const y = (layout.height - height) / 2;');
+    expect(cards).toContain("FINISHING MOMENT · ${summary.highlight.title.toUpperCase()}");
+    expect(cards).toContain('drawWinnerPortrait(');
   });
 
   it('retries transient renderer recovery without turning a completed download into a false export error', () => {
@@ -89,7 +90,10 @@ describe('Stage 8.10G platform viewing polish', () => {
     const exporter = readFileSync(new URL('../packages/video-export/src/replayVideoExporter.ts', import.meta.url), 'utf8');
     expect(runtime).toContain('for (let attempt = 0; attempt < 3; attempt += 1)');
     expect(runtime).toContain('await waitForRendererCleanup(2);');
-    expect(hook).toContain('let recoveryFailure: unknown = null;');
+    expect(hook).toContain('async function recoverLiveRenderer(runtime: BattleRuntime)');
+    expect(hook).toContain('const recoveryFailure = runtime ? await recoverLiveRenderer(runtime) : null;');
+    const recoveryHelper = hook.slice(hook.indexOf('async function recoverLiveRenderer'));
+    expect(recoveryHelper.match(/await runtime\.restoreRendererAfterVideoExport\(\);/g)).toHaveLength(2);
     expect(hook).toContain('Video exported, but the battle renderer could not recover');
     expect(exporter).toContain('Export cleanup must never turn an already encoded video into a false');
   });

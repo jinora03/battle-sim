@@ -3,6 +3,12 @@ import { checksumSnapshot } from '@kinetic/simulation';
 import { ReplayAudioSynthesizer } from './audioSynthesis';
 import { ReplayAudioTimeline } from './audioTimeline';
 import { BroadcastFrameRenderer } from './broadcastRenderer';
+import {
+  buildCinematicHighlightPlan,
+  cinematicHighlightOffsetSecondsAtTick,
+  getCinematicHighlightFocus,
+  isCinematicHighlightSlowMotionFrame
+} from './cinematicHighlights';
 import { CreatorReplayAnalyzer } from './creatorHighlights';
 import { captureCreatorThumbnail, encodeCreatorThumbnail } from './creatorThumbnail';
 import { ReplayFrameStepper } from './replayFrameStepper';
@@ -34,11 +40,22 @@ export class ReplayVideoExporter {
     signal?: AbortSignal
   ): Promise<ReplayVideoExportResult> {
     this.assertSource(source);
+    this.throwIfCancelled(signal);
+    let highlightPlan: Awaited<ReturnType<typeof buildCinematicHighlightPlan>>;
+    try {
+      highlightPlan = await buildCinematicHighlightPlan(source, settings.camera, settings.fps, signal);
+    } catch (reason) {
+      if (signal?.aborted || (reason instanceof Error && reason.name === 'AbortError')) {
+        throw new ReplayVideoExportError('Video export was cancelled.', 'cancelled');
+      }
+      throw reason;
+    }
+    this.throwIfCancelled(signal);
     const stepper = new ReplayFrameStepper(source.replay, source.endTick, settings.fps);
     const introFrames = calculateCreatorIntroFrameCount(settings);
     const knockoutSlowMotionFrames = calculateKnockoutSlowMotionFrameCount(settings, source.battleEnded);
     const resultHoldFrames = source.battleEnded ? Math.round(settings.resultHoldSeconds * settings.fps) : 0;
-    const totalFrames = introFrames + stepper.totalFrames + knockoutSlowMotionFrames + resultHoldFrames;
+    const totalFrames = introFrames + stepper.totalFrames + highlightPlan.extraFrames + knockoutSlowMotionFrames + resultHoldFrames;
     try {
       validateExportPlan(settings, totalFrames);
     } catch (reason) {
@@ -82,9 +99,11 @@ export class ReplayVideoExporter {
 
     const broadcastRenderer = new BroadcastFrameRenderer(settings, source.replay.battle);
     const creatorAnalyzer = new CreatorReplayAnalyzer(source.replay.battle);
+    const presentationOffsetSecondsAtTick = (tick: number) => cinematicHighlightOffsetSecondsAtTick(highlightPlan, tick);
     const audioTimeline = new ReplayAudioTimeline(source.replay.battle, {
       startOffsetSeconds: introFrames / settings.fps,
-      resultDelaySeconds: knockoutSlowMotionFrames / settings.fps
+      resultDelaySeconds: knockoutSlowMotionFrames / settings.fps,
+      presentationOffsetSecondsAtTick
     });
     const runtimeAudioTimeline = new RuntimeReplayAudioTimeline();
     const initialSnapshot = stepper.currentSnapshot();
@@ -105,7 +124,10 @@ export class ReplayVideoExporter {
         renderedFrames += 1;
         encodedBytes = media.byteLength;
         if (media.videoQueueSize >= ENCODER_QUEUE_LIMIT) {
-          await media.flushVideo();
+          await flushEncoderStage(
+            () => media.flushVideo(),
+            'Video encoder flush failed while draining queued frames.'
+          );
           encodedBytes = media.byteLength;
         }
         report('rendering', `Rendered ${renderedFrames.toLocaleString()} of ${totalFrames.toLocaleString()} frames.`);
@@ -140,15 +162,23 @@ export class ReplayVideoExporter {
         audioTimeline.addEvents(frame.events);
         runtimeAudioTimeline.addEvents(frame.events);
         const highlightChanged = creatorAnalyzer.update(frame.snapshot, frame.events);
+        const cinematicHighlight = getCinematicHighlightFocus(highlightPlan, frame.snapshot.tick);
         renderer.renderExportFrame(frame.snapshot, frame.events, 1000 / settings.fps);
+        const presentationShake = settings.camera.shakeEnabled
+          ? renderer.getLastPresentationShakePixels()
+          : 0;
         const hideResult = settings.camera.mode === 'cinematic' && frame.snapshot.battleEnded;
         const broadcastCanvas = hideResult
           ? broadcastRenderer.render(renderer.getCanvas(), frame.snapshot, frame.events, {
               showResult: false,
-              showCaptions: settings.creator.captionsEnabled
+              showCaptions: settings.creator.captionsEnabled,
+              highlight: cinematicHighlight,
+              presentationShake
             })
           : broadcastRenderer.render(renderer.getCanvas(), frame.snapshot, frame.events, {
-              showCaptions: settings.creator.captionsEnabled
+              showCaptions: settings.creator.captionsEnabled,
+              highlight: cinematicHighlight,
+              presentationShake
             });
         if (settings.creator.thumbnailEnabled && highlightChanged) {
           if (thumbnailCanvas) {
@@ -159,6 +189,17 @@ export class ReplayVideoExporter {
         }
         const timestampUs = Math.round(renderedFrames * 1_000_000 / settings.fps);
         await encodeFrame(broadcastCanvas, timestampUs, frame.durationUs);
+
+        if (isCinematicHighlightSlowMotionFrame(highlightPlan, frame.snapshot.tick)) {
+          this.throwIfCancelled(signal);
+          const slowMotionCanvas = broadcastRenderer.render(renderer.getCanvas(), frame.snapshot, [], {
+            ...(hideResult ? { showResult: false } : {}),
+            showCaptions: settings.creator.captionsEnabled,
+            highlight: cinematicHighlight ? { ...cinematicHighlight, slowMotion: true } : null
+          });
+          const slowTimestampUs = Math.round(renderedFrames * 1_000_000 / settings.fps);
+          await encodeFrame(slowMotionCanvas, slowTimestampUs, frame.durationUs);
+        }
       }
 
       const finalSnapshot = stepper.finalSnapshot();
@@ -201,7 +242,11 @@ export class ReplayVideoExporter {
         }
       }
 
-      await media.flushVideo();
+      report('finalizing', 'Finalizing the video encoder and committing buffered frames.', true);
+      await flushEncoderStage(
+        () => media.flushVideo(),
+        'Video encoder flush failed while finalizing the exported video.'
+      );
       encodedBytes = media.byteLength;
 
       if (settings.audio.enabled && media.audioCodec) {
@@ -213,6 +258,7 @@ export class ReplayVideoExporter {
           durationSeconds: renderedFrames / settings.fps,
           startOffsetSeconds: introFrames / settings.fps,
           resultDelaySeconds: knockoutSlowMotionFrames / settings.fps,
+          presentationOffsetSecondsAtTick,
           sampleRate: settings.audio.sampleRate,
           channels: settings.audio.channels
         });
@@ -229,18 +275,25 @@ export class ReplayVideoExporter {
           media.encodeAudio(pcm, Math.round(startFrame * 1_000_000 / settings.audio.sampleRate), frameCount);
           encodedBytes = media.byteLength;
           if (media.audioQueueSize >= ENCODER_QUEUE_LIMIT) {
-            await media.flushAudio();
+            await flushEncoderStage(
+              () => media.flushAudio(),
+              'Audio encoder flush failed while draining queued samples.'
+            );
             encodedBytes = media.byteLength;
           }
           if (startFrame % (media.audioFramesPerChunk * 20) === 0) await yieldToBrowser();
         }
-        await media.flushAudio();
+        report('finalizing', 'Finalizing deterministic audio and committing buffered samples.', true);
+        await flushEncoderStage(
+          () => media.flushAudio(),
+          'Audio encoder flush failed while finalizing deterministic replay audio.'
+        );
         encodedBytes = media.byteLength;
       }
 
       this.throwIfCancelled(signal);
       report('muxing', `Packaging synchronized video and audio into a ${media.container.toUpperCase()} file.`, true);
-      const blob = media.finalize();
+      const blob = finalizeMediaFile(() => media.finalize());
       const thumbnailBlob = thumbnailCanvas ? await safeEncodeCreatorThumbnail(thumbnailCanvas) : null;
       const finalChecksum = checksumSnapshot(stepper.finalSnapshot());
       if (finalChecksum !== source.checksum) {
@@ -336,6 +389,24 @@ async function yieldToBrowser(): Promise<void> {
     return;
   }
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
+
+async function flushEncoderStage(action: () => Promise<void>, context: string): Promise<void> {
+  try {
+    await action();
+  } catch (reason) {
+    const detail = reason instanceof Error && reason.message ? ` ${reason.message}` : '';
+    throw new ReplayVideoExportError(`${context}${detail}`.trim(), 'encoder-failure');
+  }
+}
+
+function finalizeMediaFile(action: () => Blob): Blob {
+  try {
+    return action();
+  } catch (reason) {
+    const detail = reason instanceof Error && reason.message ? ` ${reason.message}` : '';
+    throw new ReplayVideoExportError(`Container finalization failed.${detail}`.trim(), 'encoder-failure');
+  }
 }
 
 async function safeEncodeCreatorThumbnail(canvas: HTMLCanvasElement): Promise<Blob | null> {

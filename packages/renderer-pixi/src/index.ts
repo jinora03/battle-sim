@@ -64,6 +64,7 @@ export class PixiBattleRenderer {
   private legacyFxSuppressed = false;
   private elapsedSeconds = 0;
   private freezeMs = 0;
+  private lastPresentationShake = 0;
   private createdFighterViews = 0;
   private reusedFighterViews = 0;
 
@@ -103,6 +104,15 @@ export class PixiBattleRenderer {
   getCanvas(): HTMLCanvasElement {
     if (!this.lifecycle.initialized) throw new Error('Battle renderer has not been initialized.');
     return this.lifecycle.app.canvas as HTMLCanvasElement;
+  }
+
+  /**
+   * Exact presentation shake strength produced by the renderer for the most
+   * recent frame, expressed in source-canvas pixels. Export uses this instead
+   * of duplicating combat/VFX shake formulas, then supplies a seeded direction.
+   */
+  getLastPresentationShakePixels(): number {
+    return this.lastPresentationShake * this.camera.getCurrentScale();
   }
 
   renderExportFrame(snapshot: WorldSnapshot, events: readonly SimulationEvent[], dtMs: number): RenderDiagnostics {
@@ -193,6 +203,7 @@ export class PixiBattleRenderer {
   }
 
   render(snapshot: WorldSnapshot, alpha: number, events: readonly SimulationEvent[], dtMs: number): RenderDiagnostics {
+    this.lastPresentationShake = 0;
     if (!this.settingsController.hasSettings || this.lifecycle.contextLost || !this.lifecycle.active) {
       return this.diagnosticsTracker.current;
     }
@@ -294,9 +305,10 @@ export class PixiBattleRenderer {
         maxGroundMarks: renderPolicy.maxGroundMarks
       });
       if (response) {
+        const shake = missileBarrageActive ? Math.min(3, response.shake) : response.shake;
+        this.lastPresentationShake = shake * vfxQuality.shakeMultiplier;
         if (settings.cameraShake) {
-          const shake = missileBarrageActive ? Math.min(3, response.shake) : response.shake;
-          this.camera.addShake(shake * vfxQuality.shakeMultiplier);
+          this.camera.addShake(this.lastPresentationShake);
         }
         if (settings.impactFreeze && !missileBarrageActive) {
           this.freezeMs = Math.max(this.freezeMs, response.freezeMs * vfxQuality.freezeMultiplier);

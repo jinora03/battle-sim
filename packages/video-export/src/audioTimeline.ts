@@ -51,6 +51,7 @@ const MAX_CUES_PER_TICK = 10;
 export interface ReplayAudioTimelineOptions {
   startOffsetSeconds?: number;
   resultDelaySeconds?: number;
+  presentationOffsetSecondsAtTick?(tick: number): number;
 }
 
 export class ReplayAudioTimeline {
@@ -60,12 +61,14 @@ export class ReplayAudioTimeline {
   private readonly battleSeed: number;
   private readonly startOffsetSeconds: number;
   private readonly resultDelaySeconds: number;
+  private readonly presentationOffsetSecondsAtTick: (tick: number) => number;
 
   constructor(battle: BattleDefinition, options: ReplayAudioTimelineOptions = {}) {
     this.arenaWidth = Math.max(1, getArena(battle.arenaId).width);
     this.battleSeed = battle.seed;
     this.startOffsetSeconds = Math.max(0, options.startOffsetSeconds ?? 0);
     this.resultDelaySeconds = Math.max(0, options.resultDelaySeconds ?? 0);
+    this.presentationOffsetSecondsAtTick = options.presentationOffsetSecondsAtTick ?? (() => 0);
   }
 
   addEvents(events: readonly SimulationEvent[]): void {
@@ -328,7 +331,10 @@ export class ReplayAudioTimeline {
     const durationSeconds = Math.max(0.02, Math.min(2.4, input.durationSeconds));
     this.cues.push({
       id: input.id,
-      startsAtSeconds: this.startOffsetSeconds + input.tick / 60 + Math.max(0, input.delaySeconds),
+      startsAtSeconds: this.startOffsetSeconds
+        + input.tick / 60
+        + Math.max(0, this.presentationOffsetSecondsAtTick(input.tick))
+        + Math.max(0, input.delaySeconds),
       durationSeconds,
       waveform: input.waveform,
       startFrequency: Math.max(20, input.startFrequency || 20),
