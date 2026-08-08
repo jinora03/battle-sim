@@ -62,7 +62,7 @@ describe('Stage 8.10F export stabilization and broadcast cleanup', () => {
 
     const cards = readFileSync(new URL('../packages/video-export/src/renderers/creatorCards.ts', import.meta.url), 'utf8');
     const portrait = readFileSync(new URL('../packages/video-export/src/renderers/fighterPortrait.ts', import.meta.url), 'utf8');
-    expect(cards).toContain('MATCH PREPARED');
+    expect(cards).toContain('WHO WILL WIN?');
     expect(cards).toContain('drawBroadcastFighterPortrait(');
     expect(cards).not.toContain('scene.objectiveLabel.toUpperCase()');
     expect(portrait).toContain('drawBroadcastFighterPortrait');

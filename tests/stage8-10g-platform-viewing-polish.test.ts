@@ -79,8 +79,9 @@ describe('Stage 8.10G platform viewing polish', () => {
     expect(renderer).toContain('options.showResult === false || creatorSummaryVisible');
     expect(cards).toContain('drawVerticalSummary(');
     expect(cards).toContain('drawLandscapeSummary(');
-    expect(cards).toContain('y + height - 82');
-    expect(cards).toContain('y + height - 48');
+    expect(cards).toContain('const y = (layout.height - height) / 2;');
+    expect(cards).toContain("FINISHING MOMENT · ${summary.highlight.title.toUpperCase()}");
+    expect(cards).toContain('drawWinnerPortrait(');
   });
 
   it('retries transient renderer recovery without turning a completed download into a false export error', () => {

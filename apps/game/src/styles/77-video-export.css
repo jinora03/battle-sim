@@ -1003,3 +1003,97 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Stage 8.11G source clarity and export action polish */
+.video-export-source-identity {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 10px;
+  padding: 10px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .022);
+}
+
+.video-export-source-identity > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.video-export-source-identity small {
+  color: #89a4bf;
+  font-size: .57rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.video-export-source-identity strong {
+  color: #edf6ff;
+  font-size: .7rem;
+  line-height: 1.25;
+}
+
+.video-export-source-identity > span {
+  align-self: start;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: rgba(142, 168, 193, .08);
+  color: #a9c0d7;
+  font-size: .59rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.video-export-source-identity > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #819ab4;
+  font-size: .61rem;
+  line-height: 1.4;
+}
+
+.video-export-source-identity.ready {
+  border-color: rgba(73, 226, 157, .3);
+  background: rgba(73, 226, 157, .045);
+}
+
+.video-export-source-identity.ready small,
+.video-export-source-identity.ready > span {
+  color: #80f3bd;
+}
+
+.video-export-source-identity.recording {
+  border-color: rgba(255, 198, 83, .28);
+  background: rgba(255, 198, 83, .045);
+}
+
+.video-export-source-identity.recording small,
+.video-export-source-identity.recording > span {
+  color: #ffd36d;
+}
+
+.video-export-primary-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.video-export-live-warning {
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 198, 83, .2);
+  border-radius: 8px;
+  background: rgba(255, 198, 83, .045);
+  color: #d9bd78 !important;
+}
+
+@media (max-width: 520px) {
+  .video-export-source-identity,
+  .video-export-primary-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .video-export-source-identity > span {
+    justify-self: start;
+  }
+}

@@ -160,7 +160,8 @@ describe('Stage 8.11D export queue and batch download', () => {
 
   it('preserves the existing direct single-export path alongside the queue', () => {
     const hook = readFileSync(new URL('../apps/game/src/hooks/useReplayVideoExport.ts', import.meta.url), 'utf8');
-    expect(hook).toContain('const start = useCallback(() => {');
+    expect(hook).toContain('const start = useCallback((requestedMode?: ReplayVideoSourceMode) => {'); 
+    expect(hook).toContain('const activeSourceMode = requestedMode ?? sourceMode;');
     expect(hook).toContain('downloadBlob(files.video.blob, files.video.filename);');
     expect(hook).toContain('startQueue,');
   });

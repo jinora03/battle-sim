@@ -18,20 +18,22 @@ const BROADCAST_LAYOUT_OPTIONS = ['landscape', 'vertical'] as const;
 
 export function BattleVideoExport({
   controller,
-  replayTick
+  replayTick,
+  battleEnded
 }: {
   controller: ReplayVideoExportController;
   replayTick: number;
+  battleEnded: boolean;
 }) {
   const {
     capability, deviceProfile, memoryForecast, progress, seedProgress, batchProgress, batchSearching, batchSize, batchResults,
     queueItems, queueRunning, queuePackaging, queueMessage, preparingReplay, running, error,
     sourceMode, generationSeedText, preparedReplayTick,
-    format, layout, resolution, fps, quality, audioEnabled, cameraMode,
+    format, layout, resolution, fps, quality, audioEnabled, cameraMode, cameraShakeEnabled, screenFlashEnabled,
     preset, introEnabled, highlightsEnabled, captionsEnabled, thumbnailEnabled, autoDownloadEnabled, directDownload, history,
     setSourceMode, setGenerationSeedText, randomizeSeed, reuseCurrentSeed, setBatchSize, searchSeeds, selectRankedSeed,
     addToQueue, queueTopRankedSeeds, startQueue, removeQueueItem, retryQueueItem, downloadQueueItem, downloadQueueArchive, clearQueue,
-    setFormat, setLayout, setResolution, setFps, setQuality, setAudioEnabled, setCameraMode,
+    setFormat, setLayout, setResolution, setFps, setQuality, setAudioEnabled, setCameraMode, setCameraShakeEnabled, setScreenFlashEnabled,
     applyPreset, setIntroEnabled, setHighlightsEnabled, setCaptionsEnabled, setThumbnailEnabled, setAutoDownloadEnabled,
     downloadLatest, downloadLatestThumbnail, clearHistory,
     start, cancel
@@ -39,7 +41,9 @@ export function BattleVideoExport({
   const layoutDefinition = getBroadcastLayout(layout, resolution === '4k' ? 2 : 1);
   const sourceTick = sourceMode === 'current-replay' ? replayTick : preparedReplayTick;
   const durationSeconds = (sourceTick ?? 0) / 60;
-  const exportDisabled = running || capability?.supported !== true || (sourceMode === 'current-replay' && replayTick <= 0);
+  const currentReplayReady = replayTick > 0 && battleEnded;
+  const selectedSourceReady = sourceMode === 'setup-seed' || currentReplayReady;
+  const exportDisabled = running || capability?.supported !== true || !selectedSourceReady;
   const queuedCount = queueItems.filter((item) => item.status === 'queued').length;
   const completedQueueCount = queueItems.filter((item) => item.status === 'complete').length;
   const queueAddDisabled = exportDisabled || queueItems.length >= 8;
@@ -48,27 +52,7 @@ export function BattleVideoExport({
     : capability.supported
       ? `${capability.container?.toUpperCase()} · ${capability.codec?.toUpperCase()}${capability.audioCodec ? ` + ${capability.audioCodec.toUpperCase()}` : ''}`
       : 'Unavailable';
-  const actionLabel = batchSearching
-    ? 'Searching seeds…'
-    : queueRunning
-      ? 'Running export queue…'
-      : queuePackaging
-        ? 'Packaging ZIP…'
-        : preparingReplay
-          ? 'Preparing replay…'
-          : progress.phase === 'audio'
-            ? 'Encoding audio…'
-            : progress.phase === 'finalizing'
-              ? 'Finalizing video…'
-              : progress.phase === 'muxing'
-                ? 'Packaging file…'
-                : progress.phase === 'downloading'
-                  ? 'Sending download…'
-                  : running
-                    ? 'Rendering video…'
-                    : sourceMode === 'setup-seed'
-                      ? 'Generate & export video'
-                      : 'Export current replay';
+
 
   return (
     <details className="panel-section battle-video-export" open>
@@ -94,11 +78,33 @@ export function BattleVideoExport({
           value={sourceMode}
           disabled={running}
           options={[
-            ['current-replay', 'Current replay', 'Use battle already run'],
-            ['setup-seed', 'Setup + seed', 'Simulate offscreen']
+            ['current-replay', 'Arena replay', 'Completed battle on screen'],
+            ['setup-seed', 'Setup + seed', 'Generate a separate battle']
           ] as const}
           onChange={(value) => setSourceMode(value as ReplayVideoSourceMode)}
         />
+
+        <div className={`video-export-source-identity ${sourceMode === 'current-replay' ? (currentReplayReady ? 'ready' : 'recording') : (preparedReplayTick ? 'ready' : 'pending')}`}>
+          {sourceMode === 'current-replay' ? (
+            <>
+              <div>
+                <small>ARENA REPLAY</small>
+                <strong>{currentReplayReady ? 'Completed battle currently shown in the arena' : replayTick > 0 ? 'Current arena battle is still recording' : 'No arena replay yet'}</strong>
+              </div>
+              <span>{replayTick > 0 ? `${formatDuration(replayTick / 60)} · ${replayTick.toLocaleString()} ticks` : 'Start a battle first'}</span>
+              <p>{currentReplayReady ? 'Exports the finished battle you just watched. It will not change if you edit the setup below.' : 'Finish the live battle before exporting this source, so you never accidentally save a partial fight.'}</p>
+            </>
+          ) : (
+            <>
+              <div>
+                <small>GENERATED SEED REPLAY</small>
+                <strong>{preparedReplayTick ? 'Generated replay ready to reuse' : 'A new completed battle will be simulated offscreen'}</strong>
+              </div>
+              <span>Seed {Number(generationSeedText || 0).toLocaleString()}{preparedReplayTick ? ` · ${formatDuration(preparedReplayTick / 60)}` : ''}</span>
+              <p>This is separate from the battle currently visible in the arena. The same generated replay is reused across export variants.</p>
+            </>
+          )}
+        </div>
 
         {sourceMode === 'setup-seed' && (
           <div className="video-export-seed-source">
@@ -253,6 +259,8 @@ export function BattleVideoExport({
               {audioEnabled ? 'On' : 'Off'}
             </button>
           </label>
+          <ToggleOption label="Camera shake" enabled={cameraShakeEnabled} disabled={running} onChange={setCameraShakeEnabled} />
+          <ToggleOption label="Screen flashes" enabled={screenFlashEnabled} disabled={running} onChange={setScreenFlashEnabled} />
           <ToggleOption label="Intro" enabled={introEnabled} disabled={running} onChange={setIntroEnabled} />
           <ToggleOption
             label="Highlights"
@@ -291,6 +299,8 @@ export function BattleVideoExport({
           <span><small>Audio</small><strong>{audioEnabled ? 'Deterministic' : 'Disabled'}</strong></span>
           <span><small>Preset</small><strong>{quality}</strong></span>
           <span><small>Camera</small><strong>{cameraMode === 'cinematic' ? 'Cinematic' : 'Arena-wide'}</strong></span>
+          <span><small>Shake</small><strong>{cameraShakeEnabled ? 'On · live intensity' : 'Off'}</strong></span>
+          <span><small>Screen flash</small><strong>{screenFlashEnabled ? 'On' : 'Off'}</strong></span>
           <span><small>Canvas</small><strong>{layoutDefinition.width} × {layoutDefinition.height}</strong></span>
           <span>
             <small>Memory forecast</small>
@@ -302,7 +312,7 @@ export function BattleVideoExport({
             <small>Device budget</small>
             <strong>{deviceProfile.deviceMemoryGiB ? `${deviceProfile.deviceMemoryGiB} GB RAM` : 'RAM unknown'}{deviceProfile.hardwareConcurrency ? ` · ${deviceProfile.hardwareConcurrency} threads` : ''}</strong>
           </span>
-          <span><small>Creator cards</small><strong>{introEnabled ? 'Match Prepared intro + summary' : 'Summary only'}</strong></span>
+          <span><small>Creator cards</small><strong>{introEnabled ? 'Who Will Win intro + victory card' : 'Victory card only'}</strong></span>
           <span><small>Highlights</small><strong>{cameraMode !== 'cinematic' ? 'Cinematic only' : highlightsEnabled ? 'Automatic' : 'Disabled'}</strong></span>
           <span><small>Thumbnail</small><strong>{thumbnailEnabled ? 'Auto highlight' : 'Disabled'}</strong></span>
           <span><small>Delivery</small><strong>{autoDownloadEnabled ? 'Auto download' : 'Manual download'}</strong></span>
@@ -350,7 +360,7 @@ export function BattleVideoExport({
                     )}
                     <div className="video-export-queue-item-actions">
                       {item.status === 'complete' && (
-                        <button type="button" onClick={() => downloadQueueItem(item.id)} disabled={running}>Download</button>
+                        <button type="button" onClick={() => downloadQueueItem(item.id)}>Download</button>
                       )}
                       {(item.status === 'error' || item.status === 'cancelled') && (
                         <button type="button" onClick={() => retryQueueItem(item.id)} disabled={running}>Retry</button>
@@ -438,11 +448,31 @@ export function BattleVideoExport({
         )}
 
         <div className="video-export-actions">
-          <NeonButton tone="primary" size="small" fullWidth onClick={start} disabled={exportDisabled}>
-            {actionLabel}
-          </NeonButton>
+          <div className="video-export-primary-actions">
+            <NeonButton
+              tone={sourceMode === 'current-replay' ? 'primary' : 'ghost'}
+              size="small"
+              fullWidth
+              onClick={() => { setSourceMode('current-replay'); start('current-replay'); }}
+              disabled={running || capability?.supported !== true || !currentReplayReady}
+            >
+              Export finished arena replay
+            </NeonButton>
+            <NeonButton
+              tone={sourceMode === 'setup-seed' ? 'primary' : 'utility'}
+              size="small"
+              fullWidth
+              onClick={() => { setSourceMode('setup-seed'); start('setup-seed'); }}
+              disabled={running || capability?.supported !== true}
+            >
+              Generate seed replay & export
+            </NeonButton>
+          </div>
+          {!currentReplayReady && replayTick > 0 && !running && (
+            <small className="video-export-live-warning">Arena replay is recording now. The seed export is still available because it runs a separate battle offscreen.</small>
+          )}
           {running && progress.phase !== 'downloading' && <NeonButton tone="danger" size="small" fullWidth onClick={cancel}>Cancel</NeonButton>}
-          <small>Export progress now separates rendering, encoder finalization, file packaging and browser download handoff. Cinematic presentation never changes replay simulation outcomes.</small>
+          <small>Choose exactly which replay source to export. Rendering, finalization, packaging and download handoff are shown separately, and presentation never changes simulation outcomes.</small>
         </div>
 
         <details className="video-export-history">

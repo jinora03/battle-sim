@@ -34,6 +34,8 @@ export interface Stage810eExportOptions extends Stage810dExportOptions {
   highlights?: boolean;
   captions?: boolean;
   thumbnail?: boolean;
+  cameraShake?: boolean;
+  screenFlash?: boolean;
 }
 
 export interface Stage810hExportOptions extends Stage810eExportOptions {
@@ -126,6 +128,7 @@ export function createStage810eExportSettings(
     ...settings,
     camera: {
       ...settings.camera,
+      shakeEnabled: options.cameraShake ?? true,
       highlightSlowMotionSeconds: highlightsEnabled && settings.camera.mode === 'cinematic'
         ? settings.camera.highlightSlowMotionSeconds
         : 0,
@@ -138,6 +141,12 @@ export function createStage810eExportSettings(
       introSeconds: options.intro === false ? 0 : 2,
       captionsEnabled: options.captions ?? true,
       thumbnailEnabled: options.thumbnail ?? true
+    },
+    presentation: {
+      ...settings.presentation,
+      // Screen flash stays in the Pixi presentation pipeline so live/export
+      // share the same effect implementation instead of double-rendering it.
+      screenFlash: options.screenFlash ?? true
     }
   };
 }
@@ -181,6 +190,7 @@ function createExportSettings(
     resultHoldSeconds,
     camera: {
       mode: cameraMode,
+      shakeEnabled: false,
       maxZoom: cameraMode === 'cinematic' ? 1.28 : 1,
       knockoutSlowMotionSeconds,
       highlightSlowMotionSeconds: cameraMode === 'cinematic' ? 0.35 : 0,

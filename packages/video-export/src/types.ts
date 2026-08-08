@@ -68,6 +68,8 @@ export interface ReplayAudioExportSettings {
 
 export interface ReplayVideoExportCameraSettings {
   mode: VideoExportCameraMode;
+  /** Presentation-only deterministic shake. Uses the live renderer's computed shake strength. */
+  shakeEnabled: boolean;
   maxZoom: number;
   knockoutSlowMotionSeconds: number;
   /** Per selected mid-battle moment. Zero disables highlight slow motion. */

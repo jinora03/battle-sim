@@ -10,6 +10,8 @@ export interface CinematicCameraRenderOptions {
   phase?: CinematicCameraPhase;
   phaseProgress?: number;
   highlight?: CinematicHighlightFocus | null;
+  /** Exact live-renderer presentation shake for this frame, in source-canvas pixels. */
+  presentationShake?: number;
 }
 
 export interface BroadcastCameraFrame {
@@ -68,18 +70,23 @@ export class CinematicCameraTracker {
     options: CinematicCameraRenderOptions = {}
   ): BroadcastCameraFrame {
     const phase = options.phase ?? 'battle';
+    const width = Math.max(1, arenaCanvas.width);
+    const height = Math.max(1, arenaCanvas.height);
+    this.raisePresentationShake(options.presentationShake ?? 0, phase);
+
     if (this.settings.mode === 'broadcast') {
-      return {
-        source: { x: 0, y: 0, width: arenaCanvas.width, height: arenaCanvas.height },
-        zoom: 1,
-        emphasis: 0,
-        phase
-      };
+      const shakeActive = this.isShakeActive(phase);
+      const renderZoom = shakeActive
+        ? calculateShakeOverscanZoom(width, height, this.shakeEnergy)
+        : 1;
+      let source = sourceRectFor(width / 2, height / 2, width, height, renderZoom);
+      source = this.applyDeterministicShake(source, width, height, renderZoom, shakeActive);
+      const emphasis = Math.min(0.3, this.shakeEnergy / 12 * 0.3);
+      this.finishFrame();
+      return { source, zoom: renderZoom, emphasis, phase };
     }
 
     this.consumeEvents(events);
-    const width = Math.max(1, arenaCanvas.width);
-    const height = Math.max(1, arenaCanvas.height);
     const fit = calculateSourceFit(width, height, this.arena.width, this.arena.height);
     const points = this.collectFocusPoints(snapshot, fit, width, height, phase);
     const bounds = boundsFor(points, width, height);
@@ -151,27 +158,27 @@ export class CinematicCameraTracker {
       1,
       phase === 'intro' || phase === 'result' ? Math.max(1, this.settings.maxZoom) : coverageZoom
     );
+    const shakeActive = this.isShakeActive(phase);
+    const shakeZoom = shakeActive
+      ? calculateShakeOverscanZoom(width, height, this.shakeEnergy)
+      : 1;
+    const renderZoom = Math.max(this.currentZoom, shakeZoom);
+
     let source = sourceRectFor(
       this.currentCenterX,
       this.currentCenterY,
       width,
       height,
-      this.currentZoom
+      renderZoom
     );
     source = ensureBoundsVisible(source, bounds, width, height);
-
-    const shakeAmplitude = Math.min(width, height) * 0.008 * this.shakeEnergy / this.currentZoom;
-    if (shakeAmplitude > 0.08 && phase !== 'intro' && phase !== 'result') {
-      const shakeX = deterministicSigned(this.battle.seed, this.frameIndex, 0x51f2) * shakeAmplitude;
-      const shakeY = deterministicSigned(this.battle.seed, this.frameIndex, 0xa73d) * shakeAmplitude;
-      source = clampSourceRect({ ...source, x: source.x + shakeX, y: source.y + shakeY }, width, height);
-    }
+    source = this.applyDeterministicShake(source, width, height, renderZoom, shakeActive);
 
     const eventEmphasis = ultimateActive
       ? 0.7
       : importantActive
         ? 0.35
-        : Math.min(0.3, this.shakeEnergy * 0.3);
+        : Math.min(0.3, this.shakeEnergy / 12 * 0.3);
     const highlightEmphasis = highlight
       ? Math.min(0.92, 0.42 + highlight.intensity * 0.42 + (highlight.slowMotion ? 0.08 : 0))
       : 0;
@@ -179,9 +186,44 @@ export class CinematicCameraTracker {
       ? 1 - phaseProgress * 0.35
       : Math.max(eventEmphasis, highlightEmphasis);
 
-    this.shakeEnergy *= Math.exp(-10 / this.frameRate);
+    this.finishFrame();
+    return { source, zoom: renderZoom, emphasis, phase };
+  }
+
+  private raisePresentationShake(amount: number, phase: CinematicCameraPhase): void {
+    if (!this.settings.shakeEnabled || phase === 'intro' || phase === 'result') return;
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    this.shakeEnergy = Math.max(this.shakeEnergy, amount);
+  }
+
+  private isShakeActive(phase: CinematicCameraPhase): boolean {
+    return this.settings.shakeEnabled
+      && this.shakeEnergy > 0.05
+      && phase !== 'intro'
+      && phase !== 'result';
+  }
+
+  private applyDeterministicShake(
+    source: BroadcastRect,
+    width: number,
+    height: number,
+    renderZoom: number,
+    active: boolean
+  ): BroadcastRect {
+    if (!active) return source;
+    // The live renderer supplies the exact shake strength. Export changes only
+    // the direction source, using seeded offsets instead of live random direction.
+    const shakeAmplitude = this.shakeEnergy / Math.max(1, renderZoom);
+    const shakeX = deterministicSigned(this.battle.seed, this.frameIndex, 0x51f2) * shakeAmplitude;
+    const shakeY = deterministicSigned(this.battle.seed, this.frameIndex, 0xa73d) * shakeAmplitude;
+    return clampSourceRect({ ...source, x: source.x + shakeX, y: source.y + shakeY }, width, height);
+  }
+
+  private finishFrame(): void {
+    // BattleCamera decays by 0.82 at 60 Hz. Preserve that time response at both
+    // supported export frame rates rather than inventing a separate export feel.
+    this.shakeEnergy *= Math.pow(0.82, 60 / this.frameRate);
     this.frameIndex += 1;
-    return { source, zoom: this.currentZoom, emphasis, phase };
   }
 
   private consumeEvents(events: readonly SimulationEvent[]): void {
@@ -190,26 +232,20 @@ export class CinematicCameraTracker {
         this.emphasisPosition = event.position;
         if (event.slot === 'ultimate') {
           this.ultimateUntilTick = Math.max(this.ultimateUntilTick, event.tick + event.castTicks + ULTIMATE_EXTRA_TICKS);
-          this.shakeEnergy = Math.max(this.shakeEnergy, 0.18);
         } else if (event.slot !== 'basic') {
           this.importantUntilTick = Math.max(this.importantUntilTick, event.tick + Math.max(IMPORTANT_ABILITY_TICKS, event.castTicks));
         }
       } else if (event.type === 'blast') {
         this.emphasisPosition = event.position;
-        this.shakeEnergy = Math.max(this.shakeEnergy, clamp01(event.force / 24 + event.radius / 720));
       } else if (event.type === 'damage' && !event.prevented && event.amount >= 60) {
         if (event.position) this.emphasisPosition = event.position;
-        this.shakeEnergy = Math.max(this.shakeEnergy, clamp01(event.amount / 230));
       } else if (event.type === 'wallImpact' && event.magnitude >= 8) {
         this.emphasisPosition = event.position;
-        this.shakeEnergy = Math.max(this.shakeEnergy, clamp01(event.magnitude / 34));
       } else if (event.type === 'impact' && event.magnitude >= 8) {
         this.emphasisPosition = event.position;
-        this.shakeEnergy = Math.max(this.shakeEnergy, clamp01(event.magnitude / 34));
       } else if (event.type === 'death') {
         this.knockoutPosition = event.position;
         this.emphasisPosition = event.position;
-        this.shakeEnergy = 1;
       }
     }
   }
@@ -304,6 +340,13 @@ function calculateCoverageZoom(
   const boundsWidth = Math.max(1, bounds.maxX - bounds.minX);
   const boundsHeight = Math.max(1, bounds.maxY - bounds.minY);
   return clamp(Math.min(width / boundsWidth, height / boundsHeight), 1, maxZoom);
+}
+
+function calculateShakeOverscanZoom(width: number, height: number, shakePixels: number): number {
+  const minDimension = Math.max(1, Math.min(width, height));
+  const margin = Math.min(minDimension * 0.035, Math.max(2, shakePixels + 2));
+  const available = Math.max(1, minDimension - margin * 2);
+  return Math.min(1.075, minDimension / available);
 }
 
 function sourceRectFor(centerX: number, centerY: number, width: number, height: number, zoom: number): BroadcastRect {

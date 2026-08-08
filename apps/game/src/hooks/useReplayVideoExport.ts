@@ -101,6 +101,8 @@ export interface ReplayVideoExportController {
   quality: VideoExportQuality;
   audioEnabled: boolean;
   cameraMode: VideoExportCameraMode;
+  cameraShakeEnabled: boolean;
+  screenFlashEnabled: boolean;
   preset: CreatorExportPresetId;
   introEnabled: boolean;
   highlightsEnabled: boolean;
@@ -131,6 +133,8 @@ export interface ReplayVideoExportController {
   setQuality(quality: VideoExportQuality): void;
   setAudioEnabled(enabled: boolean): void;
   setCameraMode(mode: VideoExportCameraMode): void;
+  setCameraShakeEnabled(enabled: boolean): void;
+  setScreenFlashEnabled(enabled: boolean): void;
   applyPreset(preset: Exclude<CreatorExportPresetId, 'custom'>): void;
   setIntroEnabled(enabled: boolean): void;
   setHighlightsEnabled(enabled: boolean): void;
@@ -140,7 +144,7 @@ export interface ReplayVideoExportController {
   downloadLatest(): void;
   downloadLatestThumbnail(): void;
   clearHistory(): void;
-  start(): void;
+  start(mode?: ReplayVideoSourceMode): void;
   cancel(): void;
 }
 
@@ -193,6 +197,8 @@ export function useReplayVideoExport(
   const [quality, setQualityState] = useState<VideoExportQuality>('high');
   const [audioEnabled, setAudioEnabledState] = useState(true);
   const [cameraMode, setCameraModeState] = useState<VideoExportCameraMode>('cinematic');
+  const [cameraShakeEnabled, setCameraShakeEnabledState] = useState(true);
+  const [screenFlashEnabled, setScreenFlashEnabledState] = useState(true);
   const [preset, setPreset] = useState<CreatorExportPresetId>('youtube');
   const [introEnabled, setIntroEnabledState] = useState(true);
   const [highlightsEnabled, setHighlightsEnabledState] = useState(true);
@@ -211,8 +217,9 @@ export function useReplayVideoExport(
   const [queueMessage, setQueueMessage] = useState<string | null>(null);
   const exportSettings = useMemo(() => createStage810hExportSettings(settings, {
     format, preset, layout, resolution, fps, quality, audio: audioEnabled, camera: cameraMode,
-    intro: introEnabled, highlights: highlightsEnabled, captions: captionsEnabled, thumbnail: thumbnailEnabled
-  }), [audioEnabled, cameraMode, captionsEnabled, format, fps, highlightsEnabled, introEnabled, layout, preset, quality, resolution, settings, thumbnailEnabled]);
+    intro: introEnabled, highlights: highlightsEnabled, captions: captionsEnabled, thumbnail: thumbnailEnabled,
+    cameraShake: cameraShakeEnabled, screenFlash: screenFlashEnabled
+  }), [audioEnabled, cameraMode, cameraShakeEnabled, captionsEnabled, format, fps, highlightsEnabled, introEnabled, layout, preset, quality, resolution, screenFlashEnabled, settings, thumbnailEnabled]);
   const exporterRef = useRef(new ReplayVideoExporter());
   const abortRef = useRef<AbortController | null>(null);
   const preparedSourceRef = useRef<{ key: string; source: ReplayExportSource } | null>(null);
@@ -299,6 +306,14 @@ export function useReplayVideoExport(
     setPreset('custom');
     setCameraModeState(value);
   }, []);
+  const setCameraShakeEnabled = useCallback((value: boolean) => {
+    setPreset('custom');
+    setCameraShakeEnabledState(value);
+  }, []);
+  const setScreenFlashEnabled = useCallback((value: boolean) => {
+    setPreset('custom');
+    setScreenFlashEnabledState(value);
+  }, []);
   const setIntroEnabled = useCallback((value: boolean) => {
     setPreset('custom');
     setIntroEnabledState(value);
@@ -328,6 +343,8 @@ export function useReplayVideoExport(
     setQualityState(definition.quality);
     setAudioEnabledState(definition.audio);
     setCameraModeState(definition.camera);
+    setCameraShakeEnabledState(true);
+    setScreenFlashEnabledState(true);
     setIntroEnabledState(true);
     setHighlightsEnabledState(true);
     setCaptionsEnabledState(true);
@@ -418,6 +435,10 @@ export function useReplayVideoExport(
       }
       if (source.endTick <= 0) {
         setError('Run a battle before adding the current replay to the export queue.');
+        return;
+      }
+      if (!source.battleEnded) {
+        setError('The current arena battle is still recording. Finish the battle before queueing its replay.');
         return;
       }
       const seed = source.replay.battle.seed >>> 0;
@@ -819,8 +840,9 @@ export function useReplayVideoExport(
     });
   }, [configuredBattleKey, queueItems, running, runtimeRef]);
 
-  const start = useCallback(() => {
+  const start = useCallback((requestedMode?: ReplayVideoSourceMode) => {
     if (running || abortRef.current) return;
+    const activeSourceMode = requestedMode ?? sourceMode;
     if (!capability?.supported) {
       setError(capability?.reason ?? 'Video export support is still being checked.');
       return;
@@ -839,7 +861,7 @@ export function useReplayVideoExport(
       const runtime = runtimeRef.current;
       let source: ReplayExportSource;
 
-      if (sourceMode === 'setup-seed') {
+      if (activeSourceMode === 'setup-seed') {
         const cached = preparedSourceRef.current;
         const queuedCached = queuePreparedSourcesRef.current.get(`setup:${configuredBattleKey}`);
         if (cached?.key === configuredBattleKey) {
@@ -865,6 +887,9 @@ export function useReplayVideoExport(
       } else {
         if (!runtime) throw new Error('The battle runtime is not ready yet.');
         source = runtime.createReplayExportSource();
+        if (!source.battleEnded) {
+          throw new Error('The current arena battle is still recording. Wait for the result before exporting this replay, or use Setup + seed to generate a separate completed battle.');
+        }
       }
 
       if (abortController.signal.aborted) throw new Error('Video export was cancelled.');
@@ -876,9 +901,9 @@ export function useReplayVideoExport(
         ...INITIAL_PROGRESS,
         phase: 'preparing',
         totalFrames: introFrames + replayFrames + knockoutFrames + holdFrames,
-        message: sourceMode === 'setup-seed'
-          ? 'Replay ready. Preparing the dedicated video and audio renderer.'
-          : 'Preparing the dedicated video and audio renderer.'
+        message: activeSourceMode === 'setup-seed'
+          ? 'Generated replay ready. Preparing the dedicated video and audio renderer.'
+          : 'Completed arena replay ready. Preparing the dedicated video and audio renderer.'
       });
 
       videoRenderingStarted = true;
@@ -1008,6 +1033,8 @@ export function useReplayVideoExport(
     quality,
     audioEnabled,
     cameraMode,
+    cameraShakeEnabled,
+    screenFlashEnabled,
     preset,
     introEnabled,
     highlightsEnabled,
@@ -1038,6 +1065,8 @@ export function useReplayVideoExport(
     setQuality,
     setAudioEnabled,
     setCameraMode,
+    setCameraShakeEnabled,
+    setScreenFlashEnabled,
     applyPreset,
     setIntroEnabled,
     setHighlightsEnabled,

@@ -164,16 +164,21 @@ export class ReplayVideoExporter {
         const highlightChanged = creatorAnalyzer.update(frame.snapshot, frame.events);
         const cinematicHighlight = getCinematicHighlightFocus(highlightPlan, frame.snapshot.tick);
         renderer.renderExportFrame(frame.snapshot, frame.events, 1000 / settings.fps);
+        const presentationShake = settings.camera.shakeEnabled
+          ? renderer.getLastPresentationShakePixels()
+          : 0;
         const hideResult = settings.camera.mode === 'cinematic' && frame.snapshot.battleEnded;
         const broadcastCanvas = hideResult
           ? broadcastRenderer.render(renderer.getCanvas(), frame.snapshot, frame.events, {
               showResult: false,
               showCaptions: settings.creator.captionsEnabled,
-              highlight: cinematicHighlight
+              highlight: cinematicHighlight,
+              presentationShake
             })
           : broadcastRenderer.render(renderer.getCanvas(), frame.snapshot, frame.events, {
               showCaptions: settings.creator.captionsEnabled,
-              highlight: cinematicHighlight
+              highlight: cinematicHighlight,
+              presentationShake
             });
         if (settings.creator.thumbnailEnabled && highlightChanged) {
           if (thumbnailCanvas) {

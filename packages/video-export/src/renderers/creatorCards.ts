@@ -42,14 +42,14 @@ export function drawCreatorCard(
   if (options.kind === 'intro') {
     drawIntro(ctx, layout, scene, vertical, progress);
   } else if (options.summary) {
-    drawSummary(ctx, layout, options.summary, vertical);
+    drawSummary(ctx, layout, scene, options.summary, vertical);
   }
   ctx.restore();
 }
 
 /**
  * Deterministic Canvas counterpart of the live BattleIntroOverlay.
- * Keep the Match Prepared / fighter entrance / VS / Battle Start language in
+ * Keep the live matchup hook / fighter entrance / VS / Battle Start language in
  * visual parity while keeping the export renderer isolated from React/DOM.
  */
 function drawIntro(
@@ -60,13 +60,13 @@ function drawIntro(
   progress: number
 ): void {
   const centerX = layout.width / 2;
-  const leftX = vertical ? layout.width * 0.25 : layout.width * 0.19;
-  const rightX = vertical ? layout.width * 0.75 : layout.width * 0.81;
-  const portraitY = vertical ? layout.height * 0.56 : layout.height * 0.70;
+  const leftX = vertical ? layout.width * 0.25 : layout.width * 0.235;
+  const rightX = vertical ? layout.width * 0.75 : layout.width * 0.765;
+  const portraitY = vertical ? layout.height * 0.56 : layout.height * 0.675;
   const portraitRadius = vertical ? layout.width * 0.19 : layout.height * 0.235;
-  const nameY = vertical ? layout.height * 0.35 : layout.height * 0.315;
-  const identityY = nameY + (vertical ? 54 : 48);
-  const kickerY = vertical ? layout.height * 0.20 : layout.height * 0.18;
+  const nameY = vertical ? layout.height * 0.34 : layout.height * 0.285;
+  const identityY = nameY + (vertical ? 64 : 58);
+  const kickerY = vertical ? layout.height * 0.19 : layout.height * 0.165;
   const versusY = portraitY + 4;
   const fighterProgress = easeOutCubic(progress / 0.34);
   const versusProgress = easeOutBack((progress - 0.19) / 0.27);
@@ -77,7 +77,7 @@ function drawIntro(
 
   ctx.save();
   ctx.globalAlpha *= easeOutCubic(progress / 0.16);
-  drawText(ctx, 'MATCH PREPARED', centerX, kickerY, vertical ? 24 : 21, 900, TEXT_SECONDARY, 'center', 4.4);
+  drawText(ctx, 'WHO WILL WIN?', centerX, kickerY, vertical ? 34 : 32, 950, TEXT_SECONDARY, 'center', 4.8);
   ctx.restore();
 
   drawIntroNameplate(ctx, scene.left, leftX, nameY, identityY, fighterProgress, vertical);
@@ -98,8 +98,7 @@ function drawIntro(
     leftOffset,
     -entryRotation,
     entryScale * pulse,
-    fighterProgress,
-    true
+    fighterProgress
   );
   drawIntroPortrait(
     ctx,
@@ -111,8 +110,7 @@ function drawIntro(
     rightOffset,
     entryRotation,
     entryScale * pulse,
-    fighterProgress,
-    true
+    fighterProgress
   );
 
   if (versusProgress > 0) {
@@ -132,7 +130,7 @@ function drawIntro(
     ctx.moveTo(centerX, versusY + (vertical ? 60 : 58));
     ctx.lineTo(centerX, versusY + (vertical ? 132 : 128));
     ctx.stroke();
-    drawText(ctx, 'VS', centerX, versusY + 14, vertical ? 64 : 66, 950, '#f7fbff', 'center', -3);
+    drawText(ctx, 'VS', centerX, versusY + 16, vertical ? 78 : 82, 950, '#f7fbff', 'center', -3.2);
     ctx.restore();
   }
 
@@ -144,8 +142,8 @@ function drawIntro(
     ctx.translate(centerX, flashY);
     ctx.scale(scale, scale);
     ctx.translate(-centerX, -flashY);
-    drawText(ctx, scene.modeName.toUpperCase(), centerX, flashY - (vertical ? 28 : 26), vertical ? 13 : 12, 800, TEXT_SECONDARY, 'center', 2);
-    drawText(ctx, 'BATTLE START', centerX, flashY + 10, vertical ? 29 : 27, 950, '#effbff', 'center', 3.5);
+    drawText(ctx, scene.modeName.toUpperCase(), centerX, flashY - (vertical ? 34 : 31), vertical ? 17 : 16, 850, TEXT_SECONDARY, 'center', 2.2);
+    drawText(ctx, 'BATTLE START', centerX, flashY + 12, vertical ? 39 : 37, 950, '#effbff', 'center', 3.8);
     ctx.restore();
   }
 }
@@ -209,20 +207,20 @@ function drawIntroNameplate(
 ): void {
   ctx.save();
   ctx.globalAlpha *= progress;
-  drawFittedText(ctx, fighter.name, x, nameY, vertical ? 410 : 520, vertical ? 50 : 52, 950, TEXT_PRIMARY, 'center');
+  drawFittedText(ctx, fighter.name, x, nameY, vertical ? 430 : 590, vertical ? 61 : 66, 950, TEXT_PRIMARY, 'center');
   drawText(
     ctx,
     fighter.identity.toUpperCase(),
     x,
     identityY,
-    vertical ? 16 : 15,
+    vertical ? 20 : 19,
     850,
     color(fighter.visual.accentColor),
     'center',
     1.8
   );
   if (fighter.memberCount > 1) {
-    drawText(ctx, `${fighter.memberCount} FIGHTER SQUAD`, x, identityY + 30, vertical ? 12 : 11, 750, TEXT_SECONDARY, 'center', 1.4);
+    drawText(ctx, `${fighter.memberCount} FIGHTER SQUAD`, x, identityY + 34, vertical ? 15 : 14, 800, TEXT_SECONDARY, 'center', 1.5);
   }
   ctx.restore();
 }
@@ -237,19 +235,8 @@ function drawIntroPortrait(
   offsetX: number,
   rotation: number,
   scale: number,
-  opacity: number,
-  ghost: boolean
+  opacity: number
 ): void {
-  if (ghost && opacity > 0.1) {
-    ctx.save();
-    ctx.globalAlpha *= opacity * 0.18;
-    ctx.filter = `blur(${Math.max(8, radius * 0.07)}px)`;
-    const ghostX = centerX + (facing === 'right' ? radius * 0.62 : -radius * 0.62);
-    const ghostY = centerY - radius * 0.58;
-    drawBroadcastFighterPortrait(ctx, fighter, ghostX, ghostY, radius * 1.16, facing);
-    ctx.restore();
-  }
-
   ctx.save();
   ctx.globalAlpha *= opacity;
   ctx.translate(centerX + offsetX, centerY);
@@ -263,144 +250,128 @@ function drawIntroPortrait(
 function drawSummary(
   ctx: CanvasRenderingContext2D,
   layout: BroadcastLayoutDefinition,
+  scene: BroadcastScene,
   summary: CreatorBattleSummary,
   vertical: boolean
 ): void {
+  const winner = summary.winningTeam === scene.left.team
+    ? scene.left
+    : summary.winningTeam === scene.right.team
+      ? scene.right
+      : null;
+  const winnerFacing: 'left' | 'right' = winner === scene.right ? 'left' : 'right';
   if (vertical) {
-    drawVerticalSummary(ctx, layout, summary);
+    drawVerticalSummary(ctx, layout, summary, winner, winnerFacing);
     return;
   }
-  drawLandscapeSummary(ctx, layout, summary);
+  drawLandscapeSummary(ctx, layout, summary, winner, winnerFacing);
 }
 
 function drawVerticalSummary(
   ctx: CanvasRenderingContext2D,
   layout: BroadcastLayoutDefinition,
-  summary: CreatorBattleSummary
+  summary: CreatorBattleSummary,
+  winner: BroadcastScene['left'] | null,
+  winnerFacing: 'left' | 'right'
 ): void {
-  const width = 760;
-  const height = 560;
+  const width = 860;
+  const height = 760;
   const x = (layout.width - width) / 2;
-  const y = 430;
-  drawPanel(ctx, x, y, width, height, 32, 'rgba(7, 15, 29, 0.985)', 'rgba(122, 243, 190, 0.54)');
-  drawText(ctx, summary.winningTeam === null ? 'BATTLE COMPLETE' : 'WINNER', layout.width / 2, y + 50, 17, 950, READY_ACCENT, 'center', 1.2);
-  drawFittedText(ctx, summary.winnerName, layout.width / 2, y + 108, width - 90, 42, 950, TEXT_PRIMARY, 'center');
+  const y = (layout.height - height) / 2;
+  const centerX = layout.width / 2;
+  const victoryAccent = winner ? withAlpha(color(winner.visual.accentColor), 0.68) : 'rgba(122, 243, 190, 0.62)';
+  drawPanel(ctx, x, y, width, height, 34, 'rgba(5, 13, 27, 0.988)', victoryAccent);
 
-  const statWidth = 214;
-  const statHeight = 108;
-  const gap = 14;
+  drawText(ctx, summary.winningTeam === null ? 'BATTLE COMPLETE' : 'VICTORY', centerX, y + 58, 20, 950, READY_ACCENT, 'center', 2.2);
+  drawFittedText(ctx, summary.winnerName, centerX, y + 122, width - 100, 54, 950, TEXT_PRIMARY, 'center');
+
+  if (winner) {
+    drawWinnerPortrait(ctx, winner, centerX, y + 275, 126, winnerFacing);
+  } else {
+    drawText(ctx, 'VS', centerX, y + 290, 64, 950, TEXT_SECONDARY, 'center');
+  }
+
+  const statWidth = 244;
+  const statHeight = 112;
+  const gap = 16;
   const totalWidth = statWidth * 3 + gap * 2;
-  const startX = layout.width / 2 - totalWidth / 2;
-  const statsY = y + 150;
+  const startX = centerX - totalWidth / 2;
+  const statsY = y + 410;
   drawStat(ctx, startX, statsY, statWidth, statHeight, 'REMAINING HP', `${Math.round(summary.remainingHp).toLocaleString()} · ${Math.round(summary.remainingHpRatio * 100)}%`, LEFT_ACCENT);
   drawStat(ctx, startX + statWidth + gap, statsY, statWidth, statHeight, 'LARGEST HIT', summary.largestHit ? Math.round(summary.largestHit.amount).toLocaleString() : '—', '#ffd06b');
   drawStat(ctx, startX + (statWidth + gap) * 2, statsY, statWidth, statHeight, 'BATTLE TIME', formatDuration(summary.durationSeconds), RIGHT_ACCENT);
 
-  const abilityY = y + 310;
-  drawText(ctx, 'MOST DAMAGING ABILITY', layout.width / 2, abilityY, 13, 900, TEXT_SECONDARY, 'center', 1.1);
-  drawFittedText(
-    ctx,
-    summary.topAbility?.abilityName ?? 'No ability damage recorded',
-    layout.width / 2,
-    abilityY + 36,
-    width - 100,
-    24,
-    900,
-    summary.topAbility ? TEXT_PRIMARY : TEXT_SECONDARY,
-    'center'
-  );
+  const abilityY = y + 566;
+  drawText(ctx, 'MOST DAMAGING ABILITY', centerX, abilityY, 15, 900, TEXT_SECONDARY, 'center', 1.4);
+  drawFittedText(ctx, summary.topAbility?.abilityName ?? 'No ability damage recorded', centerX, abilityY + 40, width - 120, 30, 900, summary.topAbility ? TEXT_PRIMARY : TEXT_SECONDARY, 'center');
   if (summary.topAbility) {
-    drawText(
-      ctx,
-      `${Math.round(summary.topAbility.totalDamage).toLocaleString()} total damage · ${summary.topAbility.sourceName}`,
-      layout.width / 2,
-      abilityY + 63,
-      12,
-      750,
-      TEXT_SECONDARY,
-      'center'
-    );
+    drawText(ctx, `${Math.round(summary.topAbility.totalDamage).toLocaleString()} total damage · ${summary.topAbility.sourceName}`, centerX, abilityY + 72, 14, 750, TEXT_SECONDARY, 'center');
   }
 
   if (summary.highlight) {
-    drawPill(
-      ctx,
-      `HIGHLIGHT · ${summary.highlight.title.toUpperCase()}`,
-      x + 70,
-      y + height - 82,
-      width - 140,
-      38,
-      'rgba(34, 25, 52, 0.92)',
-      PANEL_BORDER,
-      TEXT_PRIMARY,
-      12
-    );
+    drawPill(ctx, `FINISHING MOMENT · ${summary.highlight.title.toUpperCase()}`, x + 70, y + height - 74, width - 140, 42, 'rgba(34, 25, 52, 0.94)', PANEL_BORDER, TEXT_PRIMARY, 13);
   }
 }
 
 function drawLandscapeSummary(
   ctx: CanvasRenderingContext2D,
   layout: BroadcastLayoutDefinition,
-  summary: CreatorBattleSummary
+  summary: CreatorBattleSummary,
+  winner: BroadcastScene['left'] | null,
+  winnerFacing: 'left' | 'right'
 ): void {
-  const width = 980;
-  const height = 420;
+  const width = 1240;
+  const height = 520;
   const x = (layout.width - width) / 2;
-  const y = 330;
-  drawPanel(ctx, x, y, width, height, 30, 'rgba(7, 15, 29, 0.985)', 'rgba(122, 243, 190, 0.54)');
-  drawText(ctx, summary.winningTeam === null ? 'BATTLE COMPLETE' : 'WINNER', layout.width / 2, y + 45, 15, 950, READY_ACCENT, 'center', 1.1);
-  drawFittedText(ctx, summary.winnerName, layout.width / 2, y + 94, width - 100, 38, 950, TEXT_PRIMARY, 'center');
+  const y = 270;
+  const victoryAccent = winner ? withAlpha(color(winner.visual.accentColor), 0.68) : 'rgba(122, 243, 190, 0.62)';
+  drawPanel(ctx, x, y, width, height, 34, 'rgba(5, 13, 27, 0.988)', victoryAccent);
 
-  const statWidth = 270;
-  const statHeight = 96;
-  const gap = 18;
-  const totalWidth = statWidth * 3 + gap * 2;
-  const startX = layout.width / 2 - totalWidth / 2;
-  const statsY = y + 126;
-  drawStat(ctx, startX, statsY, statWidth, statHeight, 'REMAINING HP', `${Math.round(summary.remainingHp).toLocaleString()} · ${Math.round(summary.remainingHpRatio * 100)}%`, LEFT_ACCENT);
-  drawStat(ctx, startX + statWidth + gap, statsY, statWidth, statHeight, 'LARGEST HIT', summary.largestHit ? Math.round(summary.largestHit.amount).toLocaleString() : '—', '#ffd06b');
-  drawStat(ctx, startX + (statWidth + gap) * 2, statsY, statWidth, statHeight, 'BATTLE TIME', formatDuration(summary.durationSeconds), RIGHT_ACCENT);
+  const heroX = x + 250;
+  const contentX = x + 470;
+  const contentWidth = width - 520;
+  drawText(ctx, summary.winningTeam === null ? 'BATTLE COMPLETE' : 'VICTORY', heroX, y + 60, 18, 950, READY_ACCENT, 'center', 2);
+  drawFittedText(ctx, summary.winnerName, heroX, y + 118, 390, 48, 950, TEXT_PRIMARY, 'center');
+  if (winner) drawWinnerPortrait(ctx, winner, heroX, y + 310, 164, winnerFacing);
 
-  const abilityY = y + 267;
-  drawText(ctx, 'MOST DAMAGING ABILITY', layout.width / 2, abilityY, 12, 900, TEXT_SECONDARY, 'center', 1);
-  drawFittedText(
-    ctx,
-    summary.topAbility?.abilityName ?? 'No ability damage recorded',
-    layout.width / 2,
-    abilityY + 31,
-    width - 100,
-    22,
-    900,
-    summary.topAbility ? TEXT_PRIMARY : TEXT_SECONDARY,
-    'center'
-  );
+  const statWidth = 218;
+  const statHeight = 108;
+  const gap = 14;
+  const statsY = y + 88;
+  drawStat(ctx, contentX, statsY, statWidth, statHeight, 'REMAINING HP', `${Math.round(summary.remainingHp).toLocaleString()} · ${Math.round(summary.remainingHpRatio * 100)}%`, LEFT_ACCENT);
+  drawStat(ctx, contentX + statWidth + gap, statsY, statWidth, statHeight, 'LARGEST HIT', summary.largestHit ? Math.round(summary.largestHit.amount).toLocaleString() : '—', '#ffd06b');
+  drawStat(ctx, contentX + (statWidth + gap) * 2, statsY, statWidth, statHeight, 'BATTLE TIME', formatDuration(summary.durationSeconds), RIGHT_ACCENT);
+
+  const abilityY = y + 255;
+  drawText(ctx, 'MOST DAMAGING ABILITY', contentX + contentWidth / 2, abilityY, 14, 900, TEXT_SECONDARY, 'center', 1.2);
+  drawFittedText(ctx, summary.topAbility?.abilityName ?? 'No ability damage recorded', contentX + contentWidth / 2, abilityY + 40, contentWidth - 20, 30, 900, summary.topAbility ? TEXT_PRIMARY : TEXT_SECONDARY, 'center');
   if (summary.topAbility) {
-    drawText(
-      ctx,
-      `${Math.round(summary.topAbility.totalDamage).toLocaleString()} total damage · ${summary.topAbility.sourceName}`,
-      layout.width / 2,
-      abilityY + 54,
-      11,
-      750,
-      TEXT_SECONDARY,
-      'center'
-    );
+    drawText(ctx, `${Math.round(summary.topAbility.totalDamage).toLocaleString()} total damage · ${summary.topAbility.sourceName}`, contentX + contentWidth / 2, abilityY + 72, 13, 750, TEXT_SECONDARY, 'center');
   }
 
   if (summary.highlight) {
-    drawPill(
-      ctx,
-      `HIGHLIGHT · ${summary.highlight.title.toUpperCase()}`,
-      x + 170,
-      y + height - 48,
-      width - 340,
-      32,
-      'rgba(34, 25, 52, 0.92)',
-      PANEL_BORDER,
-      TEXT_PRIMARY,
-      11
-    );
+    drawPill(ctx, `FINISHING MOMENT · ${summary.highlight.title.toUpperCase()}`, contentX, y + height - 86, contentWidth, 42, 'rgba(34, 25, 52, 0.94)', PANEL_BORDER, TEXT_PRIMARY, 13);
   }
+}
+
+function drawWinnerPortrait(
+  ctx: CanvasRenderingContext2D,
+  winner: BroadcastScene['left'],
+  x: number,
+  y: number,
+  radius: number,
+  facing: 'left' | 'right'
+): void {
+  const accent = color(winner.visual.accentColor);
+  const glow = ctx.createRadialGradient(x, y, radius * 0.18, x, y, radius * 1.62);
+  glow.addColorStop(0, withAlpha(accent, 0.24));
+  glow.addColorStop(0.58, withAlpha(accent, 0.08));
+  glow.addColorStop(1, withAlpha(accent, 0));
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x, y, radius * 1.62, 0, Math.PI * 2);
+  ctx.fill();
+  drawBroadcastFighterPortrait(ctx, winner, x, y, radius, facing);
 }
 
 function drawStat(

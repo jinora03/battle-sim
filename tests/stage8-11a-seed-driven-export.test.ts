@@ -133,7 +133,7 @@ describe('Stage 8.11A seed-driven export', () => {
     expect(setup).toEqual(setupBefore);
   });
 
-  it('keeps Current Replay export while adding cached setup+seed generation to the creator hook', () => {
+  it('keeps arena replay export while adding cached setup+seed generation to the creator hook', () => {
     const runtime = readFileSync(new URL('../apps/game/src/runtime/BattleRuntime.ts', import.meta.url), 'utf8');
     const hook = readFileSync(new URL('../apps/game/src/hooks/useReplayVideoExport.ts', import.meta.url), 'utf8');
     const panel = readFileSync(new URL('../apps/game/src/features/battle/BattleVideoExport.tsx', import.meta.url), 'utf8');
@@ -141,7 +141,7 @@ describe('Stage 8.11A seed-driven export', () => {
     expect(hook).toContain('runtime.createReplayExportSource()');
     expect(hook).toContain('generateSeedReplay(configuredBattle');
     expect(hook).toContain("cached?.key === configuredBattleKey");
-    expect(panel).toContain('Current replay');
+    expect(panel).toContain('Arena replay');
     expect(panel).toContain('Setup + seed');
     expect(panel).toContain('Randomize');
     expect(panel).toContain('Reuse current');

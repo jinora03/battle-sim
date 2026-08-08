@@ -72,17 +72,17 @@ describe('Stage 8.11F creator export UX and intro parity', () => {
     expect(panel).toContain('Queue downloads always stay manual');
   });
 
-  it('uses the normal battle Match Prepared / VS presentation as the export intro visual source', () => {
+  it('uses the normal battle matchup / VS presentation as the export intro visual source', () => {
     const liveIntro = readFileSync(new URL('../apps/game/src/BattleIntroOverlay.tsx', import.meta.url), 'utf8');
     const liveCss = readFileSync(new URL('../apps/game/src/styles/60-battle-intro.css', import.meta.url), 'utf8');
     const exportIntro = readFileSync(new URL('../packages/video-export/src/renderers/creatorCards.ts', import.meta.url), 'utf8');
 
-    expect(liveIntro).toContain("'Match prepared'");
+    expect(liveIntro).toContain("'Who will win?'");
     expect(liveIntro).toContain('battle-intro-versus');
     expect(liveCss).toContain('battle-intro-enter-left');
     expect(liveCss).toContain('battle-intro-versus-pop');
 
-    expect(exportIntro).toContain("'MATCH PREPARED'");
+    expect(exportIntro).toContain("'WHO WILL WIN?'");
     expect(exportIntro).toContain("'VS'");
     expect(exportIntro).toContain("'BATTLE START'");
     expect(exportIntro).toContain('fighterProgress');

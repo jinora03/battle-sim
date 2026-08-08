@@ -53,6 +53,10 @@ export class BattleCamera {
     this.shake = Math.max(this.shake, amount);
   }
 
+  getCurrentScale(): number {
+    return this.cameraScale;
+  }
+
   fit(viewportWidth: number, viewportHeight: number): void {
     if (!this.arena) return;
     this.baseScale = calculateArenaFit(
