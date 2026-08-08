@@ -1,4 +1,4 @@
-import type { ChangeEvent } from 'react';
+import type { ChangeEvent, MouseEvent } from 'react';
 import {
   formatBytes,
   getBroadcastLayout,
@@ -12,6 +12,7 @@ import {
   type VideoExportResolution
 } from '@kinetic/video-export';
 import type { ReplayVideoExportController, ReplayVideoSourceMode } from '../../hooks/useReplayVideoExport';
+import { requestDeveloperAccess } from '../../developerAccess';
 import { NeonButton } from '../../ui/NeonUI';
 
 const BROADCAST_LAYOUT_OPTIONS = ['landscape', 'vertical'] as const;
@@ -52,11 +53,20 @@ export function BattleVideoExport({
     : capability.supported
       ? `${capability.container?.toUpperCase()} · ${capability.codec?.toUpperCase()}${capability.audioCodec ? ` + ${capability.audioCodec.toUpperCase()}` : ''}`
       : 'Unavailable';
-
+  const handleSummaryClick = (event: MouseEvent<HTMLElement>) => {
+    const details = event.currentTarget.parentElement as HTMLDetailsElement | null;
+    if (!details) return;
+    event.preventDefault();
+    if (details.open) {
+      details.open = false;
+      return;
+    }
+    if (requestDeveloperAccess('Replay video export')) details.open = true;
+  };
 
   return (
-    <details className="panel-section battle-video-export" open>
-      <summary className="panel-summary">
+    <details className="panel-section battle-video-export">
+      <summary className="panel-summary" onClick={handleSummaryClick}>
         <span><small>Creator export</small><strong>Replay video</strong></span>
         <em>{resolution} · {fps}</em>
       </summary>
