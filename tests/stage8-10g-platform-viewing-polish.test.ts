@@ -26,9 +26,9 @@ describe('Stage 8.10G platform viewing polish', () => {
     expect(vertical.arena.y + vertical.arena.height).toBeLessThanOrEqual(1400);
 
     const source = readFileSync(new URL('../packages/video-export/src/renderers/verticalBroadcastRenderer.ts', import.meta.url), 'utf8');
-    expect(source).toContain("{ x: 40, y: 112, width: 470, height: 200 }");
-    expect(source).toContain("{ x: 570, y: 112, width: 470, height: 200 }");
-    expect(source).toContain("drawText(ctx, 'VS', 540, 220");
+    expect(source).toContain("{ x: 16, y: 112, width: 492, height: 200 }");
+    expect(source).toContain("{ x: 572, y: 112, width: 492, height: 200 }");
+    expect(source).toContain("drawText(ctx, 'VS', 540, 212");
     expect(source).toContain('scene.modeName');
     expect(source).toContain('scene.arenaName');
     expect(source).toContain('drawVerticalSkillsPanel(');

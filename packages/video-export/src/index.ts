@@ -11,6 +11,8 @@ export * from './broadcastScene';
 export * from './cinematicCamera';
 export * from './cinematicHighlights';
 export * from './creatorHighlights';
+export * from './creatorBackgroundMusic';
+export * from './creatorMatchupHook';
 export * from './creatorHighlightScoring';
 export * from './creatorPresets';
 export * from './creatorThumbnail';
@@ -18,6 +20,7 @@ export * from './exportArchive';
 export * from './exportQueue';
 export * from './exportReliability';
 export * from './replayFrameStepper';
+export * from './replayLayoutPreview';
 export * from './replayVideoExporter';
 export * from './runtimeReplayAudio';
 export * from './seedReplayGenerator';
@@ -26,3 +29,7 @@ export * from './settings';
 export * from './types';
 export * from './webCodecs';
 export * from './webmMuxer';
+
+export * from './renderers/fighterNameplates';
+
+export * from './renderers/weaponPreview';

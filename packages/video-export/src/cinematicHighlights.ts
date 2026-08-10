@@ -5,9 +5,12 @@ import { ReplayFrameStepper } from './replayFrameStepper';
 import { scoreCreatorHighlightEvent } from './creatorHighlightScoring';
 
 const SIM_TICK_RATE = 60;
-const MIN_FOCUS_SCORE = 700;
-const MIN_SLOW_MOTION_SCORE = 760;
+const MIN_FOCUS_SCORE = 420;
+const MIN_SLOW_MOTION_SCORE = 420;
 const MIN_MOMENT_SPACING_TICKS = 150;
+export const CINEMATIC_HIGHLIGHT_MERGE_TICKS = 18; // 300 ms at 60 Hz
+export const CINEMATIC_HIGHLIGHT_EXTRA_FRAME_COPIES = 1;
+export const CINEMATIC_HIGHLIGHT_PLAYBACK_RATE = 1 / (CINEMATIC_HIGHLIGHT_EXTRA_FRAME_COPIES + 1);
 const FINAL_KNOCKOUT_GUARD_TICKS = 75;
 const FOCUS_LEAD_TICKS = 24;
 const FOCUS_TRAIL_TICKS = 36;
@@ -93,7 +96,8 @@ export function createCinematicHighlightPlan(
 
   const shortBattleLimit = endTick < 600 ? 1 : camera.maxHighlightSlowMotionMoments;
   const selected: CinematicHighlightCandidate[] = [];
-  const ordered = candidates
+  const ordered = coalesceImpactCandidates(candidates)
+    .filter((candidate) => candidate.kind === 'heavy-hit')
     .filter((candidate) => candidate.score >= MIN_FOCUS_SCORE)
     .filter((candidate) => candidate.tick < Math.max(1, endTick - FINAL_KNOCKOUT_GUARD_TICKS))
     .slice()
@@ -191,6 +195,40 @@ export function cinematicHighlightOffsetSecondsAtTick(
   return duplicatedFrames / plan.fps;
 }
 
+export function coalesceImpactCandidates(
+  candidates: readonly CinematicHighlightCandidate[],
+  mergeTicks: number = CINEMATIC_HIGHLIGHT_MERGE_TICKS
+): CinematicHighlightCandidate[] {
+  const ordered = candidates
+    .filter((candidate) => candidate.kind === 'heavy-hit')
+    .slice()
+    .sort((left, right) => left.tick - right.tick || right.score - left.score || compareKinds(left.kind, right.kind));
+  const merged: CinematicHighlightCandidate[] = [];
+
+  for (let index = 0; index < ordered.length;) {
+    const clusterStartTick = ordered[index]!.tick;
+    const cluster: CinematicHighlightCandidate[] = [];
+    while (index < ordered.length && ordered[index]!.tick - clusterStartTick <= mergeTicks) {
+      cluster.push(ordered[index]!);
+      index += 1;
+    }
+
+    const primary = cluster.slice().sort(
+      (left, right) => right.score - left.score || left.tick - right.tick || compareKinds(left.kind, right.kind)
+    )[0]!;
+    const positions = cluster.flatMap((candidate) => candidate.position ? [candidate.position] : []);
+    const position = positions.length === 0
+      ? primary.position
+      : {
+          x: positions.reduce((sum, value) => sum + value.x, 0) / positions.length,
+          y: positions.reduce((sum, value) => sum + value.y, 0) / positions.length
+        };
+    merged.push({ ...primary, position });
+  }
+
+  return merged;
+}
+
 function collectCandidates(
   events: readonly SimulationEvent[],
   candidates: CinematicHighlightCandidate[]
@@ -235,7 +273,7 @@ function countSlowMotionFrames(
     && partialFinalFrameEnd >= moment.slowMotionStartTick
     && partialFinalFrameEnd <= upperTick
     && partialFinalFrameEnd > lastRegularFrameEnd) count += 1;
-  return count;
+  return count * CINEMATIC_HIGHLIGHT_EXTRA_FRAME_COPIES;
 }
 
 function isTickInSlowMotionMoment(moment: CinematicHighlightMoment, tick: number): boolean {

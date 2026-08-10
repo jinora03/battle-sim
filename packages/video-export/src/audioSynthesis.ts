@@ -135,5 +135,7 @@ function deterministicNoise(seed: number, sampleIndex: number): number {
   value ^= value >>> 15;
   value = Math.imul(value, 0x846ca68b);
   value ^= value >>> 16;
-  return (value / 0xffffffff) * 2 - 1;
+  // Math.imul/xor operations return signed int32 values. Normalize the final
+  // uint32 hash so fallback export noise stays bipolar like live audio.
+  return ((value >>> 0) / 0xffffffff) * 2 - 1;
 }

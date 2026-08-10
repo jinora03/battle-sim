@@ -5,11 +5,13 @@ import { ReplayAudioTimeline } from './audioTimeline';
 import { BroadcastFrameRenderer } from './broadcastRenderer';
 import {
   buildCinematicHighlightPlan,
+  CINEMATIC_HIGHLIGHT_EXTRA_FRAME_COPIES,
   cinematicHighlightOffsetSecondsAtTick,
   getCinematicHighlightFocus,
   isCinematicHighlightSlowMotionFrame
 } from './cinematicHighlights';
 import { CreatorReplayAnalyzer } from './creatorHighlights';
+import { CreatorBackgroundMusicMixer } from './creatorBackgroundMusic';
 import { captureCreatorThumbnail, encodeCreatorThumbnail } from './creatorThumbnail';
 import { ReplayFrameStepper } from './replayFrameStepper';
 import { RuntimeReplayAudioTimeline, renderRuntimeReplayAudio } from './runtimeReplayAudio';
@@ -161,6 +163,9 @@ export class ReplayVideoExporter {
         if (!frame) break;
         audioTimeline.addEvents(frame.events);
         runtimeAudioTimeline.addEvents(frame.events);
+        for (const sample of frame.audioEntityCounts) {
+          runtimeAudioTimeline.setEntityCount(sample.tick, sample.entityCount);
+        }
         const highlightChanged = creatorAnalyzer.update(frame.snapshot, frame.events);
         const cinematicHighlight = getCinematicHighlightFocus(highlightPlan, frame.snapshot.tick);
         renderer.renderExportFrame(frame.snapshot, frame.events, 1000 / settings.fps);
@@ -197,8 +202,10 @@ export class ReplayVideoExporter {
             showCaptions: settings.creator.captionsEnabled,
             highlight: cinematicHighlight ? { ...cinematicHighlight, slowMotion: true } : null
           });
-          const slowTimestampUs = Math.round(renderedFrames * 1_000_000 / settings.fps);
-          await encodeFrame(slowMotionCanvas, slowTimestampUs, frame.durationUs);
+          for (let copy = 0; copy < CINEMATIC_HIGHLIGHT_EXTRA_FRAME_COPIES; copy += 1) {
+            const slowTimestampUs = Math.round(renderedFrames * 1_000_000 / settings.fps);
+            await encodeFrame(slowMotionCanvas, slowTimestampUs, frame.durationUs);
+          }
         }
       }
 
@@ -267,11 +274,24 @@ export class ReplayVideoExporter {
           settings.audio.sampleRate,
           settings.audio.channels
         );
-        const totalAudioFrames = Math.ceil(renderedFrames / settings.fps * settings.audio.sampleRate);
+        const exportDurationSeconds = renderedFrames / settings.fps;
+        const backgroundMusic = settings.creator.backgroundMusicEnabled
+          ? new CreatorBackgroundMusicMixer({
+              seed: source.replay.battle.seed,
+              sampleRate: settings.audio.sampleRate,
+              channels: settings.audio.channels,
+              volume: settings.creator.backgroundMusicVolume,
+              durationSeconds: exportDurationSeconds,
+              introSeconds: introFrames / settings.fps,
+              resultHoldSeconds: resultHoldFrames / settings.fps
+            })
+          : null;
+        const totalAudioFrames = Math.ceil(exportDurationSeconds * settings.audio.sampleRate);
         for (let startFrame = 0; startFrame < totalAudioFrames; startFrame += media.audioFramesPerChunk) {
           this.throwIfCancelled(signal);
           const frameCount = Math.min(media.audioFramesPerChunk, totalAudioFrames - startFrame);
           const pcm = audioSource.renderInterleaved(startFrame, frameCount);
+          backgroundMusic?.mixIntoInterleaved(pcm, startFrame, frameCount);
           media.encodeAudio(pcm, Math.round(startFrame * 1_000_000 / settings.audio.sampleRate), frameCount);
           encodedBytes = media.byteLength;
           if (media.audioQueueSize >= ENCODER_QUEUE_LIMIT) {

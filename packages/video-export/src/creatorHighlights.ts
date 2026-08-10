@@ -57,18 +57,6 @@ export class CreatorReplayAnalyzer {
           abilityId: event.abilityId,
           tick: event.tick
         });
-        if (event.type === 'abilityActivated' && event.slot === 'ultimate') {
-          const actor = this.entityNames.get(event.entityId) ?? 'Fighter';
-          this.considerHighlight(
-            scoreCreatorHighlightEvent(event)?.score ?? 0,
-            {
-              tick: event.tick,
-              kind: 'ultimate',
-              title: resolveAbilityName(event.abilityId),
-              detail: `${actor} committed an ultimate`
-            }
-          );
-        }
       } else if (event.type === 'damage' && !event.prevented && event.amount > 0) {
         const sourceName = event.sourceId === undefined
           ? 'Arena'

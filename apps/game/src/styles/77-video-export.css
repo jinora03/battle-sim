@@ -276,6 +276,32 @@
   color: #91f4c6;
 }
 
+.video-export-music-volume {
+  grid-column: 1 / -1;
+}
+
+.video-export-music-volume > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.video-export-music-volume > span strong {
+  color: #dcecff;
+  font-size: .62rem;
+}
+
+.video-export-music-volume input[type='range'] {
+  width: 100%;
+  margin: 2px 0 0;
+  accent-color: #5baeff;
+}
+
+.video-export-music-volume input[type='range']:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
 .video-export-preset-picker {
   display: grid;
   gap: 5px;
@@ -1095,5 +1121,200 @@
 
   .video-export-source-identity > span {
     justify-self: start;
+  }
+}
+
+.video-export-layout-preview {
+  display: grid;
+  gap: 9px;
+  padding: 11px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .02);
+}
+
+.video-export-layout-preview-heading {
+  display: grid;
+  gap: 9px;
+}
+
+.video-export-layout-preview-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.video-export-layout-preview-copy small,
+.video-export-layout-preview-modal-heading small {
+  color: #7fa4c7;
+  font-size: .58rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.video-export-layout-preview-copy strong {
+  color: #e9f4ff;
+  font-size: .76rem;
+  line-height: 1.25;
+}
+
+.video-export-layout-preview-copy span {
+  color: #7893ae;
+  font-size: .61rem;
+  line-height: 1.25;
+}
+
+.video-export-layout-preview p {
+  margin: 0;
+  color: #89a4bf;
+  font-size: .64rem;
+  line-height: 1.4;
+}
+
+.video-export-layout-preview-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  width: 100%;
+}
+
+.video-export-layout-preview-actions button:only-child {
+  grid-column: 1 / -1;
+}
+
+.video-export-layout-preview-actions button,
+.video-export-layout-preview-links button,
+.video-export-layout-preview-modal-heading button {
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .035);
+  color: #dcecff;
+  font: inherit;
+  font-size: .62rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.video-export-layout-preview-actions button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.video-export-layout-preview-result {
+  display: grid;
+  gap: 7px;
+}
+
+.video-export-layout-preview-crop {
+  width: 100%;
+  aspect-ratio: 1080 / 340;
+  overflow: hidden;
+  border: 1px solid rgba(116, 190, 255, .25);
+  border-radius: 8px;
+  background: #050810;
+}
+
+.video-export-layout-preview-crop img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.video-export-layout-preview-links {
+  display: grid;
+  gap: 6px;
+  color: #7f98b2;
+  font-size: .6rem;
+  line-height: 1.3;
+}
+
+.video-export-layout-preview-links button {
+  width: 100%;
+}
+
+.video-export-layout-preview-error {
+  color: #ffb2bc !important;
+}
+
+.video-export-layout-preview-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: grid;
+  place-items: center;
+  padding: clamp(12px, 3vw, 32px);
+  background: rgba(2, 5, 12, .84);
+  backdrop-filter: blur(8px);
+}
+
+.video-export-layout-preview-modal-card {
+  width: min(1180px, 96vw);
+  max-height: 94vh;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(116, 190, 255, .28);
+  border-radius: 14px;
+  background: #080d17;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .55);
+}
+
+.video-export-layout-preview-modal-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.video-export-layout-preview-modal-heading > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.video-export-layout-preview-modal-heading strong {
+  color: #e9f4ff;
+  font-size: .75rem;
+}
+
+.video-export-layout-preview-modal-heading button {
+  flex: 0 0 auto;
+}
+
+.video-export-layout-preview-modal-frame {
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  border: 1px solid rgba(116, 190, 255, .18);
+  border-radius: 10px;
+  background: #03060b;
+}
+
+.video-export-layout-preview-modal-frame img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(94vh - 78px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+@media (max-width: 520px) {
+  .video-export-layout-preview-modal {
+    padding: 8px;
+  }
+
+  .video-export-layout-preview-modal-card {
+    width: 100%;
+    max-height: 96vh;
+    padding: 9px;
+  }
+
+  .video-export-layout-preview-modal-heading {
+    align-items: flex-start;
   }
 }

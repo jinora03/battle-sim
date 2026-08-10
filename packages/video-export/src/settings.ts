@@ -34,6 +34,9 @@ export interface Stage810eExportOptions extends Stage810dExportOptions {
   highlights?: boolean;
   captions?: boolean;
   thumbnail?: boolean;
+  fighterNameplates?: boolean;
+  backgroundMusic?: boolean;
+  backgroundMusicVolume?: number;
   cameraShake?: boolean;
   screenFlash?: boolean;
 }
@@ -114,16 +117,17 @@ export function createStage810eExportSettings(
   presentation: Partial<PresentationSettings> = {},
   options: Stage810eExportOptions = {}
 ): ReplayVideoExportSettings {
+  const freshDefault = options.preset === undefined;
   const presetId = options.preset ?? 'youtube';
   const preset = presetId === 'custom' ? getCreatorExportPreset('youtube') : getCreatorExportPreset(presetId);
   const settings = createExportSettings(presentation, {
-    layout: options.layout ?? preset.layout,
+    layout: options.layout ?? (freshDefault ? 'vertical' : preset.layout),
     resolution: options.resolution ?? preset.resolution,
     fps: options.fps ?? preset.fps,
     quality: options.quality ?? preset.quality,
     audio: options.audio ?? preset.audio
   }, 2.8, options.camera ?? preset.camera, (options.camera ?? preset.camera) === 'broadcast' ? 0 : 0.45, 'webm');
-  const highlightsEnabled = options.highlights ?? true;
+  const highlightsEnabled = options.highlights ?? !freshDefault;
   return {
     ...settings,
     camera: {
@@ -138,9 +142,12 @@ export function createStage810eExportSettings(
     },
     creator: {
       preset: presetId,
-      introSeconds: options.intro === false ? 0 : 2,
+      introSeconds: options.intro === undefined ? (freshDefault ? 0 : 1.5) : options.intro ? 1.5 : 0,
       captionsEnabled: options.captions ?? true,
-      thumbnailEnabled: options.thumbnail ?? true
+      thumbnailEnabled: options.thumbnail ?? !freshDefault,
+      fighterNameplatesEnabled: options.fighterNameplates ?? true,
+      backgroundMusicEnabled: options.backgroundMusic ?? true,
+      backgroundMusicVolume: clampCreatorBackgroundMusicVolume(options.backgroundMusicVolume ?? 0.15)
     },
     presentation: {
       ...settings.presentation,
@@ -193,14 +200,17 @@ function createExportSettings(
       shakeEnabled: false,
       maxZoom: cameraMode === 'cinematic' ? 1.28 : 1,
       knockoutSlowMotionSeconds,
-      highlightSlowMotionSeconds: cameraMode === 'cinematic' ? 0.35 : 0,
+      highlightSlowMotionSeconds: cameraMode === 'cinematic' ? 0.45 : 0,
       maxHighlightSlowMotionMoments: cameraMode === 'cinematic' ? 2 : 0
     },
     creator: {
       preset: 'custom',
       introSeconds: 0,
       captionsEnabled: true,
-      thumbnailEnabled: false
+      thumbnailEnabled: false,
+      fighterNameplatesEnabled: true,
+      backgroundMusicEnabled: false,
+      backgroundMusicVolume: 0.15
     },
     audio: {
       enabled: options.audio,
@@ -255,6 +265,11 @@ export function reconfigureReplayVideoExportSettings(
       targetRenderFps: fps
     }
   };
+}
+
+export function clampCreatorBackgroundMusicVolume(value: number): number {
+  if (!Number.isFinite(value)) return 0.15;
+  return Math.max(0, Math.min(0.3, value));
 }
 
 export function calculateCreatorIntroFrameCount(settings: ReplayVideoExportSettings): number {

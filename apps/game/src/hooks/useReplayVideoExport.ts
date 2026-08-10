@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { getFighter } from '@kinetic/content';
 import type { AppSettings } from '@kinetic/platform';
+import type { BattleDefinition } from '@kinetic/protocol';
 import {
   ReplayVideoExporter,
   calculateCreatorIntroFrameCount,
@@ -15,6 +17,7 @@ import {
   generateSeedReplay,
   getCreatorExportPreset,
   rankBattleSeeds,
+  renderReplayLayoutPreview,
   runReplayExportQueue,
   type BroadcastLayoutId,
   type CreatorExportPresetId,
@@ -100,6 +103,8 @@ export interface ReplayVideoExportController {
   fps: VideoExportFrameRate;
   quality: VideoExportQuality;
   audioEnabled: boolean;
+  backgroundMusicEnabled: boolean;
+  backgroundMusicVolume: number;
   cameraMode: VideoExportCameraMode;
   cameraShakeEnabled: boolean;
   screenFlashEnabled: boolean;
@@ -108,9 +113,13 @@ export interface ReplayVideoExportController {
   highlightsEnabled: boolean;
   captionsEnabled: boolean;
   thumbnailEnabled: boolean;
+  fighterNameplatesEnabled: boolean;
   autoDownloadEnabled: boolean;
   directDownload: ReplayDirectDownloadState;
   history: ReplayExportHistoryEntry[];
+  layoutPreviewUrl: string | null;
+  layoutPreviewing: boolean;
+  layoutPreviewError: string | null;
   setSourceMode(mode: ReplayVideoSourceMode): void;
   setGenerationSeedText(value: string): void;
   randomizeSeed(): void;
@@ -132,6 +141,8 @@ export interface ReplayVideoExportController {
   setFps(fps: VideoExportFrameRate): void;
   setQuality(quality: VideoExportQuality): void;
   setAudioEnabled(enabled: boolean): void;
+  setBackgroundMusicEnabled(enabled: boolean): void;
+  setBackgroundMusicVolume(volume: number): void;
   setCameraMode(mode: VideoExportCameraMode): void;
   setCameraShakeEnabled(enabled: boolean): void;
   setScreenFlashEnabled(enabled: boolean): void;
@@ -140,10 +151,13 @@ export interface ReplayVideoExportController {
   setHighlightsEnabled(enabled: boolean): void;
   setCaptionsEnabled(enabled: boolean): void;
   setThumbnailEnabled(enabled: boolean): void;
+  setFighterNameplatesEnabled(enabled: boolean): void;
   setAutoDownloadEnabled(enabled: boolean): void;
   downloadLatest(): void;
   downloadLatestThumbnail(): void;
   clearHistory(): void;
+  refreshLayoutPreview(): void;
+  clearLayoutPreview(): void;
   start(mode?: ReplayVideoSourceMode): void;
   cancel(): void;
 }
@@ -191,22 +205,29 @@ export function useReplayVideoExport(
   const [sourceMode, setSourceMode] = useState<ReplayVideoSourceMode>('current-replay');
   const [generationSeedText, setGenerationSeedTextState] = useState(() => String(normalizeBattleSeed(currentSeed)));
   const [format, setFormatState] = useState<VideoExportFormat>('auto');
-  const [layout, setLayoutState] = useState<BroadcastLayoutId>('landscape');
+  const [layout, setLayoutState] = useState<BroadcastLayoutId>('vertical');
   const [resolution, setResolutionState] = useState<VideoExportResolution>('1080p');
   const [fps, setFpsState] = useState<VideoExportFrameRate>(60);
-  const [quality, setQualityState] = useState<VideoExportQuality>('high');
+  const [quality, setQualityState] = useState<VideoExportQuality>('maximum');
   const [audioEnabled, setAudioEnabledState] = useState(true);
-  const [cameraMode, setCameraModeState] = useState<VideoExportCameraMode>('cinematic');
+  const [backgroundMusicEnabled, setBackgroundMusicEnabledState] = useState(false);
+  const [backgroundMusicVolume, setBackgroundMusicVolumeState] = useState(0.15);
+  const [cameraMode, setCameraModeState] = useState<VideoExportCameraMode>('broadcast');
   const [cameraShakeEnabled, setCameraShakeEnabledState] = useState(true);
   const [screenFlashEnabled, setScreenFlashEnabledState] = useState(true);
-  const [preset, setPreset] = useState<CreatorExportPresetId>('youtube');
-  const [introEnabled, setIntroEnabledState] = useState(true);
-  const [highlightsEnabled, setHighlightsEnabledState] = useState(true);
+  const [preset, setPreset] = useState<CreatorExportPresetId>('custom');
+  const [introEnabled, setIntroEnabledState] = useState(false);
+  const [highlightsEnabled, setHighlightsEnabledState] = useState(false);
   const [captionsEnabled, setCaptionsEnabledState] = useState(true);
-  const [thumbnailEnabled, setThumbnailEnabledState] = useState(true);
+  const [thumbnailEnabled, setThumbnailEnabledState] = useState(false);
+  const [fighterNameplatesEnabled, setFighterNameplatesEnabledState] = useState(true);
   const [autoDownloadEnabled, setAutoDownloadEnabledState] = useState(readAutoDownloadPreference);
   const [directDownload, setDirectDownload] = useState<ReplayDirectDownloadState>(INITIAL_DIRECT_DOWNLOAD);
   const [history, setHistory] = useState<ReplayExportHistoryEntry[]>(readReplayExportHistory);
+  const [layoutPreviewUrl, setLayoutPreviewUrl] = useState<string | null>(null);
+  const [layoutPreviewing, setLayoutPreviewing] = useState(false);
+  const [layoutPreviewError, setLayoutPreviewError] = useState<string | null>(null);
+  const layoutPreviewUrlRef = useRef<string | null>(null);
   const [batchSize, setBatchSize] = useState<SeedBatchSize>(10);
   const [batchResults, setBatchResults] = useState<RankedSeedBattle[]>([]);
   const [batchProgress, setBatchProgress] = useState<SeedBatchProgress | null>(null);
@@ -218,8 +239,9 @@ export function useReplayVideoExport(
   const exportSettings = useMemo(() => createStage810hExportSettings(settings, {
     format, preset, layout, resolution, fps, quality, audio: audioEnabled, camera: cameraMode,
     intro: introEnabled, highlights: highlightsEnabled, captions: captionsEnabled, thumbnail: thumbnailEnabled,
-    cameraShake: cameraShakeEnabled, screenFlash: screenFlashEnabled
-  }), [audioEnabled, cameraMode, cameraShakeEnabled, captionsEnabled, format, fps, highlightsEnabled, introEnabled, layout, preset, quality, resolution, screenFlashEnabled, settings, thumbnailEnabled]);
+    fighterNameplates: fighterNameplatesEnabled, backgroundMusic: backgroundMusicEnabled,
+    backgroundMusicVolume, cameraShake: cameraShakeEnabled, screenFlash: screenFlashEnabled
+  }), [audioEnabled, backgroundMusicEnabled, backgroundMusicVolume, cameraMode, cameraShakeEnabled, captionsEnabled, fighterNameplatesEnabled, format, fps, highlightsEnabled, introEnabled, layout, preset, quality, resolution, screenFlashEnabled, settings, thumbnailEnabled]);
   const exporterRef = useRef(new ReplayVideoExporter());
   const abortRef = useRef<AbortController | null>(null);
   const preparedSourceRef = useRef<{ key: string; source: ReplayExportSource } | null>(null);
@@ -302,6 +324,14 @@ export function useReplayVideoExport(
     setPreset('custom');
     setAudioEnabledState(value);
   }, []);
+  const setBackgroundMusicEnabled = useCallback((value: boolean) => {
+    setPreset('custom');
+    setBackgroundMusicEnabledState(value);
+  }, []);
+  const setBackgroundMusicVolume = useCallback((value: number) => {
+    setPreset('custom');
+    setBackgroundMusicVolumeState(Math.max(0, Math.min(0.3, value)));
+  }, []);
   const setCameraMode = useCallback((value: VideoExportCameraMode) => {
     setPreset('custom');
     setCameraModeState(value);
@@ -330,6 +360,10 @@ export function useReplayVideoExport(
     setPreset('custom');
     setThumbnailEnabledState(value);
   }, []);
+  const setFighterNameplatesEnabled = useCallback((value: boolean) => {
+    setPreset('custom');
+    setFighterNameplatesEnabledState(value);
+  }, []);
   const setAutoDownloadEnabled = useCallback((value: boolean) => {
     setAutoDownloadEnabledState(value);
     writeAutoDownloadPreference(value);
@@ -342,6 +376,8 @@ export function useReplayVideoExport(
     setFpsState(definition.fps);
     setQualityState(definition.quality);
     setAudioEnabledState(definition.audio);
+    setBackgroundMusicEnabledState(true);
+    setBackgroundMusicVolumeState(0.15);
     setCameraModeState(definition.camera);
     setCameraShakeEnabledState(true);
     setScreenFlashEnabledState(true);
@@ -349,10 +385,35 @@ export function useReplayVideoExport(
     setHighlightsEnabledState(true);
     setCaptionsEnabledState(true);
     setThumbnailEnabledState(true);
+    setFighterNameplatesEnabledState(true);
   }, []);
   const clearHistory = useCallback(() => {
     setHistory(clearReplayExportHistory());
   }, []);
+
+  const clearLayoutPreview = useCallback(() => {
+    if (layoutPreviewUrlRef.current) URL.revokeObjectURL(layoutPreviewUrlRef.current);
+    layoutPreviewUrlRef.current = null;
+    setLayoutPreviewUrl(null);
+    setLayoutPreviewError(null);
+  }, []);
+
+  const refreshLayoutPreview = useCallback(() => {
+    if (layoutPreviewing) return;
+    setLayoutPreviewing(true);
+    setLayoutPreviewError(null);
+
+    void renderReplayLayoutPreview(configuredBattle, exportSettings).then((blob) => {
+      const nextUrl = URL.createObjectURL(blob);
+      if (layoutPreviewUrlRef.current) URL.revokeObjectURL(layoutPreviewUrlRef.current);
+      layoutPreviewUrlRef.current = nextUrl;
+      setLayoutPreviewUrl(nextUrl);
+    }).catch((reason: unknown) => {
+      setLayoutPreviewError(reason instanceof Error ? reason.message : 'Could not render the layout preview.');
+    }).finally(() => {
+      setLayoutPreviewing(false);
+    });
+  }, [configuredBattle, exportSettings, layoutPreviewing]);
 
   const handoffDirectDownload = useCallback(async (files: ReplayQueueFileSet): Promise<boolean> => {
     setDirectDownload({
@@ -634,9 +695,15 @@ export function useReplayVideoExport(
     setBatchProgress(null);
   }, [configuredSetupKey]);
 
+  useEffect(() => {
+    clearLayoutPreview();
+  }, [clearLayoutPreview, configuredBattleKey, exportSettings]);
+
   useEffect(() => () => {
     abortRef.current?.abort();
     abortRef.current = null;
+    if (layoutPreviewUrlRef.current) URL.revokeObjectURL(layoutPreviewUrlRef.current);
+    layoutPreviewUrlRef.current = null;
   }, []);
 
   const searchSeeds = useCallback(() => {
@@ -779,7 +846,8 @@ export function useReplayVideoExport(
           },
           onItemComplete: (request, result, index, total) => {
             const descriptor = queueSourcesRef.current.get(request.sourceKey);
-            const files = createQueueFileSet(descriptor?.seed ?? 0, result);
+            const battle = descriptor?.kind === 'replay' ? descriptor.source.replay.battle : descriptor?.battle;
+            const files = createQueueFileSet(descriptor?.seed ?? 0, result, battle);
             queueFilesRef.current.set(request.id, files);
             setQueueItems((current) => current.map((item) => item.id === request.id ? {
               ...item,
@@ -930,7 +998,7 @@ export function useReplayVideoExport(
         abortController.signal
       );
       const result = reliable.result;
-      const files = createQueueFileSet(source.replay.battle.seed, result);
+      const files = createQueueFileSet(source.replay.battle.seed, result, source.replay.battle);
       directFilesRef.current = files;
       setDirectDownload({
         status: 'ready',
@@ -1032,6 +1100,8 @@ export function useReplayVideoExport(
     fps,
     quality,
     audioEnabled,
+    backgroundMusicEnabled,
+    backgroundMusicVolume,
     cameraMode,
     cameraShakeEnabled,
     screenFlashEnabled,
@@ -1040,9 +1110,13 @@ export function useReplayVideoExport(
     highlightsEnabled,
     captionsEnabled,
     thumbnailEnabled,
+    fighterNameplatesEnabled,
     autoDownloadEnabled,
     directDownload,
     history,
+    layoutPreviewUrl,
+    layoutPreviewing,
+    layoutPreviewError,
     setSourceMode,
     setGenerationSeedText,
     randomizeSeed,
@@ -1064,6 +1138,8 @@ export function useReplayVideoExport(
     setFps,
     setQuality,
     setAudioEnabled,
+    setBackgroundMusicEnabled,
+    setBackgroundMusicVolume,
     setCameraMode,
     setCameraShakeEnabled,
     setScreenFlashEnabled,
@@ -1072,10 +1148,13 @@ export function useReplayVideoExport(
     setHighlightsEnabled,
     setCaptionsEnabled,
     setThumbnailEnabled,
+    setFighterNameplatesEnabled,
     setAutoDownloadEnabled,
     downloadLatest,
     downloadLatestThumbnail,
     clearHistory,
+    refreshLayoutPreview,
+    clearLayoutPreview,
     start,
     cancel
   };
@@ -1131,14 +1210,48 @@ function hashReplayData(replay: ReplayExportSource['replay']): string {
   return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
-function createQueueFileSet(seed: number, result: ReplayVideoExportResult): ReplayQueueFileSet {
+function createQueueFileSet(
+  seed: number,
+  result: ReplayVideoExportResult,
+  battle?: BattleDefinition
+): ReplayQueueFileSet {
   const audioSuffix = result.audioCodec ? '-audio' : '-silent';
-  const baseName = `kinetic-battle-${seed >>> 0}-${result.layout}-${result.cameraMode}-${result.resolution}-${result.fps}fps${audioSuffix}`;
+  const fighterSegment = battle ? `${createFighterFilenameSegment(battle)}-` : '';
+  const baseName = `kinetic-battle-${fighterSegment}${seed >>> 0}-${result.layout}-${result.cameraMode}-${result.resolution}-${result.fps}fps${audioSuffix}`;
   const extension = result.container === 'mp4' ? 'mp4' : 'webm';
   return {
     video: { filename: `${baseName}.${extension}`, blob: result.blob },
     thumbnail: result.thumbnailBlob ? { filename: `${baseName}-thumbnail.png`, blob: result.thumbnailBlob } : null
   };
+}
+
+function createFighterFilenameSegment(battle: BattleDefinition): string {
+  const fighterIds: string[] = [];
+  for (const participant of battle.participants) {
+    if (!fighterIds.includes(participant.fighterId)) fighterIds.push(participant.fighterId);
+    if (fighterIds.length >= 2) break;
+  }
+
+  const fighterNames = fighterIds.map((fighterId) => {
+    let label = fighterId;
+    try {
+      label = getFighter(fighterId).name;
+    } catch {
+      // Keep the content id for custom or unavailable registry entries.
+    }
+    return toFilenameSlug(label);
+  }).filter(Boolean);
+
+  if (fighterNames.length >= 2) return `${fighterNames[0]}-vs-${fighterNames[1]}`;
+  return fighterNames[0] ?? 'battle';
+}
+
+function toFilenameSlug(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 function createArchiveFilename(): string {
@@ -1161,11 +1274,11 @@ function downloadBlob(blob: Blob, filename: string): void {
 }
 
 function readAutoDownloadPreference(): boolean {
-  if (typeof window === 'undefined') return true;
+  if (typeof window === 'undefined') return false;
   try {
-    return window.localStorage.getItem(AUTO_DOWNLOAD_STORAGE_KEY) !== 'off';
+    return window.localStorage.getItem(AUTO_DOWNLOAD_STORAGE_KEY) === 'on';
   } catch {
-    return true;
+    return false;
   }
 }
 

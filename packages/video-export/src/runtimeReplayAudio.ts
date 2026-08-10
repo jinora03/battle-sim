@@ -1,9 +1,8 @@
 import { BattleAudioEngine } from '@kinetic/audio';
 import type { BattleDefinition, SimulationEvent, WorldSnapshot } from '@kinetic/protocol';
 
-const MASTER_LOW_PASS_HZ = 9_500;
-const MASTER_MAKEUP_GAIN = 1.35;
-const MASTER_OUTPUT_GAIN = 0.9;
+const EXPORT_MASTER_GAIN = 0.32;
+const PCM_PEAK_LIMIT = 0.98;
 
 export interface RuntimeReplayAudioRenderOptions {
   battle: BattleDefinition;
@@ -29,6 +28,7 @@ interface RuntimeReplayAudioBatch {
  */
 export class RuntimeReplayAudioTimeline {
   private readonly eventsByTick = new Map<number, SimulationEvent[]>();
+  private readonly entityCountByTick = new Map<number, number>();
 
   addEvents(events: readonly SimulationEvent[]): void {
     for (const event of events) {
@@ -36,6 +36,14 @@ export class RuntimeReplayAudioTimeline {
       if (existing) existing.push(event);
       else this.eventsByTick.set(event.tick, [event]);
     }
+  }
+
+  setEntityCount(tick: number, entityCount: number): void {
+    this.entityCountByTick.set(tick, Math.max(0, Math.floor(entityCount)));
+  }
+
+  entityCountAt(tick: number, fallback: number): number {
+    return this.entityCountByTick.get(tick) ?? fallback;
   }
 
   batches(): readonly RuntimeReplayAudioBatch[] {
@@ -46,10 +54,6 @@ export class RuntimeReplayAudioTimeline {
 }
 
 export class RuntimeReplayAudioBuffer {
-  private filterLeft = 0;
-  private filterRight = 0;
-  private lastProcessedEndFrame = 0;
-
   constructor(
     private readonly buffer: AudioBuffer,
     readonly sampleRate: number,
@@ -57,24 +61,16 @@ export class RuntimeReplayAudioBuffer {
   ) {}
 
   renderInterleaved(startFrame: number, frameCount: number): Float32Array {
-    if (startFrame !== this.lastProcessedEndFrame) {
-      this.filterLeft = 0;
-      this.filterRight = 0;
-    }
     const output = new Float32Array(frameCount * 2);
     const left = this.buffer.getChannelData(0);
     const right = this.buffer.numberOfChannels > 1 ? this.buffer.getChannelData(1) : left;
-    const alpha = 1 - Math.exp(-Math.PI * 2 * MASTER_LOW_PASS_HZ / this.sampleRate);
     for (let frame = 0; frame < frameCount; frame += 1) {
       const sourceFrame = startFrame + frame;
       const rawLeft = sourceFrame < left.length ? left[sourceFrame] ?? 0 : 0;
       const rawRight = sourceFrame < right.length ? right[sourceFrame] ?? 0 : 0;
-      this.filterLeft += alpha * (rawLeft - this.filterLeft);
-      this.filterRight += alpha * (rawRight - this.filterRight);
-      output[frame * 2] = Math.tanh(this.filterLeft * MASTER_MAKEUP_GAIN) * MASTER_OUTPUT_GAIN;
-      output[frame * 2 + 1] = Math.tanh(this.filterRight * MASTER_MAKEUP_GAIN) * MASTER_OUTPUT_GAIN;
+      output[frame * 2] = limitPcmPeak(rawLeft);
+      output[frame * 2 + 1] = limitPcmPeak(rawRight);
     }
-    this.lastProcessedEndFrame = startFrame + frameCount;
     return output;
   }
 }
@@ -97,7 +93,7 @@ export async function renderRuntimeReplayAudio(
     context,
     enabled: true,
     deterministicSeed: options.battle.seed,
-    masterGain: 0.36
+    masterGain: EXPORT_MASTER_GAIN
   });
   const focusEntityIds = options.initialSnapshot.entities
     .filter((entity) => entity.controller === 'player')
@@ -105,19 +101,32 @@ export async function renderRuntimeReplayAudio(
   const aiEntityIds = options.initialSnapshot.entities
     .filter((entity) => entity.controller === 'ai')
     .map((entity) => entity.id);
-  const entityCount = options.initialSnapshot.entities.length;
+  const initialEntityCount = options.initialSnapshot.entities.length;
 
   for (const batch of options.timeline.batches()) {
     const atSeconds = options.startOffsetSeconds
       + batch.tick / 60
       + Math.max(0, options.presentationOffsetSecondsAtTick?.(batch.tick) ?? 0);
-    engine.consumeAtTime(batch.events, atSeconds, entityCount, focusEntityIds, aiEntityIds);
+    const entityCount = options.timeline.entityCountAt(batch.tick, initialEntityCount);
+    engine.consumeAtTime(
+      batch.events,
+      atSeconds,
+      entityCount,
+      focusEntityIds,
+      aiEntityIds
+    );
     const battleEnded = batch.events.find((event) => event.type === 'battleEnded');
     if (battleEnded) scheduleResultAccent(context, atSeconds + options.resultDelaySeconds, battleEnded.winningTeam ?? 0);
   }
 
   const rendered = await context.startRendering();
   return new RuntimeReplayAudioBuffer(rendered, options.sampleRate, options.channels);
+}
+
+
+function limitPcmPeak(sample: number): number {
+  if (!Number.isFinite(sample)) return 0;
+  return Math.max(-PCM_PEAK_LIMIT, Math.min(PCM_PEAK_LIMIT, sample));
 }
 
 function scheduleResultAccent(context: OfflineAudioContext, startsAt: number, winningTeam: number): void {

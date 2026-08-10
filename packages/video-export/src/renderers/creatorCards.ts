@@ -1,6 +1,7 @@
 import type { BroadcastLayoutDefinition } from '../broadcastLayout';
 import type { BroadcastScene } from '../broadcastScene';
 import type { CreatorBattleSummary } from '../types';
+import { resolveMatchupHook } from '../creatorMatchupHook';
 import { drawBroadcastFighterPortrait } from './fighterPortrait';
 import {
   LEFT_ACCENT,
@@ -66,22 +67,36 @@ function drawIntro(
   const portraitRadius = vertical ? layout.width * 0.19 : layout.height * 0.235;
   const nameY = vertical ? layout.height * 0.34 : layout.height * 0.285;
   const identityY = nameY + (vertical ? 64 : 58);
-  const kickerY = vertical ? layout.height * 0.19 : layout.height * 0.165;
+  const kickerY = vertical ? layout.height * 0.225 : layout.height * 0.19;
   const versusY = portraitY + 4;
-  const fighterProgress = easeOutCubic(progress / 0.34);
-  const versusProgress = easeOutBack((progress - 0.19) / 0.27);
-  const startProgress = smoothStep((progress - 0.61) / 0.21);
-  const pulse = 1 + Math.sin(progress * Math.PI * 5.4) * 0.035;
+  const headlineProgress = easeOutCubic(progress / 0.055);
+  const nameProgress = easeOutCubic((progress - 0.07) / 0.17);
+  const fighterProgress = easeOutCubic((progress - 0.10) / 0.50);
+  const versusProgress = easeOutBack((progress - 0.22) / 0.38);
+  const startProgress = smoothStep((progress - 0.79) / 0.15);
+  const pulse = 1 + Math.sin(progress * Math.PI * 4.6) * 0.03;
 
   drawIntroBackdrop(ctx, layout, scene, portraitY);
 
   ctx.save();
-  ctx.globalAlpha *= easeOutCubic(progress / 0.16);
-  drawText(ctx, 'WHO WILL WIN?', centerX, kickerY, vertical ? 34 : 32, 950, TEXT_SECONDARY, 'center', 4.8);
+  ctx.globalAlpha *= headlineProgress;
+  ctx.shadowColor = 'rgba(92, 219, 255, 0.28)';
+  ctx.shadowBlur = vertical ? 18 : 16;
+  drawFittedText(
+    ctx,
+    resolveMatchupHook(scene.left, scene.right),
+    centerX,
+    kickerY,
+    vertical ? layout.width * 0.84 : layout.width * 0.64,
+    vertical ? 64 : 58,
+    950,
+    TEXT_PRIMARY,
+    'center'
+  );
   ctx.restore();
 
-  drawIntroNameplate(ctx, scene.left, leftX, nameY, identityY, fighterProgress, vertical);
-  drawIntroNameplate(ctx, scene.right, rightX, nameY, identityY, fighterProgress, vertical);
+  drawIntroNameplate(ctx, scene.left, leftX, nameY, identityY, nameProgress, vertical);
+  drawIntroNameplate(ctx, scene.right, rightX, nameY, identityY, nameProgress, vertical);
 
   const leftOffset = -(1 - fighterProgress) * layout.width * 0.28;
   const rightOffset = (1 - fighterProgress) * layout.width * 0.28;
@@ -138,7 +153,7 @@ function drawIntro(
     const flashY = vertical ? layout.height * 0.82 : layout.height * 0.91;
     const scale = 0.82 + easeOutBack(startProgress) * 0.18;
     ctx.save();
-    ctx.globalAlpha *= startProgress * (progress > 0.91 ? clamp01((1 - progress) / 0.09) : 1);
+    ctx.globalAlpha *= startProgress * (progress > 0.965 ? clamp01((1 - progress) / 0.035) : 1);
     ctx.translate(centerX, flashY);
     ctx.scale(scale, scale);
     ctx.translate(-centerX, -flashY);
@@ -207,7 +222,7 @@ function drawIntroNameplate(
 ): void {
   ctx.save();
   ctx.globalAlpha *= progress;
-  drawFittedText(ctx, fighter.name, x, nameY, vertical ? 430 : 590, vertical ? 61 : 66, 950, TEXT_PRIMARY, 'center');
+  drawFittedText(ctx, fighter.name, x, nameY, vertical ? 430 : 590, vertical ? 56 : 60, 950, TEXT_PRIMARY, 'center');
   drawText(
     ctx,
     fighter.identity.toUpperCase(),
@@ -394,8 +409,8 @@ function color(value: number): string {
 }
 
 function cardOpacity(progress: number): number {
-  if (progress < 0.12) return easeOutCubic(progress / 0.12);
-  if (progress > 0.86) return easeOutCubic((1 - progress) / 0.14);
+  if (progress < 0.06) return easeOutCubic(progress / 0.06);
+  if (progress > 0.93) return easeOutCubic((1 - progress) / 0.07);
   return 1;
 }
 

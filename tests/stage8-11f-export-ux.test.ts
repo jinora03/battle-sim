@@ -82,7 +82,7 @@ describe('Stage 8.11F creator export UX and intro parity', () => {
     expect(liveCss).toContain('battle-intro-enter-left');
     expect(liveCss).toContain('battle-intro-versus-pop');
 
-    expect(exportIntro).toContain("'WHO WILL WIN?'");
+    expect(exportIntro).toContain('resolveMatchupHook(scene.left, scene.right)');
     expect(exportIntro).toContain("'VS'");
     expect(exportIntro).toContain("'BATTLE START'");
     expect(exportIntro).toContain('fighterProgress');

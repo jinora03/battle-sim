@@ -3,12 +3,18 @@ import type { ReplayData, SimulationEvent, WorldSnapshot } from '@kinetic/protoc
 import { LocalSimulationRunner, SIM_TICK_RATE } from '@kinetic/simulation';
 import type { VideoExportFrameRate } from './types';
 
+export interface ReplayExportAudioEntityCount {
+  tick: number;
+  entityCount: number;
+}
+
 export interface ReplayExportFrame {
   frameIndex: number;
   timestampUs: number;
   durationUs: number;
   snapshot: WorldSnapshot;
   events: readonly SimulationEvent[];
+  audioEntityCounts: readonly ReplayExportAudioEntityCount[];
 }
 
 export class ReplayFrameStepper {
@@ -47,10 +53,14 @@ export class ReplayFrameStepper {
   next(): ReplayExportFrame | null {
     if (this.done) return null;
     const events: SimulationEvent[] = [];
+    const audioEntityCounts: ReplayExportAudioEntityCount[] = [];
+    let before = this.runner.getRuntimeSnapshot();
     for (let tickOffset = 0; tickOffset < this.ticksPerFrame && this.runner.tick < this.endTick; tickOffset += 1) {
-      const before = this.runner.getRuntimeSnapshot();
       const commands = this.controller.commandsForTick(before);
       events.push(...this.runner.step(commands));
+      const after = this.runner.getRuntimeSnapshot();
+      audioEntityCounts.push({ tick: after.tick, entityCount: after.entities.length });
+      before = after;
     }
     const snapshot = this.runner.getSnapshot();
     const frameIndex = this.frameIndex;
@@ -61,7 +71,8 @@ export class ReplayFrameStepper {
       timestampUs: Math.round(frameIndex * 1_000_000 / this.fps),
       durationUs,
       snapshot,
-      events
+      events,
+      audioEntityCounts
     };
   }
 

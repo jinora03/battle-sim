@@ -64,12 +64,12 @@ describe('Stage 8.10E creator polish', () => {
       resultHoldSeconds: 2.8,
       creator: {
         preset: 'shorts',
-        introSeconds: 2,
+        introSeconds: 1.5,
         captionsEnabled: true,
         thumbnailEnabled: true
       }
     });
-    expect(calculateCreatorIntroFrameCount(shorts)).toBe(120);
+    expect(calculateCreatorIntroFrameCount(shorts)).toBe(90);
 
     const custom = createStage810eExportSettings({}, {
       preset: 'custom', layout: 'landscape', resolution: '4k', fps: 30,
@@ -80,7 +80,7 @@ describe('Stage 8.10E creator polish', () => {
       height: 2160,
       fps: 30,
       creator: {
-        preset: 'custom', introSeconds: 0, captionsEnabled: false, thumbnailEnabled: false
+        preset: 'custom', introSeconds: 0, captionsEnabled: false, thumbnailEnabled: false, fighterNameplatesEnabled: true
       }
     });
   });

@@ -31,6 +31,10 @@ interface SourceFit {
   y: number;
 }
 
+export interface ArenaSourceProjection extends Vec2 {
+  scale: number;
+}
+
 const SOURCE_PADDING = 22;
 const MAX_RELEVANT_PROJECTILES = 10;
 const ULTIMATE_EXTRA_TICKS = 45;
@@ -290,6 +294,24 @@ export class CinematicCameraTracker {
     if (points.length === 0) points.push({ x: width / 2, y: height / 2, margin: Math.min(width, height) * 0.16 });
     return points;
   }
+}
+
+
+/**
+ * Projects arena-world coordinates into the export renderer's source canvas.
+ * Floating broadcast overlays reuse this exact fit so they stay aligned with
+ * the already-rendered Pixi arena without entering simulation or Pixi state.
+ */
+export function projectArenaWorldToSource(
+  point: Vec2,
+  viewportWidth: number,
+  viewportHeight: number,
+  arenaWidth: number,
+  arenaHeight: number
+): ArenaSourceProjection {
+  const fit = calculateSourceFit(viewportWidth, viewportHeight, arenaWidth, arenaHeight);
+  const projected = worldToSource(point, fit);
+  return { ...projected, scale: fit.scale };
 }
 
 function calculateSourceFit(
