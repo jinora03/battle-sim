@@ -1,4 +1,4 @@
-import type { ChangeEvent, MouseEvent } from 'react';
+import { useEffect, useState, type ChangeEvent, type MouseEvent } from 'react';
 import {
   formatBytes,
   getBroadcastLayout,
@@ -14,6 +14,7 @@ import {
 import type { ReplayVideoExportController, ReplayVideoSourceMode } from '../../hooks/useReplayVideoExport';
 import { requestDeveloperAccess } from '../../developerAccess';
 import { NeonButton } from '../../ui/NeonUI';
+import { createPortal } from 'react-dom';
 
 const BROADCAST_LAYOUT_OPTIONS = ['landscape', 'vertical'] as const;
 
@@ -30,13 +31,16 @@ export function BattleVideoExport({
     capability, deviceProfile, memoryForecast, progress, seedProgress, batchProgress, batchSearching, batchSize, batchResults,
     queueItems, queueRunning, queuePackaging, queueMessage, preparingReplay, running, error,
     sourceMode, generationSeedText, preparedReplayTick,
-    format, layout, resolution, fps, quality, audioEnabled, cameraMode, cameraShakeEnabled, screenFlashEnabled,
-    preset, introEnabled, highlightsEnabled, captionsEnabled, thumbnailEnabled, autoDownloadEnabled, directDownload, history,
+    format, layout, resolution, fps, quality, audioEnabled, backgroundMusicEnabled, backgroundMusicVolume,
+    cameraMode, cameraShakeEnabled, screenFlashEnabled,
+    preset, introEnabled, highlightsEnabled, captionsEnabled, thumbnailEnabled, fighterNameplatesEnabled, autoDownloadEnabled, directDownload, history,
+    layoutPreviewUrl, layoutPreviewing, layoutPreviewError,
     setSourceMode, setGenerationSeedText, randomizeSeed, reuseCurrentSeed, setBatchSize, searchSeeds, selectRankedSeed,
     addToQueue, queueTopRankedSeeds, startQueue, removeQueueItem, retryQueueItem, downloadQueueItem, downloadQueueArchive, clearQueue,
-    setFormat, setLayout, setResolution, setFps, setQuality, setAudioEnabled, setCameraMode, setCameraShakeEnabled, setScreenFlashEnabled,
-    applyPreset, setIntroEnabled, setHighlightsEnabled, setCaptionsEnabled, setThumbnailEnabled, setAutoDownloadEnabled,
-    downloadLatest, downloadLatestThumbnail, clearHistory,
+    setFormat, setLayout, setResolution, setFps, setQuality, setAudioEnabled, setBackgroundMusicEnabled, setBackgroundMusicVolume,
+    setCameraMode, setCameraShakeEnabled, setScreenFlashEnabled,
+    applyPreset, setIntroEnabled, setHighlightsEnabled, setCaptionsEnabled, setThumbnailEnabled, setFighterNameplatesEnabled, setAutoDownloadEnabled,
+    downloadLatest, downloadLatestThumbnail, clearHistory, refreshLayoutPreview, clearLayoutPreview,
     start, cancel
   } = controller;
   const layoutDefinition = getBroadcastLayout(layout, resolution === '4k' ? 2 : 1);
@@ -53,6 +57,20 @@ export function BattleVideoExport({
     : capability.supported
       ? `${capability.container?.toUpperCase()} · ${capability.codec?.toUpperCase()}${capability.audioCodec ? ` + ${capability.audioCodec.toUpperCase()}` : ''}`
       : 'Unavailable';
+  const [fullPreviewOpen, setFullPreviewOpen] = useState(false);
+
+  useEffect(() => {
+    if (!fullPreviewOpen) return undefined;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setFullPreviewOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [fullPreviewOpen]);
+
+  useEffect(() => {
+    if (!layoutPreviewUrl) setFullPreviewOpen(false);
+  }, [layoutPreviewUrl]);
   const handleSummaryClick = (event: MouseEvent<HTMLElement>) => {
     const details = event.currentTarget.parentElement as HTMLDetailsElement | null;
     if (!details) return;
@@ -269,6 +287,25 @@ export function BattleVideoExport({
               {audioEnabled ? 'On' : 'Off'}
             </button>
           </label>
+          <ToggleOption
+            label="Background music"
+            enabled={backgroundMusicEnabled}
+            disabled={running || !audioEnabled}
+            onChange={setBackgroundMusicEnabled}
+          />
+          <label className="video-export-music-volume">
+            <span>Music volume <strong>{Math.round(backgroundMusicVolume * 100)}%</strong></span>
+            <input
+              type="range"
+              min={0}
+              max={30}
+              step={1}
+              value={Math.round(backgroundMusicVolume * 100)}
+              disabled={running || !audioEnabled || !backgroundMusicEnabled}
+              aria-label="Background music volume"
+              onChange={(event) => setBackgroundMusicVolume(Number(event.target.value) / 100)}
+            />
+          </label>
           <ToggleOption label="Camera shake" enabled={cameraShakeEnabled} disabled={running} onChange={setCameraShakeEnabled} />
           <ToggleOption label="Screen flashes" enabled={screenFlashEnabled} disabled={running} onChange={setScreenFlashEnabled} />
           <ToggleOption label="Intro" enabled={introEnabled} disabled={running} onChange={setIntroEnabled} />
@@ -280,6 +317,7 @@ export function BattleVideoExport({
           />
           <ToggleOption label="Captions" enabled={captionsEnabled} disabled={running} onChange={setCaptionsEnabled} />
           <ToggleOption label="Thumbnail" enabled={thumbnailEnabled} disabled={running} onChange={setThumbnailEnabled} />
+          <ToggleOption label="Fighter names" enabled={fighterNameplatesEnabled} disabled={running} onChange={setFighterNameplatesEnabled} />
         </div>
 
         <div className="video-export-delivery">
@@ -302,11 +340,90 @@ export function BattleVideoExport({
           </p>
         )}
 
+        <section className="video-export-layout-preview" aria-label="Export layout preview">
+          <div className="video-export-layout-preview-heading">
+            <div className="video-export-layout-preview-copy">
+              <small>LAYOUT PREVIEW</small>
+              <strong>Exact export renderer</strong>
+              <span>Preview only · no video encoding</span>
+            </div>
+            <div className="video-export-layout-preview-actions">
+              <button type="button" onClick={refreshLayoutPreview} disabled={running || layoutPreviewing}>
+                {layoutPreviewing ? 'Rendering…' : layoutPreviewUrl ? 'Refresh preview' : 'Preview layout'}
+              </button>
+              {layoutPreviewUrl && (
+                <button
+                  type="button"
+                  onClick={() => { setFullPreviewOpen(false); clearLayoutPreview(); }}
+                  disabled={layoutPreviewing}
+                >
+                  Close
+                </button>
+              )}
+            </div>
+          </div>
+          <p>Uses the current fighter setup and the same Pixi + broadcast composition code as export. No replay loop, audio, codec, mux, or download.</p>
+          {layoutPreviewError && <p className="video-export-layout-preview-error">{layoutPreviewError}</p>}
+          {layoutPreviewUrl && (
+            <div className="video-export-layout-preview-result">
+              <div className="video-export-layout-preview-crop" aria-label="Top fighter card preview">
+                <img src={layoutPreviewUrl} alt="Top section of creator export layout" />
+              </div>
+              <div className="video-export-layout-preview-links">
+                <span>Top HUD crop · refresh after spacing or renderer changes</span>
+                <button type="button" onClick={() => setFullPreviewOpen(true)}>Open full frame</button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {layoutPreviewUrl && fullPreviewOpen && createPortal(
+  <div
+    className="video-export-layout-preview-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Full export layout preview"
+    onMouseDown={() => setFullPreviewOpen(false)}
+  >
+    <div
+      className="video-export-layout-preview-modal-card"
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <div className="video-export-layout-preview-modal-heading">
+        <div>
+          <small>FULL FRAME PREVIEW</small>
+          <strong>
+            {layoutDefinition.aspectLabel} · {resolution} ·{' '}
+            {cameraMode === 'cinematic' ? 'Cinematic' : 'Arena-wide'}
+          </strong>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setFullPreviewOpen(false)}
+          aria-label="Close full frame preview"
+        >
+          Close
+        </button>
+      </div>
+
+      <div className="video-export-layout-preview-modal-frame">
+        <img
+          src={layoutPreviewUrl}
+          alt="Full creator export layout preview"
+        />
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
+
         <div className="video-export-facts" aria-label="Video export details">
           <span><small>Format</small><strong>{capability?.container?.toUpperCase() ?? format.toUpperCase()}</strong></span>
           <span><small>Duration</small><strong>{sourceTick === null ? 'Pending' : formatDuration(durationSeconds)}</strong></span>
           <span><small>Replay ticks</small><strong>{sourceTick === null ? 'Pending' : sourceTick.toLocaleString()}</strong></span>
           <span><small>Audio</small><strong>{audioEnabled ? 'Deterministic' : 'Disabled'}</strong></span>
+          <span><small>Music</small><strong>{audioEnabled && backgroundMusicEnabled ? `${Math.round(backgroundMusicVolume * 100)}% · minimal battle loop` : 'Disabled'}</strong></span>
           <span><small>Preset</small><strong>{quality}</strong></span>
           <span><small>Camera</small><strong>{cameraMode === 'cinematic' ? 'Cinematic' : 'Arena-wide'}</strong></span>
           <span><small>Shake</small><strong>{cameraShakeEnabled ? 'On · live intensity' : 'Off'}</strong></span>
@@ -322,9 +439,10 @@ export function BattleVideoExport({
             <small>Device budget</small>
             <strong>{deviceProfile.deviceMemoryGiB ? `${deviceProfile.deviceMemoryGiB} GB RAM` : 'RAM unknown'}{deviceProfile.hardwareConcurrency ? ` · ${deviceProfile.hardwareConcurrency} threads` : ''}</strong>
           </span>
-          <span><small>Creator cards</small><strong>{introEnabled ? 'Who Will Win intro + victory card' : 'Victory card only'}</strong></span>
+          <span><small>Creator cards</small><strong>{introEnabled ? 'Matchup intro + victory card' : 'Victory card only'}</strong></span>
           <span><small>Highlights</small><strong>{cameraMode !== 'cinematic' ? 'Cinematic only' : highlightsEnabled ? 'Automatic' : 'Disabled'}</strong></span>
           <span><small>Thumbnail</small><strong>{thumbnailEnabled ? 'Auto highlight' : 'Disabled'}</strong></span>
+          <span><small>Fighter names</small><strong>{fighterNameplatesEnabled ? 'Small fights only' : 'Disabled'}</strong></span>
           <span><small>Delivery</small><strong>{autoDownloadEnabled ? 'Auto download' : 'Manual download'}</strong></span>
         </div>
 

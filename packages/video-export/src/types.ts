@@ -83,6 +83,11 @@ export interface ReplayVideoCreatorSettings {
   introSeconds: number;
   captionsEnabled: boolean;
   thumbnailEnabled: boolean;
+  fighterNameplatesEnabled: boolean;
+  /** Creator/export-only procedural ambience. Never affects live battle audio. */
+  backgroundMusicEnabled: boolean;
+  /** Normalized creator music level. Intentionally capped below combat SFX. */
+  backgroundMusicVolume: number;
 }
 
 export interface ReplayVideoExportSettings {

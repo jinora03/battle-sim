@@ -25,9 +25,10 @@ export function drawVerticalBroadcast(
   drawText(ctx, `${scene.modeName.toUpperCase()} · ${scene.arenaName.toUpperCase()}`, 540, 58, 19, 900, '#83c5ff', 'center', 1.4);
   drawText(ctx, scene.arenaTypeLabel.toUpperCase(), 540, 86, 14, 800, TEXT_SECONDARY, 'center', 1.1);
 
-  drawVerticalFighterHeader(ctx, scene.left, { x: 40, y: 112, width: 470, height: 200 }, LEFT_ACCENT, false);
-  drawVerticalFighterHeader(ctx, scene.right, { x: 570, y: 112, width: 470, height: 200 }, RIGHT_ACCENT, true);
-  drawText(ctx, 'VS', 540, 220, 24, 950, '#eef8ff', 'center', 1.1);
+  // Keep a true center lane for VS while letting both weapon groups lean inward.
+  drawVerticalFighterHeader(ctx, scene.left, { x: 16, y: 112, width: 492, height: 200 }, LEFT_ACCENT, false);
+  drawVerticalFighterHeader(ctx, scene.right, { x: 572, y: 112, width: 492, height: 200 }, RIGHT_ACCENT, true);
+  drawText(ctx, 'VS', 540, 212, 24, 950, '#eef8ff', 'center', 1.1);
 
   drawArenaFrame(ctx, arenaCanvas, layout.arena, true, cameraFrame);
 

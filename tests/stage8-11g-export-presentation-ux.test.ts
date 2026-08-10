@@ -23,10 +23,12 @@ describe('Stage 8.11G export presentation and source clarity', () => {
     const cards = readFileSync(new URL('../packages/video-export/src/renderers/creatorCards.ts', import.meta.url), 'utf8');
 
     expect(liveIntro).toContain("'Who will win?'");
-    expect(cards).toContain("'WHO WILL WIN?'");
+    expect(cards).toContain('resolveMatchupHook(scene.left, scene.right)');
+    expect(cards).toContain('vertical ? layout.height * 0.225 : layout.height * 0.19');
+    expect(cards).toContain('vertical ? 64 : 58');
     expect(cards).toContain("layout.width * 0.235");
     expect(cards).toContain("layout.width * 0.765");
-    expect(cards).toContain('vertical ? 61 : 66');
+    expect(cards).toContain('vertical ? 56 : 60');
     expect(cards).toContain('vertical ? 78 : 82');
     expect(cards).not.toContain('ctx.filter = `blur(');
     expect(cards).not.toContain('ghost: boolean');

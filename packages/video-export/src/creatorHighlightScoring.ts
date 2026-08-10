@@ -1,7 +1,6 @@
 import type { SimulationEvent, Vec2 } from '@kinetic/protocol';
 import type { CreatorBattleHighlight } from './types';
 
-export const CREATOR_ULTIMATE_SCORE = 760;
 export const CREATOR_KNOCKOUT_SCORE = 1_600;
 
 export interface CreatorHighlightSignal {
@@ -16,15 +15,6 @@ export interface CreatorHighlightSignal {
  * analysis and the Stage 8.11C cinematic presentation planner.
  */
 export function scoreCreatorHighlightEvent(event: SimulationEvent): CreatorHighlightSignal | null {
-  if (event.type === 'abilityActivated' && event.slot === 'ultimate') {
-    return {
-      tick: event.tick,
-      kind: 'ultimate',
-      score: CREATOR_ULTIMATE_SCORE + Math.max(0, event.castTicks),
-      position: event.position
-    };
-  }
-
   if (event.type === 'damage' && !event.prevented && event.amount > 0) {
     return {
       tick: event.tick,

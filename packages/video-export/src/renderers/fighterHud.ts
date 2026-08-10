@@ -18,6 +18,7 @@ import {
   drawText,
   roundedRectPath
 } from './canvasPrimitives';
+import { drawWeaponPreview } from './weaponPreview';
 
 export function drawLandscapeFighterPanel(
   ctx: CanvasRenderingContext2D,
@@ -27,16 +28,18 @@ export function drawLandscapeFighterPanel(
   alignRight: boolean
 ): void {
   const padding = 24;
+  const innerColumnWidth = fighter.memberCount > 1 ? 0 : 112;
+  const textMaxWidth = rect.width - padding * 2 - innerColumnWidth;
   const textX = alignRight ? rect.x + rect.width - padding : rect.x + padding;
   const textAlign: CanvasTextAlign = alignRight ? 'right' : 'left';
   drawPanel(ctx, rect.x, rect.y, rect.width, rect.height, 18, PANEL_FILL, PANEL_BORDER);
   drawText(ctx, alignRight ? 'FIGHTER B' : 'FIGHTER A', textX, rect.y + 34, 13, 900, accent, textAlign, 1.2);
-  drawFittedText(ctx, fighter.name, textX, rect.y + 76, rect.width - padding * 2, 31, 950, TEXT_PRIMARY, textAlign);
+  drawFittedText(ctx, fighter.name, textX, rect.y + 76, textMaxWidth, 33, 950, TEXT_PRIMARY, textAlign);
   if (fighter.memberCount > 1) {
     drawText(ctx, `${fighter.memberCount} fighters`, textX, rect.y + 106, 13, 750, TEXT_SECONDARY, textAlign);
   } else {
-    drawFittedText(ctx, fighter.identity, textX, rect.y + 106, rect.width - padding * 2, 14, 800, accent, textAlign);
-    drawFittedText(ctx, fighter.weaponName, textX, rect.y + 133, rect.width - padding * 2, 14, 750, TEXT_SECONDARY, textAlign);
+    drawFittedText(ctx, fighter.identity, textX, rect.y + 106, textMaxWidth, 14, 800, accent, textAlign);
+    drawLandscapeWeaponBlock(ctx, fighter, rect, accent, alignRight);
   }
 
   drawText(ctx, 'HP', textX, rect.y + 169, 13, 900, TEXT_SECONDARY, textAlign, 1.1);
@@ -76,26 +79,87 @@ export function drawVerticalFighterHeader(
   alignRight: boolean
 ): void {
   const padding = 28;
+  const weaponColumnWidth = fighter.memberCount > 1 ? 0 : 168;
+  const identityWidth = rect.width - padding * 2 - weaponColumnWidth;
   const textX = alignRight ? rect.x + rect.width - padding : rect.x + padding;
   const textAlign: CanvasTextAlign = alignRight ? 'right' : 'left';
+
   drawPanel(ctx, rect.x, rect.y, rect.width, rect.height, 20, 'rgba(9, 18, 33, 0.92)', PANEL_BORDER);
-  drawFittedText(ctx, fighter.name, textX, rect.y + 42, rect.width - padding * 2, 30, 950, TEXT_PRIMARY, textAlign);
+
+  // Keep the upper section visually dense: fighter identity owns the outer
+  // side while the large weapon preview owns the side nearest the centered VS.
+  drawFittedText(ctx, fighter.name, textX, rect.y + 74, identityWidth, 46, 950, TEXT_PRIMARY, textAlign);
   if (fighter.memberCount > 1) {
-    drawFittedText(ctx, fighter.identity, textX, rect.y + 78, rect.width - padding * 2, 14, 800, accent, textAlign);
+    drawFittedText(ctx, fighter.identity, textX, rect.y + 120, identityWidth, 16, 800, accent, textAlign);
   } else {
-    drawFittedText(ctx, fighter.identity, textX, rect.y + 78, rect.width - padding * 2, 14, 850, accent, textAlign);
-    drawFittedText(ctx, fighter.weaponName, textX, rect.y + 104, rect.width - padding * 2, 14, 750, TEXT_SECONDARY, textAlign);
+    drawFittedText(ctx, fighter.identity, textX, rect.y + 120, identityWidth, 16, 850, accent, textAlign);
+    drawVerticalWeaponBlock(ctx, fighter, rect, accent, alignRight);
   }
-  drawHpBar(ctx, fighter, rect.x + padding, rect.y + 130, rect.width - padding * 2, 22, accent, alignRight);
+
+  // The HP row is deliberately below both identity and weapon content so the
+  // weapon label can never collide with or disappear behind the bar.
+  drawHpBar(ctx, fighter, rect.x + padding, rect.y + 150, rect.width - padding * 2, 22, accent, alignRight);
   drawText(
     ctx,
     `${Math.ceil(fighter.hp).toLocaleString()} HP`,
     textX,
-    rect.y + 180,
+    rect.y + 184,
     14,
     800,
     TEXT_SECONDARY,
     textAlign
+  );
+}
+
+
+function drawLandscapeWeaponBlock(
+  ctx: CanvasRenderingContext2D,
+  fighter: BroadcastFighterView,
+  rect: BroadcastRect,
+  accent: string,
+  alignRight: boolean
+): void {
+  const previewSize = 46;
+  const innerX = alignRight ? rect.x + 62 : rect.x + rect.width - 62;
+  const previewY = rect.y + 108;
+  const previewDrawn = drawWeaponPreview(ctx, fighter, innerX, previewY, previewSize, accent);
+  if (!previewDrawn) {
+    drawFittedText(ctx, fighter.weaponName, innerX, rect.y + 152, 98, 13, 750, TEXT_SECONDARY, 'center');
+    return;
+  }
+  drawFittedText(ctx, fighter.weaponName, innerX, rect.y + 154, 106, 13, 750, TEXT_SECONDARY, 'center');
+}
+
+function drawVerticalWeaponBlock(
+  ctx: CanvasRenderingContext2D,
+  fighter: BroadcastFighterView,
+  rect: BroadcastRect,
+  accent: string,
+  alignRight: boolean
+): void {
+  const previewSize = 92;
+  const weaponLabelWidth = 116;
+  const padding = 28;
+  const weaponColumnWidth = 168;
+  // Center the icon + label inside the same reserved weapon column used by
+  // drawVerticalFighterHeader. This keeps both cards exactly mirrored.
+  const innerX = alignRight
+    ? rect.x + padding + weaponColumnWidth / 2
+    : rect.x + rect.width - padding - weaponColumnWidth / 2;
+  const previewY = rect.y + 64;
+  const previewDrawn = drawWeaponPreview(ctx, fighter, innerX, previewY, previewSize, accent, 0.88);
+  const labelY = rect.y + 138;
+
+  drawFittedText(
+    ctx,
+    fighter.weaponName,
+    innerX,
+    labelY,
+    weaponLabelWidth,
+    previewDrawn ? 17 : 16,
+    800,
+    TEXT_SECONDARY,
+    'center'
   );
 }
 

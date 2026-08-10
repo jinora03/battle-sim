@@ -180,7 +180,7 @@ export class BattleAudioEngine {
     const previousAudioTime = this.schedulingAudioTimeSeconds;
     const previousClock = this.schedulingClockMs;
     this.schedulingAudioTimeSeconds = Math.max(0, atSeconds);
-    this.schedulingClockMs = this.schedulingAudioTimeSeconds * 1000;
+    this.schedulingClockMs = Math.max(0, atSeconds) * 1000;
     try {
       return this.consume(events, entityCount, focusEntityIds, aiEntityIds);
     } finally {
@@ -1473,7 +1473,10 @@ export class BattleAudioEngine {
     value ^= value >>> 15;
     value = Math.imul(value, 0x846ca68b);
     value ^= value >>> 16;
-    return (value / 0xffffffff) * 2 - 1;
+    // Math.imul/xor operations return signed int32 values. Convert the final
+    // hash back to uint32 before normalizing so deterministic export noise is
+    // bipolar [-1, 1), matching the live Math.random() path.
+    return ((value >>> 0) / 0xffffffff) * 2 - 1;
   }
 
   private abilityGroupKey(entityId: number, abilityId: string): string {
@@ -1484,12 +1487,7 @@ export class BattleAudioEngine {
     const sources = this.abilitySources.get(groupKey);
     if (!sources) return;
     const now = this.audioNowSeconds();
-    for (const source of sources) {
-      const reservation = this.sourceReservations.get(source);
-      if (reservation) reservation.endsAt = Math.min(reservation.endsAt, now);
-      try { source.stop(now); } catch { /* Source already ended or was never started. */ }
-      this.activeSources.delete(source);
-    }
+    for (const source of sources) this.cancelTrackedSource(source, now);
     this.abilitySources.delete(groupKey);
   }
 
@@ -1506,13 +1504,26 @@ export class BattleAudioEngine {
 
   private cancelAllSources(): void {
     const now = this.audioNowSeconds();
-    for (const source of [...this.activeSources]) {
-      const reservation = this.sourceReservations.get(source);
+    for (const source of [...this.activeSources]) this.cancelTrackedSource(source, now);
+    this.activeSources.clear();
+    this.abilitySources.clear();
+  }
+
+  /**
+   * Offline export schedules the complete battle before OfflineAudioContext starts
+   * rendering, so an already-expired source can still be present in our tracking
+   * sets because its `ended` event has not fired yet. Calling stop() again with a
+   * later time would replace the source's original scheduled stop and extend a
+   * short cue into a sustained tone. Only shorten sources whose original reserved
+   * end is still ahead of the current scheduling time.
+   */
+  private cancelTrackedSource(source: AudioScheduledSourceNode, now: number): void {
+    const reservation = this.sourceReservations.get(source);
+    if (!reservation || reservation.endsAt > now) {
       if (reservation) reservation.endsAt = Math.min(reservation.endsAt, now);
       try { source.stop(now); } catch { /* Source already ended or was never started. */ }
     }
-    this.activeSources.clear();
-    this.abilitySources.clear();
+    this.activeSources.delete(source);
   }
 
 }

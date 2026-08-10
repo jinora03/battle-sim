@@ -1,14 +1,16 @@
+import { getArena } from '@kinetic/content';
 import type { BattleDefinition, SimulationEvent, WorldSnapshot } from '@kinetic/protocol';
 import { getBroadcastLayout, type BroadcastLayoutDefinition } from './broadcastLayout';
 import {
   CinematicCameraTracker,
   type CinematicCameraRenderOptions
 } from './cinematicCamera';
-import { BroadcastSceneTracker } from './broadcastScene';
+import { BroadcastSceneTracker, resolveBroadcastFighterName } from './broadcastScene';
 import { drawBroadcastBackground } from './renderers/canvasPrimitives';
 import { drawLandscapeBroadcast } from './renderers/landscapeBroadcastRenderer';
 import { drawVerticalBroadcast } from './renderers/verticalBroadcastRenderer';
 import { drawCreatorCard, type CreatorCardRenderOptions } from './renderers/creatorCards';
+import { drawFighterNameplates, shouldShowFighterNameplates } from './renderers/fighterNameplates';
 import type { ReplayVideoExportSettings } from './types';
 
 export interface BroadcastRenderOptions extends CinematicCameraRenderOptions {
@@ -26,6 +28,8 @@ export class BroadcastFrameRenderer {
   private readonly compositionLayout: BroadcastLayoutDefinition;
   private readonly outputScale: number;
   private readonly cameraTracker: CinematicCameraTracker;
+  private readonly arena: ReturnType<typeof getArena>;
+  private readonly fighterNameplates: ReadonlyMap<string, string>;
 
   constructor(settings: ReplayVideoExportSettings, battle: BattleDefinition) {
     this.outputScale = settings.resolution === '4k' ? 2 : 1;
@@ -40,6 +44,10 @@ export class BroadcastFrameRenderer {
     this.context = context;
     this.sceneTracker = new BroadcastSceneTracker(battle);
     this.cameraTracker = new CinematicCameraTracker(battle, settings.camera, settings.fps);
+    this.arena = getArena(battle.arenaId);
+    this.fighterNameplates = settings.creator.fighterNameplatesEnabled && shouldShowFighterNameplates(battle.participants.length)
+      ? new Map(battle.participants.map((participant) => [participant.fighterId, resolveBroadcastFighterName(participant.fighterId)]))
+      : new Map();
   }
 
   render(
@@ -63,6 +71,18 @@ export class BroadcastFrameRenderer {
       drawVerticalBroadcast(this.context, this.compositionLayout, scene, arenaCanvas, cameraFrame);
     } else {
       drawLandscapeBroadcast(this.context, this.compositionLayout, scene, arenaCanvas, cameraFrame);
+    }
+    if (!scene.resultCallout) {
+      drawFighterNameplates(
+        this.context,
+        snapshot,
+        this.arena,
+        arenaCanvas,
+        this.compositionLayout.arena,
+        cameraFrame,
+        this.fighterNameplates,
+        this.compositionLayout.id === 'vertical'
+      );
     }
     if (options.creatorCard) {
       drawCreatorCard(this.context, this.compositionLayout, scene, options.creatorCard);

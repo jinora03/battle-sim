@@ -7,7 +7,10 @@ import {
   ReplayAudioTimeline,
   ReplayFrameStepper,
   buildCinematicHighlightPlan,
+  CINEMATIC_HIGHLIGHT_MERGE_TICKS,
+  CINEMATIC_HIGHLIGHT_PLAYBACK_RATE,
   cinematicHighlightOffsetSecondsAtTick,
+  coalesceImpactCandidates,
   createCinematicHighlightPlan,
   createStage810hExportSettings,
   getCinematicHighlightFocus,
@@ -56,13 +59,13 @@ describe('Stage 8.11C cinematic highlight system', () => {
       hpAfter: 0
     };
 
-    expect(scoreCreatorHighlightEvent(ultimate)).toMatchObject({ kind: 'ultimate', score: 805 });
+    expect(scoreCreatorHighlightEvent(ultimate)).toBeNull();
     expect(scoreCreatorHighlightEvent(heavyHit)).toMatchObject({ kind: 'heavy-hit', score: 816 });
     expect(scoreCreatorHighlightEvent(knockout)).toMatchObject({ kind: 'knockout', score: 1466 });
   });
 
   it('selects only spaced major moments, keeps knockout treatment separate and caps slow motion', () => {
-    const settings = createStage810hExportSettings({}, { camera: 'cinematic', fps: 60 });
+    const settings = createStage810hExportSettings({}, { camera: 'cinematic', fps: 60, highlights: true });
     const plan = createCinematicHighlightPlan([
       { tick: 100, kind: 'ultimate', score: 810, position: { x: 250, y: 420 } },
       { tick: 140, kind: 'heavy-hit', score: 980, position: { x: 360, y: 480 } },
@@ -75,11 +78,29 @@ describe('Stage 8.11C cinematic highlight system', () => {
     expect(plan.moments.every((moment) => moment.kind !== 'knockout')).toBe(true);
     expect(plan.moments.filter((moment) => moment.slowMotionStartTick !== null)).toHaveLength(2);
     expect(plan.extraFrames).toBeGreaterThan(0);
-    expect(plan.addedSeconds).toBeLessThanOrEqual(0.75);
+    expect(plan.addedSeconds).toBeLessThanOrEqual(0.95);
+    expect(CINEMATIC_HIGHLIGHT_PLAYBACK_RATE).toBe(0.5);
+  });
+
+  it('coalesces near-simultaneous impacts into one deterministic cinematic moment', () => {
+    const settings = createStage810hExportSettings({}, { camera: 'cinematic', fps: 60, highlights: true });
+    const merged = coalesceImpactCandidates([
+      { tick: 180, kind: 'heavy-hit', score: 820, position: { x: 260, y: 480 } },
+      { tick: 192, kind: 'heavy-hit', score: 980, position: { x: 500, y: 480 } },
+      { tick: 260, kind: 'heavy-hit', score: 900, position: { x: 430, y: 500 } }
+    ]);
+
+    expect(CINEMATIC_HIGHLIGHT_MERGE_TICKS).toBe(18);
+    expect(merged).toHaveLength(2);
+    expect(merged[0]).toMatchObject({ tick: 192, score: 980, position: { x: 380, y: 480 } });
+
+    const plan = createCinematicHighlightPlan(merged, 900, settings.camera, settings.fps);
+    expect(plan.moments).toHaveLength(1);
+    expect(plan.moments[0]?.tick).toBe(192);
   });
 
   it('maps inserted highlight frames into replay audio time without shifting the triggering frame early', () => {
-    const settings = createStage810hExportSettings({}, { camera: 'cinematic', fps: 30 });
+    const settings = createStage810hExportSettings({}, { camera: 'cinematic', fps: 30, highlights: true });
     const plan = createCinematicHighlightPlan([
       { tick: 120, kind: 'heavy-hit', score: 980, position: { x: 360, y: 480 } }
     ], 600, settings.camera, settings.fps);
@@ -101,7 +122,7 @@ describe('Stage 8.11C cinematic highlight system', () => {
   });
 
   it('feeds scored highlight focus into deterministic camera emphasis', () => {
-    const settings = createStage810hExportSettings({}, { camera: 'cinematic', fps: 60 });
+    const settings = createStage810hExportSettings({}, { camera: 'cinematic', fps: 60, highlights: true });
     const snapshot = new LocalSimulationRunner(battle).getSnapshot();
     const actor = snapshot.entities[0]!;
     const plan = createCinematicHighlightPlan([
@@ -134,7 +155,7 @@ describe('Stage 8.11C cinematic highlight system', () => {
       checksum: simulation.checksum,
       battleEnded: simulation.battleEnded
     };
-    const settings = createStage810hExportSettings({}, { camera: 'cinematic', fps: 60 });
+    const settings = createStage810hExportSettings({}, { camera: 'cinematic', fps: 60, highlights: true });
     const firstPlan = await buildCinematicHighlightPlan(source, settings.camera, settings.fps);
     const secondPlan = await buildCinematicHighlightPlan(source, settings.camera, settings.fps);
     expect(secondPlan).toEqual(firstPlan);

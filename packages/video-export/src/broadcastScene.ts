@@ -55,6 +55,7 @@ export interface BroadcastFighterView {
   name: string;
   identity: string;
   weaponName: string;
+  weaponId: string | null;
   visual: BroadcastFighterVisual;
   memberCount: number;
   hp: number;
@@ -116,7 +117,7 @@ export class BroadcastSceneTracker {
     this.previousByTeam.set(leftTeam, left);
     this.previousByTeam.set(rightTeam, right);
     const entityNames = new Map<EntityId, string>();
-    for (const entity of snapshot.entities) entityNames.set(entity.id, resolveFighterName(entity.fighterId));
+    for (const entity of snapshot.entities) entityNames.set(entity.id, resolveBroadcastFighterName(entity.fighterId));
 
     for (const event of events) {
       if (event.type === 'abilityActivated') {
@@ -205,6 +206,7 @@ function createTeamView(
     name: memberCount > 1 ? `Team ${team}` : presentation.name,
     identity: memberCount > 1 ? `${memberCount} fighters` : presentation.identity,
     weaponName: memberCount > 1 ? 'Mixed loadout' : presentation.weaponName,
+    weaponId: memberCount > 1 ? null : presentation.weaponId,
     visual: presentation.visual,
     memberCount,
     hp,
@@ -278,11 +280,11 @@ function createResultCallout(
   };
 }
 
-function resolveFighterName(id: string): string {
+export function resolveBroadcastFighterName(id: string): string {
   return resolveFighterPresentation(id).name;
 }
 
-function resolveFighterPresentation(id: string): { name: string; identity: string; weaponName: string; visual: BroadcastFighterVisual } {
+function resolveFighterPresentation(id: string): { name: string; identity: string; weaponName: string; weaponId: string | null; visual: BroadcastFighterVisual } {
   try {
     const fighter = getFighter(id);
     const visual = getVisualRecipe(fighter.visualRecipeId);
@@ -290,6 +292,7 @@ function resolveFighterPresentation(id: string): { name: string; identity: strin
       name: fighter.name,
       identity: `${fighter.classification.elements.map(titleize).join(' / ')} · ${titleize(fighter.classification.archetype)}`,
       weaponName: resolvePrimaryAttackName(fighter.primaryAttackId),
+      weaponId: fighter.primaryAttackId,
       visual: {
         shape: visual.shape,
         bodyColor: visual.bodyColor,
@@ -305,6 +308,7 @@ function resolveFighterPresentation(id: string): { name: string; identity: strin
       name: titleize(id),
       identity: 'Arena fighter',
       weaponName: 'Primary attack',
+      weaponId: null,
       visual: {
         shape: 'orb',
         bodyColor: 0x3c6078,
