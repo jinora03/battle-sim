@@ -14,6 +14,7 @@ import {
 import type { ReplayVideoExportController, ReplayVideoSourceMode } from '../../hooks/useReplayVideoExport';
 import { requestDeveloperAccess } from '../../developerAccess';
 import { NeonButton } from '../../ui/NeonUI';
+import { createPortal } from 'react-dom';
 
 const BROADCAST_LAYOUT_OPTIONS = ['landscape', 'vertical'] as const;
 
@@ -376,28 +377,46 @@ export function BattleVideoExport({
           )}
         </section>
 
-        {layoutPreviewUrl && fullPreviewOpen && (
-          <div
-            className="video-export-layout-preview-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Full export layout preview"
-            onMouseDown={() => setFullPreviewOpen(false)}
-          >
-            <div className="video-export-layout-preview-modal-card" onMouseDown={(event) => event.stopPropagation()}>
-              <div className="video-export-layout-preview-modal-heading">
-                <div>
-                  <small>FULL FRAME PREVIEW</small>
-                  <strong>{layoutDefinition.aspectLabel} · {resolution} · {cameraMode === 'cinematic' ? 'Cinematic' : 'Arena-wide'}</strong>
-                </div>
-                <button type="button" onClick={() => setFullPreviewOpen(false)} aria-label="Close full frame preview">Close</button>
-              </div>
-              <div className="video-export-layout-preview-modal-frame">
-                <img src={layoutPreviewUrl} alt="Full creator export layout preview" />
-              </div>
-            </div>
-          </div>
-        )}
+        {layoutPreviewUrl && fullPreviewOpen && createPortal(
+  <div
+    className="video-export-layout-preview-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Full export layout preview"
+    onMouseDown={() => setFullPreviewOpen(false)}
+  >
+    <div
+      className="video-export-layout-preview-modal-card"
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <div className="video-export-layout-preview-modal-heading">
+        <div>
+          <small>FULL FRAME PREVIEW</small>
+          <strong>
+            {layoutDefinition.aspectLabel} · {resolution} ·{' '}
+            {cameraMode === 'cinematic' ? 'Cinematic' : 'Arena-wide'}
+          </strong>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setFullPreviewOpen(false)}
+          aria-label="Close full frame preview"
+        >
+          Close
+        </button>
+      </div>
+
+      <div className="video-export-layout-preview-modal-frame">
+        <img
+          src={layoutPreviewUrl}
+          alt="Full creator export layout preview"
+        />
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
 
         <div className="video-export-facts" aria-label="Video export details">
           <span><small>Format</small><strong>{capability?.container?.toUpperCase() ?? format.toUpperCase()}</strong></span>
