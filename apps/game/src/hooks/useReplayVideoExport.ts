@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { getFighter } from '@kinetic/content';
 import type { AppSettings } from '@kinetic/platform';
 import type { BattleDefinition } from '@kinetic/protocol';
 import {
@@ -41,6 +40,10 @@ import {
 import type { BattleRuntime } from '../runtime/BattleRuntime';
 import type { BattleSetup } from '../runtime/BattleSetup';
 import { createBattleDefinition, normalizeBattleSeed } from '../runtime/createBattleDefinition';
+import {
+  createReplayExportFilenames,
+  DEFAULT_REPLAY_VIDEO_EXPORT_SELECTIONS
+} from './replayVideoExportModel';
 import {
   addReplayExportHistoryEntry,
   clearReplayExportHistory,
@@ -204,23 +207,24 @@ export function useReplayVideoExport(
 ): ReplayVideoExportController {
   const [sourceMode, setSourceMode] = useState<ReplayVideoSourceMode>('current-replay');
   const [generationSeedText, setGenerationSeedTextState] = useState(() => String(normalizeBattleSeed(currentSeed)));
-  const [format, setFormatState] = useState<VideoExportFormat>('auto');
-  const [layout, setLayoutState] = useState<BroadcastLayoutId>('vertical');
-  const [resolution, setResolutionState] = useState<VideoExportResolution>('1080p');
-  const [fps, setFpsState] = useState<VideoExportFrameRate>(60);
-  const [quality, setQualityState] = useState<VideoExportQuality>('maximum');
-  const [audioEnabled, setAudioEnabledState] = useState(true);
-  const [backgroundMusicEnabled, setBackgroundMusicEnabledState] = useState(false);
-  const [backgroundMusicVolume, setBackgroundMusicVolumeState] = useState(0.15);
-  const [cameraMode, setCameraModeState] = useState<VideoExportCameraMode>('broadcast');
-  const [cameraShakeEnabled, setCameraShakeEnabledState] = useState(true);
-  const [screenFlashEnabled, setScreenFlashEnabledState] = useState(true);
-  const [preset, setPreset] = useState<CreatorExportPresetId>('custom');
-  const [introEnabled, setIntroEnabledState] = useState(false);
-  const [highlightsEnabled, setHighlightsEnabledState] = useState(false);
-  const [captionsEnabled, setCaptionsEnabledState] = useState(true);
-  const [thumbnailEnabled, setThumbnailEnabledState] = useState(false);
-  const [fighterNameplatesEnabled, setFighterNameplatesEnabledState] = useState(true);
+  const defaults = DEFAULT_REPLAY_VIDEO_EXPORT_SELECTIONS;
+  const [format, setFormatState] = useState<VideoExportFormat>(defaults.format);
+  const [layout, setLayoutState] = useState<BroadcastLayoutId>(defaults.layout);
+  const [resolution, setResolutionState] = useState<VideoExportResolution>(defaults.resolution);
+  const [fps, setFpsState] = useState<VideoExportFrameRate>(defaults.fps);
+  const [quality, setQualityState] = useState<VideoExportQuality>(defaults.quality);
+  const [audioEnabled, setAudioEnabledState] = useState(defaults.audioEnabled);
+  const [backgroundMusicEnabled, setBackgroundMusicEnabledState] = useState(defaults.backgroundMusicEnabled);
+  const [backgroundMusicVolume, setBackgroundMusicVolumeState] = useState(defaults.backgroundMusicVolume);
+  const [cameraMode, setCameraModeState] = useState<VideoExportCameraMode>(defaults.cameraMode);
+  const [cameraShakeEnabled, setCameraShakeEnabledState] = useState(defaults.cameraShakeEnabled);
+  const [screenFlashEnabled, setScreenFlashEnabledState] = useState(defaults.screenFlashEnabled);
+  const [preset, setPreset] = useState<CreatorExportPresetId>(defaults.preset);
+  const [introEnabled, setIntroEnabledState] = useState(defaults.introEnabled);
+  const [highlightsEnabled, setHighlightsEnabledState] = useState(defaults.highlightsEnabled);
+  const [captionsEnabled, setCaptionsEnabledState] = useState(defaults.captionsEnabled);
+  const [thumbnailEnabled, setThumbnailEnabledState] = useState(defaults.thumbnailEnabled);
+  const [fighterNameplatesEnabled, setFighterNameplatesEnabledState] = useState(defaults.fighterNameplatesEnabled);
   const [autoDownloadEnabled, setAutoDownloadEnabledState] = useState(readAutoDownloadPreference);
   const [directDownload, setDirectDownload] = useState<ReplayDirectDownloadState>(INITIAL_DIRECT_DOWNLOAD);
   const [history, setHistory] = useState<ReplayExportHistoryEntry[]>(readReplayExportHistory);
@@ -1215,43 +1219,13 @@ function createQueueFileSet(
   result: ReplayVideoExportResult,
   battle?: BattleDefinition
 ): ReplayQueueFileSet {
-  const audioSuffix = result.audioCodec ? '-audio' : '-silent';
-  const fighterSegment = battle ? `${createFighterFilenameSegment(battle)}-` : '';
-  const baseName = `kinetic-battle-${fighterSegment}${seed >>> 0}-${result.layout}-${result.cameraMode}-${result.resolution}-${result.fps}fps${audioSuffix}`;
-  const extension = result.container === 'mp4' ? 'mp4' : 'webm';
+  const filenames = createReplayExportFilenames(seed, result, battle);
   return {
-    video: { filename: `${baseName}.${extension}`, blob: result.blob },
-    thumbnail: result.thumbnailBlob ? { filename: `${baseName}-thumbnail.png`, blob: result.thumbnailBlob } : null
+    video: { filename: filenames.video, blob: result.blob },
+    thumbnail: result.thumbnailBlob && filenames.thumbnail
+      ? { filename: filenames.thumbnail, blob: result.thumbnailBlob }
+      : null
   };
-}
-
-function createFighterFilenameSegment(battle: BattleDefinition): string {
-  const fighterIds: string[] = [];
-  for (const participant of battle.participants) {
-    if (!fighterIds.includes(participant.fighterId)) fighterIds.push(participant.fighterId);
-    if (fighterIds.length >= 2) break;
-  }
-
-  const fighterNames = fighterIds.map((fighterId) => {
-    let label = fighterId;
-    try {
-      label = getFighter(fighterId).name;
-    } catch {
-      // Keep the content id for custom or unavailable registry entries.
-    }
-    return toFilenameSlug(label);
-  }).filter(Boolean);
-
-  if (fighterNames.length >= 2) return `${fighterNames[0]}-vs-${fighterNames[1]}`;
-  return fighterNames[0] ?? 'battle';
-}
-
-function toFilenameSlug(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
 }
 
 function createArchiveFilename(): string {

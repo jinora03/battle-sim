@@ -5,6 +5,7 @@ import {
   createStage810eExportSettings,
   createStage810hExportSettings
 } from '@kinetic/video-export';
+import { createReplayExportFilenames } from '../apps/game/src/hooks/replayVideoExportModel';
 
 function ascii(bytes: Uint8Array): string {
   return new TextDecoder().decode(bytes);
@@ -71,15 +72,41 @@ describe('Stage 8.10H MP4 and WebM format fallback', () => {
     expect(mp4Codecs).toContain("'no-preference'");
   });
 
-  it('exposes Auto, MP4 and WebM in the creator panel and downloads the resolved extension', () => {
-    const panel = readFileSync(new URL('../apps/game/src/features/battle/BattleVideoExport.tsx', import.meta.url), 'utf8');
-    const hook = readFileSync(new URL('../apps/game/src/hooks/useReplayVideoExport.ts', import.meta.url), 'utf8');
-    expect(panel).toContain('Auto · MP4 preferred');
-    expect(panel).toContain('MP4 · H.264/AAC');
-    expect(panel).toContain('WebM · VP9/VP8');
-    expect(panel).toContain('capability?.notice');
-    expect(hook).toContain("const extension = result.container === 'mp4' ? 'mp4' : 'webm';");
-    expect(hook).not.toContain('`${baseName}.webm`');
+  it("exposes Auto, MP4 and WebM in the creator panel and downloads the resolved extension", () => {
+    const panel = readFileSync(
+      new URL(
+        "../apps/game/src/features/battle/BattleVideoExport.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    expect(panel).toContain("Auto · MP4 preferred");
+    expect(panel).toContain("MP4 · H.264/AAC");
+    expect(panel).toContain("WebM · VP9/VP8");
+    expect(panel).toContain("capability?.notice");
+
+    const sharedResult = {
+      audioCodec: "opus" as const,
+      cameraMode: "broadcast" as const,
+      fps: 60 as const,
+      layout: "vertical" as const,
+      resolution: "1080p" as const,
+      thumbnailBlob: null,
+    };
+
+    expect(
+      createReplayExportFilenames(123, {
+        ...sharedResult,
+        container: "mp4",
+      }).video,
+    ).toMatch(/\.mp4$/);
+
+    expect(
+      createReplayExportFilenames(123, {
+        ...sharedResult,
+        container: "webm",
+      }).video,
+    ).toMatch(/\.webm$/);
   });
 
   it('does not introduce captureStream or MediaRecorder into the fixed-frame export path', () => {
