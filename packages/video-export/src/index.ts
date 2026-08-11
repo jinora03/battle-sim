@@ -28,6 +28,7 @@ export * from './runtimeReplayAudio';
 export * from './seedReplayGenerator';
 export * from './seedBattleRanking';
 export * from './battleIntelligence';
+export * from './matchupMatrix';
 export * from './settings';
 export * from './types';
 export * from './webCodecs';

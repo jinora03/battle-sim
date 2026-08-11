@@ -7,7 +7,7 @@ import { QUICK_BATTLES, type QuickBattle } from './features/home/quickBattles';
 import { NeonButton } from './ui/NeonUI';
 import { useHorizontalDragScroll } from './ui/useHorizontalDragScroll';
 
-export type ReleaseView = 'home' | 'battle' | 'training' | 'roster' | 'creator' | 'profile';
+export type ReleaseView = 'home' | 'battle' | 'training' | 'roster' | 'intelligence' | 'creator' | 'profile';
 
 export function ReleaseHome({ profile, fighters, arenaCount, modeCount, onNavigate, onStart }: {
   profile: PlayerProfile;
