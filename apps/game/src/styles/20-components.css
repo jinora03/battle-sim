@@ -60,52 +60,6 @@ button.playback-toggle:hover {
     0 14px 32px rgba(0,0,0,.28),
     0 0 46px var(--btn-glow, rgba(119,182,255,.34)) !important;
 }
-.ui-tone-success,
-button.accent-button,
-.battle-start-button {
-  --btn-a: #abfff0;
-  --btn-b: #64dcb3;
-  --btn-glow: rgba(123, 255, 204, .38);
-}
-.ui-tone-random {
-  --btn-a: #c0b0ff;
-  --btn-b: #8277ff;
-  --btn-glow: rgba(157, 122, 255, .40);
-}
-.ui-tone-utility,
-button.secondary,
-button.secondary-inline,
-button.inline-secondary,
-.debug-export {
-  --btn-a: #bde5ff;
-  --btn-b: #6f9dcc;
-  --btn-glow: rgba(125, 196, 255, .34);
-}
-.ui-tone-pause,
-.playback-toggle {
-  --btn-a: #f3d0a7;
-  --btn-b: #99775b;
-  --btn-glow: rgba(255, 181, 105, .30);
-}
-.ui-tone-danger,
-button.danger-button,
-button.loadout-delete {
-  --btn-a: #ffb49b;
-  --btn-b: #ff5e7f;
-  --btn-glow: rgba(255, 98, 127, .36);
-}
-.ui-tone-ghost,
-button.ghost-button,
-button.ghost-inline {
-  --btn-a: rgba(167, 220, 255, .20);
-  --btn-b: rgba(166, 136, 255, .18);
-  --btn-glow: rgba(119, 182, 255, .18);
-}
-.ui-tone-ultimate {
-  --btn-a: #ffe3a0;
-  --btn-b: #a25cff;
-  --btn-glow: rgba(214, 131, 255, .40);
-}
 
 .battle-debug-panel,
 .creator-section {

@@ -35,9 +35,6 @@
   padding: 12px !important;
 }
 
-.release-settings .disclosure-group-content {
-  padding: 10px 11px 12px;
-}
 
 .touch-only-setting { display: none; }
 html[data-touch-first='true'] .touch-only-setting { display: block; }

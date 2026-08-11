@@ -168,17 +168,10 @@
 }
 
 @media (max-width: 390px) {
-  .objective-summary .objective-matchup {
-    grid-template-columns: minmax(0, 1fr);
-    justify-items: start;
-    gap: 2px;
-  }
 
   .objective-summary .objective-matchup span:first-child,
   .objective-summary .objective-matchup span:last-child { text-align: left; }
 
-  .objective-summary .objective-matchup i { font-size: 7px; }
-  .elimination-progress { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* Keep the compact battle header consistent with desktop: one centered matchup

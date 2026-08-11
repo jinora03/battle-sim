@@ -1,19 +1,19 @@
-# Kinetic Battle Engine — v1.3.28 Stage 8.9A
+# Kinetic Battle Engine — v1.3.46-stage8.12
 
 A browser/mobile-ready 2D physics battle game and modular fighter engine built with TypeScript, PixiJS, React, Vite and Capacitor.
 
+> **Stage 8.12 is the stabilization and maintainability release.** It hardens creator-export tests, removes obsolete validation/history clutter, centralizes creator/fighter-card geometry, extracts export settings and seed-search responsibilities from the main export controller, and consolidates redundant CSS while preserving simulation and export behavior.
 
+## Stage 8.12 highlights
 
-> **Stage 8.9A adds a dedicated round-screen and near-square layout profile.** Galaxy Watch-class viewports now receive a stable square renderer host, circular-bezel safe insets, compact navigation and touch controls, and independently scrollable setup drawers without changing the rectangular Pixi arena or ordinary phone and desktop layouts.
-
-## Stage 8.9A highlights
-
-- deterministic rectangular, near-square and round viewport classification
-- a central safe rectangle for circular-display navigation, drawers and notifications
-- stable square Battle and Ability Lab renderer hosts on watch-sized screens
-- compact battle objective, intro, analog pad and skill controls inside the visible circle
-- dedicated compact-shape styles split by shell, Battle and Ability Lab ownership
-- no simulation, audio, content balance or combat-VFX behavior changes
+- behavior-first creator-export tests with fewer implementation-text assertions
+- obsolete validation harnesses and historical repository clutter removed from the active tree
+- centralized creator-layout and fighter-card geometry for safer future presentation changes
+- creator export settings and seed-search/prepared-replay state extracted from the oversized export hook
+- layout preview disabled during actively running battles to avoid live WebGL interference
+- creator-export and shared Battle/mobile CSS consolidated without an intentional redesign
+- release metadata synchronized across app, engine, content and lockfile
+- deterministic simulation, fighter balance, replay checksums and exporter output remain intentionally unchanged by the cleanup work
 
 > **Stage 8.8G completes the final UI-polish pass.** Fighter previews now use one body-only visual language across Battle Setup, match intro, Roster, and Creator; mobile floating action docks are removed; Ability Lab movement is integrated beside its scrollable skill tray; touch steering sensitivity is persisted; and release-facing developer metrics are removed.
 
@@ -237,19 +237,22 @@ AI / Player / Replay / Network      Pixi / FX / Camera / Audio / UI
 
 The simulation can run headlessly without React, PixiJS, browser audio or Capacitor.
 
-## v1.0 release roster
+## Built-in release roster
 
 Every built-in fighter has one authoritative **Primary Attack** shown as Basic, plus Skill 1, Skill 2, Skill 3 and Ultimate. The rendered weapon or elemental source, Basic mechanics, range and AI intent all derive from the same primary-attack definition.
 
-- **Water Shaper** — orbiting controller; Wet, waves, pull and radial knockback
-- **Bomber** — aggressive demolition charger; armed impacts, shrapnel and Mega Bomb
-- **Pyro Brawler** — momentum bruiser; burn, dash, flame ring and Inferno Collapse
-- **Mech Bruiser** — heavy tank; magnetic pull, fortification, pulse and overdrive
-- **Frost Warden** — armored sentinel; freeze, area denial and Absolute Zero
-- **Volt Striker** — fast assassin; electric burst movement and Thunder Dome
-- **Thorn Colossus** — massive guardian; regeneration, rooting and Overgrowth
-- **Void Reaper** — mobile gravity skirmisher; pulls, phase attacks and Singularity
-- **Gunner** — conventional automatic-rifle specialist; controlled bursts, suppression, grenade support and overdrive
+- **Pyro** — fire combo bruiser with heat-driven pressure and explosive payoff
+- **Mech Bruiser** — heavy tank with magnetic control, fortification and reactor overdrive
+- **Water Shaper** — tidal controller with Wet, waves, pull and radial knockback
+- **Bomber** — aggressive demolition charger with armed impacts, shrapnel and Mega Bomb
+- **Frost Warden** — armored ice sentinel with freeze, area denial and Absolute Zero
+- **Volt Striker** — fast electric hunter with burst movement and Thunder Dome
+- **Thorn Colossus** — massive guardian with regeneration, rooting and Overgrowth
+- **Void Reaper** — mobile gravity skirmisher with pulls, phase attacks and Singularity
+- **Gunner** — automatic-rifle specialist with controlled bursts, suppression and Kill Zone
+- **Rocket Vanguard** — ranged rocket artillery fighter with salvo and siege pressure
+- **Solar Sentinel** — durable solar fighter with rush, protection and channelled eye beams
+- **Ballast** — gravity controller built around Featherlight, Anchored and mass manipulation
 
 ## Arenas
 

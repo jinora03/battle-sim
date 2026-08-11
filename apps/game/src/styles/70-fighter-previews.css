@@ -360,7 +360,6 @@
     min-height: 132px;
   }
 
-  .release-fighter-portrait .shared-fighter-portrait { --portrait-size: 104px; }
   .release-skill-row { grid-template-columns: repeat(5, minmax(58px, 1fr)); overflow-x: auto; padding-bottom: 6px; }
   .release-fighter-actions { grid-template-columns: minmax(0, 1fr); }
 }
