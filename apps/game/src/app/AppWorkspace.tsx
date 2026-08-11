@@ -132,7 +132,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
     >
       <section className="hero-panel">
         <div>
-          <p className="eyebrow">v1.3 Stage 8.10A · Replay video export foundation</p>
+          <p className="eyebrow">v1.3.46 · Stage 8.12 · Replay video export foundation</p>
           <h1>Kinetic Battle Engine</h1>
           <p className="subtitle">Export the current deterministic replay through a dedicated fixed-frame 1080p60 WebM renderer without recording the application interface.</p>
         </div>

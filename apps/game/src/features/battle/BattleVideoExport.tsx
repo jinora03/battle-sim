@@ -3,6 +3,7 @@ import {
   formatBytes,
   getBroadcastLayout,
   listCreatorExportPresets,
+  summarizeBattleIntelligence,
   type BroadcastLayoutId,
   type SeedBatchSize,
   type VideoExportCameraMode,
@@ -60,6 +61,7 @@ export function BattleVideoExport({
       ? `${capability.container?.toUpperCase()} · ${capability.codec?.toUpperCase()}${capability.audioCodec ? ` + ${capability.audioCodec.toUpperCase()}` : ''}`
       : 'Unavailable';
   const [fullPreviewOpen, setFullPreviewOpen] = useState(false);
+  const battleIntelligence = summarizeBattleIntelligence(batchResults);
 
   useEffect(() => {
     if (!fullPreviewOpen) return undefined;
@@ -210,6 +212,34 @@ export function BattleVideoExport({
                     </button>
                   );
                 })}
+              </div>
+            )}
+
+            {battleIntelligence.sampleSize > 0 && (
+              <div className="video-export-intelligence" aria-label="Battle intelligence summary">
+                <div className="video-export-intelligence-heading">
+                  <div>
+                    <small>BATTLE INTELLIGENCE</small>
+                    <strong>{battleIntelligence.sampleSize} deterministic battles</strong>
+                  </div>
+                  <span>Median {formatDuration(battleIntelligence.medianDurationSeconds)}</span>
+                </div>
+                <div className="video-export-intelligence-grid">
+                  {battleIntelligence.teamWinRates.map((team) => (
+                    <div key={team.team}><small>Team {team.team} wins</small><strong>{formatPercent(team.rate)}</strong></div>
+                  ))}
+                  <div><small>Close fights</small><strong>{formatPercent(battleIntelligence.closeFightRate)}</strong></div>
+                  <div><small>One-sided</small><strong>{formatPercent(battleIntelligence.oneSidedFightRate)}</strong></div>
+                  <div><small>Avg damage</small><strong>{Math.round(battleIntelligence.averageTotalDamage).toLocaleString()}</strong></div>
+                  <div><small>Avg ults</small><strong>{battleIntelligence.averageUltimates.toFixed(1)}</strong></div>
+                  <div><small>Draws</small><strong>{formatPercent(battleIntelligence.drawRate)}</strong></div>
+                  <div><small>Timeout / limit</small><strong>{formatPercent(battleIntelligence.timeoutRate + battleIntelligence.safetyLimitRate)}</strong></div>
+                </div>
+                {battleIntelligence.bestCreatorSeed !== null && (
+                  <small className="video-export-intelligence-best">
+                    Best creator seed {battleIntelligence.bestCreatorSeed.toLocaleString()} · score {battleIntelligence.bestCreatorScore?.toFixed(1)}
+                  </small>
+                )}
               </div>
             )}
 
@@ -707,6 +737,11 @@ function queueStatusLabel(status: string): string {
   if (status === 'error') return 'Failed';
   if (status === 'cancelled') return 'Cancelled';
   return 'Queued';
+}
+
+
+function formatPercent(value: number): string {
+  return `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`;
 }
 
 function formatDuration(seconds: number): string {
