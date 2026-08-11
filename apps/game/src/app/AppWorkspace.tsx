@@ -395,7 +395,12 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
 
           <div className="battle-secondary-panels">
             <BattlePerformanceMetrics diagnostics={diagnostics} viewportMetrics={viewportMetrics} fighterCount={fighters.length} />
-            <BattleVideoExport controller={videoExport} replayTick={diagnostics.tick} battleEnded={diagnostics.battleEnded} />
+            <BattleVideoExport
+              controller={videoExport}
+              replayTick={diagnostics.tick}
+              battleEnded={diagnostics.battleEnded}
+              liveBattleActive={battleLaunchPhase === 'running' && !diagnostics.battleEnded && !pausedByUser && !pausedBySystem}
+            />
 
             <details className="panel-section battle-activity-panel" open>
               <summary className="panel-summary"><span><small>Battle log</small><strong>Arena activity & achievements</strong></span><em>{diagnostics.recentArenaActivity.length}</em></summary>

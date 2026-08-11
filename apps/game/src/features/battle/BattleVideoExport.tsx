@@ -21,11 +21,13 @@ const BROADCAST_LAYOUT_OPTIONS = ['landscape', 'vertical'] as const;
 export function BattleVideoExport({
   controller,
   replayTick,
-  battleEnded
+  battleEnded,
+  liveBattleActive
 }: {
   controller: ReplayVideoExportController;
   replayTick: number;
   battleEnded: boolean;
+  liveBattleActive: boolean;
 }) {
   const {
     capability, deviceProfile, memoryForecast, progress, seedProgress, batchProgress, batchSearching, batchSize, batchResults,
@@ -71,6 +73,10 @@ export function BattleVideoExport({
   useEffect(() => {
     if (!layoutPreviewUrl) setFullPreviewOpen(false);
   }, [layoutPreviewUrl]);
+
+  useEffect(() => {
+    if (liveBattleActive) setFullPreviewOpen(false);
+  }, [liveBattleActive]);
   const handleSummaryClick = (event: MouseEvent<HTMLElement>) => {
     const details = event.currentTarget.parentElement as HTMLDetailsElement | null;
     if (!details) return;
@@ -348,8 +354,8 @@ export function BattleVideoExport({
               <span>Preview only · no video encoding</span>
             </div>
             <div className="video-export-layout-preview-actions">
-              <button type="button" onClick={refreshLayoutPreview} disabled={running || layoutPreviewing}>
-                {layoutPreviewing ? 'Rendering…' : layoutPreviewUrl ? 'Refresh preview' : 'Preview layout'}
+              <button type="button" onClick={refreshLayoutPreview} disabled={running || layoutPreviewing || liveBattleActive}>
+                {layoutPreviewing ? 'Rendering…' : liveBattleActive ? 'Pause battle to preview' : layoutPreviewUrl ? 'Refresh preview' : 'Preview layout'}
               </button>
               {layoutPreviewUrl && (
                 <button
@@ -363,6 +369,7 @@ export function BattleVideoExport({
             </div>
           </div>
           <p>Uses the current fighter setup and the same Pixi + broadcast composition code as export. No replay loop, audio, codec, mux, or download.</p>
+          {liveBattleActive && <p className="video-export-note">Pause the live battle before using Layout Preview. Preview rendering is disabled while the arena simulation is actively running.</p>}
           {layoutPreviewError && <p className="video-export-layout-preview-error">{layoutPreviewError}</p>}
           {layoutPreviewUrl && (
             <div className="video-export-layout-preview-result">
@@ -371,7 +378,7 @@ export function BattleVideoExport({
               </div>
               <div className="video-export-layout-preview-links">
                 <span>Top HUD crop · refresh after spacing or renderer changes</span>
-                <button type="button" onClick={() => setFullPreviewOpen(true)}>Open full frame</button>
+                <button type="button" onClick={() => setFullPreviewOpen(true)} disabled={liveBattleActive}>Open full frame</button>
               </div>
             </div>
           )}

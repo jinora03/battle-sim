@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { BattleDefinition } from '@kinetic/protocol';
 import { AiController } from '@kinetic/controllers';
 import { checksumSnapshot, LocalSimulationRunner } from '@kinetic/simulation';
-import { BroadcastSceneTracker, BROADCAST_LAYOUTS } from '@kinetic/video-export';
+import { BroadcastSceneTracker, BROADCAST_LAYOUTS, getCreatorLayoutGeometry } from '@kinetic/video-export';
 
 const battle: BattleDefinition = {
   seed: 81007,
@@ -25,10 +25,15 @@ describe('Stage 8.10G platform viewing polish', () => {
     expect(vertical.arena.y).toBeLessThan(400);
     expect(vertical.arena.y + vertical.arena.height).toBeLessThanOrEqual(1400);
 
+    const geometry = getCreatorLayoutGeometry(vertical);
+    expect(geometry.id).toBe('vertical');
+    if (geometry.id !== 'vertical') throw new Error('Expected vertical creator geometry.');
+    expect(geometry.fighterHeaders.left.width).toBeGreaterThanOrEqual(480);
+    expect(geometry.fighterHeaders.right.width).toBe(geometry.fighterHeaders.left.width);
+    expect(geometry.versus.x).toBe(vertical.width / 2);
+    expect(geometry.skillsPanels.left.y).toBeGreaterThan(vertical.arena.y + vertical.arena.height);
+
     const source = readFileSync(new URL('../packages/video-export/src/renderers/verticalBroadcastRenderer.ts', import.meta.url), 'utf8');
-    expect(source).toContain("{ x: 16, y: 112, width: 492, height: 200 }");
-    expect(source).toContain("{ x: 572, y: 112, width: 492, height: 200 }");
-    expect(source).toContain("drawText(ctx, 'VS', 540, 212");
     expect(source).toContain('scene.modeName');
     expect(source).toContain('scene.arenaName');
     expect(source).toContain('drawVerticalSkillsPanel(');
@@ -64,9 +69,13 @@ describe('Stage 8.10G platform viewing polish', () => {
   it('widens landscape fighter rails for mobile YouTube playback while keeping the arena dominant', () => {
     const landscape = BROADCAST_LAYOUTS.landscape;
     expect(landscape.arena.width / landscape.width).toBeGreaterThan(0.62);
-    const source = readFileSync(new URL('../packages/video-export/src/renderers/landscapeBroadcastRenderer.ts', import.meta.url), 'utf8');
-    expect(source).toContain("{ x: 20, y: 56, width: 320, height: 968 }");
-    expect(source).toContain("{ x: 1580, y: 56, width: 320, height: 968 }");
+    const geometry = getCreatorLayoutGeometry(landscape);
+    expect(geometry.id).toBe('landscape');
+    if (geometry.id !== 'landscape') throw new Error('Expected landscape creator geometry.');
+    expect(geometry.fighterPanels.left.width).toBeGreaterThanOrEqual(300);
+    expect(geometry.fighterPanels.right.width).toBe(geometry.fighterPanels.left.width);
+    expect(geometry.fighterPanels.left.x + geometry.fighterPanels.left.width).toBeLessThanOrEqual(landscape.arena.x);
+    expect(geometry.fighterPanels.right.x).toBeGreaterThanOrEqual(landscape.arena.x + landscape.arena.width);
   });
 
   it('fixes manual letter spacing and prevents stacked result overlays from colliding', () => {

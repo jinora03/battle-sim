@@ -86,13 +86,6 @@ describe("creator defaults, weapon HUD and impact-based highlights", () => {
       ),
       "utf8",
     );
-    const vertical = readFileSync(
-      new URL(
-        "../packages/video-export/src/renderers/verticalBroadcastRenderer.ts",
-        import.meta.url,
-      ),
-      "utf8",
-    );
     const preview = readFileSync(
       new URL(
         "../packages/video-export/src/renderers/weaponPreview.ts",
@@ -122,9 +115,6 @@ describe("creator defaults, weapon HUD and impact-based highlights", () => {
     expect(hud).toContain("drawWeaponPreview(");
     expect(hud).not.toContain("drawWeaponRow(");
     expect(hud).not.toContain("drawText(ctx, 'WEAPON'");
-    expect(vertical).toContain("{ x: 16, y: 112, width: 492, height: 200 }");
-    expect(vertical).toContain("{ x: 572, y: 112, width: 492, height: 200 }");
-    expect(vertical).toContain("drawText(ctx, 'VS', 540, 212");
     expect(preview).toContain("visualId.includes('rocket')");
     expect(preview).toContain("form === 'fire'");
     expect(preview).toContain("form === 'rifle'");

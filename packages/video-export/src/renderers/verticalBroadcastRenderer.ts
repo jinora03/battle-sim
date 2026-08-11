@@ -1,6 +1,7 @@
 import type { BroadcastLayoutDefinition } from '../broadcastLayout';
 import type { BroadcastScene } from '../broadcastScene';
 import type { BroadcastCameraFrame } from '../cinematicCamera';
+import { getCreatorLayoutGeometry } from '../creatorLayoutGeometry';
 import {
   LEFT_ACCENT,
   RIGHT_ACCENT,
@@ -22,17 +23,40 @@ export function drawVerticalBroadcast(
   arenaCanvas: HTMLCanvasElement,
   cameraFrame: BroadcastCameraFrame
 ): void {
-  drawText(ctx, `${scene.modeName.toUpperCase()} · ${scene.arenaName.toUpperCase()}`, 540, 58, 19, 900, '#83c5ff', 'center', 1.4);
-  drawText(ctx, scene.arenaTypeLabel.toUpperCase(), 540, 86, 14, 800, TEXT_SECONDARY, 'center', 1.1);
+  const geometry = getCreatorLayoutGeometry(layout);
+  if (geometry.id !== 'vertical') throw new Error(`Expected vertical creator geometry, received ${geometry.id}.`);
+
+  drawText(
+    ctx,
+    `${scene.modeName.toUpperCase()} · ${scene.arenaName.toUpperCase()}`,
+    geometry.context.centerX,
+    geometry.context.modeY,
+    19,
+    900,
+    '#83c5ff',
+    'center',
+    1.4
+  );
+  drawText(
+    ctx,
+    scene.arenaTypeLabel.toUpperCase(),
+    geometry.context.centerX,
+    geometry.context.arenaTypeY,
+    14,
+    800,
+    TEXT_SECONDARY,
+    'center',
+    1.1
+  );
 
   // Keep a true center lane for VS while letting both weapon groups lean inward.
-  drawVerticalFighterHeader(ctx, scene.left, { x: 16, y: 112, width: 492, height: 200 }, LEFT_ACCENT, false);
-  drawVerticalFighterHeader(ctx, scene.right, { x: 572, y: 112, width: 492, height: 200 }, RIGHT_ACCENT, true);
-  drawText(ctx, 'VS', 540, 212, 24, 950, '#eef8ff', 'center', 1.1);
+  drawVerticalFighterHeader(ctx, scene.left, geometry.fighterHeaders.left, LEFT_ACCENT, false);
+  drawVerticalFighterHeader(ctx, scene.right, geometry.fighterHeaders.right, RIGHT_ACCENT, true);
+  drawText(ctx, 'VS', geometry.versus.x, geometry.versus.y, 24, 950, '#eef8ff', 'center', 1.1);
 
-  drawArenaFrame(ctx, arenaCanvas, layout.arena, true, cameraFrame);
+  drawArenaFrame(ctx, arenaCanvas, geometry.arena, true, cameraFrame);
 
-  drawVerticalSkillsPanel(ctx, scene.left, { x: 40, y: 1380, width: 490, height: 420 }, LEFT_ACCENT, false);
-  drawVerticalSkillsPanel(ctx, scene.right, { x: 550, y: 1380, width: 490, height: 420 }, RIGHT_ACCENT, true);
-  drawResult(ctx, scene.resultCallout, layout.arena, true);
+  drawVerticalSkillsPanel(ctx, scene.left, geometry.skillsPanels.left, LEFT_ACCENT, false);
+  drawVerticalSkillsPanel(ctx, scene.right, geometry.skillsPanels.right, RIGHT_ACCENT, true);
+  drawResult(ctx, scene.resultCallout, geometry.arena, true);
 }
