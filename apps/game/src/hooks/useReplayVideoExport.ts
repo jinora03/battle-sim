@@ -7,15 +7,12 @@ import {
   calculateKnockoutSlowMotionFrameCount,
   calculateReplayFrameCount,
   createReplayExportArchive,
-  createStage810hExportSettings,
   detectReliableVideoExportCapability,
   detectVideoExportDeviceProfile,
   calculateReliabilityFrameCount,
   exportReplayWithReliability,
   forecastVideoExportMemory,
   generateSeedReplay,
-  getCreatorExportPreset,
-  rankBattleSeeds,
   renderReplayLayoutPreview,
   runReplayExportQueue,
   type BroadcastLayoutId,
@@ -40,10 +37,9 @@ import {
 import type { BattleRuntime } from '../runtime/BattleRuntime';
 import type { BattleSetup } from '../runtime/BattleSetup';
 import { createBattleDefinition, normalizeBattleSeed } from '../runtime/createBattleDefinition';
-import {
-  createReplayExportFilenames,
-  DEFAULT_REPLAY_VIDEO_EXPORT_SELECTIONS
-} from './replayVideoExportModel';
+import { createReplayExportFilenames } from './replayVideoExportModel';
+import { useReplayVideoExportSettings } from './useReplayVideoExportSettings';
+import { useReplayVideoExportSeedController } from './useReplayVideoExportSeedController';
 import {
   addReplayExportHistoryEntry,
   clearReplayExportHistory,
@@ -206,25 +202,43 @@ export function useReplayVideoExport(
   currentReplayTick: number
 ): ReplayVideoExportController {
   const [sourceMode, setSourceMode] = useState<ReplayVideoSourceMode>('current-replay');
-  const [generationSeedText, setGenerationSeedTextState] = useState(() => String(normalizeBattleSeed(currentSeed)));
-  const defaults = DEFAULT_REPLAY_VIDEO_EXPORT_SELECTIONS;
-  const [format, setFormatState] = useState<VideoExportFormat>(defaults.format);
-  const [layout, setLayoutState] = useState<BroadcastLayoutId>(defaults.layout);
-  const [resolution, setResolutionState] = useState<VideoExportResolution>(defaults.resolution);
-  const [fps, setFpsState] = useState<VideoExportFrameRate>(defaults.fps);
-  const [quality, setQualityState] = useState<VideoExportQuality>(defaults.quality);
-  const [audioEnabled, setAudioEnabledState] = useState(defaults.audioEnabled);
-  const [backgroundMusicEnabled, setBackgroundMusicEnabledState] = useState(defaults.backgroundMusicEnabled);
-  const [backgroundMusicVolume, setBackgroundMusicVolumeState] = useState(defaults.backgroundMusicVolume);
-  const [cameraMode, setCameraModeState] = useState<VideoExportCameraMode>(defaults.cameraMode);
-  const [cameraShakeEnabled, setCameraShakeEnabledState] = useState(defaults.cameraShakeEnabled);
-  const [screenFlashEnabled, setScreenFlashEnabledState] = useState(defaults.screenFlashEnabled);
-  const [preset, setPreset] = useState<CreatorExportPresetId>(defaults.preset);
-  const [introEnabled, setIntroEnabledState] = useState(defaults.introEnabled);
-  const [highlightsEnabled, setHighlightsEnabledState] = useState(defaults.highlightsEnabled);
-  const [captionsEnabled, setCaptionsEnabledState] = useState(defaults.captionsEnabled);
-  const [thumbnailEnabled, setThumbnailEnabledState] = useState(defaults.thumbnailEnabled);
-  const [fighterNameplatesEnabled, setFighterNameplatesEnabledState] = useState(defaults.fighterNameplatesEnabled);
+  const {
+    exportSettings,
+    format,
+    layout,
+    resolution,
+    fps,
+    quality,
+    audioEnabled,
+    backgroundMusicEnabled,
+    backgroundMusicVolume,
+    cameraMode,
+    cameraShakeEnabled,
+    screenFlashEnabled,
+    preset,
+    introEnabled,
+    highlightsEnabled,
+    captionsEnabled,
+    thumbnailEnabled,
+    fighterNameplatesEnabled,
+    setFormat,
+    setLayout,
+    setResolution,
+    setFps,
+    setQuality,
+    setAudioEnabled,
+    setBackgroundMusicEnabled,
+    setBackgroundMusicVolume,
+    setCameraMode,
+    setCameraShakeEnabled,
+    setScreenFlashEnabled,
+    applyPreset,
+    setIntroEnabled,
+    setHighlightsEnabled,
+    setCaptionsEnabled,
+    setThumbnailEnabled,
+    setFighterNameplatesEnabled
+  } = useReplayVideoExportSettings(settings);
   const [autoDownloadEnabled, setAutoDownloadEnabledState] = useState(readAutoDownloadPreference);
   const [directDownload, setDirectDownload] = useState<ReplayDirectDownloadState>(INITIAL_DIRECT_DOWNLOAD);
   const [history, setHistory] = useState<ReplayExportHistoryEntry[]>(readReplayExportHistory);
@@ -232,29 +246,17 @@ export function useReplayVideoExport(
   const [layoutPreviewing, setLayoutPreviewing] = useState(false);
   const [layoutPreviewError, setLayoutPreviewError] = useState<string | null>(null);
   const layoutPreviewUrlRef = useRef<string | null>(null);
-  const [batchSize, setBatchSize] = useState<SeedBatchSize>(10);
-  const [batchResults, setBatchResults] = useState<RankedSeedBattle[]>([]);
-  const [batchProgress, setBatchProgress] = useState<SeedBatchProgress | null>(null);
-  const [batchSearching, setBatchSearching] = useState(false);
   const [queueItems, setQueueItems] = useState<ReplayVideoQueueItem[]>([]);
   const [queueRunning, setQueueRunning] = useState(false);
   const [queuePackaging, setQueuePackaging] = useState(false);
   const [queueMessage, setQueueMessage] = useState<string | null>(null);
-  const exportSettings = useMemo(() => createStage810hExportSettings(settings, {
-    format, preset, layout, resolution, fps, quality, audio: audioEnabled, camera: cameraMode,
-    intro: introEnabled, highlights: highlightsEnabled, captions: captionsEnabled, thumbnail: thumbnailEnabled,
-    fighterNameplates: fighterNameplatesEnabled, backgroundMusic: backgroundMusicEnabled,
-    backgroundMusicVolume, cameraShake: cameraShakeEnabled, screenFlash: screenFlashEnabled
-  }), [audioEnabled, backgroundMusicEnabled, backgroundMusicVolume, cameraMode, cameraShakeEnabled, captionsEnabled, fighterNameplatesEnabled, format, fps, highlightsEnabled, introEnabled, layout, preset, quality, resolution, screenFlashEnabled, settings, thumbnailEnabled]);
   const exporterRef = useRef(new ReplayVideoExporter());
   const abortRef = useRef<AbortController | null>(null);
-  const preparedSourceRef = useRef<{ key: string; source: ReplayExportSource } | null>(null);
   const queueSourcesRef = useRef(new Map<string, ReplayQueueSourceDescriptor>());
   const queuePreparedSourcesRef = useRef(new Map<string, ReplayExportSource>());
   const queueFilesRef = useRef(new Map<string, ReplayQueueFileSet>());
   const directFilesRef = useRef<ReplayQueueFileSet | null>(null);
   const queueCounterRef = useRef(0);
-  const [preparedSourceKey, setPreparedSourceKey] = useState<string | null>(null);
   const [capability, setCapability] = useState<VideoExportCapability | null>(null);
   const deviceProfile = useMemo(() => detectVideoExportDeviceProfile(), []);
   const [progress, setProgress] = useState<ReplayVideoExportProgress>(INITIAL_PROGRESS);
@@ -262,16 +264,39 @@ export function useReplayVideoExport(
   const [preparingReplay, setPreparingReplay] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const generationSeed = normalizeBattleSeed(Number(generationSeedText) || 1);
-  const configuredBattle = useMemo(
-    () => createBattleDefinition(setup, generationSeed),
-    [generationSeed, setup]
-  );
-  const configuredBattleKey = useMemo(() => JSON.stringify(configuredBattle), [configuredBattle]);
-  const configuredSetupKey = useMemo(() => JSON.stringify(setup), [setup]);
-  const preparedReplayTick = preparedSourceKey === configuredBattleKey
-    ? preparedSourceRef.current?.source.endTick ?? null
-    : null;
+  const otherWorkRunning = queueRunning
+    || queuePackaging
+    || preparingReplay
+    || progress.phase === 'preparing'
+    || progress.phase === 'rendering'
+    || progress.phase === 'audio'
+    || progress.phase === 'finalizing'
+    || progress.phase === 'muxing'
+    || progress.phase === 'downloading';
+  const {
+    generationSeedText,
+    configuredBattle,
+    configuredBattleKey,
+    preparedReplayTick,
+    batchProgress,
+    batchSearching,
+    batchSize,
+    batchResults,
+    setGenerationSeedText,
+    randomizeSeed,
+    reuseCurrentSeed,
+    setBatchSize,
+    searchSeeds,
+    selectRankedSeed,
+    getPreparedSource,
+    rememberPreparedSource
+  } = useReplayVideoExportSeedController({
+    setup,
+    currentSeed,
+    blocked: otherWorkRunning,
+    abortRef,
+    setError
+  });
   const reliabilityTick = sourceMode === 'current-replay' ? currentReplayTick : preparedReplayTick;
   const memoryForecast = useMemo(() => {
     if (!reliabilityTick || reliabilityTick <= 0) return null;
@@ -281,115 +306,11 @@ export function useReplayVideoExport(
     );
     return forecastVideoExportMemory(exportSettings, frameCount, deviceProfile);
   }, [deviceProfile, exportSettings, reliabilityTick]);
-  const running = batchSearching
-    || queueRunning
-    || queuePackaging
-    || preparingReplay
-    || progress.phase === 'preparing'
-    || progress.phase === 'rendering'
-    || progress.phase === 'audio'
-    || progress.phase === 'finalizing'
-    || progress.phase === 'muxing'
-    || progress.phase === 'downloading';
+  const running = batchSearching || otherWorkRunning;
 
-  const setGenerationSeedText = useCallback((value: string) => {
-    const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
-    setGenerationSeedTextState(digitsOnly);
-  }, []);
-  const randomizeSeed = useCallback(() => {
-    setGenerationSeedTextState(String(generateRandomSeed()));
-  }, []);
-  const reuseCurrentSeed = useCallback(() => {
-    setGenerationSeedTextState(String(normalizeBattleSeed(currentSeed)));
-  }, [currentSeed]);
-  const selectRankedSeed = useCallback((seed: number) => {
-    setGenerationSeedTextState(String(normalizeBattleSeed(seed)));
-  }, []);
-  const setFormat = useCallback((value: VideoExportFormat) => {
-    setFormatState(value);
-  }, []);
-  const setLayout = useCallback((value: BroadcastLayoutId) => {
-    setPreset('custom');
-    setLayoutState(value);
-  }, []);
-  const setResolution = useCallback((value: VideoExportResolution) => {
-    setPreset('custom');
-    setResolutionState(value);
-  }, []);
-  const setFps = useCallback((value: VideoExportFrameRate) => {
-    setPreset('custom');
-    setFpsState(value);
-  }, []);
-  const setQuality = useCallback((value: VideoExportQuality) => {
-    setPreset('custom');
-    setQualityState(value);
-  }, []);
-  const setAudioEnabled = useCallback((value: boolean) => {
-    setPreset('custom');
-    setAudioEnabledState(value);
-  }, []);
-  const setBackgroundMusicEnabled = useCallback((value: boolean) => {
-    setPreset('custom');
-    setBackgroundMusicEnabledState(value);
-  }, []);
-  const setBackgroundMusicVolume = useCallback((value: number) => {
-    setPreset('custom');
-    setBackgroundMusicVolumeState(Math.max(0, Math.min(0.3, value)));
-  }, []);
-  const setCameraMode = useCallback((value: VideoExportCameraMode) => {
-    setPreset('custom');
-    setCameraModeState(value);
-  }, []);
-  const setCameraShakeEnabled = useCallback((value: boolean) => {
-    setPreset('custom');
-    setCameraShakeEnabledState(value);
-  }, []);
-  const setScreenFlashEnabled = useCallback((value: boolean) => {
-    setPreset('custom');
-    setScreenFlashEnabledState(value);
-  }, []);
-  const setIntroEnabled = useCallback((value: boolean) => {
-    setPreset('custom');
-    setIntroEnabledState(value);
-  }, []);
-  const setHighlightsEnabled = useCallback((value: boolean) => {
-    setPreset('custom');
-    setHighlightsEnabledState(value);
-  }, []);
-  const setCaptionsEnabled = useCallback((value: boolean) => {
-    setPreset('custom');
-    setCaptionsEnabledState(value);
-  }, []);
-  const setThumbnailEnabled = useCallback((value: boolean) => {
-    setPreset('custom');
-    setThumbnailEnabledState(value);
-  }, []);
-  const setFighterNameplatesEnabled = useCallback((value: boolean) => {
-    setPreset('custom');
-    setFighterNameplatesEnabledState(value);
-  }, []);
   const setAutoDownloadEnabled = useCallback((value: boolean) => {
     setAutoDownloadEnabledState(value);
     writeAutoDownloadPreference(value);
-  }, []);
-  const applyPreset = useCallback((value: Exclude<CreatorExportPresetId, 'custom'>) => {
-    const definition = getCreatorExportPreset(value);
-    setPreset(value);
-    setLayoutState(definition.layout);
-    setResolutionState(definition.resolution);
-    setFpsState(definition.fps);
-    setQualityState(definition.quality);
-    setAudioEnabledState(definition.audio);
-    setBackgroundMusicEnabledState(true);
-    setBackgroundMusicVolumeState(0.15);
-    setCameraModeState(definition.camera);
-    setCameraShakeEnabledState(true);
-    setScreenFlashEnabledState(true);
-    setIntroEnabledState(true);
-    setHighlightsEnabledState(true);
-    setCaptionsEnabledState(true);
-    setThumbnailEnabledState(true);
-    setFighterNameplatesEnabledState(true);
   }, []);
   const clearHistory = useCallback(() => {
     setHistory(clearReplayExportHistory());
@@ -695,11 +616,6 @@ export function useReplayVideoExport(
   }, [exportSettings]);
 
   useEffect(() => {
-    setBatchResults([]);
-    setBatchProgress(null);
-  }, [configuredSetupKey]);
-
-  useEffect(() => {
     clearLayoutPreview();
   }, [clearLayoutPreview, configuredBattleKey, exportSettings]);
 
@@ -709,43 +625,6 @@ export function useReplayVideoExport(
     if (layoutPreviewUrlRef.current) URL.revokeObjectURL(layoutPreviewUrlRef.current);
     layoutPreviewUrlRef.current = null;
   }, []);
-
-  const searchSeeds = useCallback(() => {
-    if (running || abortRef.current) return;
-
-    const abortController = new AbortController();
-    abortRef.current = abortController;
-    setError(null);
-    setBatchResults([]);
-    setBatchProgress(null);
-    setBatchSearching(true);
-
-    const run = async () => {
-      const results = await rankBattleSeeds(configuredBattle, {
-        count: batchSize,
-        startSeed: generationSeed,
-        signal: abortController.signal,
-        onProgress: setBatchProgress
-      });
-      setBatchResults(results);
-      if (results[0]) setGenerationSeedTextState(String(results[0].seed));
-    };
-
-    void run().catch((reason: unknown) => {
-      if (abortController.signal.aborted) {
-        setBatchProgress((current) => current ? {
-          ...current,
-          phase: 'cancelled',
-          message: 'Seed search cancelled.'
-        } : null);
-        return;
-      }
-      setError(reason instanceof Error ? reason.message : 'Seed search failed.');
-    }).finally(() => {
-      setBatchSearching(false);
-      if (abortRef.current === abortController) abortRef.current = null;
-    });
-  }, [batchSize, configuredBattle, generationSeed, running]);
 
   const startQueue = useCallback(() => {
     if (running || abortRef.current) return;
@@ -780,10 +659,10 @@ export function useReplayVideoExport(
 
             const cached = queuePreparedSourcesRef.current.get(request.sourceKey);
             if (cached) return cached;
-            const currentPrepared = preparedSourceRef.current;
-            if (currentPrepared?.key === descriptor.battleKey) {
-              queuePreparedSourcesRef.current.set(request.sourceKey, currentPrepared.source);
-              return currentPrepared.source;
+            const currentPrepared = getPreparedSource(descriptor.battleKey);
+            if (currentPrepared) {
+              queuePreparedSourcesRef.current.set(request.sourceKey, currentPrepared);
+              return currentPrepared;
             }
 
             const source = await generateSeedReplay(descriptor.battle, {
@@ -799,8 +678,7 @@ export function useReplayVideoExport(
             });
             queuePreparedSourcesRef.current.set(request.sourceKey, source);
             if (descriptor.battleKey === configuredBattleKey) {
-              preparedSourceRef.current = { key: descriptor.battleKey, source };
-              setPreparedSourceKey(descriptor.battleKey);
+              rememberPreparedSource(descriptor.battleKey, source);
             }
             return source;
           },
@@ -910,7 +788,7 @@ export function useReplayVideoExport(
       setQueueRunning(false);
       if (abortRef.current === abortController) abortRef.current = null;
     });
-  }, [configuredBattleKey, queueItems, running, runtimeRef]);
+  }, [configuredBattleKey, getPreparedSource, queueItems, rememberPreparedSource, running, runtimeRef]);
 
   const start = useCallback((requestedMode?: ReplayVideoSourceMode) => {
     if (running || abortRef.current) return;
@@ -934,14 +812,13 @@ export function useReplayVideoExport(
       let source: ReplayExportSource;
 
       if (activeSourceMode === 'setup-seed') {
-        const cached = preparedSourceRef.current;
+        const cached = getPreparedSource(configuredBattleKey);
         const queuedCached = queuePreparedSourcesRef.current.get(`setup:${configuredBattleKey}`);
-        if (cached?.key === configuredBattleKey) {
-          source = cached.source;
+        if (cached) {
+          source = cached;
         } else if (queuedCached) {
           source = queuedCached;
-          preparedSourceRef.current = { key: configuredBattleKey, source };
-          setPreparedSourceKey(configuredBattleKey);
+          rememberPreparedSource(configuredBattleKey, source);
         } else {
           setPreparingReplay(true);
           try {
@@ -949,9 +826,8 @@ export function useReplayVideoExport(
               signal: abortController.signal,
               onProgress: setSeedProgress
             });
-            preparedSourceRef.current = { key: configuredBattleKey, source };
+            rememberPreparedSource(configuredBattleKey, source);
             queuePreparedSourcesRef.current.set(`setup:${configuredBattleKey}`, source);
-            setPreparedSourceKey(configuredBattleKey);
           } finally {
             setPreparingReplay(false);
           }
@@ -1072,7 +948,7 @@ export function useReplayVideoExport(
     }).finally(() => {
       if (abortRef.current === abortController) abortRef.current = null;
     });
-  }, [autoDownloadEnabled, capability, configuredBattle, configuredBattleKey, exportSettings, handoffDirectDownload, running, runtimeRef, sourceMode]);
+  }, [autoDownloadEnabled, capability, configuredBattle, configuredBattleKey, exportSettings, getPreparedSource, handoffDirectDownload, rememberPreparedSource, running, runtimeRef, sourceMode]);
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();
@@ -1193,15 +1069,6 @@ function queueCompletionMessage(
   return recovered
     ? `Completed ${index + 1} of ${total} with reliability fallback: ${result.resolution} · ${result.fps} FPS · ${result.quality} · ${result.container.toUpperCase()}.`
     : `Completed ${index + 1} of ${total}.`;
-}
-
-function generateRandomSeed(): number {
-  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
-    const value = new Uint32Array(1);
-    crypto.getRandomValues(value);
-    return value[0] || 1;
-  }
-  return ((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0) || 1;
 }
 
 function hashReplayData(replay: ReplayExportSource['replay']): string {

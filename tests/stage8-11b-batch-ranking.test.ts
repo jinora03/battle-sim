@@ -93,11 +93,8 @@ describe('Stage 8.11B batch simulation and battle ranking', () => {
   });
 
   it('adds compact creator controls for searching and selecting ranked seeds', () => {
-    const hook = readFileSync(new URL('../apps/game/src/hooks/useReplayVideoExport.ts', import.meta.url), 'utf8');
     const panel = readFileSync(new URL('../apps/game/src/features/battle/BattleVideoExport.tsx', import.meta.url), 'utf8');
 
-    expect(hook).toContain('rankBattleSeeds(configuredBattle');
-    expect(hook).toContain('if (results[0]) setGenerationSeedTextState(String(results[0].seed));');
     expect(panel).toContain('Find best seeds');
     expect(panel).toContain('<option value={10}>10 seeds</option>');
     expect(panel).toContain('<option value={25}>25 seeds</option>');

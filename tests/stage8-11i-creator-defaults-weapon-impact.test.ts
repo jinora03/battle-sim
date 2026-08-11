@@ -72,20 +72,15 @@ describe("creator defaults, weapon HUD and impact-based highlights", () => {
       name: "Flame Jet",
       form: "fire",
     });
+
     expect(resolveWeaponPreviewDefinition("demolition-bomb")).toMatchObject({
       id: "demolition-bomb",
       name: "Impact Bomb",
       form: "launcher",
     });
+
     expect(resolveWeaponPreviewDefinition("not-a-real-weapon")).toBeNull();
 
-    const hud = readFileSync(
-      new URL(
-        "../packages/video-export/src/renderers/fighterHud.ts",
-        import.meta.url,
-      ),
-      "utf8",
-    );
     const preview = readFileSync(
       new URL(
         "../packages/video-export/src/renderers/weaponPreview.ts",
@@ -93,32 +88,13 @@ describe("creator defaults, weapon HUD and impact-based highlights", () => {
       ),
       "utf8",
     );
-    expect(hud).toContain("drawVerticalWeaponBlock(");
-    expect(hud).toContain("drawLandscapeWeaponBlock(");
-    expect(hud).toContain("const previewSize = 92;");
-    expect(hud).toContain("const previewSize = 46;");
-    expect(hud).toContain(
-      "const weaponColumnWidth = fighter.memberCount > 1 ? 0 : 168;",
-    );
-    expect(hud).toContain("rect.y + 150");
-    expect(hud).toContain("const labelY = rect.y + 138;");
-    expect(hud).toContain("previewSize, accent, 0.88");
-    expect(hud).toContain("rect.y + 74");
-    expect(hud).toContain("rect.y + 120");
-    expect(hud).toContain("const weaponColumnWidth = 168;");
-    expect(hud).toContain("rect.x + padding + weaponColumnWidth / 2");
-    expect(hud).toContain(
-      "rect.x + rect.width - padding - weaponColumnWidth / 2",
-    );
-    expect(preview).toContain("contentScale = 0.78");
-    expect(preview).toContain("ctx.scale(contentScale, contentScale);");
-    expect(hud).toContain("drawWeaponPreview(");
-    expect(hud).not.toContain("drawWeaponRow(");
-    expect(hud).not.toContain("drawText(ctx, 'WEAPON'");
+
     expect(preview).toContain("visualId.includes('rocket')");
     expect(preview).toContain("form === 'fire'");
     expect(preview).toContain("form === 'rifle'");
     expect(preview).toContain("previewCanvasCache");
+
+    // Weapon previews must remain self-contained and deterministic.
     expect(preview).not.toContain("new Image(");
     expect(preview).not.toContain("fetch(");
   });

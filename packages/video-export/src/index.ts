@@ -12,6 +12,7 @@ export * from './cinematicCamera';
 export * from './cinematicHighlights';
 export * from './creatorHighlights';
 export * from './creatorLayoutGeometry';
+export * from './fighterCardGeometry';
 export * from './creatorBackgroundMusic';
 export * from './creatorMatchupHook';
 export * from './creatorHighlightScoring';
