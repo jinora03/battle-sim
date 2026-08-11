@@ -6,3 +6,10 @@ coverage/
 *.log
 android/
 ios/
+
+# Local patch / handoff artifacts
+*.patch
+*.diff
+*.rej
+*.orig
+*.zip

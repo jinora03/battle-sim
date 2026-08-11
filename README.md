@@ -44,7 +44,6 @@ A browser/mobile-ready 2D physics battle game and modular fighter engine built w
 - Battle and Ability Lab restart/destroy paths explicitly clear scheduled audio
 - no damage, cooldown, AI, physics, projectile, replay or checksum changes
 
-See `docs/V1_3_STAGE_8_6D_AUDIO_STABILIZATION.md` for implementation and validation details.
 
 
 > **Stage 8.6C-3 completes the initial roster-audio rollout with Bomber and Mech Bruiser.** Bomber gains a reusable explosive palette with fuse, ignition, blast-pressure, and release layers, while Mech gains coherent servo, magnetic, armor-lock, and reactor lifecycles. Impact Bomb and Hydraulic Gauntlet also receive stronger basic-attack identities.
@@ -60,7 +59,6 @@ See `docs/V1_3_STAGE_8_6D_AUDIO_STABILIZATION.md` for implementation and validat
 - migrated Bomber and Mech abilities removed from legacy hardcoded playback branches
 - no damage, cooldown, AI, projectile, physics, seeded-opening, or deterministic simulation changes
 
-See `docs/V1_3_STAGE_8_6C3_BOMBER_MECH_AUDIO.md` for implementation and validation details.
 
 
 > **Stage 8.6C-2 rolls the intent-audio standard out to Gunner and Solar Sentinel.** Kill Zone now follows a mechanical spool-to-spin-down lifecycle, Solar Eye Beams separates eye charge, ignition, sustain, real contact, and shutdown, and all eight fighter abilities are profile-driven rather than hardcoded in the audio engine.
@@ -76,7 +74,6 @@ See `docs/V1_3_STAGE_8_6C3_BOMBER_MECH_AUDIO.md` for implementation and validati
 - reusable activated/resolved layer anchors, channel-contact metadata and generic mechanical/beam rendering
 - no damage, cooldown, targeting, AI, projectile, seeded-opening or deterministic simulation changes
 
-See `docs/V1_3_STAGE_8_6C2_GUNNER_SENTINEL_AUDIO.md` for implementation and validation details.
 
 > **Stage 8.6C-2A adds seeded opening readiness and controlled AI variation.** Basics remain immediate, movement and normal skills enter in short seeded windows, payoff skills wait longer, and ultimates cannot open a battle before five seconds. Small utility variation is stable until an ability is committed, preserving deterministic replays without identical openings across every seed.
 
@@ -90,7 +87,6 @@ See `docs/V1_3_STAGE_8_6C2_GUNNER_SENTINEL_AUDIO.md` for implementation and vali
 - Solar Sentinel still uses Solar Eye Beams, but no longer at the opening bell
 - player-controlled fighters and actual ability cooldown values remain unchanged
 
-See `docs/V1_3_STAGE_8_6C2A_SEEDED_OPENING_READINESS.md` for implementation and determinism details.
 
 > **Stage 8.6C-1 rolls the intent-audio standard out to Pyro and Ballast and corrects Solar Sentinel's AI ultimate usage.** Pyro now has a furnace-to-detonation hierarchy, Ballast has distinct mass-shift and compression cues, and Solar Sentinel no longer inherits Pyro's Heat-gated AI rules.
 
@@ -106,7 +102,6 @@ See `docs/V1_3_STAGE_8_6C2A_SEEDED_OPENING_READINESS.md` for implementation and 
 - Solar Eye Beams can now be selected from its real 90–1080 range and begins its existing stationary tracking channel normally
 - no Pyro or Ballast damage, cooldown, status, physics, AI or replay behavior changed
 
-See `docs/V1_3_STAGE_8_6C1_PYRO_BALLAST_AUDIO_SENTINEL_FIX.md` for implementation and validation notes.
 
 > **Stage 8.6B validates intent-based combat audio on Volt Striker.** Arc Emitter now has separate charge, launch and impact reads; Lightning Dash, Arc Burst and Polarity Pull use distinct lifecycle profiles; Thunder Dome remains the ultimate-quality benchmark. The audit found no immediate need for AI, balance or kit changes.
 
@@ -121,7 +116,6 @@ See `docs/V1_3_STAGE_8_6C1_PYRO_BALLAST_AUDIO_SENTINEL_FIX.md` for implementatio
 - no changes to Volt damage, cooldowns, ranges, statuses, AI, physics, determinism or replay output
 - explicit audit finding that `shocked` is a slow, not true chain-lightning propagation
 
-See `docs/V1_3_STAGE_8_6B_VOLT_IDENTITY_AUDIO.md` for the full identity audit and implementation notes.
 
 > **Stage 8.6A establishes intent-based combat audio.** Abilities can now be described through anticipation, activation, sustained-action and release layers, selected from reusable combat intents and sound palettes. Thunder Dome is the first complete reference profile; unconverted abilities retain their existing playback until the Volt and roster rollout phases.
 
@@ -135,7 +129,6 @@ See `docs/V1_3_STAGE_8_6B_VOLT_IDENTITY_AUDIO.md` for the full identity audit an
 - scheduled sustain/release layers use Web Audio timing only and do not add simulation timers or alter replay checksums
 - legacy ability sounds remain unchanged until Stage 8.6B/8.6C migration
 
-See `docs/V1_3_STAGE_8_6A_INTENT_BASED_COMBAT_AUDIO.md` for implementation and validation notes.
 
 > **Stage 8.5C corrects Gunner's live-play firing behavior.** Kill Zone now launches a straight per-round tracked gatling stream instead of a precomputed fan with curved homing arcs. Suppressive Burst is now a six-round tracked firing lane with a stronger, longer suppression effect.
 
@@ -147,7 +140,6 @@ See `docs/V1_3_STAGE_8_6A_INTENT_BASED_COMBAT_AUDIO.md` for implementation and v
 - Suppressed movement multiplier strengthens from 0.82x to 0.70x and lasts longer
 - existing delayed abilities keep snapshot aiming unless they opt in
 
-See `docs/V1_3_STAGE_8_5C_GUNNER_FUNCTIONALITY_CORRECTION.md` for implementation and validation notes.
 
 > **Stage 8.5A begins Gunner's identity pass without replacing his existing Target Lock kit.** The four-round rifle now reads as a committed firing sequence: Gunner holds a disciplined kite lane, tracks the selected target between rounds, uses crisp ballistic VFX/audio across skill projectiles and no longer freezes the presentation on every rapid-fire hit.
 
@@ -161,7 +153,6 @@ See `docs/V1_3_STAGE_8_5C_GUNNER_FUNCTIONALITY_CORRECTION.md` for implementation
 - enlarged outlined rifle silhouette with a visible stock, receiver, scope, magazine and muzzle brake
 - no ability replacement, resource meter or projectile-system rewrite
 
-See `docs/V1_3_STAGE_8_5A_GUNNER_READABILITY.md` for implementation and validation notes.
 
 ## Stage 8.4C Ballast presentation polish
 
@@ -173,7 +164,6 @@ See `docs/V1_3_STAGE_8_5A_GUNNER_READABILITY.md` for implementation and validati
 - distinct synthesized audio cues for Skip Stone and every Ballast ability
 - deterministic gameplay remains identical to Stage 8.4B
 
-See `docs/V1_3_STAGE_8_4C_BALLAST_PRESENTATION_POLISH.md` for the presentation pass and `docs/V1_3_STAGE_8_4B_FULL_BALLAST.md` for the fighter implementation.
 
 ## Stage 8.4A.1 Pyro readability pass
 
@@ -181,7 +171,6 @@ See `docs/V1_3_STAGE_8_4C_BALLAST_PRESENTATION_POLISH.md` for the presentation p
 - readable stream-primary firing commitment and stronger close-range separation
 - optional `furnace-nozzle` offense module with deterministic pulsed cone damage
 
-See `docs/V1_3_STAGE_8_4A1_PYRO_READABILITY_AND_FURNACE_NOZZLE.md` for implementation and validation notes.
 
 ## Stage 8.4A mass-manipulation foundation
 
@@ -193,7 +182,6 @@ See `docs/V1_3_STAGE_8_4A1_PYRO_READABILITY_AND_FURNACE_NOZZLE.md` for implement
 - regression coverage for mass scaling, knockback distance and ricochet limits
 - no Ballast fighter content yet; this phase is the reusable foundation
 
-See `docs/V1_3_STAGE_8_4A_MASS_MANIPULATION_FOUNDATION.md` for implementation and validation notes.
 
 ## Previous Stage 7.5 performance foundation
 
@@ -209,7 +197,6 @@ See `docs/V1_3_STAGE_8_4A_MASS_MANIPULATION_FOUNDATION.md` for implementation an
 - separate player and AI hit-confirmation audio paths, including AI-vs-AI
 - preserved replay checksums and deterministic command selection
 
-See `docs/V1_1_STAGE_7_5_FINAL_PERFORMANCE.md` for the implementation and validation notes.
 
 ## Earlier performance phases
 
@@ -381,7 +368,6 @@ packages/meta/             profiles, achievements, progression and history
 packages/platform/         device quality, accessibility and settings migration
 packages/replay/           deterministic replay recording/export support
 tests/                     architecture and regression tests
-validation/                executable headless validation scenarios
 ```
 
 ## v1.1 Stage 7.2 highlights
@@ -459,7 +445,6 @@ This release is a **complete core-game evaluation build**, not a finished commer
 
 Those can be added without replacing the simulation/render/control/meta boundaries, but some—especially real-time multiplayer—remain substantial projects.
 
-See `docs/V1_1_STAGE_7_2.md`, `docs/V1_1_STAGE_7_2_VALIDATION.md`, `docs/V1_1_STAGE_7.md`, `docs/V1_1_STAGE_7_VALIDATION.md`, `docs/V1_1_STAGE_6.md`, `docs/V1_1_STAGE_6_VALIDATION.md`, `docs/V1_1_STAGE_8.md`, `docs/V1_1_STAGE_8_VALIDATION.md`, `docs/STAGE_8_DEVICE_QA.md`, `docs/V1_1_STAGE_5.md`, `docs/V1_1_STAGE_4.md`, `docs/V1_1_STAGE_3.md`, `docs/V1_1_STAGE_2.md`, `docs/V1_1_STAGE_1.md`, `docs/PHASE_1_0.md`, `docs/ARCHITECTURE.md`, `docs/EVALUATION_GUIDE.md` and `docs/RELEASE_CHECKLIST.md`.
 
 ## Stage 7.4 performance phase 1
 
@@ -480,3 +465,13 @@ Mass battles now use bounded presentation budgets and a 30 FPS render tier for 8
 ## Stage 7.4 performance phase 6
 
 Main-thread stabilization adds no-op viewport/resize guards, batched meta evaluation, a 48+ fighter mass tier, stricter VFX budgets, centered replay export, and restored AI hitmarker audio.
+
+## Current documentation
+
+- `docs/ARCHITECTURE.md` — system boundaries and layering.
+- `docs/CONTENT_GUIDE.md` — fighter/content authoring.
+- `docs/TESTING.md` — automated-test strategy and ownership rules.
+- `docs/STAGE_8_DEVICE_QA.md` — browser/device QA matrix.
+- `docs/RELEASE_CHECKLIST.md` — release verification checklist.
+
+Historical stage/change manifests are preserved in Git history rather than the active repository tree.
