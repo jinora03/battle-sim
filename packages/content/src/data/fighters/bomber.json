@@ -36,5 +36,20 @@
   "visualRecipeId": "bomber",
   "animationRecipeId": "volatile-bomber",
   "audioProfileId": "explosive-heavy",
-  "primaryAttackId": "demolition-bomb"
+  "primaryAttackId": "demolition-bomb",
+  "moduleSlots": {
+    "offense": [
+      "heavy-fuse"
+    ],
+    "defense": [
+      "blast-vest"
+    ],
+    "mobility": [
+      "detonation-thrusters"
+    ],
+    "utility": [
+      "cluster-rig"
+    ]
+  },
+  "defaultModuleIds": []
 }

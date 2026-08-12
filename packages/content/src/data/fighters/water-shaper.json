@@ -36,5 +36,20 @@
   "visualRecipeId": "water-shaper",
   "animationRecipeId": "fluid-orb",
   "audioProfileId": "water-fluid",
-  "primaryAttackId": "pressure-orb"
+  "primaryAttackId": "pressure-orb",
+  "moduleSlots": {
+    "offense": [
+      "pressure-nozzle"
+    ],
+    "defense": [
+      "hydro-shell"
+    ],
+    "mobility": [
+      "jetstream-fins"
+    ],
+    "utility": [
+      "undertow-focus"
+    ]
+  },
+  "defaultModuleIds": []
 }

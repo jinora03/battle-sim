@@ -37,5 +37,20 @@
   "visualRecipeId": "frost-warden",
   "animationRecipeId": "frozen-sentinel",
   "audioProfileId": "ice-heavy",
-  "primaryAttackId": "frost-halberd"
+  "primaryAttackId": "frost-halberd",
+  "moduleSlots": {
+    "offense": [
+      "razor-rime"
+    ],
+    "defense": [
+      "glacier-plating"
+    ],
+    "mobility": [
+      "ice-runners"
+    ],
+    "utility": [
+      "permafrost-core"
+    ]
+  },
+  "defaultModuleIds": []
 }

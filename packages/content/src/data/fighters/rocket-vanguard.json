@@ -39,5 +39,20 @@
   "visualRecipeId": "rocket-vanguard",
   "animationRecipeId": "rocket-artillery",
   "audioProfileId": "missile-heavy",
-  "primaryAttackId": "guided-rocket"
+  "primaryAttackId": "guided-rocket",
+  "moduleSlots": {
+    "offense": [
+      "warhead-rack"
+    ],
+    "defense": [
+      "blast-baffles"
+    ],
+    "mobility": [
+      "jump-jets"
+    ],
+    "utility": [
+      "guidance-array"
+    ]
+  },
+  "defaultModuleIds": []
 }

@@ -38,5 +38,20 @@
   "visualRecipeId": "thorn-colossus",
   "animationRecipeId": "rooted-giant",
   "audioProfileId": "nature-heavy",
-  "primaryAttackId": "thorn-claws"
+  "primaryAttackId": "thorn-claws",
+  "moduleSlots": {
+    "offense": [
+      "barbed-talons"
+    ],
+    "defense": [
+      "ironbark-plating"
+    ],
+    "mobility": [
+      "vine-springs"
+    ],
+    "utility": [
+      "seed-heart"
+    ]
+  },
+  "defaultModuleIds": []
 }

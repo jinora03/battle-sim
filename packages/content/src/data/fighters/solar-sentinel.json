@@ -40,5 +40,20 @@
   "visualRecipeId": "solar-sentinel",
   "animationRecipeId": "solar-flight",
   "audioProfileId": "solar-heavy",
-  "primaryAttackId": "solar-punch"
+  "primaryAttackId": "solar-punch",
+  "moduleSlots": {
+    "offense": [
+      "flare-core"
+    ],
+    "defense": [
+      "aegis-plating"
+    ],
+    "mobility": [
+      "flight-stabilizers"
+    ],
+    "utility": [
+      "sun-prism"
+    ]
+  },
+  "defaultModuleIds": []
 }

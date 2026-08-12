@@ -37,5 +37,20 @@
   "visualRecipeId": "void-reaper",
   "animationRecipeId": "void-orbit",
   "audioProfileId": "void-deep",
-  "primaryAttackId": "void-scythe"
+  "primaryAttackId": "void-scythe",
+  "moduleSlots": {
+    "offense": [
+      "phase-edge"
+    ],
+    "defense": [
+      "event-horizon-guard"
+    ],
+    "mobility": [
+      "phase-thrusters"
+    ],
+    "utility": [
+      "gravity-lens"
+    ]
+  },
+  "defaultModuleIds": []
 }

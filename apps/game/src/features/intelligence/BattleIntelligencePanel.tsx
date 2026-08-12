@@ -24,6 +24,7 @@ import {
 } from '@kinetic/video-export';
 import { createBattleDefinition } from '../../runtime/createBattleDefinition';
 import type { BattleSetup } from '../../runtime/BattleSetup';
+import { ModuleParityPanel } from './ModuleParityPanel';
 
 export function BattleIntelligencePanel({
   active,
@@ -135,7 +136,7 @@ export function BattleIntelligencePanel({
     <section className="battle-intelligence-view">
       <header className="battle-intelligence-hero">
         <div>
-          <p className="eyebrow">Stage 9A · Battle Intelligence</p>
+          <p className="eyebrow">Stage 9A complete · Stage 9B active</p>
           <h2>Complete roster diagnostics</h2>
           <p>Measure baseline matchup balance, kit usage, AI decisions, battle pacing and diagnostic findings from one deterministic roster scan. Intelligence remains read-only and never changes gameplay values.</p>
         </div>
@@ -192,6 +193,8 @@ export function BattleIntelligencePanel({
           )}
         </div>
       </section>
+
+      <ModuleParityPanel fighters={builtInFighters} arenas={arenas} />
 
       {result && (
         <>

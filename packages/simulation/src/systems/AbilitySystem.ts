@@ -288,8 +288,9 @@ export class AbilitySystem {
           : beamTicks < SOLAR_LASER_RAMP_STAGE_TICKS * 2
             ? 1
             : 2;
-        const damage = rampStage === 0 ? 2.2 : rampStage === 1 ? 3.5 : 5.2;
-        this.context.dealDamage(entityId, targetId, damage, 'fire', events);
+        const baseDamage = rampStage === 0 ? 2.2 : rampStage === 1 ? 3.5 : 5.2;
+        const moduleDamageMultiplier = this.world.getLoadout(entityId).abilityDamageMultiplier[SOLAR_LASER_ABILITY_ID] ?? 1;
+        this.context.dealDamage(entityId, targetId, baseDamage * moduleDamageMultiplier, 'fire', events);
       }
     }
 

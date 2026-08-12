@@ -36,5 +36,20 @@
   "visualRecipeId": "mech-bruiser",
   "animationRecipeId": "heavy-mech",
   "audioProfileId": "metal-heavy",
-  "primaryAttackId": "hydraulic-gauntlet"
+  "primaryAttackId": "hydraulic-gauntlet",
+  "moduleSlots": {
+    "offense": [
+      "piston-overdrive"
+    ],
+    "defense": [
+      "reactive-plating"
+    ],
+    "mobility": [
+      "vector-servos"
+    ],
+    "utility": [
+      "magnet-array"
+    ]
+  },
+  "defaultModuleIds": []
 }

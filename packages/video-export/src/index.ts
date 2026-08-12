@@ -33,6 +33,7 @@ export * from './aiDecisionAnalytics';
 export * from './pacingAnalytics';
 export * from './intelligenceFindings';
 export * from './matchupMatrix';
+export * from './moduleImpact';
 export * from './settings';
 export * from './types';
 export * from './webCodecs';

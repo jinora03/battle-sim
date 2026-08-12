@@ -1,4 +1,5 @@
 import type { FighterModuleDefinition } from '../../schemas';
+import { parityAttachment } from './parityVisuals';
 
 export const GUNNER_MODULES: readonly FighterModuleDefinition[] = [
   {
@@ -7,6 +8,20 @@ export const GUNNER_MODULES: readonly FighterModuleDefinition[] = [
     description: 'Primary bullets bounce once from walls and obstacles, but deal 10% less damage.',
     slot: 'offense',
     compatibleFighterIds: ['gunner'],
+    attachments: [
+      parityAttachment({
+        id: 'gunner-ricochet-chamber',
+        kind: 'ammo-drum',
+        mountPoint: 'top',
+        rotationMode: 'target',
+        forward: 0.28,
+        lateral: 1.08,
+        scale: 1.28,
+        primaryColor: 0x263645,
+        accentColor: 0x65d8ff,
+        glowColor: 0xffd76a
+      })
+    ],
     modifiers: {
       primaryDamageMultiplier: 0.9,
       primaryProjectileBounce: 0.82,
@@ -19,6 +34,19 @@ export const GUNNER_MODULES: readonly FighterModuleDefinition[] = [
     description: 'Primary bullets can pass through one enemy, but the burst cooldown is 12% longer.',
     slot: 'offense',
     compatibleFighterIds: ['gunner'],
+    attachments: [
+      parityAttachment({
+        id: 'gunner-piercing-barrel',
+        kind: 'flamethrower',
+        mountPoint: 'front',
+        rotationMode: 'body',
+        forward: 1.2,
+        scale: 1.06,
+        primaryColor: 0x263645,
+        accentColor: 0xffc65a,
+        glowColor: 0x65d8ff
+      })
+    ],
     modifiers: {
       primaryCooldownMultiplier: 1.12,
       primaryProjectilePenetration: 1
