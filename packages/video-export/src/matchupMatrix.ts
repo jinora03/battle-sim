@@ -1,5 +1,9 @@
 import type { BattleDefinition } from '@kinetic/protocol';
 import { summarizeBattleIntelligence, type BattleIntelligenceSummary } from './battleIntelligence';
+import { AbilityAnalyticsCollector, type RosterAbilityAnalytics } from './abilityAnalytics';
+import { AiDecisionAnalyticsCollector, type RosterAiDecisionAnalytics } from './aiDecisionAnalytics';
+import { BattlePacingAnalyticsCollector, type RosterPacingAnalytics } from './pacingAnalytics';
+import { buildBattleIntelligenceFindings, type BattleIntelligenceFinding } from './intelligenceFindings';
 import { rankBattleSeeds, type RankedSeedBattle, type SeedBatchProgress } from './seedBattleRanking';
 
 export const MATCHUP_MATRIX_SAMPLE_SIZES = [10, 50, 100] as const;
@@ -57,6 +61,10 @@ export interface MatchupMatrixResult {
   totalBattles: number;
   cells: MatchupMatrixCell[];
   fighterSummaries: FighterBalanceSummary[];
+  abilityAnalytics: RosterAbilityAnalytics;
+  aiDecisionAnalytics: RosterAiDecisionAnalytics;
+  pacingAnalytics: RosterPacingAnalytics;
+  findings: BattleIntelligenceFinding[];
 }
 
 export interface MatchupMatrixProgress {
@@ -110,6 +118,9 @@ export async function analyzeRosterMatchups(
   const startSeed = normalizeSeed(options.startSeed ?? 1);
   const forwardCount = Math.ceil(sampleSize / 2);
   const reverseCount = sampleSize - forwardCount;
+  const abilityAnalytics = new AbilityAnalyticsCollector();
+  const aiDecisionAnalytics = new AiDecisionAnalyticsCollector();
+  const pacingAnalytics = new BattlePacingAnalyticsCollector();
 
   for (let pairIndex = 0; pairIndex < pairs.length; pairIndex += 1) {
     throwIfCancelled(options.signal);
@@ -126,6 +137,29 @@ export async function analyzeRosterMatchups(
         ...(options.signal ? { signal: options.signal } : {}),
         ...(options.maxTicksPerBattle !== undefined ? { maxTicksPerBattle: options.maxTicksPerBattle } : {}),
         ...(options.yieldIntervalTicks !== undefined ? { yieldIntervalTicks: options.yieldIntervalTicks } : {}),
+        onInitialSnapshot: (snapshot) => {
+          abilityAnalytics.beginBattle(
+            snapshot.entities.map((entity) => ({
+              id: entity.id,
+              fighterId: entity.fighterId,
+              primaryAttackId: entity.primaryAttackId
+            }))
+          );
+          aiDecisionAnalytics.beginBattle(
+            snapshot.entities.map((entity) => ({ id: entity.id, fighterId: entity.fighterId }))
+          );
+          pacingAnalytics.beginBattle(snapshot);
+        },
+        onEvents: (events) => {
+          abilityAnalytics.observeEvents(events);
+          pacingAnalytics.observeEvents(events);
+        },
+        onAiDecision: (decision, tick) => aiDecisionAnalytics.observeDecision(decision, tick),
+        onBattleComplete: (battleResult) => {
+          abilityAnalytics.endBattle();
+          aiDecisionAnalytics.endBattle();
+          pacingAnalytics.endBattle(battleResult);
+        },
         onProgress: (progress) => emitProgress(options, progress, {
           pair,
           pairIndex,
@@ -146,6 +180,29 @@ export async function analyzeRosterMatchups(
         ...(options.signal ? { signal: options.signal } : {}),
         ...(options.maxTicksPerBattle !== undefined ? { maxTicksPerBattle: options.maxTicksPerBattle } : {}),
         ...(options.yieldIntervalTicks !== undefined ? { yieldIntervalTicks: options.yieldIntervalTicks } : {}),
+        onInitialSnapshot: (snapshot) => {
+          abilityAnalytics.beginBattle(
+            snapshot.entities.map((entity) => ({
+              id: entity.id,
+              fighterId: entity.fighterId,
+              primaryAttackId: entity.primaryAttackId
+            }))
+          );
+          aiDecisionAnalytics.beginBattle(
+            snapshot.entities.map((entity) => ({ id: entity.id, fighterId: entity.fighterId }))
+          );
+          pacingAnalytics.beginBattle(snapshot);
+        },
+        onEvents: (events) => {
+          abilityAnalytics.observeEvents(events);
+          pacingAnalytics.observeEvents(events);
+        },
+        onAiDecision: (decision, tick) => aiDecisionAnalytics.observeDecision(decision, tick),
+        onBattleComplete: (battleResult) => {
+          abilityAnalytics.endBattle();
+          aiDecisionAnalytics.endBattle();
+          pacingAnalytics.endBattle(battleResult);
+        },
         onProgress: (progress) => emitProgress(options, progress, {
           pair,
           pairIndex,
@@ -173,13 +230,20 @@ export async function analyzeRosterMatchups(
     });
   }
 
-  const result: MatchupMatrixResult = {
+  const resultWithoutFindings: Omit<MatchupMatrixResult, 'findings'> = {
     fighters: normalizedFighters,
     sampleSizePerMatchup: sampleSize,
     totalPairings: pairs.length,
     totalBattles,
     cells,
-    fighterSummaries: summarizeFighterBalance(normalizedFighters, cells)
+    fighterSummaries: summarizeFighterBalance(normalizedFighters, cells),
+    abilityAnalytics: abilityAnalytics.summarize(),
+    aiDecisionAnalytics: aiDecisionAnalytics.summarize(),
+    pacingAnalytics: pacingAnalytics.summarize()
+  };
+  const result: MatchupMatrixResult = {
+    ...resultWithoutFindings,
+    findings: buildBattleIntelligenceFindings(resultWithoutFindings)
   };
 
   options.onProgress?.({
@@ -384,13 +448,28 @@ function emitProgress(
     totalBattles: number;
   }
 ): void {
-  // Matrix runs can contain thousands of battles. Avoid turning the seed
-  // scanner's per-tick telemetry into thousands of React renders; one update
-  // per completed seed is enough for roster-level progress.
-  if (progress.activeSeedTicks > 0) return;
+  // Matrix runs can contain thousands of battles. Forward live progress only
+  // on the same cadence that the headless simulation yields to the browser so
+  // the bar moves during a battle without flooding React with tick updates.
+  const uiProgressIntervalTicks = Math.max(
+    1,
+    Math.trunc(options.yieldIntervalTicks ?? 600)
+  );
+  if (
+    progress.activeSeedTicks > 0 &&
+    progress.activeSeedTicks % uiProgressIntervalTicks !== 0
+  ) {
+    return;
+  }
+  const completedBattleUnits = Math.min(
+    context.totalBattles,
+    context.pairBattleOffset +
+      context.orientationOffset +
+      progress.progress * progress.total
+  );
   const completedBattles = Math.min(
     context.totalBattles,
-    context.pairBattleOffset + context.orientationOffset + progress.completed
+    Math.floor(completedBattleUnits)
   );
   options.onProgress?.({
     phase: 'searching',
@@ -398,7 +477,7 @@ function emitProgress(
     totalPairings: context.pairCount,
     completedBattles,
     totalBattles: context.totalBattles,
-    progress: context.totalBattles > 0 ? completedBattles / context.totalBattles : 1,
+    progress: context.totalBattles > 0 ? completedBattleUnits / context.totalBattles : 1,
     activeFighterAId: context.pair.fighterA.id,
     activeFighterBId: context.pair.fighterB.id,
     activeSeed: progress.activeSeed,

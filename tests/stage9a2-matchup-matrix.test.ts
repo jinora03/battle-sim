@@ -44,6 +44,12 @@ describe('Stage 9A.2 roster matchup matrix', () => {
     expect(result.totalBattles).toBe(6);
     expect(result.cells).toHaveLength(3);
     expect(result.fighterSummaries).toHaveLength(3);
+    expect(result.abilityAnalytics.fighters).toHaveLength(3);
+    expect(result.abilityAnalytics.fighters.every((fighter) => fighter.battleSamples === 4)).toBe(true);
+    expect(result.aiDecisionAnalytics.fighters).toHaveLength(3);
+    expect(result.aiDecisionAnalytics.fighters.every((fighter) => fighter.battleSamples === 4)).toBe(true);
+    expect(result.pacingAnalytics.overall.battleSamples).toBe(6);
+    expect(result.findings.length).toBeGreaterThan(0);
 
     const cell = getMatchupCell(result, 'pyro-brawler', 'bomber');
     expect(cell).not.toBeNull();

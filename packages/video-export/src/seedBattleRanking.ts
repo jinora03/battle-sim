@@ -1,3 +1,4 @@
+import type { AiDecisionDebug } from '@kinetic/controllers';
 import type { BattleDefinition, SimulationEvent, WorldSnapshot } from '@kinetic/protocol';
 import { SIM_TICK_RATE } from '@kinetic/simulation';
 import { runHeadlessSeedSimulation, SeedReplayGenerationError } from './seedReplayGenerator';
@@ -46,6 +47,11 @@ export interface RankBattleSeedsOptions {
   startSeed?: number;
   signal?: AbortSignal;
   onProgress?(progress: SeedBatchProgress): void;
+  /** Optional read-only telemetry hooks used by Battle Intelligence. */
+  onInitialSnapshot?(snapshot: WorldSnapshot): void;
+  onEvents?(events: readonly SimulationEvent[]): void;
+  onAiDecision?(decision: AiDecisionDebug, tick: number): void;
+  onBattleComplete?(result: RankedSeedBattle): void;
   /** Test/perf escape hatch. Production uses the existing battle/export limit. */
   maxTicksPerBattle?: number;
   yieldIntervalTicks?: number;
@@ -74,6 +80,8 @@ export async function rankBattleSeeds(
   const startSeed = normalizeSeed(options.startSeed ?? battle.seed);
   const seeds = createSeedBatch(startSeed, count);
   const ranked: RankedSeedBattle[] = [];
+  let lastPaintAt = 0;
+  let lastPaintIndex = -10;
 
   for (let index = 0; index < seeds.length; index += 1) {
     throwIfCancelled(options.signal);
@@ -93,8 +101,13 @@ export async function rankBattleSeeds(
       progressIntervalTicks: 120,
       onInitialSnapshot: (snapshot) => {
         initialTotalMaxHp = snapshot.entities.reduce((sum, entity) => sum + Math.max(0, entity.maxHp), 0);
+        options.onInitialSnapshot?.(snapshot);
       },
-      onEvents: (events) => observeEvents(metrics, events),
+      onEvents: (events) => {
+        observeEvents(metrics, events);
+        options.onEvents?.(events);
+      },
+      ...(options.onAiDecision ? { onAiDecision: options.onAiDecision } : {}),
       onProgress: (progress) => {
         activeSeedTicks = progress.simulatedTicks;
         options.onProgress?.({
@@ -119,6 +132,7 @@ export async function rankBattleSeeds(
       candidate.participants.length
     );
     ranked.push(result);
+    options.onBattleComplete?.(result);
     sortAndRank(ranked);
 
     options.onProgress?.({
@@ -131,6 +145,23 @@ export async function rankBattleSeeds(
       best: ranked[0] ?? null,
       message: `${index + 1} / ${seeds.length} seeds scored`
     });
+
+    // React may schedule its commit on another task. A normal await/setTimeout
+    // can immediately resume this async loop as a microtask and starve that
+    // render task, which is why matrix progress used to appear only after a
+    // click/cancel. Periodically wait across an animation-frame paint boundary.
+    if (options.onProgress) {
+      const now = Date.now();
+      const shouldPaint = index === 0
+        || index + 1 === seeds.length
+        || index - lastPaintIndex >= 10
+        || now - lastPaintAt >= 150;
+      if (shouldPaint) {
+        await yieldForProgressPaint();
+        lastPaintAt = Date.now();
+        lastPaintIndex = index;
+      }
+    }
   }
 
   options.onProgress?.({
@@ -322,4 +353,19 @@ function clamp(value: number, min: number, max: number): number {
 
 function throwIfCancelled(signal?: AbortSignal): void {
   if (signal?.aborted) throw new SeedReplayGenerationError('Seed batch search was cancelled.', 'cancelled');
+}
+
+async function yieldForProgressPaint(): Promise<void> {
+  if (typeof requestAnimationFrame === 'function') {
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        // Resolve from the following task, after the browser had a chance to
+        // paint the DOM committed for the latest React progress update.
+        setTimeout(resolve, 0);
+      });
+    });
+    return;
+  }
+
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
 }

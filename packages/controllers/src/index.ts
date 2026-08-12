@@ -11,6 +11,9 @@ export interface ControllerSource {
   reset?(): void;
 }
 
+/** Optional read-only hook for Battle Intelligence and diagnostics. */
+export type AiDecisionObserver = (decision: AiDecisionDebug, tick: number) => void;
+
 interface AiMemory {
   targetId: EntityId | null;
   direction: Vec2;
@@ -109,6 +112,7 @@ export class AiController implements ControllerSource {
   private readonly actionSelectionSpatial = new ActionSelectionSpatialContext();
   private clusterDensityTick = Number.NEGATIVE_INFINITY;
   private detailedDebugEnabled: boolean;
+  private decisionObserver: AiDecisionObserver | null;
   private workloadStats: AiWorkloadStats = {
     ...aiWorkloadPolicyForEntityCount(0),
     aiEntities: 0,
@@ -120,8 +124,13 @@ export class AiController implements ControllerSource {
     areaCandidateChecks: 0
   };
 
-  constructor(detailedDebugEnabled = true) {
+  constructor(detailedDebugEnabled = true, decisionObserver: AiDecisionObserver | null = null) {
     this.detailedDebugEnabled = detailedDebugEnabled;
+    this.decisionObserver = decisionObserver;
+  }
+
+  setDecisionObserver(observer: AiDecisionObserver | null): void {
+    this.decisionObserver = observer;
   }
 
   setDetailedDebugEnabled(enabled: boolean): void {
@@ -246,16 +255,20 @@ export class AiController implements ControllerSource {
       if (!target) continue;
       const busy = entity.weaponAttack !== null || entity.abilities.some((ability) => ability.phase === 'casting' || ability.phase === 'armed');
       if (!busy && snapshot.tick >= memory.nextAttackDecisionTick) {
+        const collectDecision = this.detailedDebugEnabled || this.decisionObserver !== null;
         const action = selectAbilityAction(
           snapshot,
           entity,
           target,
           profile,
-          this.detailedDebugEnabled,
+          collectDecision,
           this.actionSelectionSpatial,
           { openingReadiness: true, variationEpoch: memory.abilityVariationEpoch }
         );
-        if (action.debug) this.decisions.set(entity.id, action.debug);
+        if (action.debug) {
+          if (this.detailedDebugEnabled) this.decisions.set(entity.id, action.debug);
+          this.decisionObserver?.(action.debug, snapshot.tick);
+        }
         memory.nextAttackDecisionTick = snapshot.tick + policy.attackDecisionInterval;
         this.workloadStats.attackEvaluations += 1;
         if (action.selected) {

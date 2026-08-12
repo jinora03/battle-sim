@@ -68,12 +68,17 @@
 .battle-intelligence-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
 .battle-intelligence-section-heading h2 { margin-bottom: 0; }
 .battle-intelligence-section-heading > span { color: #708aa3; font-size: 9px; }
+.battle-intelligence-matrix-tools { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.battle-intelligence-matrix-tools > span { color: #708aa3; font-size: 9px; }
+.battle-intelligence-zoom-controls { display: inline-grid; grid-template-columns: 30px 48px 30px; gap: 4px; }
+.battle-intelligence-zoom-controls button { min-height: 28px; padding: 3px 6px; border-color: rgba(104, 151, 190, .2); background: rgba(18, 38, 55, .7); color: #a9c4d7; font-size: 11px; }
+.battle-intelligence-zoom-controls button:disabled { cursor: default; opacity: .35; }
+.battle-intelligence-zoom-controls .zoom-value { font-size: 8px; letter-spacing: .02em; }
 
 .battle-intelligence-matrix-scroll { overflow: auto; padding-bottom: 6px; overscroll-behavior-x: contain; }
 .battle-intelligence-matrix {
   display: grid;
-  grid-template-columns: 88px repeat(var(--matrix-size), minmax(58px, 1fr));
-  min-width: calc(88px + var(--matrix-size) * 58px);
+  grid-template-columns: var(--matrix-row-width, 88px) repeat(var(--matrix-size), minmax(var(--matrix-cell-width, 58px), 1fr));
   gap: 4px;
 }
 
@@ -81,7 +86,7 @@
 .matrix-column-label,
 .matrix-row-label,
 .matrix-cell {
-  min-height: 42px;
+  min-height: var(--matrix-cell-height, 42px);
   border: 1px solid rgba(91, 126, 159, .13);
   border-radius: 7px;
   background: rgba(255, 255, 255, .02);
@@ -94,14 +99,14 @@
   align-items: center;
   justify-content: center;
   color: #7892aa;
-  font-size: 8px;
+  font-size: var(--matrix-label-font, 8px);
   font-weight: 800;
   letter-spacing: .05em;
   text-transform: uppercase;
 }
 
 .matrix-row-label { justify-content: flex-start; padding-inline: 8px; color: #a9c0d4; }
-.matrix-cell { padding: 0; color: #c7dae9; font-size: 10px; font-weight: 900; }
+.matrix-cell { padding: 0; color: #c7dae9; font-size: var(--matrix-cell-font, 10px); font-weight: 900; }
 .matrix-cell.self,
 .matrix-cell.empty { display: flex; align-items: center; justify-content: center; color: #405268; background: rgba(255, 255, 255, .012); }
 .matrix-cell[data-band='low'] { border-color: rgba(231, 103, 113, .22); background: rgba(154, 45, 58, .11); color: #e7a0a6; }
@@ -160,6 +165,11 @@
   .battle-intelligence-lower-grid { grid-template-columns: 1fr; }
 }
 
+@media (max-width: 720px) {
+  .battle-intelligence-section-heading { align-items: stretch; flex-direction: column; }
+  .battle-intelligence-matrix-tools { justify-content: space-between; }
+}
+
 @media (max-width: 620px) {
   .battle-intelligence-hero { padding: 14px; }
   .battle-intelligence-hero-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -168,4 +178,198 @@
   .battle-intelligence-run-control > button { grid-column: 1; grid-row: auto; margin-top: 4px; }
   .battle-intelligence-ranking-list article { grid-template-columns: 24px minmax(0, 1fr) 48px; }
   .ranking-opponents { grid-column: 2 / -1; justify-content: flex-start; }
+}
+
+/* Stage 9A.3 — per-fighter ability telemetry collected during matrix runs. */
+.battle-ability-analytics { display: grid; gap: 12px; }
+.battle-ability-heading { align-items: end; }
+.battle-ability-heading label { display: grid; gap: 5px; min-width: 210px; }
+.battle-ability-heading label > span { color: #7892aa; font-size: 8px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.battle-ability-empty { margin: 0; color: #7f96ab; font-size: 11px; }
+
+.battle-ability-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.battle-ability-summary > div {
+  display: grid;
+  gap: 2px;
+  padding: 9px;
+  border: 1px solid rgba(91, 130, 165, .11);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .018);
+}
+
+.battle-ability-summary small { color: #718ba4; font-size: 7px; text-transform: uppercase; }
+.battle-ability-summary strong { color: #cfe1ee; font-size: 12px; }
+.battle-ability-table-scroll { overflow-x: auto; padding-bottom: 4px; }
+.battle-ability-table { display: grid; gap: 4px; min-width: 860px; }
+
+.battle-ability-table-head,
+.battle-ability-row {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.8fr) repeat(7, minmax(72px, .7fr));
+  gap: 6px;
+  align-items: center;
+}
+
+.battle-ability-table-head {
+  padding: 0 9px;
+  color: #6f889f;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.battle-ability-row {
+  min-height: 50px;
+  padding: 7px 9px;
+  border: 1px solid rgba(88, 124, 157, .1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .015);
+}
+
+.battle-ability-row > b { color: #c4d8e7; font-size: 10px; font-weight: 800; }
+.battle-ability-name { display: grid; grid-template-columns: auto 1fr; gap: 2px 7px; align-items: center; }
+.battle-ability-name > span { color: #6e91a9; font-size: 7px; font-weight: 900; letter-spacing: .05em; }
+.battle-ability-name > strong { overflow: hidden; color: #d7eaf6; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.battle-ability-name > small { grid-column: 2; width: max-content; padding: 2px 5px; border-radius: 999px; font-size: 6px; font-weight: 800; text-transform: uppercase; }
+.battle-ability-name > small[data-flag='warn'] { background: rgba(173, 94, 58, .14); color: #e4b08d; }
+.battle-ability-name > small[data-flag='info'] { background: rgba(65, 126, 163, .14); color: #99c5df; }
+.battle-ability-note { color: #6e879d; font-size: 8px; line-height: 1.5; }
+
+@media (max-width: 720px) {
+  .battle-ability-heading { align-items: stretch; flex-direction: column; }
+  .battle-ability-heading label { min-width: 0; }
+  .battle-ability-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Stage 9A.4 — read-only AI action-selection telemetry. */
+.battle-ai-analytics { display: grid; gap: 12px; }
+.battle-ai-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.battle-ai-summary > div {
+  display: grid;
+  gap: 2px;
+  padding: 9px;
+  border: 1px solid rgba(91, 130, 165, .11);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .018);
+}
+.battle-ai-summary small { color: #718ba4; font-size: 7px; text-transform: uppercase; }
+.battle-ai-summary strong { color: #cfe1ee; font-size: 12px; }
+.battle-ai-table-scroll { overflow-x: auto; padding-bottom: 4px; }
+.battle-ai-table { display: grid; gap: 4px; min-width: 780px; }
+.battle-ai-table-head,
+.battle-ai-row {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.7fr) repeat(4, minmax(86px, .72fr)) minmax(130px, 1fr);
+  gap: 6px;
+  align-items: center;
+}
+.battle-ai-table-head {
+  padding: 0 9px;
+  color: #6f889f;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.battle-ai-row {
+  min-height: 50px;
+  padding: 7px 9px;
+  border: 1px solid rgba(88, 124, 157, .1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .015);
+}
+.battle-ai-row > b { color: #c4d8e7; font-size: 10px; font-weight: 800; }
+.battle-ai-blocker { display: grid; gap: 2px; }
+.battle-ai-blocker strong { color: #c8dbe8; font-size: 9px; }
+.battle-ai-blocker small { color: #718ba4; font-size: 7px; }
+
+@media (max-width: 720px) {
+  .battle-ai-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Stage 9A.5 — battle pacing and inactivity analytics. */
+.battle-pacing-analytics { display: grid; gap: 12px; }
+.battle-pacing-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.battle-pacing-summary > div,
+.battle-pacing-fighter > div {
+  display: grid;
+  gap: 2px;
+  padding: 9px;
+  border: 1px solid rgba(91, 130, 165, .11);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .018);
+}
+.battle-pacing-summary small,
+.battle-pacing-fighter small { color: #718ba4; font-size: 7px; text-transform: uppercase; }
+.battle-pacing-summary strong,
+.battle-pacing-fighter strong { color: #cfe1ee; font-size: 12px; }
+.battle-pacing-fighter {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.3fr) repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.battle-pacing-fighter > div:first-child { justify-content: center; }
+
+/* Stage 9A.6 — explainable diagnostic findings. */
+.battle-intelligence-findings { display: grid; gap: 12px; }
+.battle-intelligence-findings-list { display: grid; gap: 6px; }
+.battle-intelligence-findings-list article {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 58px;
+  padding: 9px 10px;
+  border: 1px solid rgba(88, 124, 157, .12);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .016);
+}
+.battle-intelligence-findings-list article[data-severity='high'] { border-color: rgba(224, 93, 104, .24); background: rgba(126, 39, 48, .08); }
+.battle-intelligence-findings-list article[data-severity='watch'] { border-color: rgba(214, 148, 85, .19); background: rgba(116, 74, 36, .055); }
+.finding-meta { display: grid; gap: 3px; align-content: center; }
+.finding-meta span {
+  width: max-content;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(78, 123, 159, .16);
+  color: #9fc4dd;
+  font-size: 6px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+article[data-severity='high'] .finding-meta span { background: rgba(180, 65, 77, .17); color: #efadb3; }
+article[data-severity='watch'] .finding-meta span { background: rgba(174, 112, 57, .15); color: #e0b489; }
+.finding-meta b { color: #657f96; font-size: 7px; font-weight: 800; text-transform: uppercase; }
+.finding-copy { display: grid; gap: 3px; }
+.finding-copy strong { color: #cfdfeb; font-size: 10px; }
+.finding-copy p { margin: 0; color: #7891a7; font-size: 8px; line-height: 1.5; }
+.finding-actions { display: flex; gap: 5px; justify-content: flex-end; }
+.finding-actions button { min-height: 0; padding: 5px 7px; border-color: rgba(83, 124, 158, .18); background: rgba(18, 38, 55, .72); color: #89a6bc; font-size: 7px; }
+
+@media (max-width: 820px) {
+  .battle-pacing-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .battle-pacing-fighter { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .battle-intelligence-findings-list article { grid-template-columns: 76px minmax(0, 1fr); }
+  .finding-actions { grid-column: 2; justify-content: flex-start; }
+}
+
+@media (max-width: 520px) {
+  .battle-pacing-fighter { grid-template-columns: 1fr; }
+  .battle-intelligence-findings-list article { grid-template-columns: 1fr; }
+  .finding-actions { grid-column: 1; }
 }
