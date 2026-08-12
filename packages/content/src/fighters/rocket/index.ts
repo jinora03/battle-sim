@@ -12,16 +12,16 @@ export const rocketContent: FighterContentBundle = {
   abilities: [rocketSalvoRaw, blastJumpRaw, siegeMarkerRaw, starburstConvergenceRaw],
   primaryAttack: {
     id: 'guided-rocket', name: 'Guided Rocket', form: 'launcher', behavior: 'ranged', category: 'ranged', style: 'shot',
-    range: 760, minRange: 150, damage: 5.2, knockback: 3.3, windupTicks: 13, activeTicks: 1, recoveryTicks: 20,
+    range: 760, minRange: 150, damage: 4.5, knockback: 3.3, windupTicks: 13, activeTicks: 1, recoveryTicks: 20,
     cooldownTicks: 92, attackAngleDegrees: 18, visualScale: 1.9, movementAllowed: true, friendlyFire: false,
     visualId: 'guided-rocket-launcher', audioId: 'rocket-launch',
-    projectile: { speed: 11.4, radius: 10, lifetimeTicks: 122, fuseTicks: 0, gravity: 0, bounce: 0, explosionRadius: 116, explosionDamage: 12.2, explosionImpulse: 12.2, homingStrength: 0.12, homingDelayTicks: 8, homingRange: 720, homingTurnRadians: 0.062, trailStyle: 'smoke' }
+    projectile: { speed: 11.4, radius: 10, lifetimeTicks: 122, fuseTicks: 0, gravity: 0, bounce: 0, explosionRadius: 116, explosionDamage: 9.8, explosionImpulse: 12.2, homingStrength: 0.12, homingDelayTicks: 8, homingRange: 720, homingTurnRadians: 0.062, trailStyle: 'smoke' }
   },
   skillProjectiles: [
     {
-      id: 'rocket-salvo-missile', name: 'Salvo Missile', form: 'launcher', behavior: 'ranged', damage: 4.1, knockback: 4.6,
+      id: 'rocket-salvo-missile', name: 'Salvo Missile', form: 'launcher', behavior: 'ranged', damage: 3.5, knockback: 4.6,
       friendlyFire: false, visualId: 'salvo-missile', audioId: 'rocket-launch',
-      projectile: { speed: 13.4, radius: 8, lifetimeTicks: 105, fuseTicks: 0, gravity: 0, bounce: 0, explosionRadius: 92, explosionDamage: 6.4, explosionImpulse: 9, homingStrength: 0.12, homingDelayTicks: 9, homingRange: 700, homingTurnRadians: 0.062, trailStyle: 'smoke' }
+      projectile: { speed: 13.4, radius: 8, lifetimeTicks: 105, fuseTicks: 0, gravity: 0, bounce: 0, explosionRadius: 92, explosionDamage: 5, explosionImpulse: 9, homingStrength: 0.12, homingDelayTicks: 9, homingRange: 700, homingTurnRadians: 0.062, trailStyle: 'smoke' }
     },
     {
       id: 'siege-missile', name: 'Siege Missile', form: 'launcher', behavior: 'ranged', damage: 3.2, knockback: 5,

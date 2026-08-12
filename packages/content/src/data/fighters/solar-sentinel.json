@@ -22,7 +22,7 @@
     "maxSpeed": 13.2
   },
   "stats": {
-    "maxHp": 450,
+    "maxHp": 420,
     "moveAcceleration": 0.22
   },
   "aiProfileId": "solar-sentinel",
@@ -33,9 +33,9 @@
     "ultimate": "solar-laser"
   },
   "resistances": {
-    "fire": 0.68,
+    "fire": 0.78,
     "metal": 0.82,
-    "neutral": 0.9
+    "neutral": 0.95
   },
   "visualRecipeId": "solar-sentinel",
   "animationRecipeId": "solar-flight",

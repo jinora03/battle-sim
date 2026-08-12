@@ -13,8 +13,8 @@
         {
           "type": "EXPLODE",
           "kind": "explosion",
-          "radius": 205,
-          "damage": 14,
+          "radius": 220,
+          "damage": 18,
           "impulse": 8,
           "element": "neutral",
           "enemiesOnly": true

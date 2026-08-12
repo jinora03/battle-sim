@@ -42,10 +42,14 @@
 .battle-intelligence-hero-stats strong { color: #dff3ff; font-size: 15px; letter-spacing: 0; }
 
 .battle-intelligence-controls { display: grid; gap: 12px; }
-.battle-intelligence-control-grid { display: grid; grid-template-columns: 1.1fr 1fr .8fr 1.6fr; gap: 10px; align-items: end; }
+.battle-intelligence-control-grid { display: grid; grid-template-columns: 1.05fr .95fr 1.25fr 1.8fr; gap: 10px; align-items: end; }
 .battle-intelligence-control-grid label { display: grid; gap: 5px; }
 .battle-intelligence-control-grid label > span,
 .battle-intelligence-run-control > small { color: #7992aa; font-size: 8px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+
+.battle-intelligence-seed-input { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+.battle-intelligence-seed-input input { min-width: 0; }
+.battle-intelligence-seed-input button { min-height: 0; padding: 6px 8px; font-size: 8px; }
 
 .battle-intelligence-run-control {
   display: grid;
@@ -56,7 +60,8 @@
 
 .battle-intelligence-run-control > small { grid-column: 1; }
 .battle-intelligence-run-control > strong { grid-column: 1; color: #b9cede; font-size: 9px; }
-.battle-intelligence-run-control > button { grid-column: 2; grid-row: 1 / span 2; min-height: 42px; }
+.battle-intelligence-run-actions { grid-column: 2; grid-row: 1 / span 2; display: grid; gap: 5px; min-width: 138px; }
+.battle-intelligence-run-actions button { min-height: 0; padding: 6px 9px; font-size: 8px; }
 
 .battle-intelligence-status { display: grid; gap: 6px; color: #8da6bd; font-size: 10px; }
 .battle-intelligence-status > span { color: #b8cddd; }
@@ -134,6 +139,8 @@
 .battle-intelligence-detail-grid small { color: #718ba4; font-size: 7px; text-transform: uppercase; }
 .battle-intelligence-detail-grid strong { color: #cfe1ee; font-size: 11px; }
 .battle-intelligence-seed-note { color: #7997b1; font-size: 8px; }
+.battle-intelligence-best-seed { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.battle-intelligence-best-seed button { min-height: 0; flex: 0 0 auto; padding: 5px 8px; font-size: 7px; }
 
 .battle-intelligence-ranking { display: grid; gap: 10px; }
 .battle-intelligence-ranking-list { display: grid; gap: 5px; }
@@ -175,7 +182,7 @@
   .battle-intelligence-hero-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .battle-intelligence-control-grid { grid-template-columns: 1fr; }
   .battle-intelligence-run-control { grid-template-columns: 1fr; }
-  .battle-intelligence-run-control > button { grid-column: 1; grid-row: auto; margin-top: 4px; }
+  .battle-intelligence-run-actions { grid-column: 1; grid-row: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 4px; }
   .battle-intelligence-ranking-list article { grid-template-columns: 24px minmax(0, 1fr) 48px; }
   .ranking-opponents { grid-column: 2 / -1; justify-content: flex-start; }
 }

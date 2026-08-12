@@ -1,3 +1,4 @@
+import { getAbilityActivationProfile } from '@kinetic/content';
 import type { MatchupMatrixResult } from './matchupMatrix';
 
 export type BattleIntelligenceFindingSeverity = 'high' | 'watch' | 'info';
@@ -82,14 +83,18 @@ export function buildBattleIntelligenceFindings(result: Omit<MatchupMatrixResult
         });
       }
       if (action.uses >= 10 && action.completionRate < 0.65) {
+        const activation = getAbilityActivationProfile(action.actionId);
+        const collisionFollowThrough = activation.collisionWindowTicks > 0;
         findings.push({
           id: `ability-completion-${fighter.fighterId}-${action.actionId}`,
-          severity: action.completionRate < 0.4 ? 'high' : 'watch',
+          severity: collisionFollowThrough ? 'watch' : action.completionRate < 0.4 ? 'high' : 'watch',
           category: 'ability',
           fighterId: fighter.fighterId,
           actionId: action.actionId,
-          title: 'Low cast completion',
-          detail: `${action.name} resolves after ${percent(action.completionRate)} of observed activations.`
+          title: collisionFollowThrough ? 'Low collision follow-through' : 'Low cast completion',
+          detail: collisionFollowThrough
+            ? `${action.name} converts ${percent(action.completionRate)} of activations into its collision follow-through window.`
+            : `${action.name} resolves after ${percent(action.completionRate)} of observed activations.`
         });
       }
       if (action.slot === 'ultimate' && action.damageContribution >= 0.45 && fighter.attributedDamageRate >= 0.6) {
@@ -107,6 +112,7 @@ export function buildBattleIntelligenceFindings(result: Omit<MatchupMatrixResult
   }
 
   for (const fighter of result.aiDecisionAnalytics.fighters) {
+    const abilityUsage = result.abilityAnalytics.fighters.find((entry) => entry.fighterId === fighter.fighterId);
     for (const action of fighter.actions) {
       if (action.evaluations < 20) continue;
       if (action.validOpportunities >= 10 && action.readyButSkippedRate >= 0.7) {
@@ -121,7 +127,16 @@ export function buildBattleIntelligenceFindings(result: Omit<MatchupMatrixResult
         });
       }
       const topBlocker = action.blockReasons[0];
-      if (action.blockedRate >= 0.75 && topBlocker && topBlocker.rate >= 0.5) {
+      const expectedAvailabilityBlocker = topBlocker?.category === 'cooldown-or-busy' || topBlocker?.category === 'opening-lockout';
+      const measuredUsage = abilityUsage?.abilities.find((entry) => entry.actionId === action.actionId)?.usageRate ?? 1;
+      if (
+        action.source === 'ability'
+        && measuredUsage <= 0.75
+        && action.blockedRate >= 0.75
+        && topBlocker
+        && topBlocker.rate >= 0.5
+        && !expectedAvailabilityBlocker
+      ) {
         findings.push({
           id: `ai-blocked-${fighter.fighterId}-${action.actionId}-${topBlocker.category}`,
           severity: action.blockedRate >= 0.9 ? 'high' : 'watch',

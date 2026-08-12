@@ -32,6 +32,37 @@ interface AiMemory {
 }
 
 const ZERO: Vec2 = { x: 0, y: 0 };
+const AI_URGENCY_START_TICK = 45 * 60;
+const AI_URGENCY_FULL_TICK = 70 * 60;
+
+/**
+ * Late-fight engagement pressure. Normal pacing is untouched for the first
+ * 45 seconds; after that, fighters gradually compress spacing and retreat
+ * less so long-tail duels resolve without a hard timeout rule.
+ */
+export function resolveAiEngagementUrgency(tick: number): number {
+  if (tick <= AI_URGENCY_START_TICK) return 0;
+  if (tick >= AI_URGENCY_FULL_TICK) return 1;
+  return (tick - AI_URGENCY_START_TICK) / (AI_URGENCY_FULL_TICK - AI_URGENCY_START_TICK);
+}
+
+/**
+ * Resolve a practical spacing target from a fighter profile and weapon. A
+ * throwable's configured profile often describes its brawling identity, so
+ * do not force it out to the generic ranged 55-62% distance band.
+ */
+export function resolveAiPreferredCombatDistance(profileDistance: number, weaponId: string | null | undefined): number {
+  if (!weaponId) return profileDistance;
+  const attack = getPrimaryAttack(weaponId);
+  if (attack.behavior === 'throwable') {
+    const identityDistance = profileDistance > 180 ? profileDistance : attack.range * 0.45;
+    return Math.max(attack.minRange + 55, Math.min(attack.range * 0.5, identityDistance));
+  }
+  if (['ranged', 'automatic', 'beam'].includes(attack.behavior)) {
+    return Math.max(attack.minRange + 45, Math.min(attack.range * 0.62, profileDistance > 180 ? profileDistance : attack.range * 0.55));
+  }
+  return Math.max(58, Math.min(profileDistance, attack.range * 0.82));
+}
 
 export interface AiCornerEscapeInput {
   seed: number;
@@ -413,11 +444,15 @@ export class AiController implements ControllerSource {
       ? { x: -toward.y, y: toward.x }
       : { x: toward.y, y: -toward.x };
     const hpRatio = entity.hp / Math.max(1, entity.maxHp);
-    const retreat = hpRatio <= profile.retreatHealthRatio;
-    const preferredDistance = this.preferredCombatDistance(profile.preferredDistance, weaponId);
+    const urgency = resolveAiEngagementUrgency(snapshot.tick);
+    const retreatThreshold = profile.retreatHealthRatio * (1 - urgency * 0.75);
+    const retreat = hpRatio <= retreatThreshold;
+    const basePreferredDistance = resolveAiPreferredCombatDistance(profile.preferredDistance, weaponId);
+    const preferredDistance = basePreferredDistance * (1 - urgency * 0.18);
     const attack = weaponId ? getPrimaryAttack(weaponId) : null;
     const ranged = attack ? ['ranged', 'automatic', 'throwable', 'beam'].includes(attack.behavior) : profile.movementStyle === 'kite';
     const pressure = this.enemyPressure(entity, entities, Math.max(230, preferredDistance * 0.9));
+    const orbitStrength = profile.orbitStrength * (1 - urgency * 0.55);
     let x = 0;
     let y = 0;
 
@@ -428,8 +463,8 @@ export class AiController implements ControllerSource {
       const deadZone = Math.max(28, preferredDistance * 0.14);
       const error = distance - preferredDistance;
       const radial = Math.abs(error) <= deadZone ? 0 : Math.max(-1, Math.min(1, error / Math.max(70, preferredDistance * 0.5)));
-      x = toward.x * radial + perpendicular.x * Math.max(0.16, profile.orbitStrength);
-      y = toward.y * radial + perpendicular.y * Math.max(0.16, profile.orbitStrength);
+      x = toward.x * radial + perpendicular.x * Math.max(0.12, orbitStrength);
+      y = toward.y * radial + perpendicular.y * Math.max(0.12, orbitStrength);
       if (ranged && pressure.strength > 0) {
         const danger = Math.max(0, 1 - pressure.nearestDistance / Math.max(100, preferredDistance * 0.82));
         x += pressure.away.x * danger * 1.35;
@@ -437,13 +472,13 @@ export class AiController implements ControllerSource {
       }
     } else if (profile.movementStyle === 'charger') {
       const radial = distance > preferredDistance ? 1 : distance < preferredDistance * 0.65 ? -0.25 : 0.12;
-      x = toward.x * radial * (0.9 + profile.aggression * 0.35) + perpendicular.x * Math.max(0.08, profile.orbitStrength);
-      y = toward.y * radial * (0.9 + profile.aggression * 0.35) + perpendicular.y * Math.max(0.08, profile.orbitStrength);
+      x = toward.x * radial * (0.9 + profile.aggression * 0.35) + perpendicular.x * Math.max(0.06, orbitStrength);
+      y = toward.y * radial * (0.9 + profile.aggression * 0.35) + perpendicular.y * Math.max(0.06, orbitStrength);
     } else {
       const error = distance - preferredDistance;
       const radial = Math.abs(error) < 28 ? 0 : Math.max(-0.6, Math.min(1, error / Math.max(60, preferredDistance)));
-      x = toward.x * radial + perpendicular.x * Math.max(0.08, profile.orbitStrength);
-      y = toward.y * radial + perpendicular.y * Math.max(0.08, profile.orbitStrength);
+      x = toward.x * radial + perpendicular.x * Math.max(0.06, orbitStrength);
+      y = toward.y * radial + perpendicular.y * Math.max(0.06, orbitStrength);
     }
 
     // Committed ranged attacks need a readable firing lane. Stream attacks hold
@@ -461,9 +496,15 @@ export class AiController implements ControllerSource {
         : distance > preferredDistance * farThreshold
           ? burstCommitted ? 0.2 : 0.34
           : 0;
-      const strafe = Math.max(burstCommitted ? 0.42 : 0.3, profile.orbitStrength);
+      const strafe = Math.max(burstCommitted ? 0.42 : 0.3, orbitStrength);
       x = toward.x * radial + perpendicular.x * strafe;
       y = toward.y * radial + perpendicular.y * strafe;
+    }
+
+    if (!retreat && urgency > 0) {
+      const pressureScale = ranged ? 0.18 : 0.34;
+      x += toward.x * urgency * pressureScale;
+      y += toward.y * urgency * pressureScale;
     }
 
     if (!ranged && distance < preferredDistance * 1.75) {
@@ -567,15 +608,6 @@ export class AiController implements ControllerSource {
       x: target.x + target.vx * leadTicks - entity.x,
       y: target.y + target.vy * leadTicks - entity.y
     });
-  }
-
-  private preferredCombatDistance(profileDistance: number, weaponId: string | null | undefined): number {
-    if (!weaponId) return profileDistance;
-    const attack = getPrimaryAttack(weaponId);
-    if (['ranged', 'automatic', 'throwable', 'beam'].includes(attack.behavior)) {
-      return Math.max(attack.minRange + 45, Math.min(attack.range * 0.62, profileDistance > 180 ? profileDistance : attack.range * 0.55));
-    }
-    return Math.max(58, Math.min(profileDistance, attack.range * 0.82));
   }
 
   private selectTarget(

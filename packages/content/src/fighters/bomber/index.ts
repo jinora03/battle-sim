@@ -12,9 +12,9 @@ export const bomberContent: FighterContentBundle = {
   abilities: [blastDashRaw, concussionBombRaw, shrapnelBurstRaw, megaBombRaw],
   primaryAttack: {
     id: 'demolition-bomb', name: 'Impact Bomb', form: 'launcher', behavior: 'throwable', category: 'throwable', style: 'lob',
-    range: 570, minRange: 65, damage: 3.8, knockback: 2.4, windupTicks: 11, activeTicks: 1, recoveryTicks: 13,
-    cooldownTicks: 92, attackAngleDegrees: 20, visualScale: 1.45, movementAllowed: true, friendlyFire: false,
+    range: 570, minRange: 65, damage: 4.5, knockback: 2.4, windupTicks: 11, activeTicks: 1, recoveryTicks: 13,
+    cooldownTicks: 78, attackAngleDegrees: 20, visualScale: 1.45, movementAllowed: true, friendlyFire: false,
     visualId: 'bomb-throw', audioId: 'bomb-fuse',
-    projectile: { speed: 14.2, radius: 16, lifetimeTicks: 122, fuseTicks: 42, gravity: 0.018, bounce: 0.5, explosionRadius: 138, explosionDamage: 12.2, explosionImpulse: 11.2, homingStrength: 0.07, homingDelayTicks: 7, homingRange: 500, homingTurnRadians: 0.054, trailStyle: 'smoke' }
+    projectile: { speed: 14.2, radius: 16, lifetimeTicks: 122, fuseTicks: 34, gravity: 0.018, bounce: 0.5, explosionRadius: 154, explosionDamage: 15.5, explosionImpulse: 11.2, homingStrength: 0.095, homingDelayTicks: 7, homingRange: 500, homingTurnRadians: 0.065, trailStyle: 'smoke' }
   }
 };

@@ -4,11 +4,14 @@ import type { ArenaDefinition, FighterDefinition } from '@kinetic/content';
 import {
   MATCHUP_MATRIX_SAMPLE_SIZES,
   analyzeRosterMatchups,
+  createBattleIntelExport,
+  createBattleIntelExportFilename,
   getFighterAbilityAnalytics,
   getFighterAiDecisionAnalytics,
   getFighterPacingAnalytics,
   getFighterMatchupWinRate,
   getMatchupCell,
+  serializeBattleIntelExport,
   type AbilityUsageSummary,
   type AiActionDecisionAnalytics,
   type BattleIntelligenceFinding,
@@ -49,6 +52,7 @@ export function BattleIntelligencePanel({
   const [seedText, setSeedText] = useState('9001');
   const [result, setResult] = useState<MatchupMatrixResult | null>(null);
   const [resultArenaId, setResultArenaId] = useState(defaultArenaId);
+  const [resultBaseSeed, setResultBaseSeed] = useState(9001);
   const [progress, setProgress] = useState<MatchupMatrixProgress | null>(null);
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState('Run the roster to measure baseline 1v1 balance across deterministic seeds.');
@@ -115,6 +119,7 @@ export function BattleIntelligencePanel({
       );
       setResult(matrix);
       setResultArenaId(arenaId);
+      setResultBaseSeed(startSeed);
       const first = matrix.cells[0];
       if (first) setSelectedPair({ fighterAId: first.fighterAId, fighterBId: first.fighterBId });
       setSelectedFighterId(matrix.fighters[0]?.id ?? null);
@@ -130,6 +135,47 @@ export function BattleIntelligencePanel({
 
   const cancelMatrix = () => {
     abortRef.current?.abort();
+  };
+
+  const randomizeSeed = () => {
+    if (running) return;
+    const nextSeed = createRandomIntelSeed();
+    setSeedText(String(nextSeed));
+    setMessage(`Randomized base seed to ${nextSeed.toLocaleString()}.`);
+  };
+
+  const exportIntel = () => {
+    if (!result) return;
+    const exportDocument = createBattleIntelExport(result, {
+      arenaId: resultArenaId,
+      arenaName: arenaName(arenas, resultArenaId),
+      baseSeed: resultBaseSeed,
+      selectedFighterId,
+      selectedMatchup: selectedPair
+    });
+    downloadTextFile(
+      createBattleIntelExportFilename(exportDocument),
+      serializeBattleIntelExport(exportDocument),
+      'application/json'
+    );
+    setMessage('Battle Intel JSON exported. Upload that file here and I can analyze the full Stage 9A dataset directly.');
+  };
+
+  const copyBestSeed = (seed: number) => {
+    const normalized = normalizeSeedInput(String(seed));
+    const text = String(normalized);
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      void navigator.clipboard.writeText(text).then(
+        () => setMessage(`Best creator seed ${normalized.toLocaleString()} copied.`),
+        () => {
+          setSeedText(text);
+          setMessage(`Clipboard unavailable. Best creator seed ${normalized.toLocaleString()} was loaded into the seed field instead.`);
+        }
+      );
+      return;
+    }
+    setSeedText(text);
+    setMessage(`Best creator seed ${normalized.toLocaleString()} was loaded into the seed field.`);
   };
 
   return (
@@ -165,14 +211,20 @@ export function BattleIntelligencePanel({
           </label>
           <label>
             <span>Base seed</span>
-            <input value={seedText} inputMode="numeric" pattern="[0-9]*" disabled={running} onChange={(event) => setSeedText(event.target.value)} />
+            <div className="battle-intelligence-seed-input">
+              <input value={seedText} inputMode="numeric" pattern="[0-9]*" disabled={running} onChange={(event) => setSeedText(event.target.value)} />
+              <button type="button" disabled={running} onClick={randomizeSeed}>Randomize</button>
+            </div>
           </label>
           <div className="battle-intelligence-run-control">
             <small>Baseline</small>
             <strong>AI vs AI · Duel · Standard · No modules</strong>
-            <button type="button" onClick={running ? cancelMatrix : () => void runMatrix()}>
-              {running ? 'Cancel analysis' : `Run ${projectedBattles.toLocaleString()} battles`}
-            </button>
+            <div className="battle-intelligence-run-actions">
+              <button type="button" onClick={running ? cancelMatrix : () => void runMatrix()}>
+                {running ? 'Cancel analysis' : `Run ${projectedBattles.toLocaleString()} battles`}
+              </button>
+              <button type="button" disabled={!result || running} onClick={exportIntel}>Export Intel JSON</button>
+            </div>
           </div>
         </div>
 
@@ -200,7 +252,7 @@ export function BattleIntelligencePanel({
         <>
           <section className="panel-section battle-intelligence-matrix-card">
             <div className="battle-intelligence-section-heading">
-              <div><p className="eyebrow">Win-rate matrix</p><h2>{arenaName(arenas, resultArenaId)} · {result.sampleSizePerMatchup} samples each</h2></div>
+              <div><p className="eyebrow">Win-rate matrix</p><h2>{arenaName(arenas, resultArenaId)} · {result.sampleSizePerMatchup} samples each · seed {resultBaseSeed.toLocaleString()}</h2></div>
               <div className="battle-intelligence-matrix-tools">
                 <span>Rows show that fighter's win rate</span>
                 <div className="battle-intelligence-zoom-controls" aria-label="Matrix zoom controls">
@@ -252,7 +304,7 @@ export function BattleIntelligencePanel({
           </section>
 
           <section className="battle-intelligence-lower-grid">
-            <MatchupDetail cell={selectedCell} fighterNames={fighterNames} />
+            <MatchupDetail cell={selectedCell} fighterNames={fighterNames} onCopyBestSeed={copyBestSeed} />
             <FighterRanking
               summaries={result.fighterSummaries}
               fighterNames={fighterNames}
@@ -287,7 +339,7 @@ export function BattleIntelligencePanel({
   );
 }
 
-function MatchupDetail({ cell, fighterNames }: { cell: MatchupMatrixCell | null; fighterNames: Map<string, string> }) {
+function MatchupDetail({ cell, fighterNames, onCopyBestSeed }: { cell: MatchupMatrixCell | null; fighterNames: Map<string, string>; onCopyBestSeed(seed: number): void }) {
   if (!cell) {
     return <section className="panel-section battle-intelligence-detail"><p className="eyebrow">Matchup detail</p><h2>Select a matrix cell</h2><p>Click any matchup to inspect pacing, closeness, draw rate and the strongest creator seed found during the same scan.</p></section>;
   }
@@ -312,7 +364,12 @@ function MatchupDetail({ cell, fighterNames }: { cell: MatchupMatrixCell | null;
         <Metric label="Avg ultimates" value={cell.averageUltimates.toFixed(1)} />
         <Metric label="Best creator seed" value={cell.bestCreatorSeed?.toLocaleString() ?? '—'} />
       </div>
-      {cell.bestCreatorSeed !== null && <small className="battle-intelligence-seed-note">Best seed score {cell.bestCreatorScore?.toFixed(1)} · {cell.bestCreatorOrientation === 'reverse' ? `${fighterBName} spawned Team 1` : `${fighterAName} spawned Team 1`}</small>}
+      {cell.bestCreatorSeed !== null && (
+        <div className="battle-intelligence-best-seed">
+          <small className="battle-intelligence-seed-note">Best seed score {cell.bestCreatorScore?.toFixed(1)} · {cell.bestCreatorOrientation === 'reverse' ? `${fighterBName} spawned Team 1` : `${fighterAName} spawned Team 1`}</small>
+          <button type="button" onClick={() => onCopyBestSeed(cell.bestCreatorSeed!)}>Copy best seed</button>
+        </div>
+      )}
     </section>
   );
 }
@@ -679,6 +736,28 @@ function formatProgressPercent(progress: number): string {
 
 function clampMatrixZoom(value: number): number {
   return Math.round(Math.max(0.7, Math.min(1.5, value)) * 10) / 10;
+}
+
+function createRandomIntelSeed(): number {
+  if (typeof globalThis.crypto?.getRandomValues === 'function') {
+    const values = new Uint32Array(1);
+    globalThis.crypto.getRandomValues(values);
+    return values[0] || 1;
+  }
+  return (Math.floor(Math.random() * 0x1_0000_0000) >>> 0) || 1;
+}
+
+function downloadTextFile(filename: string, contents: string, mimeType: string): void {
+  const blob = new Blob([contents], { type: `${mimeType};charset=utf-8` });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.style.display = 'none';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }
 
 function normalizeSeedInput(value: string): number {

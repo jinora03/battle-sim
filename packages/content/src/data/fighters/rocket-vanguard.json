@@ -21,7 +21,7 @@
     "maxSpeed": 10.8
   },
   "stats": {
-    "maxHp": 430,
+    "maxHp": 400,
     "moveAcceleration": 0.17
   },
   "aiProfileId": "rocket-artillery",

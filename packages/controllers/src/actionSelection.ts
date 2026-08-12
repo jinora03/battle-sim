@@ -137,6 +137,14 @@ export class ActionSelectionSpatialContext {
     return this.entities;
   }
 
+  hostileCountForTeam(team: number): number {
+    let count = 0;
+    for (const [candidateTeam, members] of this.teamMembers) {
+      if (candidateTeam !== team) count += members.length;
+    }
+    return count;
+  }
+
   countHostilesInRadius(
     team: number,
     selfId: EntityId,
@@ -214,6 +222,8 @@ export function selectAbilityAction(
   const hpRatio = entity.hp / Math.max(1, entity.maxHp);
   const candidates: AiAbilityCandidateDebug[] = [];
   const configuredRules = new Map(profile.abilityUsage.map((rule) => [rule.slot, rule]));
+  const availableHostiles = spatialContext?.hostileCountForTeam(entity.team)
+    ?? countAvailableHostiles(snapshot.entities, entity);
   let selectedKind: SelectedAbilityAction['kind'] | null = null;
   let selectedSlot: AbilitySlot | null = null;
   let selectedAbilityId: string | null = null;
@@ -306,7 +316,8 @@ export function selectAbilityAction(
       valid = false;
       reason = 'line of sight blocked';
     } else if (activation.targeting === 'area') {
-      const requiredTargets = Math.max(activation.minimumTargets, rule.minimumTargets ?? 1);
+      const configuredTargets = Math.max(activation.minimumTargets, rule.minimumTargets ?? 1);
+      const requiredTargets = resolveAiRequiredTargetCount(configuredTargets, availableHostiles);
       if (targetCount < requiredTargets) {
         valid = false;
         reason = `needs ${requiredTargets} useful target${requiredTargets === 1 ? '' : 's'}`;
@@ -420,6 +431,16 @@ export function selectAbilityAction(
   };
 }
 
+/**
+ * Preserve multi-target intent when several opponents exist, while ensuring a
+ * duel never permanently disables an otherwise valid area ability.
+ */
+export function resolveAiRequiredTargetCount(requestedTargets: number, availableHostiles: number): number {
+  const requested = Math.max(1, Math.trunc(requestedTargets));
+  const available = Math.max(0, Math.trunc(availableHostiles));
+  return available > 0 ? Math.min(requested, available) : requested;
+}
+
 interface ResolvedAbilityTarget {
   target: EntitySnapshot | undefined;
   targetCount: number;
@@ -489,6 +510,14 @@ function abilityEffectRadius(ability: ReturnType<typeof getAbility>): number {
   }
   ABILITY_EFFECT_RADIUS_CACHE.set(ability.id, radius);
   return radius;
+}
+
+function countAvailableHostiles(entities: readonly EntitySnapshot[], self: EntitySnapshot): number {
+  let count = 0;
+  for (const entity of entities) {
+    if (entity.id !== self.id && entity.team !== self.team) count += 1;
+  }
+  return count;
 }
 
 function countHostilesBruteForce(

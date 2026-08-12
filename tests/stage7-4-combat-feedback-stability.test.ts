@@ -36,9 +36,9 @@ describe('v1.1 Stage 7.4 combat feedback and stability', () => {
     expect(rifle.visualScale).toBe(1.75);
   });
 
-  it('slows Bomber basic attack to the Guided Rocket cadence', () => {
-    expect(getPrimaryAttack('demolition-bomb').cooldownTicks).toBe(getPrimaryAttack('guided-rocket').cooldownTicks);
-    expect(getPrimaryAttack('demolition-bomb').cooldownTicks).toBe(92);
+  it('keeps Bomber on the faster Stage 9C demolition cadence', () => {
+    expect(getPrimaryAttack('demolition-bomb').cooldownTicks).toBeLessThan(getPrimaryAttack('guided-rocket').cooldownTicks);
+    expect(getPrimaryAttack('demolition-bomb').cooldownTicks).toBe(78);
   });
 
   it('never applies repeated hit-stop to micro-missile cascades', () => {

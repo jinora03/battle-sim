@@ -21,7 +21,7 @@
           "type": "EXPLODE",
           "kind": "wave",
           "radius": 300,
-          "damage": 34,
+          "damage": 40,
           "impulse": 11,
           "element": "void",
           "enemiesOnly": true

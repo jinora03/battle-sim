@@ -19,7 +19,7 @@
     "maxSpeed": 13.4
   },
   "stats": {
-    "maxHp": 325,
+    "maxHp": 350,
     "moveAcceleration": 0.215
   },
   "aiProfileId": "void-stalker",

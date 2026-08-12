@@ -19,7 +19,7 @@
     "maxSpeed": 11.2
   },
   "stats": {
-    "maxHp": 395,
+    "maxHp": 420,
     "moveAcceleration": 0.18
   },
   "aiProfileId": "demolition-charger",

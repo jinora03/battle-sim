@@ -14,7 +14,7 @@
     "maxSpeed": 11.8
   },
   "stats": {
-    "maxHp": 360,
+    "maxHp": 380,
     "moveAcceleration": 0.19
   },
   "aiProfileId": "ballast-mass-controller",

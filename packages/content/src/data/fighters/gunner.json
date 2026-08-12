@@ -17,11 +17,11 @@
     "mass": 1.05,
     "restitution": 0.9,
     "linearDamping": 0.993,
-    "maxSpeed": 12.8
+    "maxSpeed": 12.2
   },
   "stats": {
-    "maxHp": 355,
-    "moveAcceleration": 0.205
+    "maxHp": 335,
+    "moveAcceleration": 0.195
   },
   "aiProfileId": "ranged-gunner",
   "abilitySlots": {

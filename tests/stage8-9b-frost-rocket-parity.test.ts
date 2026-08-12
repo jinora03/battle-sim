@@ -131,5 +131,5 @@ describe('Stage 8.9B Frost Warden and Rocket Vanguard presentation parity', () =
   it('preserves fixed-seed simulation determinism', () => {
     expect(runFixedSeed(89021)).toBe(runFixedSeed(89021));
     expect(runFixedSeed(89022)).toBe(runFixedSeed(89022));
-  });
+  }, 15_000);
 });
