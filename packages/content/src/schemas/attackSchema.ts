@@ -32,6 +32,22 @@ export type PrimaryAttackStyle =
 /** @deprecated Use PrimaryAttackStyle. */
 export type WeaponAttackStyle = PrimaryAttackStyle;
 
+export type WeaponVisualMountSide = 'center' | 'left' | 'right';
+
+/**
+ * Presentation-only primary weapon socket. Offsets are expressed in fighter
+ * radii so the same definition scales cleanly with fighter size. Multiple
+ * mounts naturally support dual wielding without changing combat hit origins.
+ */
+export interface WeaponVisualMountDefinition {
+  id: string;
+  side: WeaponVisualMountSide;
+  forwardOffset?: number;
+  lateralOffset?: number;
+  scale?: number;
+  rotationDegrees?: number;
+}
+
 export interface PrimaryAttackDefinition {
   id: string;
   name: string;
@@ -51,6 +67,10 @@ export interface PrimaryAttackDefinition {
   attackAngleDegrees: number;
   /** Exaggerated top-down silhouette scale. */
   visualScale: number;
+  /** Distance from fighter center to the visible ranged muzzle, in fighter radii. */
+  muzzleOffsetScale?: number;
+  /** Visual-only sockets; simulation attack origin remains fighter-centered. */
+  visualMounts?: WeaponVisualMountDefinition[];
   /** Number of deterministic shots released during one attack. */
   burstCount?: number;
   /** Simulation ticks between burst shots. */

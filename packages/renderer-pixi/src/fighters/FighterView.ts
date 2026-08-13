@@ -18,6 +18,12 @@ import { PyroFurnaceAura } from './PyroFurnaceAura';
 import { FighterResourceRing } from './FighterResourceRing';
 import { FighterStatusIndicators } from './FighterStatusIndicators';
 import { MountedAttachmentView } from './MountedAttachmentView';
+import { resolveKnockbackAngularImpulse, type KnockbackReactionKind } from '../fighterReactions';
+import {
+  resolvePrimaryAttackVisualMounts,
+  resolveWeaponVisualMountPose,
+  type ResolvedWeaponVisualMount
+} from '../weaponMounts';
 import type { VisualLod } from './types';
 
 function moduleIdsKey(moduleIds: readonly string[]): string {
@@ -35,7 +41,8 @@ export class FighterView {
   private readonly damageOverlay = new Graphics();
   private readonly core = new Graphics();
   private readonly aura = new Graphics();
-  private readonly weapon = new Graphics();
+  private readonly weaponRig = new Container();
+  private readonly weaponMountViews: Array<{ mount: ResolvedWeaponVisualMount; graphics: Graphics }>;
   private readonly ultimateWeapon = new Graphics();
   private readonly velocityVector = new Graphics();
   private readonly healthRing: FighterHealthRing;
@@ -49,12 +56,20 @@ export class FighterView {
   private readonly equippedModuleIdsKey: string;
   private impact = 0;
   private damageFlash = 0;
+  private knockbackRotation = 0;
+  private knockbackAngularVelocity = 0;
+  private lastElapsedSeconds = 0;
 
   constructor(private readonly entity: EntitySnapshot, profileId: PresentationSettings['renderProfile'], lod: VisualLod) {
     const fighter = getFighter(entity.fighterId);
     this.visual = getVisualRecipe(fighter.visualRecipeId);
     this.motion = getMotionRecipe(fighter.animationRecipeId);
     this.weaponDefinition = getPrimaryAttack(entity.primaryAttackId);
+    this.weaponMountViews = resolvePrimaryAttackVisualMounts(this.weaponDefinition).map((mount) => ({
+      mount,
+      graphics: new Graphics()
+    }));
+    for (const view of this.weaponMountViews) this.weaponRig.addChild(view.graphics);
     this.mountedAttachments = new MountedAttachmentView(listMountedAttachments(entity.moduleIds));
     this.healthRing = new FighterHealthRing(entity);
     this.resourceRing = new FighterResourceRing(this.visual.accentColor);
@@ -71,7 +86,7 @@ export class FighterView {
       this.body,
       this.core,
       this.damageOverlay,
-      this.weapon,
+      this.weaponRig,
       this.ultimateWeapon,
       this.healthRing.graphics,
       this.resourceRing.graphics,
@@ -91,8 +106,15 @@ export class FighterView {
   prepareForReuse(): void {
     this.impact = 0;
     this.damageFlash = 0;
+    this.knockbackRotation = 0;
+    this.knockbackAngularVelocity = 0;
+    this.lastElapsedSeconds = 0;
     this.container.visible = true;
-    this.weapon.position.set(0, 0);
+    for (const view of this.weaponMountViews) {
+      view.graphics.position.set(0, 0);
+      view.graphics.rotation = 0;
+      view.graphics.scale.set(1);
+    }
     this.ultimateWeapon.clear();
   }
 
@@ -115,6 +137,11 @@ export class FighterView {
   damage(amount: number): void {
     this.damageFlash = Math.max(this.damageFlash, Math.min(1, 0.72 + amount / 24));
     this.impact = Math.max(this.impact, Math.min(1, amount / 24));
+  }
+
+  knockback(direction: { x: number; y: number }, force: number, kind: KnockbackReactionKind, facingRadians: number, mass: number): void {
+    const impulse = resolveKnockbackAngularImpulse({ direction, force, kind, facingRadians, mass });
+    this.knockbackAngularVelocity = Math.max(-36, Math.min(36, this.knockbackAngularVelocity + impulse));
   }
 
   update(
@@ -144,11 +171,33 @@ export class FighterView {
       switch (castRecipe.motion) {
         case 'stream': castScaleX = 1.16 + castProgress * 0.16; castScaleY = 0.92; break;
         case 'compress': castScaleX = 1.08 + castProgress * 0.1; castScaleY = 0.92 - castProgress * 0.08; break;
-        case 'vortex': rotationOffset = castProgress * Math.PI * 1.2; castScaleX = castScaleY = 1 + Math.sin(castProgress * Math.PI) * 0.08; break;
+        case 'vortex': rotationOffset = castProgress * Math.PI * 4; castScaleX = castScaleY = 1 + Math.sin(castProgress * Math.PI) * 0.12; break;
         case 'gather': castScaleX = castScaleY = 1 - castProgress * 0.12 + Math.abs(castPulse) * 0.04; break;
         case 'rocket': castScaleX = 1.12 + castProgress * 0.18; castScaleY = 0.88; break;
         case 'brace': castScaleX = 1.14; castScaleY = 0.86; break;
-        case 'spin': rotationOffset = castProgress * Math.PI * 3.5; break;
+        case 'spin': rotationOffset = castProgress * Math.PI * 8; castScaleX = 1.08; castScaleY = 0.94; break;
+        case 'spiral': rotationOffset = castProgress * Math.PI * 4; castScaleX = 1.24; castScaleY = 0.84; break;
+        case 'sweep': rotationOffset = Math.sin(castProgress * Math.PI) * 2.2; castScaleX = 1.16; castScaleY = 0.9; break;
+        case 'recoil': rotationOffset = -Math.sin(castProgress * Math.PI) * 0.48; castScaleX = 1.08 - Math.sin(castProgress * Math.PI) * 0.18; castScaleY = 1.08; jitterY = Math.sin(castProgress * Math.PI * 6) * 1.4; break;
+        case 'charge': rotationOffset = Math.sin(castProgress * Math.PI) * 0.5; castScaleX = 1.28 + castProgress * 0.1; castScaleY = 0.82; break;
+        case 'charge-sweep': {
+          const chargeEnd = 0.58;
+          if (castProgress < chargeEnd) {
+            const chargeProgress = castProgress / chargeEnd;
+            rotationOffset = -0.22 * chargeProgress;
+            castScaleX = 1.12 + chargeProgress * 0.22;
+            castScaleY = 0.9 - chargeProgress * 0.06;
+          } else {
+            const sweepProgress = (castProgress - chargeEnd) / (1 - chargeEnd);
+            rotationOffset = -0.22 + Math.sin(sweepProgress * Math.PI) * 2.15;
+            castScaleX = 1.34;
+            castScaleY = 0.84;
+          }
+          break;
+        }
+        case 'flow': rotationOffset = Math.sin(castProgress * Math.PI * 2) * 1.1; castScaleX = 1.18; castScaleY = 0.86 + Math.sin(castProgress * Math.PI) * 0.12; break;
+        case 'phase': rotationOffset = castProgress * Math.PI * 6; castScaleX = 1.16 + Math.sin(castProgress * Math.PI) * 0.12; castScaleY = 0.88; break;
+        case 'pivot': rotationOffset = Math.sin(castProgress * Math.PI) * 1.7; castScaleX = 1.18; castScaleY = 0.84; break;
         case 'tremble': jitterX = Math.sin(elapsedSeconds * 70) * (1 + castProgress * 4); jitterY = Math.cos(elapsedSeconds * 83) * (1 + castProgress * 3); castScaleX = castScaleY = 1 + castProgress * 0.12; break;
         case 'overdrive': rotationOffset = Math.sin(elapsedSeconds * 18) * 0.08; castScaleX = castScaleY = 1 + castProgress * 0.18 + Math.abs(castPulse) * 0.06; break;
         case 'fuse-pop': castScaleX = castScaleY = 1.08; break;
@@ -156,6 +205,7 @@ export class FighterView {
       }
     }
     this.impact *= 0.86;
+    const knockbackRotation = this.updateKnockbackReaction(elapsedSeconds, reducedMotion);
 
     const victoryLift = victory && !reducedMotion ? Math.sin(elapsedSeconds * 2.6) * 2.2 - 3 : 0;
     const victoryPulse = victory && !reducedMotion ? 1 + Math.sin(elapsedSeconds * 3.2) * 0.025 : 1;
@@ -164,8 +214,16 @@ export class FighterView {
     const weaponAttack = entity.weaponAttack;
     const attackFacing = weaponAttack ? Math.atan2(weaponAttack.direction.y, weaponAttack.direction.x) : null;
     const castFacing = cast?.castDirection ? Math.atan2(cast.castDirection.y, cast.castDirection.x) : null;
-    if (this.profileId !== 'debug') this.container.rotation = (castFacing ?? attackFacing ?? entity.rotation) + rotationOffset;
+    const presentationRotation = rotationOffset + knockbackRotation;
+    if (this.profileId !== 'debug') this.container.rotation = (castFacing ?? attackFacing ?? entity.rotation) + presentationRotation;
     else this.container.rotation = 0;
+    // Ranged barrels must remain on the authoritative attack direction even if
+    // the fighter body is visually tumbling or performing a presentation pose.
+    // Otherwise bullets travel on the simulation line while the gun points
+    // somewhere else, which reads as shots coming out of the body.
+    const stabilizeRangedAim = attackFacing !== null
+      && (this.weaponDefinition.form === 'rifle' || this.weaponDefinition.form === 'launcher');
+    this.weaponRig.rotation = stabilizeRangedAim && this.profileId !== 'debug' ? -presentationRotation : 0;
     this.container.scale.set(pose.scaleX * castScaleX * victoryPulse, pose.scaleY * castScaleY * victoryPulse);
     this.updateWeaponPose(weaponAttack, reducedMotion);
     this.updateProfiledUltimateWeapon(entity, elapsedSeconds, reducedMotion);
@@ -238,100 +296,148 @@ export class FighterView {
       .closePath().fill({ color: 0xfff1a4, alpha: 0.72 + pulse * 0.18 });
   }
 
+  private updateKnockbackReaction(elapsedSeconds: number, reducedMotion: boolean): number {
+    if (reducedMotion) {
+      this.knockbackRotation = 0;
+      this.knockbackAngularVelocity = 0;
+      this.lastElapsedSeconds = elapsedSeconds;
+      return 0;
+    }
+
+    const dtSeconds = this.lastElapsedSeconds > 0
+      ? Math.max(0, Math.min(0.05, elapsedSeconds - this.lastElapsedSeconds))
+      : 1 / 60;
+    this.lastElapsedSeconds = elapsedSeconds;
+    this.knockbackRotation += this.knockbackAngularVelocity * dtSeconds;
+    this.knockbackAngularVelocity *= Math.exp(-4.1 * dtSeconds);
+    this.knockbackRotation *= Math.exp(-2.35 * dtSeconds);
+    if (Math.abs(this.knockbackAngularVelocity) < 0.015) this.knockbackAngularVelocity = 0;
+    if (Math.abs(this.knockbackRotation) < 0.001) this.knockbackRotation = 0;
+    return Math.max(-Math.PI * 2.25, Math.min(Math.PI * 2.25, this.knockbackRotation));
+  }
+
   private updateWeaponPose(attack: EntitySnapshot['weaponAttack'], reducedMotion: boolean): void {
     const r = this.entity.radius;
-    // The weapon pivot is the exact fighter center. This keeps every weapon
-    // aligned with the circular body regardless of facing direction.
-    const socketX = 0;
-    const socketY = 0;
-    this.weapon.position.set(socketX, socketY);
-    this.weapon.scale.set(1);
-    // Primary attacks are deliberately stable while idle. Only an explicit
-    // spin/orbit behavior is allowed to rotate, and only during its attack.
-    if (!attack || reducedMotion) {
-      this.weapon.rotation = 0;
-      return;
-    }
-    const progress = 1 - attack.remainingTicks / Math.max(1, attack.totalTicks);
+    const progress = attack ? 1 - attack.remainingTicks / Math.max(1, attack.totalTicks) : 0;
     const eased = progress * progress * (3 - 2 * progress);
-    switch (attack.style) {
-      case 'swing':
-        this.weapon.rotation = attack.phase === 'windup' ? -1.2 + eased * 0.42 : attack.phase === 'active' ? -0.78 + eased * 2.28 : 1.5 - eased * 1.5;
-        break;
-      case 'thrust':
-        this.weapon.rotation = 0;
-        this.weapon.x = socketX + (attack.phase === 'windup' ? -r * 0.28 * eased : attack.phase === 'active' ? r * 0.78 * Math.sin(progress * Math.PI) : r * 0.28 * (1 - eased));
-        break;
-      case 'overhead':
-      case 'slam':
-        this.weapon.rotation = attack.phase === 'windup' ? -1.55 + eased * 0.3 : attack.phase === 'active' ? -1.25 + eased * 1.9 : 0.65 - eased * 0.65;
-        break;
-      case 'spin':
-      case 'orbit':
-        this.weapon.rotation = attack.phase === 'active' ? progress * Math.PI * 5 : attack.phase === 'windup' ? -0.45 * eased : 0;
-        break;
-      case 'burst': {
-        const rounds = Math.max(1, this.weaponDefinition.burstCount ?? 1);
-        const recoilPulse = attack.phase === 'active'
-          ? Math.max(0, Math.sin(progress * Math.PI * rounds * 2))
-          : 0;
-        this.weapon.rotation = -recoilPulse * 0.025;
-        this.weapon.x = socketX - r * 0.2 * recoilPulse;
-        break;
+
+    for (const view of this.weaponMountViews) {
+      const mountPose = resolveWeaponVisualMountPose(view.mount, r);
+      let x = mountPose.x;
+      let y = mountPose.y;
+      let rotation = mountPose.rotation;
+      const sideSwing = view.mount.side === 'left' ? -0.82 : 1;
+      view.graphics.scale.set(mountPose.scale);
+
+      if (attack && !reducedMotion) {
+        switch (attack.style) {
+          case 'swing':
+            rotation += sideSwing * (attack.phase === 'windup'
+              ? -1.2 + eased * 0.42
+              : attack.phase === 'active'
+                ? -0.78 + eased * 2.28
+                : 1.5 - eased * 1.5);
+            break;
+          case 'thrust':
+            x += attack.phase === 'windup'
+              ? -r * 0.28 * eased
+              : attack.phase === 'active'
+                ? r * 0.78 * Math.sin(progress * Math.PI)
+                : r * 0.28 * (1 - eased);
+            break;
+          case 'overhead':
+          case 'slam':
+            rotation += attack.phase === 'windup'
+              ? -1.55 + eased * 0.3
+              : attack.phase === 'active'
+                ? -1.25 + eased * 1.9
+                : 0.65 - eased * 0.65;
+            break;
+          case 'spin':
+          case 'orbit':
+            rotation += attack.phase === 'active'
+              ? progress * Math.PI * 5 * (view.mount.side === 'left' ? -1 : 1)
+              : attack.phase === 'windup'
+                ? -0.45 * eased
+                : 0;
+            break;
+          case 'burst': {
+            const rounds = Math.max(1, this.weaponDefinition.burstCount ?? 1);
+            const recoilPulse = attack.phase === 'active'
+              ? Math.max(0, Math.sin(progress * Math.PI * rounds * 2))
+              : 0;
+            rotation -= recoilPulse * 0.025;
+            x -= r * 0.2 * recoilPulse;
+            break;
+          }
+          case 'shot':
+          case 'stream':
+            x -= attack.phase === 'active' ? r * (this.weaponDefinition.form === 'launcher' ? 0.42 : 0.26) * Math.sin(progress * Math.PI * 2) : 0;
+            break;
+          case 'lob':
+            rotation += attack.phase === 'windup'
+              ? -0.95 * eased
+              : attack.phase === 'active'
+                ? -0.95 + eased * 1.9
+                : 0.95 - eased * 0.95;
+            y -= attack.phase === 'windup' ? r * 0.2 * eased : 0;
+            break;
+        }
       }
-      case 'shot':
-      case 'stream':
-        this.weapon.rotation = 0;
-        this.weapon.x = socketX + (attack.phase === 'active' ? -r * 0.22 * Math.sin(progress * Math.PI * 2) : 0);
-        break;
-      case 'lob':
-        this.weapon.rotation = attack.phase === 'windup' ? -0.95 * eased : attack.phase === 'active' ? -0.95 + eased * 1.9 : 0.95 - eased * 0.95;
-        this.weapon.y = socketY + (attack.phase === 'windup' ? -r * 0.2 * eased : 0);
-        break;
-      default:
-        this.weapon.rotation = 0;
+
+      view.graphics.position.set(x, y);
+      view.graphics.rotation = rotation;
     }
   }
 
-  private drawConfiguredWeapon(r: number, attack: PrimaryAttackDefinition): void {
+  private drawConfiguredWeapon(weapon: Graphics, r: number, attack: PrimaryAttackDefinition): void {
     const accent = this.visual.accentColor;
     const core = this.visual.coreColor;
     const size = r * attack.visualScale;
 
     if (attack.visualId === 'skip-stone') {
       const stoneX = size * 0.62;
-      this.weapon.moveTo(size * 0.08, 0).lineTo(stoneX - size * 0.18, 0)
+      weapon.moveTo(size * 0.08, 0).lineTo(stoneX - size * 0.18, 0)
         .stroke({ color: 0x6e5a88, width: Math.max(3, r * 0.1), alpha: 0.72 });
-      this.weapon.circle(stoneX, 0, size * 0.22).fill({ color: 0x241a30, alpha: 1 });
-      this.weapon.circle(stoneX, 0, size * 0.22)
+      weapon.circle(stoneX, 0, size * 0.22).fill({ color: 0x241a30, alpha: 1 });
+      weapon.circle(stoneX, 0, size * 0.22)
         .stroke({ color: 0x91edff, width: Math.max(2, r * 0.07), alpha: 0.95 });
-      this.weapon.circle(stoneX - size * 0.05, -size * 0.05, size * 0.06)
+      weapon.circle(stoneX - size * 0.05, -size * 0.05, size * 0.06)
         .fill({ color: 0xdccfff, alpha: 0.82 });
       return;
     }
 
     if (attack.form === 'fire') {
-      this.weapon.circle(size * 0.58, 0, size * 0.28).fill({ color: 0xff5b28, alpha: 0.92 });
-      this.weapon.circle(size * 0.67, -size * 0.08, size * 0.18).fill({ color: 0xffb33d, alpha: 0.96 });
-      this.weapon.moveTo(size * 0.52, -size * 0.22).lineTo(size * 0.82, -size * 0.52).lineTo(size * 0.76, -size * 0.08).fill({ color: 0xffe16f, alpha: 0.9 });
+      weapon.circle(size * 0.58, 0, size * 0.28).fill({ color: 0xff5b28, alpha: 0.92 });
+      weapon.circle(size * 0.67, -size * 0.08, size * 0.18).fill({ color: 0xffb33d, alpha: 0.96 });
+      weapon.moveTo(size * 0.52, -size * 0.22).lineTo(size * 0.82, -size * 0.52).lineTo(size * 0.76, -size * 0.08).fill({ color: 0xffe16f, alpha: 0.9 });
       return;
     }
     if (attack.form === 'water') {
-      this.weapon.circle(size * 0.7, 0, size * 0.28).fill({ color: 0x4fd3ff, alpha: 0.72 });
-      this.weapon.circle(size * 0.7, 0, size * 0.31).stroke({ color: 0xc9f8ff, width: Math.max(2, r * 0.1), alpha: 0.85 });
-      this.weapon.circle(size * 0.61, -size * 0.09, size * 0.08).fill({ color: 0xffffff, alpha: 0.72 });
+      weapon.circle(size * 0.7, 0, size * 0.28).fill({ color: 0x4fd3ff, alpha: 0.72 });
+      weapon.circle(size * 0.7, 0, size * 0.31).stroke({ color: 0xc9f8ff, width: Math.max(2, r * 0.1), alpha: 0.85 });
+      weapon.circle(size * 0.61, -size * 0.09, size * 0.08).fill({ color: 0xffffff, alpha: 0.72 });
       return;
     }
     if (attack.form === 'lightning') {
-      this.weapon.circle(size * 0.48, 0, size * 0.23).fill({ color: 0xffef4e, alpha: 0.95 });
-      this.weapon.circle(size * 0.48, 0, size * 0.32).stroke({ color: 0x8df6ff, width: 3, alpha: 0.8 });
-      this.weapon.moveTo(size * 0.68, -size * 0.2).lineTo(size * 0.58, 0).lineTo(size * 0.84, -size * 0.03).lineTo(size * 0.72, size * 0.22).stroke({ color: 0xffffff, width: 3, alpha: 0.95 });
+      weapon.circle(size * 0.48, 0, size * 0.23).fill({ color: 0xffef4e, alpha: 0.95 });
+      weapon.circle(size * 0.48, 0, size * 0.32).stroke({ color: 0x8df6ff, width: 3, alpha: 0.8 });
+      weapon.moveTo(size * 0.68, -size * 0.2).lineTo(size * 0.58, 0).lineTo(size * 0.84, -size * 0.03).lineTo(size * 0.72, size * 0.22).stroke({ color: 0xffffff, width: 3, alpha: 0.95 });
       return;
     }
-    if (attack.form === 'gauntlet') {
-      this.weapon.rect(size * 0.18, -size * 0.22, size * 0.62, size * 0.44).fill({ color: 0x334657, alpha: 1 });
-      this.weapon.rect(size * 0.62, -size * 0.32, size * 0.42, size * 0.64).fill({ color: accent, alpha: 0.95 });
-      this.weapon.rect(size * 0.28, -size * 0.08, size * 0.42, size * 0.16).fill({ color: core, alpha: 0.9 });
+    if (attack.form === "gauntlet") {
+      // Long gauntlet, but with the original thicker/heavier proportions.
+      weapon
+        .rect(size * 0.02, -size * 0.22, size * 1.18, size * 0.44)
+        .fill({ color: 0x334657, alpha: 1 });
+
+      weapon
+        .rect(size * 1.02, -size * 0.32, size * 0.62, size * 0.64)
+        .fill({ color: accent, alpha: 0.95 });
+
+      weapon
+        .rect(size * 0.2, -size * 0.08, size * 1.14, size * 0.16)
+        .fill({ color: core, alpha: 0.9 });
       return;
     }
     if (attack.form === 'rifle') {
@@ -342,85 +448,132 @@ export class FighterView {
       const receiverH = size * 0.28;
       // Rear stock makes the rifle silhouette readable even when the fighter is
       // moving sideways; the bright outline keeps it separated from the body.
-      this.weapon.moveTo(-size * 0.34, 0).lineTo(receiverX + size * 0.08, 0)
+      weapon.moveTo(-size * 0.34, 0).lineTo(receiverX + size * 0.08, 0)
         .stroke({ color: 0x1a242e, width: Math.max(11, r * 0.42), alpha: 1 });
-      this.weapon.moveTo(-size * 0.34, 0).lineTo(receiverX + size * 0.08, 0)
+      weapon.moveTo(-size * 0.34, 0).lineTo(receiverX + size * 0.08, 0)
         .stroke({ color: outline, width: Math.max(2, r * 0.055), alpha: 0.72 });
-      this.weapon.rect(receiverX, receiverY, receiverW, receiverH).fill({ color: 0x202b36, alpha: 1 });
-      this.weapon.rect(receiverX, receiverY, receiverW, receiverH)
+      weapon.rect(receiverX, receiverY, receiverW, receiverH).fill({ color: 0x202b36, alpha: 1 });
+      weapon.rect(receiverX, receiverY, receiverW, receiverH)
         .stroke({ color: outline, width: Math.max(2, r * 0.055), alpha: 0.82 });
-      this.weapon.rect(size * 0.3, -size * 0.075, size * 0.48, size * 0.15).fill({ color: accent, alpha: 0.92 });
-      this.weapon.rect(size * 0.43, -size * 0.25, size * 0.32, size * 0.09).fill({ color: 0x111820, alpha: 1 });
-      this.weapon.rect(size * 0.48, -size * 0.29, size * 0.22, size * 0.06).fill({ color: core, alpha: 0.94 });
-      this.weapon.moveTo(size * 0.92, 0).lineTo(size * 1.36, 0)
+      weapon.rect(size * 0.3, -size * 0.075, size * 0.48, size * 0.15).fill({ color: accent, alpha: 0.92 });
+      weapon.rect(size * 0.43, -size * 0.25, size * 0.32, size * 0.09).fill({ color: 0x111820, alpha: 1 });
+      weapon.rect(size * 0.48, -size * 0.29, size * 0.22, size * 0.06).fill({ color: core, alpha: 0.94 });
+      weapon.moveTo(size * 0.92, 0).lineTo(size * 1.36, 0)
         .stroke({ color: 0x1a242e, width: Math.max(7, r * 0.2), alpha: 1 });
-      this.weapon.moveTo(size * 0.95, 0).lineTo(size * 1.39, 0)
+      weapon.moveTo(size * 0.95, 0).lineTo(size * 1.39, 0)
         .stroke({ color: core, width: Math.max(3, r * 0.09), alpha: 0.98 });
-      this.weapon.rect(size * 1.34, -size * 0.1, size * 0.12, size * 0.2).fill({ color: 0x10171e, alpha: 1 });
-      this.weapon.rect(size * 1.34, -size * 0.1, size * 0.12, size * 0.2)
+      weapon.rect(size * 1.34, -size * 0.1, size * 0.12, size * 0.2).fill({ color: 0x10171e, alpha: 1 });
+      weapon.rect(size * 1.34, -size * 0.1, size * 0.12, size * 0.2)
         .stroke({ color: outline, width: Math.max(2, r * 0.045), alpha: 0.76 });
-      this.weapon.moveTo(size * 0.5, size * 0.14).lineTo(size * 0.58, size * 0.4).lineTo(size * 0.76, size * 0.14)
+      weapon.moveTo(size * 0.5, size * 0.14).lineTo(size * 0.58, size * 0.4).lineTo(size * 0.76, size * 0.14)
         .fill({ color: 0x111820, alpha: 0.98 });
-      this.weapon.moveTo(size * 0.5, size * 0.14).lineTo(size * 0.58, size * 0.4).lineTo(size * 0.76, size * 0.14)
+      weapon.moveTo(size * 0.5, size * 0.14).lineTo(size * 0.58, size * 0.4).lineTo(size * 0.76, size * 0.14)
         .stroke({ color: outline, width: Math.max(2, r * 0.045), alpha: 0.65 });
       return;
     }
     if (attack.form === 'launcher') {
-      if (attack.visualId.includes('rocket')) {
-        this.weapon.rect(size * 0.08, -size * 0.19, size * 0.98, size * 0.38).fill({ color: 0x29343d, alpha: 1 });
-        this.weapon.rect(size * 0.18, -size * 0.12, size * 0.72, size * 0.24).fill({ color: accent, alpha: 0.8 });
-        this.weapon.circle(size * 1.03, 0, size * 0.22).stroke({ color: 0xffc15d, width: Math.max(3, r * 0.11), alpha: 0.95 });
-        this.weapon.moveTo(size * 0.16, size * 0.18).lineTo(size * 0.03, size * 0.38).lineTo(size * 0.35, size * 0.19).fill({ color: 0x171f27, alpha: 1 });
+      if (attack.visualId === 'guided-rocket-launcher') {
+        const outline = 0xf6fbff;
+        const shell = 0x18232d;
+        const dark = 0x0d141b;
+        const rail = 0x3d4f5d;
+        const rocket = 0xff8a38;
+        const hot = 0xffe281;
+        const rear = -size * 0.3;
+        const muzzle = size * 1.42;
+
+        // Vanguard launcher v3: deliberately slimmer and better proportioned
+        // to the fighter. The long tube and exposed rocket carry the identity;
+        // bulky square masses are kept small so it no longer swallows the body.
+        weapon.rect(rear, -size * 0.13, size * 1.46, size * 0.26)
+          .fill({ color: shell, alpha: 1 });
+        weapon.rect(rear, -size * 0.13, size * 1.46, size * 0.26)
+          .stroke({ color: outline, width: Math.max(2, r * 0.045), alpha: 0.82 });
+        weapon.rect(-size * 0.18, -size * 0.08, size * 0.82, size * 0.16)
+          .fill({ color: rail, alpha: 0.95 });
+        weapon.rect(-size * 0.02, -size * 0.22, size * 0.56, size * 0.07)
+          .fill({ color: core, alpha: 0.94 });
+
+        // Loaded rocket is readable without turning the launcher into a giant
+        // muzzle block.
+        weapon.moveTo(size * 0.48, -size * 0.07)
+          .lineTo(size * 1.18, -size * 0.07)
+          .lineTo(muzzle, 0)
+          .lineTo(size * 1.18, size * 0.07)
+          .lineTo(size * 0.48, size * 0.07)
+          .closePath().fill({ color: rocket, alpha: 0.98 });
+        weapon.moveTo(size * 0.62, 0).lineTo(size * 1.25, 0)
+          .stroke({ color: hot, width: Math.max(2.5, r * 0.065), alpha: 0.94 });
+
+        // Compact rear exhaust, grip and muzzle collars preserve the military
+        // launcher silhouette without exceeding the fighter's visual mass.
+        weapon.rect(rear - size * 0.09, -size * 0.17, size * 0.16, size * 0.34)
+          .fill({ color: dark, alpha: 1 });
+        weapon.rect(rear - size * 0.09, -size * 0.17, size * 0.16, size * 0.34)
+          .stroke({ color: outline, width: Math.max(2, r * 0.04), alpha: 0.68 });
+        weapon.moveTo(size * 0.08, size * 0.12)
+          .lineTo(size * 0.02, size * 0.31)
+          .lineTo(size * 0.28, size * 0.13)
+          .closePath().fill({ color: dark, alpha: 1 });
+        weapon.rect(size * 1.08, -size * 0.17, size * 0.22, size * 0.34)
+          .stroke({ color: outline, width: Math.max(2, r * 0.045), alpha: 0.78 });
+        weapon.rect(size * 1.14, -size * 0.1, size * 0.1, size * 0.2)
+          .stroke({ color: 0xffbd58, width: Math.max(2.5, r * 0.065), alpha: 0.94 });
+      } else if (attack.visualId.includes('rocket')) {
+        weapon.rect(size * 0.08, -size * 0.19, size * 0.98, size * 0.38).fill({ color: 0x29343d, alpha: 1 });
+        weapon.rect(size * 0.18, -size * 0.12, size * 0.72, size * 0.24).fill({ color: accent, alpha: 0.8 });
+        weapon.circle(size * 1.03, 0, size * 0.22).stroke({ color: 0xffc15d, width: Math.max(3, r * 0.11), alpha: 0.95 });
+        weapon.moveTo(size * 0.16, size * 0.18).lineTo(size * 0.03, size * 0.38).lineTo(size * 0.35, size * 0.19).fill({ color: 0x171f27, alpha: 1 });
       } else {
         const x = size * 0.66;
-        this.weapon.circle(x, 0, size * 0.26).fill({ color: 0x171a22, alpha: 1 });
-        this.weapon.circle(x, 0, size * 0.22).stroke({ color: 0xff883a, width: 3, alpha: 0.92 });
-        this.weapon.moveTo(x + size * 0.14, -size * 0.14).lineTo(x + size * 0.28, -size * 0.34).stroke({ color: 0xcab58e, width: 3, alpha: 0.95 });
-        this.weapon.circle(x + size * 0.29, -size * 0.35, Math.max(3, r * 0.13)).fill({ color: 0xffd05a, alpha: 1 });
+        weapon.circle(x, 0, size * 0.26).fill({ color: 0x171a22, alpha: 1 });
+        weapon.circle(x, 0, size * 0.22).stroke({ color: 0xff883a, width: 3, alpha: 0.92 });
+        weapon.moveTo(x + size * 0.14, -size * 0.14).lineTo(x + size * 0.28, -size * 0.34).stroke({ color: 0xcab58e, width: 3, alpha: 0.95 });
+        weapon.circle(x + size * 0.29, -size * 0.35, Math.max(3, r * 0.13)).fill({ color: 0xffd05a, alpha: 1 });
       }
       return;
     }
     if (attack.form === 'claws') {
       for (let index = -1; index <= 1; index += 1) {
-        this.weapon.moveTo(size * 0.12, index * size * 0.1).lineTo(size * 0.94, index * size * 0.15 - size * 0.08).stroke({ color: index === 0 ? core : accent, width: Math.max(4, r * 0.15), alpha: 0.94 });
+        weapon.moveTo(size * 0.08, index * size * 0.08).lineTo(size * 1.42, index * size * 0.14 - size * 0.08).stroke({ color: index === 0 ? core : accent, width: Math.max(3, r * 0.11), alpha: 0.94 });
       }
       return;
     }
     if (attack.form === 'void') {
-      const end = size * 0.92;
-      this.weapon.moveTo(size * 0.12, size * 0.1).lineTo(end * 0.72, 0).stroke({ color: 0x58307f, width: Math.max(5, r * 0.18), alpha: 0.98 });
-      this.weapon.moveTo(end * 0.62, 0).quadraticCurveTo(end, -size * 0.55, end * 1.18, -size * 0.12).lineTo(end * 0.88, size * 0.02).quadraticCurveTo(end * 0.78, -size * 0.25, end * 0.62, 0).fill({ color: accent, alpha: 0.94 });
+      const end = size * 1.58;
+      weapon.moveTo(size * 0.04, size * 0.05).lineTo(end * 0.76, 0).stroke({ color: 0x58307f, width: Math.max(4, r * 0.13), alpha: 0.98 });
+      weapon.moveTo(end * 0.7, 0).quadraticCurveTo(end, -size * 0.38, end * 1.12, -size * 0.08).lineTo(end * 0.92, size * 0.02).quadraticCurveTo(end * 0.84, -size * 0.17, end * 0.7, 0).fill({ color: accent, alpha: 0.94 });
       return;
     }
     if (attack.form === 'axe' || attack.form === 'hammer') {
-      const end = size * 0.92;
-      this.weapon.moveTo(size * 0.08, 0).lineTo(end, 0).stroke({ color: attack.form === 'axe' ? 0xc5f4ff : 0x8095a5, width: Math.max(5, r * 0.18), alpha: 0.97 });
+      const end = size * 1.00;
+      weapon.moveTo(size * 0.02, 0).lineTo(end, 0).stroke({ color: attack.form === 'axe' ? 0xc5f4ff : 0x8095a5, width: Math.max(4, r * 0.12), alpha: 0.97 });
       if (attack.form === 'axe') {
-        this.weapon.moveTo(end - size * 0.08, -size * 0.34).lineTo(end + size * 0.18, 0).lineTo(end - size * 0.08, size * 0.34).lineTo(end - size * 0.22, 0).fill({ color: 0x8ee9ff, alpha: 0.94 });
+        weapon.moveTo(end - size * 0.1, -size * 0.26).lineTo(end + size * 0.3, 0).lineTo(end - size * 0.1, size * 0.26).lineTo(end - size * 0.24, 0).fill({ color: 0x8ee9ff, alpha: 0.94 });
       } else {
-        this.weapon.rect(end - size * 0.12, -size * 0.25, size * 0.35, size * 0.5).fill({ color: accent, alpha: 0.96 });
+        weapon.rect(end - size * 0.1, -size * 0.2, size * 0.52, size * 0.4).fill({ color: accent, alpha: 0.96 });
       }
       return;
     }
     if (attack.form === 'spear') {
-      const end = size * 1.04;
-      this.weapon.moveTo(size * 0.04, 0).lineTo(end, 0).stroke({ color: 0xa9c7d7, width: Math.max(6, r * 0.19), alpha: 0.98 });
-      this.weapon.moveTo(end, 0).lineTo(end - size * 0.24, -size * 0.18).lineTo(end - size * 0.14, 0).lineTo(end - size * 0.24, size * 0.18).lineTo(end, 0).fill({ color: core, alpha: 0.98 });
+      const end = size * 1.78;
+      weapon.moveTo(-size * 0.02, 0).lineTo(end, 0).stroke({ color: 0xa9c7d7, width: Math.max(4, r * 0.12), alpha: 0.98 });
+      weapon.moveTo(end, 0).lineTo(end - size * 0.32, -size * 0.15).lineTo(end - size * 0.17, 0).lineTo(end - size * 0.32, size * 0.15).lineTo(end, 0).fill({ color: core, alpha: 0.98 });
       return;
     }
-    // Sword and shield-compatible fallback: oversized handle, guard and broad blade for readability.
-    const handleStart = -size * 0.2;
-    const guardX = size * 0.14;
-    const end = size * 1.04;
-    this.weapon.moveTo(handleStart, 0).lineTo(guardX, 0).stroke({ color: 0x5a3624, width: Math.max(7, r * 0.22), alpha: 1 });
-    this.weapon.circle(handleStart, 0, Math.max(4, r * 0.13)).fill({ color: 0xd9ad5e, alpha: 0.98 });
-    this.weapon.moveTo(guardX, -size * 0.24).lineTo(guardX, size * 0.24).stroke({ color: core, width: Math.max(5, r * 0.16), alpha: 1 });
-    this.weapon.moveTo(guardX + size * 0.04, -size * 0.13).lineTo(end - size * 0.12, -size * 0.17).lineTo(end + size * 0.18, 0).lineTo(end - size * 0.12, size * 0.17).lineTo(guardX + size * 0.04, size * 0.13).fill({ color: accent, alpha: 0.98 });
-    this.weapon.moveTo(guardX + size * 0.12, 0).lineTo(end, 0).stroke({ color: 0xffffff, width: Math.max(2, r * 0.06), alpha: 0.55 });
+    // Sword fallback: longer blade with a deliberately slimmer top-down profile.
+    const handleStart = -size * 0.16;
+    const guardX = size * 0.12;
+    const end = size * 1.68;
+    weapon.moveTo(handleStart, 0).lineTo(guardX, 0).stroke({ color: 0x5a3624, width: Math.max(5, r * 0.15), alpha: 1 });
+    weapon.circle(handleStart, 0, Math.max(3, r * 0.1)).fill({ color: 0xd9ad5e, alpha: 0.98 });
+    weapon.moveTo(guardX, -size * 0.18).lineTo(guardX, size * 0.18).stroke({ color: core, width: Math.max(4, r * 0.12), alpha: 1 });
+    weapon.moveTo(guardX + size * 0.04, -size * 0.1).lineTo(end - size * 0.14, -size * 0.13).lineTo(end + size * 0.26, 0).lineTo(end - size * 0.14, size * 0.13).lineTo(guardX + size * 0.04, size * 0.1).fill({ color: accent, alpha: 0.98 });
+    weapon.moveTo(guardX + size * 0.12, 0).lineTo(end, 0).stroke({ color: 0xffffff, width: Math.max(2, r * 0.06), alpha: 0.55 });
   }
 
-  private drawIdentityWeaponSilhouette(r: number, attack: PrimaryAttackDefinition): void {
-    this.drawConfiguredWeapon(r * 0.8, attack);
+  private drawIdentityWeaponSilhouette(weapon: Graphics, r: number, attack: PrimaryAttackDefinition): void {
+    this.drawConfiguredWeapon(weapon, r * 0.8, attack);
   }
 
   private build(): void {
@@ -435,7 +588,7 @@ export class FighterView {
     this.body.clear();
     this.damageOverlay.clear();
     this.core.clear();
-    this.weapon.clear();
+    for (const view of this.weaponMountViews) view.graphics.clear();
     this.velocityVector.clear();
     this.healthRing.resetRenderCache();
     this.resourceRing.resetRenderCache();
@@ -478,7 +631,7 @@ export class FighterView {
         this.body.moveTo(-r * 0.6, -r * 0.55).lineTo(-r * 0.92, -r * 1.02).stroke({ color: this.visual.accentColor, width: 5, alpha: 0.95 });
         this.body.moveTo(r * 0.6, -r * 0.55).lineTo(r * 0.92, -r * 1.02).stroke({ color: this.visual.accentColor, width: 5, alpha: 0.95 });
       }
-      this.drawConfiguredWeapon(r, this.weaponDefinition);
+      for (const view of this.weaponMountViews) this.drawConfiguredWeapon(view.graphics, r, this.weaponDefinition);
     } else {
       const color = this.visual.bodyColor;
       this.body.circle(0, 0, r).fill({ color, alpha: this.lod === 'army' || this.profileId === 'minimal' ? 0.9 : 0.08 });
@@ -488,7 +641,7 @@ export class FighterView {
       this.damageOverlay.circle(0, 0, r).fill({ color: 0xff1730, alpha: 0.98 });
       this.damageOverlay.circle(0, 0, r * 1.08).stroke({ color: 0xff5a68, width: Math.max(3, r * 0.14), alpha: 0.92 });
       this.damageOverlay.alpha = 0;
-      this.drawIdentityWeaponSilhouette(r, this.weaponDefinition);
+      for (const view of this.weaponMountViews) this.drawIdentityWeaponSilhouette(view.graphics, r, this.weaponDefinition);
     }
 
     if (profile.showLabels && this.lod !== 'army') {

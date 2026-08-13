@@ -35,7 +35,7 @@
           "kind": "wave",
           "radius": 245,
           "damage": 25,
-          "impulse": 9,
+          "impulse": 16,
           "element": "fire",
           "enemiesOnly": true
         },

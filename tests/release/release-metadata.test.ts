@@ -20,17 +20,19 @@ describe('Stage 8.12 release metadata', () => {
     expect(readPackageVersion('../../apps/game/package.json')).toBe(RELEASE_VERSION);
   });
 
-  it('ships the expected 12-fighter built-in roster', () => {
+  it('ships the expected 14-fighter built-in roster', () => {
     const fighterIds = listFighters().map((fighter) => fighter.id);
 
-    expect(fighterIds).toHaveLength(12);
+    expect(fighterIds).toHaveLength(14);
     expect(fighterIds).toEqual(expect.arrayContaining([
       'pyro-brawler',
       'bomber',
       'gunner',
       'rocket-vanguard',
       'solar-sentinel',
-      'ballast'
+      'ballast',
+      'blade-vanguard',
+      'iron-lancer'
     ]));
   });
 });

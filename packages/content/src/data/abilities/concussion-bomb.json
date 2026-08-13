@@ -15,7 +15,7 @@
           "kind": "explosion",
           "radius": 175,
           "damage": 14,
-          "impulse": 11,
+          "impulse": 18,
           "element": "neutral",
           "enemiesOnly": true
         }

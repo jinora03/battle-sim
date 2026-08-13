@@ -46,7 +46,7 @@
         },
         {
           "type": "APPLY_KNOCKBACK_TARGET",
-          "magnitude": 9
+          "magnitude": 62
         },
         {
           "type": "REMOVE_STATUS_SELF",
@@ -54,5 +54,8 @@
         }
       ]
     }
-  ]
+  ],
+  "activation": {
+    "collisionWindowTicks": 100
+  }
 }

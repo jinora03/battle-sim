@@ -5,6 +5,9 @@ import { compareOrdinal } from './order';
 
 const SNAPSHOT_SKILL_SLOTS: readonly AbilitySlot[] = ['skill1', 'skill2', 'skill3', 'ultimate'];
 
+/** Stage 9D pacing: lower runtime HP without rewriting fighter identity data. */
+export const BASELINE_FIGHT_HP_SCALE = 0.65;
+
 
 export interface ActiveCastState {
   abilityId: string;
@@ -173,8 +176,9 @@ export class World {
     this.maxSpeed[id] = fighter.physics.maxSpeed * (scale.speed ?? 1) * loadout.maxSpeedMultiplier;
     this.moveAcceleration[id] = fighter.stats.moveAcceleration * (scale.speed ?? 1) * loadout.moveAccelerationMultiplier;
     this.damageScale[id] = scale.damage ?? 1;
-    this.hp[id] = fighter.stats.maxHp * (scale.hp ?? 1);
-    this.maxHp[id] = fighter.stats.maxHp * (scale.hp ?? 1);
+    const runtimeHp = fighter.stats.maxHp * (scale.hp ?? 1) * BASELINE_FIGHT_HP_SCALE;
+    this.hp[id] = runtimeHp;
+    this.maxHp[id] = runtimeHp;
     this.fighterId[id] = fighter.id;
     this.loadouts[id] = loadout;
     this.statuses.set(id, new Map());

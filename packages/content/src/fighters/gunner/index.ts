@@ -24,7 +24,7 @@ export const gunnerContent: FighterContentBundle = {
   primaryAttack: {
     id: 'automatic-rifle', name: 'Automatic Rifle', form: 'rifle', behavior: 'automatic', category: 'automatic', style: 'burst',
     range: 720, minRange: 110, damage: 2.8, knockback: 1.2, windupTicks: 4, activeTicks: 10, recoveryTicks: 8,
-    cooldownTicks: 38, attackAngleDegrees: 8, visualScale: 1.75, burstCount: 4, burstIntervalTicks: 4, spreadDegrees: 5.2,
+    cooldownTicks: 38, attackAngleDegrees: 8, visualScale: 1.75, muzzleOffsetScale: 2.55, burstCount: 4, burstIntervalTicks: 4, spreadDegrees: 5.2,
     movementAllowed: true, friendlyFire: false, visualId: 'automatic-rifle', audioId: 'rifle-burst',
     projectile: { speed: 21, radius: 4.5, lifetimeTicks: 56, fuseTicks: 0, gravity: 0, bounce: 0, explosionRadius: 0, explosionDamage: 0, explosionImpulse: 0 }
   },
@@ -45,13 +45,13 @@ export const gunnerContent: FighterContentBundle = {
       ]
     },
     {
-      id: 'pinning-round-projectile', name: 'Pinning Round', form: 'rifle', behavior: 'ranged', damage: 9, knockback: 3.6,
+      id: 'pinning-round-projectile', name: 'Pinning Round', form: 'rifle', behavior: 'ranged', damage: 9, knockback: 42,
       friendlyFire: false, visualId: 'automatic-rifle', audioId: 'rifle-burst',
       projectile: { speed: 27, radius: 6, lifetimeTicks: 66, fuseTicks: 0, gravity: 0, bounce: 0, explosionRadius: 0, explosionDamage: 0, explosionImpulse: 0 },
       statusInteraction: {
         statusId: 'target-lock',
         bonusDamagePerStack: 3.2,
-        bonusKnockbackPerStack: 1.45,
+        bonusKnockbackPerStack: 4.5,
         consumeStacks: 'all',
         applyStatusAtStacks: { minimumStacks: 3, statusId: 'pinned', durationTicks: 72 }
       }

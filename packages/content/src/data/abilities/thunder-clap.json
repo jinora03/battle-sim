@@ -15,11 +15,21 @@
     "minimumTargets": 1,
     "aimToleranceDegrees": 180
   },
-  "triggers": [{
-    "event": "ON_ACTIVATE",
-    "conditions": [],
-    "actions": [
-      { "type": "EXPLODE", "kind": "wave", "radius": 210, "damage": 18, "impulse": 15, "element": "neutral", "enemiesOnly": true }
-    ]
-  }]
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "EXPLODE",
+          "kind": "wave",
+          "radius": 210,
+          "damage": 18,
+          "impulse": 46,
+          "element": "neutral",
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
 }

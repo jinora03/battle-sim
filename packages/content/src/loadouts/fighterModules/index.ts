@@ -1,8 +1,10 @@
 import type { FighterModuleDefinition } from '../../schemas';
 import { BALLAST_MODULES } from './ballastModules';
+import { BLADE_VANGUARD_MODULES } from './bladeVanguardModules';
 import { BOMBER_MODULES } from './bomberModules';
 import { FROST_MODULES } from './frostModules';
 import { GUNNER_MODULES } from './gunnerModules';
+import { IRON_LANCER_MODULES } from './ironLancerModules';
 import { MECH_MODULES } from './mechModules';
 import { PYRO_MODULES } from './pyroModules';
 import { ROCKET_MODULES } from './rocketModules';
@@ -26,5 +28,7 @@ export const FIGHTER_MODULES: readonly FighterModuleDefinition[] = [
   ...THORN_MODULES,
   ...VOID_MODULES,
   ...ROCKET_MODULES,
-  ...SOLAR_MODULES
+  ...SOLAR_MODULES,
+  ...BLADE_VANGUARD_MODULES,
+  ...IRON_LANCER_MODULES
 ];

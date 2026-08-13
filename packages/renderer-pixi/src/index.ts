@@ -26,8 +26,10 @@ import { RendererSettingsController } from './runtime/RendererSettingsController
 import { PlayerTargetingLayer } from './targeting/PlayerTargetingLayer';
 
 export * from './combatText';
+export * from './fighterReactions';
 export * from './massBattlePolicy';
 export * from './mountedAttachments';
+export * from './weaponMounts';
 export type { RenderDiagnostics } from './diagnostics/RenderDiagnosticsTracker';
 export type { TrainingDebugOptions } from './debug/TrainingDebugLayer';
 export type { VisualLod } from './fighters/types';
@@ -331,6 +333,11 @@ export class PixiBattleRenderer {
         const damage = this.eventRouter.damageByEntity.get(entity.id) ?? 0;
         if (damage > 0) view.damage(damage);
         this.eventRouter.damageByEntity.delete(entity.id);
+        const knockback = this.eventRouter.knockbackByEntity.get(entity.id);
+        if (knockback) {
+          view.knockback(knockback.direction, knockback.force, knockback.kind, entity.rotation, entity.mass);
+          this.eventRouter.knockbackByEntity.delete(entity.id);
+        }
         view.update(
           entity,
           alpha,

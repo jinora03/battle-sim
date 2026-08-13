@@ -35,7 +35,7 @@
         {
           "type": "RADIAL_IMPULSE",
           "radius": 205,
-          "magnitude": 6.5,
+          "magnitude": 11,
           "enemiesOnly": true,
           "direction": "push"
         }

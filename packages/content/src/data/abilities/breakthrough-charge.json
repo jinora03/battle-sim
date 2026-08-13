@@ -1,0 +1,41 @@
+{
+  "id": "breakthrough-charge",
+  "name": "Breakthrough",
+  "slot": "ultimate",
+  "cooldownTicks": 690,
+  "castTicks": 36,
+  "castMovementMultiplier": 0.1,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "direction",
+    "priority": 125,
+    "minRange": 150,
+    "maxRange": 780,
+    "requiresLineOfSight": true,
+    "collisionWindowTicks": 105,
+    "aimToleranceDegrees": 24
+  },
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        { "type": "APPLY_STATUS_SELF", "statusId": "breakthrough-charge", "durationTicks": 105 },
+        { "type": "APPLY_IMPULSE_SELF", "magnitude": 31 }
+      ]
+    },
+    {
+      "event": "ON_COLLISION",
+      "conditions": [
+        { "type": "SELF_HAS_STATUS", "statusId": "breakthrough-charge" },
+        { "type": "IMPACT_ABOVE", "value": 3.2 }
+      ],
+      "actions": [
+        { "type": "DEAL_DAMAGE_TARGET", "amount": 38, "element": "neutral" },
+        { "type": "APPLY_KNOCKBACK_TARGET", "magnitude": 62 },
+        { "type": "RADIAL_IMPULSE", "radius": 145, "magnitude": 22, "enemiesOnly": true, "direction": "push" },
+        { "type": "REMOVE_STATUS_SELF", "statusId": "breakthrough-charge" }
+      ]
+    }
+  ]
+}

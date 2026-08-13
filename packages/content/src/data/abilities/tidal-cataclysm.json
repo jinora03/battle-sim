@@ -15,7 +15,7 @@
           "kind": "wave",
           "radius": 275,
           "damage": 34,
-          "impulse": 16,
+          "impulse": 24,
           "element": "water",
           "enemiesOnly": true
         },

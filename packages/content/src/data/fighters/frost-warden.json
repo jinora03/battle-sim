@@ -16,11 +16,11 @@
     "mass": 2.7,
     "restitution": 0.72,
     "linearDamping": 0.996,
-    "maxSpeed": 9.6
+    "maxSpeed": 11.5
   },
   "stats": {
     "maxHp": 475,
-    "moveAcceleration": 0.135
+    "moveAcceleration": 0.176
   },
   "aiProfileId": "frost-sentinel",
   "abilitySlots": {

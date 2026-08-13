@@ -1,0 +1,26 @@
+{
+  "id": "pike-sweep",
+  "name": "Pike Sweep",
+  "slot": "skill2",
+  "cooldownTicks": 238,
+  "castTicks": 18,
+  "castMovementMultiplier": 0.48,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "direction",
+    "priority": 76,
+    "minRange": 0,
+    "maxRange": 300,
+    "requiresLineOfSight": true,
+    "aimToleranceDegrees": 90
+  },
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        { "type": "DIRECTIONAL_DAMAGE", "range": 292, "arcDegrees": 178, "amount": 18, "knockback": 30, "element": "neutral", "enemiesOnly": true }
+      ]
+    }
+  ]
+}

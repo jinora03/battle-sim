@@ -16,11 +16,11 @@
     "mass": 1.55,
     "restitution": 0.88,
     "linearDamping": 0.994,
-    "maxSpeed": 11.2
+    "maxSpeed": 13.4
   },
   "stats": {
     "maxHp": 420,
-    "moveAcceleration": 0.18
+    "moveAcceleration": 0.234
   },
   "aiProfileId": "demolition-charger",
   "abilitySlots": {

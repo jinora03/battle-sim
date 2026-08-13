@@ -18,11 +18,11 @@
     "mass": 1.65,
     "restitution": 0.82,
     "linearDamping": 0.994,
-    "maxSpeed": 10.8
+    "maxSpeed": 13.0
   },
   "stats": {
     "maxHp": 400,
-    "moveAcceleration": 0.17
+    "moveAcceleration": 0.221
   },
   "aiProfileId": "rocket-artillery",
   "abilitySlots": {

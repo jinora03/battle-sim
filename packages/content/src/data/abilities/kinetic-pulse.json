@@ -19,7 +19,7 @@
         {
           "type": "RADIAL_IMPULSE",
           "radius": 220,
-          "magnitude": 16,
+          "magnitude": 60,
           "enemiesOnly": true
         }
       ],

@@ -19,11 +19,11 @@
     "mass": 1.35,
     "restitution": 0.98,
     "linearDamping": 0.995,
-    "maxSpeed": 13.2
+    "maxSpeed": 15.8
   },
   "stats": {
     "maxHp": 420,
-    "moveAcceleration": 0.22
+    "moveAcceleration": 0.286
   },
   "aiProfileId": "solar-sentinel",
   "abilitySlots": {

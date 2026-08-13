@@ -18,11 +18,11 @@
     "mass": 1.1,
     "restitution": 0.92,
     "linearDamping": 0.998,
-    "maxSpeed": 13
+    "maxSpeed": 15.6
   },
   "stats": {
     "maxHp": 295,
-    "moveAcceleration": 0.18
+    "moveAcceleration": 0.234
   },
   "aiProfileId": "pyro-combo-bruiser",
   "combatResources": [

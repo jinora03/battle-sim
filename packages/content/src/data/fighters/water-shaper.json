@@ -16,11 +16,11 @@
     "mass": 1.15,
     "restitution": 0.94,
     "linearDamping": 0.993,
-    "maxSpeed": 11.8
+    "maxSpeed": 14.2
   },
   "stats": {
     "maxHp": 385,
-    "moveAcceleration": 0.19
+    "moveAcceleration": 0.247
   },
   "aiProfileId": "tidal-controller",
   "abilitySlots": {

@@ -15,6 +15,16 @@ export interface KnockbackImpulseOptions {
 
 export type KnockbackKind = 'weapon' | 'explosion' | 'ability';
 
+const SIGNATURE_LAUNCH_EXPLOSIONS = new Set([
+  'shrapnel-burst',
+  'frost-nova',
+  'pressure-wave',
+  'arc-burst',
+  'void-burst',
+  'blast-jump',
+  'thunder-clap'
+]);
+
 /**
  * Owns external-impulse accumulation and all shared knockback policy.
  * ArenaCollisionSystem remains authoritative for consuming protected wall
@@ -50,6 +60,14 @@ export class KnockbackSystem {
         retention: 0.997,
         maxSpeed: 72,
         minWallBounces: 3,
+        trailStrength: 1
+      };
+    }
+    if (abilityId && SIGNATURE_LAUNCH_EXPLOSIONS.has(abilityId)) {
+      return {
+        retention: 0.988,
+        maxSpeed: 66,
+        minWallBounces: 1,
         trailStrength: 1
       };
     }
@@ -154,14 +172,16 @@ export class KnockbackSystem {
     const resolvedMagnitude = magnitude * incomingKnockbackMultiplier;
     const invMass = 1 / this.world.getEffectiveMass(target);
     const velocityDelta = resolvedMagnitude * invMass;
+    const visualForce = Math.abs(resolvedMagnitude);
+    const resolvedImpulseOptions = impulseOptions ?? this.defaultImpulseOptions(kind, visualForce);
     this.addExternalImpulse(
       target,
       nx * velocityDelta,
       ny * velocityDelta,
-      impulseOptions
+      resolvedImpulseOptions
     );
 
-    const visualForce = Math.abs(resolvedMagnitude);
+
     // Keep the event stream bounded in mass battles. Tiny recoil still affects
     // physics, while meaningful displacement receives explicit presentation.
     if (kind === 'explosion' || visualForce >= 2.4) {
@@ -180,6 +200,25 @@ export class KnockbackSystem {
         kind
       });
     }
+  }
+
+  private defaultImpulseOptions(kind: KnockbackKind, force: number): KnockbackImpulseOptions {
+    if (kind === 'ability' && force >= 24) {
+      return {
+        retention: 0.988,
+        maxSpeed: 66,
+        minWallBounces: 1,
+        trailStrength: Math.min(1, 0.72 + force / 120)
+      };
+    }
+    if (kind === 'weapon' && force >= 18) {
+      return {
+        retention: 0.972,
+        maxSpeed: 58,
+        trailStrength: Math.min(0.9, 0.58 + force / 100)
+      };
+    }
+    return {};
   }
 
   addExternalImpulse(

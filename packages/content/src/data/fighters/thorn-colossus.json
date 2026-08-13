@@ -17,11 +17,11 @@
     "mass": 5.4,
     "restitution": 0.56,
     "linearDamping": 0.998,
-    "maxSpeed": 7.8
+    "maxSpeed": 9.4
   },
   "stats": {
     "maxHp": 635,
-    "moveAcceleration": 0.095
+    "moveAcceleration": 0.124
   },
   "aiProfileId": "grove-guardian",
   "abilitySlots": {

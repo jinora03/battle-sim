@@ -771,9 +771,12 @@ export class LayeredVfxEngine {
         const offset = elapsedSeconds * 8 + entity.id;
         this.drawArc(this.weaponAnchorGraphics, entity.x, entity.y, weapon.range * 0.82, offset, offset + Math.PI * (recipe.trailShape === 'orbit' ? 1.5 : 1), recipe.trailColor, 6, 0.42 * quality.glowMultiplier);
       } else if (recipe.trailShape === 'beam') {
-        const startX = entity.x + Math.cos(facing) * entity.radius;
-        const startY = entity.y + Math.sin(facing) * entity.radius;
-        const length = entity.radius * 1.7;
+        const muzzleDistance = weapon.muzzleOffsetScale !== undefined
+          ? entity.radius * weapon.muzzleOffsetScale
+          : entity.radius;
+        const startX = entity.x + Math.cos(facing) * muzzleDistance;
+        const startY = entity.y + Math.sin(facing) * muzzleDistance;
+        const length = entity.radius * 0.72;
         this.weaponAnchorGraphics.moveTo(startX, startY).lineTo(startX + Math.cos(facing) * length, startY + Math.sin(facing) * length).stroke({ color: recipe.trailColor, width: 4, alpha: 0.72 * quality.glowMultiplier });
       }
     }

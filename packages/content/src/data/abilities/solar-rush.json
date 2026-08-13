@@ -15,12 +15,25 @@
     "minimumTargets": 1,
     "aimToleranceDegrees": 65
   },
-  "triggers": [{
-    "event": "ON_ACTIVATE",
-    "conditions": [],
-    "actions": [
-      { "type": "APPLY_IMPULSE_SELF", "magnitude": 16 },
-      { "type": "DIRECTIONAL_DAMAGE", "range": 190, "arcDegrees": 48, "amount": 16, "knockback": 10, "element": "neutral", "enemiesOnly": true }
-    ]
-  }]
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "APPLY_IMPULSE_SELF",
+          "magnitude": 16
+        },
+        {
+          "type": "DIRECTIONAL_DAMAGE",
+          "range": 190,
+          "arcDegrees": 48,
+          "amount": 16,
+          "knockback": 60,
+          "element": "neutral",
+          "enemiesOnly": true
+        }
+      ]
+    }
+  ]
 }

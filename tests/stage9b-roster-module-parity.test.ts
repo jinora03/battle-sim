@@ -20,7 +20,9 @@ const BUILTIN_IDS = [
   'gunner',
   'rocket-vanguard',
   'solar-sentinel',
-  'ballast'
+  'ballast',
+  'blade-vanguard',
+  'iron-lancer'
 ] as const;
 
 describe('Stage 9B roster and module parity', () => {
@@ -28,8 +30,8 @@ describe('Stage 9B roster and module parity', () => {
     const fighters = BUILTIN_IDS.map((id) => getFighter(id));
     const parity = summarizeRosterModuleParity(fighters);
 
-    expect(parity.totalFighters).toBe(12);
-    expect(parity.fullyCoveredFighters).toBe(12);
+    expect(parity.totalFighters).toBe(14);
+    expect(parity.fullyCoveredFighters).toBe(14);
     expect(parity.coverageRate).toBe(1);
     expect(listModuleParityIssues(fighters)).toEqual([]);
 

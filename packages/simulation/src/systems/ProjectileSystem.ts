@@ -1,4 +1,5 @@
 import {
+  getFighter,
   getPrimaryAttack,
   getProjectileSource,
   type PrimaryAttackDefinition,
@@ -120,7 +121,15 @@ export class ProjectileSystem {
     const angle = baseAngle + offset;
     const nx = Math.cos(angle);
     const ny = Math.sin(angle);
-    const spawnDistance = (this.world.radius[sourceId] ?? 20) + definition.radius + 5;
+    const fighterRadius = this.world.radius[sourceId] ?? 20;
+    // Every projectile fired by a fighter originates at that fighter's visible
+    // primary-weapon muzzle. This keeps basic and skill rounds on the same
+    // barrel line instead of letting tracers appear to leave the body core.
+    const sourcePrimaryAttack = getPrimaryAttack(getFighter(this.world.getFighterId(sourceId)).primaryAttackId);
+    const muzzleDistance = sourcePrimaryAttack.muzzleOffsetScale !== undefined
+      ? fighterRadius * sourcePrimaryAttack.muzzleOffsetScale
+      : fighterRadius + 5;
+    const spawnDistance = muzzleDistance + definition.radius;
     const totalTicks = Math.max(1, definition.lifetimeTicks);
     const interactionStacks = weapon.statusInteraction && targetId !== null
       ? this.world.getStatusStacks(targetId, weapon.statusInteraction.statusId)

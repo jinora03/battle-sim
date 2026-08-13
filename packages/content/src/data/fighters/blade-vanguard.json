@@ -1,0 +1,43 @@
+{
+  "id": "blade-vanguard",
+  "name": "Blade Vanguard",
+  "classification": {
+    "archetype": "duelist",
+    "elements": ["metal"],
+    "traits": ["sword", "mobile", "counter-pressure"]
+  },
+  "physics": {
+    "radius": 48,
+    "mass": 1.85,
+    "restitution": 0.78,
+    "linearDamping": 0.996,
+    "maxSpeed": 15.4
+  },
+  "stats": {
+    "maxHp": 390,
+    "moveAcceleration": 0.235
+  },
+  "aiProfileId": "blade-duelist",
+  "abilitySlots": {
+    "skill1": "driving-slash",
+    "skill2": "crosscut",
+    "skill3": "duelist-step",
+    "ultimate": "execution-arc"
+  },
+  "moduleSlots": {
+    "offense": ["honed-edge"],
+    "defense": ["duelist-guard"],
+    "mobility": ["lunge-boots"],
+    "utility": ["balance-pommel"]
+  },
+  "defaultModuleIds": [],
+  "resistances": {
+    "metal": 0.78,
+    "neutral": 0.92,
+    "electric": 1.12
+  },
+  "visualRecipeId": "blade-vanguard",
+  "animationRecipeId": "blade-duelist",
+  "audioProfileId": "metal-heavy",
+  "primaryAttackId": "vanguard-longsword"
+}

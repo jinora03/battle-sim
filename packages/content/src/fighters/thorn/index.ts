@@ -13,7 +13,7 @@ export const thornContent: FighterContentBundle = {
   primaryAttack: {
     id: 'thorn-claws', name: 'Thorn Claws', form: 'claws', behavior: 'melee', category: 'melee', style: 'swing',
     range: 160, minRange: 0, damage: 13, knockback: 6, windupTicks: 8, activeTicks: 5, recoveryTicks: 12,
-    cooldownTicks: 35, attackAngleDegrees: 135, visualScale: 1.45, movementAllowed: true, friendlyFire: false,
+    cooldownTicks: 35, attackAngleDegrees: 135, visualScale: 1.45, visualMounts: [{ id: 'center', side: 'center' }], movementAllowed: true, friendlyFire: false,
     visualId: 'thorn-claws', audioId: 'claw-sweep', onHitStatuses: [{ statusId: 'rooted', durationTicks: 32 }]
   }
 };

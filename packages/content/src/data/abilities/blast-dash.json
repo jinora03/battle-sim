@@ -20,6 +20,28 @@
           "durationTicks": 72
         }
       ]
+    },
+    {
+      "event": "ON_COLLISION",
+      "conditions": [
+        {
+          "type": "SELF_HAS_STATUS",
+          "statusId": "blast-dash"
+        },
+        {
+          "type": "IMPACT_ABOVE",
+          "value": 2.2
+        }
+      ],
+      "actions": [
+        {
+          "type": "APPLY_KNOCKBACK_TARGET",
+          "magnitude": 60
+        }
+      ]
     }
-  ]
+  ],
+  "activation": {
+    "collisionWindowTicks": 72
+  }
 }

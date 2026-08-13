@@ -1,0 +1,26 @@
+{
+  "id": "execution-arc",
+  "name": "Execution Arc",
+  "slot": "ultimate",
+  "cooldownTicks": 650,
+  "castTicks": 32,
+  "castMovementMultiplier": 0.18,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "direction",
+    "priority": 118,
+    "minRange": 0,
+    "maxRange": 320,
+    "requiresLineOfSight": true,
+    "aimToleranceDegrees": 110
+  },
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        { "type": "DIRECTIONAL_DAMAGE", "range": 315, "arcDegrees": 224, "amount": 36, "knockback": 50, "element": "metal", "enemiesOnly": true }
+      ]
+    }
+  ]
+}

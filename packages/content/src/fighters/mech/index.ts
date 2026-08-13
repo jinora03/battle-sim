@@ -13,7 +13,7 @@ export const mechContent: FighterContentBundle = {
   primaryAttack: {
     id: 'hydraulic-gauntlet', name: 'Hydraulic Gauntlet', form: 'gauntlet', behavior: 'slam', category: 'slam', style: 'slam',
     range: 150, minRange: 0, damage: 22, knockback: 10.5, windupTicks: 15, activeTicks: 5, recoveryTicks: 18,
-    cooldownTicks: 50, attackAngleDegrees: 88, visualScale: 1.6, movementAllowed: false, friendlyFire: false,
+    cooldownTicks: 50, attackAngleDegrees: 88, visualScale: 1.6, visualMounts: [{ id: 'center', side: 'center' }], movementAllowed: false, friendlyFire: false,
     visualId: 'hydraulic-gauntlet', audioId: 'piston-slam'
   }
 };

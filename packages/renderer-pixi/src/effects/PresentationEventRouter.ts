@@ -33,6 +33,7 @@ export interface PresentationFrame {
 export class PresentationEventRouter {
   readonly impactByEntity = new Map<EntityId, number>();
   readonly damageByEntity = new Map<EntityId, number>();
+  readonly knockbackByEntity = new Map<EntityId, Extract<SimulationEvent, { type: 'knockbackApplied' }>>();
   private readonly playerEntityIds = new Set<EntityId>();
   private readonly missileCascadeTracker = new MissileCascadeTracker();
 
@@ -84,6 +85,9 @@ export class PresentationEventRouter {
           event.b,
           Math.max(this.impactByEntity.get(event.b) ?? 0, event.magnitude)
         );
+      } else if (event.type === 'knockbackApplied') {
+        const current = this.knockbackByEntity.get(event.targetId);
+        if (!current || event.force > current.force) this.knockbackByEntity.set(event.targetId, event);
       } else if (event.type === 'damage' && shouldPresentDamage(event)) {
         this.damageByEntity.set(
           event.targetId,
@@ -114,6 +118,9 @@ export class PresentationEventRouter {
 
   reset(): void {
     this.playerEntityIds.clear();
+    this.impactByEntity.clear();
+    this.damageByEntity.clear();
+    this.knockbackByEntity.clear();
     this.missileCascadeTracker.reset();
   }
 }

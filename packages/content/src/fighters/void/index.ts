@@ -13,7 +13,7 @@ export const voidContent: FighterContentBundle = {
   primaryAttack: {
     id: 'void-scythe', name: 'Void Scythe', form: 'void', behavior: 'melee', category: 'melee', style: 'swing',
     range: 190, minRange: 10, damage: 16, knockback: 7, windupTicks: 10, activeTicks: 6, recoveryTicks: 13,
-    cooldownTicks: 34, attackAngleDegrees: 138, visualScale: 1.9, movementAllowed: true, friendlyFire: false,
+    cooldownTicks: 34, attackAngleDegrees: 138, visualScale: 1.9, visualMounts: [{ id: 'center', side: 'center' }], movementAllowed: true, friendlyFire: false,
     visualId: 'void-scythe', audioId: 'void-cut', onHitStatuses: [{ statusId: 'void-mark', durationTicks: 90 }]
   }
 };

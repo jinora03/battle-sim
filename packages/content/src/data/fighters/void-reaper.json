@@ -16,11 +16,11 @@
     "mass": 1.0,
     "restitution": 0.96,
     "linearDamping": 0.993,
-    "maxSpeed": 13.4
+    "maxSpeed": 16.1
   },
   "stats": {
     "maxHp": 350,
-    "moveAcceleration": 0.215
+    "moveAcceleration": 0.28
   },
   "aiProfileId": "void-stalker",
   "abilitySlots": {
