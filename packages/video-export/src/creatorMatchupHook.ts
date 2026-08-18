@@ -1,6 +1,25 @@
 import type { BroadcastFighterView } from './broadcastScene';
 
-type MatchupFighter = Pick<BroadcastFighterView, 'fighterId' | 'name' | 'identity'>;
+type MatchupFighter = Pick<BroadcastFighterView, 'fighterId' | 'name' | 'identity'> & {
+  memberCount?: number;
+};
+
+const CREATOR_DISPLAY_NAMES: Readonly<Record<string, string>> = {
+  'pyro-brawler': 'Fire',
+  'water-shaper': 'Water',
+  'frost-warden': 'Ice',
+  'mech-bruiser': 'Steel',
+  'volt-striker': 'Lightning',
+  'thorn-colossus': 'Nature',
+  gunner: 'Gun',
+  'rocket-vanguard': 'Missile',
+  bomber: 'Bomb',
+  ballast: 'Mass',
+  'void-reaper': 'Void',
+  'solar-sentinel': 'Laser',
+  'blade-vanguard': 'Sword',
+  'iron-lancer': 'Spear'
+};
 
 const CREATOR_LABELS: Readonly<Record<string, string>> = {
   'pyro-brawler': 'FIRE',
@@ -9,25 +28,47 @@ const CREATOR_LABELS: Readonly<Record<string, string>> = {
   'mech-bruiser': 'STEEL',
   'volt-striker': 'LIGHTNING',
   'thorn-colossus': 'NATURE',
-  gunner: 'BULLETS',
+  gunner: 'GUNS',
   'rocket-vanguard': 'MISSILES',
-  bomber: 'EXPLOSIONS',
+  bomber: 'BOMBS',
   ballast: 'MASS',
   'void-reaper': 'VOID',
-  'solar-sentinel': 'SOLAR'
+  'solar-sentinel': 'LASERS',
+  'blade-vanguard': 'SWORD',
+  'iron-lancer': 'SPEAR'
 };
 
 const MATCHUP_OVERRIDES: Readonly<Record<string, readonly [string, string]>> = {
   'pyro-brawler|water-shaper': ['FIRE', 'WATER'],
   'pyro-brawler|frost-warden': ['FIRE', 'ICE'],
   'pyro-brawler|mech-bruiser': ['FIRE', 'STEEL'],
-  'rocket-vanguard|gunner': ['MISSILES', 'BULLETS'],
-  'bomber|water-shaper': ['EXPLOSIONS', 'WATER'],
-  'bomber|ballast': ['EXPLOSIONS', 'MASS'],
+  'pyro-brawler|gunner': ['FIRE', 'GUNS'],
+  'pyro-brawler|bomber': ['FIRE', 'BOMBS'],
+  'frost-warden|bomber': ['ICE', 'BOMBS'],
+  'gunner|bomber': ['GUNS', 'BOMBS'],
+  'solar-sentinel|gunner': ['LASERS', 'GUNS'],
+  'solar-sentinel|bomber': ['LASERS', 'BOMBS'],
+  'rocket-vanguard|gunner': ['MISSILES', 'GUNS'],
+  'bomber|water-shaper': ['BOMBS', 'WATER'],
+  'bomber|ballast': ['BOMBS', 'MASS'],
   'volt-striker|thorn-colossus': ['SPEED', 'NATURE']
 };
 
-/** Presentation-only matchup copy for creator intros. */
+/**
+ * Presentation-only fighter name used by creator/Shorts surfaces.
+ * Internal fighter IDs and authored roster names stay unchanged so gameplay,
+ * content references, replays and analytics remain stable.
+ */
+export function resolveCreatorFighterName(fighter: MatchupFighter): string {
+  if ((fighter.memberCount ?? 1) > 1) return fighter.name;
+  return resolveCreatorDisplayName(fighter.fighterId, fighter.name);
+}
+
+export function resolveCreatorDisplayName(fighterId: string, fallbackName: string): string {
+  return CREATOR_DISPLAY_NAMES[fighterId] ?? fallbackName;
+}
+
+/** Presentation-only matchup copy for creator overlays/intros. */
 export function resolveMatchupHook(left: MatchupFighter, right: MatchupFighter): string {
   const direct = MATCHUP_OVERRIDES[`${left.fighterId}|${right.fighterId}`];
   if (direct) return `${direct[0]} vs ${direct[1]}`;

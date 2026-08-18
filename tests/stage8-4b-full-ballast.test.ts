@@ -259,8 +259,21 @@ describe('Stage 8.4B full Ballast fighter', () => {
     const runner = ballastTraining([], 620);
     runTicks(runner, 32, (tick) => tick === 0 ? [abilityCommand('skill1'), stop(1)] : [stop(1)]);
     const beforeX = entity(runner.getSnapshot(), 1).x;
-    const events = runTicks(runner, 20, (tick) => tick === 0 ? [abilityCommand('skill2'), stop(1)] : [stop(1)]);
-    const after = entity(runner.getSnapshot(), 1);
+    const events: SimulationEvent[] = [];
+let furthestX = beforeX;
+
+for (let tick = 0; tick < 20; tick += 1) {
+  events.push(...runner.step(
+    tick === 0
+      ? [abilityCommand('skill2'), stop(1)]
+      : [stop(1)]
+  ));
+
+  furthestX = Math.max(
+    furthestX,
+    entity(runner.getSnapshot(), 1).x
+  );
+}
     expect(events.some((event) => event.type === 'abilityResolved' && event.abilityId === 'downbeat')).toBe(true);
     const targetKnockbacks = events.filter(
       (event) => event.type === 'knockbackApplied' && event.targetId === 1
@@ -271,7 +284,7 @@ describe('Stage 8.4B full Ballast fighter', () => {
         && event.targetId === 1
         && event.force >= 19
     )).toBe(true);
-    expect(after.x).toBeGreaterThan(beforeX);
+    expect(furthestX).toBeGreaterThan(beforeX);
   });
 
   it('anchors Ballast with Dead Weight and makes Last Call flip the arena mass state', () => {

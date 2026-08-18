@@ -22,6 +22,9 @@ import featherlightRaw from '../data/statuses/featherlight.json';
 import anchoredRaw from '../data/statuses/anchored.json';
 import lastCallRaw from '../data/statuses/last-call.json';
 import killZoneOverdriveRaw from '../data/statuses/kill-zone-overdrive.json';
+import drivingSlashRaw from '../data/statuses/driving-slash.json';
+import lanceChargeRaw from '../data/statuses/lance-charge.json';
+import breakthroughChargeRaw from '../data/statuses/breakthrough-charge.json';
 
 import ironPitRaw from '../data/arenas/iron-pit.json';
 import pillarCourtRaw from '../data/arenas/pillar-court.json';
@@ -64,7 +67,10 @@ export const STATUS_RAW: readonly unknown[] = [
   featherlightRaw,
   anchoredRaw,
   lastCallRaw,
-  killZoneOverdriveRaw
+  killZoneOverdriveRaw,
+  drivingSlashRaw,
+  lanceChargeRaw,
+  breakthroughChargeRaw
 ];
 
 export const ARENA_RAW: readonly unknown[] = [

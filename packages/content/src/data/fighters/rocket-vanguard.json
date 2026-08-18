@@ -18,11 +18,11 @@
     "mass": 1.65,
     "restitution": 0.82,
     "linearDamping": 0.994,
-    "maxSpeed": 10.8
+    "maxSpeed": 13.0
   },
   "stats": {
-    "maxHp": 430,
-    "moveAcceleration": 0.17
+    "maxHp": 400,
+    "moveAcceleration": 0.221
   },
   "aiProfileId": "rocket-artillery",
   "abilitySlots": {
@@ -39,5 +39,20 @@
   "visualRecipeId": "rocket-vanguard",
   "animationRecipeId": "rocket-artillery",
   "audioProfileId": "missile-heavy",
-  "primaryAttackId": "guided-rocket"
+  "primaryAttackId": "guided-rocket",
+  "moduleSlots": {
+    "offense": [
+      "warhead-rack"
+    ],
+    "defense": [
+      "blast-baffles"
+    ],
+    "mobility": [
+      "jump-jets"
+    ],
+    "utility": [
+      "guidance-array"
+    ]
+  },
+  "defaultModuleIds": []
 }

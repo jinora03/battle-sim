@@ -414,14 +414,55 @@ const KILL_ZONE_PROFILE: AbilityCombatAudioProfile = {
   }
 };
 
+
+const DRIVING_SLASH_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'driving-slash',
+  palette: 'kinetic',
+  hierarchy: 'skill',
+  layers: {
+    anticipation: { intent: 'transformation', intensity: 0.92 },
+    sustain: { intent: 'channel', anchor: 'activated', intensity: 0.68, durationSeconds: 0.42, delaySeconds: 0.08 },
+    activation: { intent: 'knockback', intensity: 1.02, durationSeconds: 0.2 },
+    release: { intent: 'knockback', intensity: 1.08, durationSeconds: 0.24, delaySeconds: 0.055 }
+  }
+};
+
+const LANCE_CHARGE_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'lance-charge',
+  palette: 'mechanical',
+  hierarchy: 'skill',
+  layers: {
+    anticipation: { intent: 'transformation', intensity: 0.98 },
+    sustain: { intent: 'channel', anchor: 'activated', intensity: 0.74, durationSeconds: 0.54, delaySeconds: 0.08 },
+    activation: { intent: 'knockback', intensity: 1.08, durationSeconds: 0.24 },
+    release: { intent: 'knockback', intensity: 1.12, durationSeconds: 0.26, delaySeconds: 0.05 }
+  }
+};
+
+const BREAKTHROUGH_CHARGE_PROFILE: AbilityCombatAudioProfile = {
+  abilityId: 'breakthrough-charge',
+  palette: 'mechanical',
+  hierarchy: 'ultimate',
+  layers: {
+    anticipation: { intent: 'ultimate', intensity: 1.12 },
+    sustain: { intent: 'transformation', anchor: 'activated', intensity: 0.9, durationSeconds: 0.72, delaySeconds: 0.1 },
+    activation: { intent: 'knockback', intensity: 1.18, durationSeconds: 0.3 },
+    release: { intent: 'knockback', intensity: 1.2, durationSeconds: 0.34, delaySeconds: 0.055 }
+  }
+};
+
+const BLADE_VANGUARD_AUDIO_PROFILES = [DRIVING_SLASH_PROFILE] as const;
+const IRON_LANCER_AUDIO_PROFILES = [LANCE_CHARGE_PROFILE, BREAKTHROUGH_CHARGE_PROFILE] as const;
+
 const SOLAR_RUSH_PROFILE: AbilityCombatAudioProfile = {
   abilityId: 'solar-rush',
   palette: 'solar',
   hierarchy: 'skill',
   layers: {
-    anticipation: { intent: 'projectile', intensity: 0.5, durationSeconds: 0.14 },
-    activation: { intent: 'knockback', intensity: 0.8, durationSeconds: 0.2 },
-    release: { intent: 'explosion', intensity: 0.56, durationSeconds: 0.15, delaySeconds: 0.08 }
+    anticipation: { intent: 'transformation', intensity: 0.78 },
+    sustain: { intent: 'channel', anchor: 'activated', intensity: 0.62, durationSeconds: 0.32, delaySeconds: 0.05 },
+    activation: { intent: 'knockback', intensity: 1.02, durationSeconds: 0.22 },
+    release: { intent: 'knockback', intensity: 0.88, durationSeconds: 0.2, delaySeconds: 0.06 }
   }
 };
 
@@ -517,7 +558,7 @@ const BALLAST_AUDIO_PROFILES = [
 ] as const;
 
 const ABILITY_AUDIO_PROFILES = new Map<string, AbilityCombatAudioProfile>(
-  [...VOLT_AUDIO_PROFILES, ...PYRO_AUDIO_PROFILES, ...BALLAST_AUDIO_PROFILES, ...GUNNER_AUDIO_PROFILES, ...SOLAR_SENTINEL_AUDIO_PROFILES, ...BOMBER_AUDIO_PROFILES, ...MECH_AUDIO_PROFILES, ...FROST_WARDEN_AUDIO_PROFILES, ...ROCKET_VANGUARD_AUDIO_PROFILES, ...WATER_SHAPER_AUDIO_PROFILES, ...THORN_COLOSSUS_AUDIO_PROFILES, ...VOID_REAPER_AUDIO_PROFILES]
+  [...VOLT_AUDIO_PROFILES, ...PYRO_AUDIO_PROFILES, ...BALLAST_AUDIO_PROFILES, ...GUNNER_AUDIO_PROFILES, ...SOLAR_SENTINEL_AUDIO_PROFILES, ...BOMBER_AUDIO_PROFILES, ...MECH_AUDIO_PROFILES, ...BLADE_VANGUARD_AUDIO_PROFILES, ...IRON_LANCER_AUDIO_PROFILES, ...FROST_WARDEN_AUDIO_PROFILES, ...ROCKET_VANGUARD_AUDIO_PROFILES, ...WATER_SHAPER_AUDIO_PROFILES, ...THORN_COLOSSUS_AUDIO_PROFILES, ...VOID_REAPER_AUDIO_PROFILES]
     .map((profile) => [profile.abilityId, profile])
 );
 

@@ -1,0 +1,39 @@
+{
+  "id": "duelist-step",
+  "name": "Duelist Step",
+  "slot": "skill3",
+  "cooldownTicks": 280,
+  "castTicks": 8,
+  "castMovementMultiplier": 0.85,
+  "activation": {
+    "intent": "movement",
+    "targeting": "direction",
+    "priority": 58,
+    "minRange": 0,
+    "maxRange": 250,
+    "aimToleranceDegrees": 30
+  },
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "APPLY_IMPULSE_SELF",
+          "magnitude": 11,
+          "direction": "backward"
+        },
+        {
+          "type": "MELEE_WEAPON_STRIKE",
+          "amount": 13,
+          "knockback": 17,
+          "element": "metal",
+          "enemiesOnly": true,
+          "sweepDegrees": 112,
+          "reachMultiplier": 1.12,
+          "widthMultiplier": 1.16
+        }
+      ]
+    }
+  ]
+}

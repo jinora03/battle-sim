@@ -4,10 +4,10 @@ export const VOID_REAPER_AUDIO_PROFILES = [
   {
     abilityId: 'phase-lunge', palette: 'void', hierarchy: 'skill',
     layers: {
-      anticipation: { intent: 'transformation', intensity: 0.68, durationSeconds: 0.18, variant: 'void-rift' },
-      activation: { intent: 'knockback', intensity: 0.94, durationSeconds: 0.2, variant: 'void-rift' },
-      sustain: { intent: 'channel', intensity: 0.6, durationSeconds: 0.3, delaySeconds: 0.025, variant: 'void-compression' },
-      release: { intent: 'status-application', intensity: 0.58, durationSeconds: 0.18, delaySeconds: 0.16, variant: 'void-rift' }
+      anticipation: { intent: 'transformation', intensity: 0.84, durationSeconds: 0.4, variant: 'void-compression' },
+      activation: { intent: 'knockback', intensity: 1.04, durationSeconds: 0.23, variant: 'void-rift' },
+      sustain: { intent: 'channel', anchor: 'activated', intensity: 0.7, durationSeconds: 0.4, delaySeconds: 0.05, variant: 'void-compression' },
+      release: { intent: 'knockback', intensity: 0.88, durationSeconds: 0.22, delaySeconds: 0.07, variant: 'void-rift' }
     }
   },
   {

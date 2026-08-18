@@ -47,8 +47,10 @@ describe('Stage 8.9C remaining roster presentation parity', () => {
     const audioIds = listAbilityCombatAudioProfiles().map((profile) => profile.abilityId);
     const vfxIds = listAbilityCombatVfxProfiles().map((profile) => profile.abilityId);
 
-    expect(audioIds).toHaveLength(48);
-    expect(vfxIds).toHaveLength(48);
+    // Stage 8.9C established the original 48-profile parity floor. Later roster
+    // expansions may add profiles, but audio and VFX must always grow together.
+    expect(audioIds.length).toBeGreaterThanOrEqual(48);
+    expect(vfxIds).toHaveLength(audioIds.length);
     expect(new Set(audioIds).size).toBe(audioIds.length);
     expect(new Set(vfxIds).size).toBe(vfxIds.length);
     expect([...audioIds].sort()).toEqual([...vfxIds].sort());

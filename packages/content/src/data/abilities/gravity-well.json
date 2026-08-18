@@ -20,7 +20,7 @@
         {
           "type": "RADIAL_DAMAGE",
           "radius": 235,
-          "amount": 12,
+          "amount": 16,
           "element": "void",
           "enemiesOnly": true
         },

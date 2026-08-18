@@ -2,7 +2,7 @@
   "id": "ballast-mass-controller",
   "reactionTicks": 7,
   "aggression": 0.72,
-  "preferredDistance": 310,
+  "preferredDistance": 285,
   "retreatHealthRatio": 0.16,
   "steeringStrength": 1.0,
   "movementStyle": "orbit",
@@ -51,6 +51,8 @@
       "minDistance": 0,
       "maxDistance": 470,
       "priority": 18,
+      "targetStatusId": "featherlight",
+      "minimumTargetStatusStacks": 1,
       "minimumTargets": 2
     }
   ]

@@ -3,8 +3,8 @@
   "name": "Phase Lunge",
   "slot": "skill1",
   "cooldownTicks": 155,
-  "castTicks": 12,
-  "castMovementMultiplier": 0.6,
+  "castTicks": 38,
+  "castMovementMultiplier": 0.54,
   "triggers": [
     {
       "event": "ON_ACTIVATE",
@@ -12,14 +12,36 @@
       "actions": [
         {
           "type": "APPLY_IMPULSE_SELF",
-          "magnitude": 13.5
+          "magnitude": 16.5
         },
         {
           "type": "APPLY_STATUS_SELF",
           "statusId": "phased",
-          "durationTicks": 80
+          "durationTicks": 96
+        }
+      ]
+    },
+    {
+      "event": "ON_COLLISION",
+      "conditions": [
+        {
+          "type": "SELF_HAS_STATUS",
+          "statusId": "phased"
+        },
+        {
+          "type": "IMPACT_ABOVE",
+          "value": 1.8
+        }
+      ],
+      "actions": [
+        {
+          "type": "APPLY_KNOCKBACK_TARGET",
+          "magnitude": 60
         }
       ]
     }
-  ]
+  ],
+  "activation": {
+    "collisionWindowTicks": 96
+  }
 }

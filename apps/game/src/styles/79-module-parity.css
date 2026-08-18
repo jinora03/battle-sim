@@ -1,0 +1,202 @@
+.module-parity-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.module-parity-overview,
+.module-impact-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.module-parity-overview > div,
+.module-impact-summary > div {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 84%, transparent);
+  display: grid;
+  gap: 4px;
+}
+
+.module-parity-overview small,
+.module-impact-summary small {
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.module-parity-overview strong,
+.module-impact-summary strong {
+  font-size: 1.05rem;
+}
+
+.module-parity-roster {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.module-parity-roster article {
+  display: grid;
+  gap: 8px;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 76%, transparent);
+}
+
+.module-parity-roster article[data-complete='true'] {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+}
+
+.module-parity-roster article > div {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.module-parity-roster span {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.module-impact-controls {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+
+.module-impact-controls label,
+.module-impact-run {
+  display: grid;
+  gap: 6px;
+}
+
+.module-impact-controls label > span,
+.module-impact-run > small {
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.module-impact-run {
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.module-impact-run small,
+.module-impact-run strong {
+  grid-column: 1;
+}
+
+.module-impact-run button {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  min-width: 180px;
+}
+
+.module-impact-status {
+  margin-top: -4px;
+}
+
+.module-impact-results {
+  display: grid;
+  gap: 14px;
+  padding-top: 4px;
+}
+
+.module-impact-summary [data-direction='up'] strong,
+.module-impact-row [data-direction='up'] {
+  color: var(--success, #86efac);
+}
+
+.module-impact-summary [data-direction='down'] strong,
+.module-impact-row [data-direction='down'] {
+  color: var(--danger, #fca5a5);
+}
+
+.module-impact-findings {
+  display: grid;
+  gap: 8px;
+}
+
+.module-impact-findings article {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.module-impact-findings article > span {
+  align-self: start;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.module-impact-findings article p {
+  margin: 3px 0 0;
+  color: var(--muted);
+}
+
+.module-impact-table-scroll {
+  overflow-x: auto;
+}
+
+.module-impact-table {
+  min-width: 640px;
+  display: grid;
+  gap: 4px;
+}
+
+.module-impact-table-head,
+.module-impact-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.5fr) repeat(4, minmax(90px, 1fr));
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+}
+
+.module-impact-table-head {
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.module-impact-row {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--panel) 72%, transparent);
+}
+
+@media (max-width: 1100px) {
+  .module-parity-roster { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .module-impact-controls { grid-template-columns: repeat(3, minmax(120px, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .module-parity-overview,
+  .module-impact-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .module-parity-roster { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .module-impact-controls { grid-template-columns: 1fr 1fr; }
+  .module-impact-run { grid-template-columns: 1fr; }
+  .module-impact-run button { grid-column: 1; grid-row: auto; width: 100%; }
+}
+
+@media (max-width: 520px) {
+  .module-parity-roster,
+  .module-impact-controls { grid-template-columns: 1fr; }
+}

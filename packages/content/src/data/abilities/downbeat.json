@@ -25,7 +25,7 @@
           "range": 330,
           "arcDegrees": 58,
           "amount": 15,
-          "knockback": 19,
+          "knockback": 60,
           "element": "void",
           "enemiesOnly": true
         }
@@ -48,7 +48,7 @@
         },
         {
           "type": "APPLY_KNOCKBACK_TARGET",
-          "magnitude": 7
+          "magnitude": 11
         }
       ]
     },
@@ -66,7 +66,7 @@
           "range": 360,
           "arcDegrees": 70,
           "amount": 8,
-          "knockback": 8,
+          "knockback": 12,
           "element": "void",
           "enemiesOnly": true
         }

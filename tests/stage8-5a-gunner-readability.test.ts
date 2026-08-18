@@ -71,10 +71,10 @@ describe('Stage 8.5A Gunner readability pass', () => {
     expect(rifle.id).toBe('automatic-rifle');
     expect(rifle.burstCount).toBe(4);
     expect(rifle.style).toBe('burst');
-    expect(profile.preferredDistance).toBe(440);
+    expect(profile.preferredDistance).toBe(410);
     expect(profile.movementStyle).toBe('kite');
     expect(profile.aggression).toBe(0.76);
-    expect(profile.orbitStrength).toBe(0.58);
+    expect(profile.orbitStrength).toBe(0.5);
   });
 
   it('reduces forward pressure and increases strafing while the burst is committed', () => {

@@ -3,22 +3,30 @@
   "name": "Ballast",
   "classification": {
     "archetype": "controller",
-    "elements": ["void"],
-    "traits": ["mass-control", "ricochet", "knockback"]
+    "elements": [
+      "void"
+    ],
+    "traits": [
+      "mass-control",
+      "ricochet",
+      "knockback"
+    ]
   },
   "physics": {
     "radius": 47,
     "mass": 1.15,
     "restitution": 0.9,
     "linearDamping": 0.992,
-    "maxSpeed": 11.8
+    "maxSpeed": 14.2
   },
   "stats": {
-    "maxHp": 360,
-    "moveAcceleration": 0.19
+    "maxHp": 380,
+    "moveAcceleration": 0.247
   },
   "aiProfileId": "ballast-mass-controller",
-  "passiveIds": ["house-rules"],
+  "passiveIds": [
+    "house-rules"
+  ],
   "abilitySlots": {
     "skill1": "featherfall",
     "skill2": "downbeat",
@@ -26,10 +34,20 @@
     "ultimate": "last-call"
   },
   "moduleSlots": {
-    "offense": ["polished-stone", "loaded-shaker"],
-    "defense": ["floor-bolts"],
-    "mobility": ["rolling-service"],
-    "utility": ["gravity-caddy", "closing-time"]
+    "offense": [
+      "polished-stone",
+      "loaded-shaker"
+    ],
+    "defense": [
+      "floor-bolts"
+    ],
+    "mobility": [
+      "rolling-service"
+    ],
+    "utility": [
+      "gravity-caddy",
+      "closing-time"
+    ]
   },
   "defaultModuleIds": [],
   "resistances": {

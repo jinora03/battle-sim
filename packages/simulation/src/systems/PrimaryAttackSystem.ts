@@ -1,6 +1,7 @@
 import {
   getFighter,
   getPrimaryAttack,
+  resolveMeleeContactReach,
   type PrimaryAttackDefinition,
   type PrimaryConeChannelDefinition,
   type ResolvedFighterLoadout
@@ -18,6 +19,7 @@ import type { CooldownSystem } from './CooldownSystem';
 import type { DamageSystem } from './DamageSystem';
 import type { KnockbackSystem } from './KnockbackSystem';
 import type { ProjectileSystem } from './ProjectileSystem';
+import { resolvePrimaryMeleeHits } from './meleeContact';
 
 export interface PrimaryAttackSystemContext {
   getTick(): number;
@@ -148,7 +150,7 @@ export class PrimaryAttackSystem {
             state.shotsFired += 1;
           }
           state.executed = state.shotsFired >= burstCount;
-        } else if (!state.executed || ['continuous', 'spin', 'orbit'].includes(weapon.behavior)) {
+        } else if (!state.executed || ['melee', 'slam', 'continuous', 'spin', 'orbit'].includes(weapon.behavior)) {
           if (weapon.behavior === 'throwable') {
             if (!state.executed) {
               this.projectiles.spawn(source, weapon, state.direction, events, 0, 1, state.targetId);
@@ -159,7 +161,18 @@ export class PrimaryAttackSystem {
             if (weapon.behavior === 'continuous' && elapsed > 0 && elapsed % repeatInterval === 0) {
               state.hitTargetIds.clear();
             }
-            this.resolveMelee(source, weapon, state.direction, state.hitTargetIds, events);
+            const denominator = Math.max(1, state.totalTicks - 1);
+            const currentProgress = Math.max(0, Math.min(1, elapsed / denominator));
+            const previousProgress = Math.max(0, Math.min(1, (elapsed - 1) / denominator));
+            this.resolveMelee(
+              source,
+              weapon,
+              state.direction,
+              state.hitTargetIds,
+              previousProgress,
+              currentProgress,
+              events
+            );
           }
           state.executed = true;
         }
@@ -199,13 +212,21 @@ export class PrimaryAttackSystem {
     const dx = (this.world.x[target] ?? 0) - (this.world.x[self] ?? 0);
     const dy = (this.world.y[target] ?? 0) - (this.world.y[self] ?? 0);
     const distance = Math.hypot(dx, dy);
-    const effectiveMaximum = attack.behavior === 'melee'
-      || attack.behavior === 'spin'
-      || attack.behavior === 'continuous'
-      || attack.behavior === 'orbit'
-      || attack.behavior === 'slam'
-      ? (this.world.radius[self] ?? 0) + attack.range + (this.world.radius[target] ?? 0)
-      : attack.range;
+    const contactMaximum = resolveMeleeContactReach(
+      attack,
+      this.world.radius[self] ?? 0,
+      this.world.radius[target] ?? 0,
+      1.12
+    );
+    const effectiveMaximum = contactMaximum > 0
+      ? contactMaximum
+      : attack.behavior === 'melee'
+        || attack.behavior === 'spin'
+        || attack.behavior === 'continuous'
+        || attack.behavior === 'orbit'
+        || attack.behavior === 'slam'
+        ? (this.world.radius[self] ?? 0) + attack.range + (this.world.radius[target] ?? 0)
+        : attack.range;
     if (distance < attack.minRange || distance > effectiveMaximum) return false;
     if (
       ['ranged', 'automatic', 'throwable', 'beam'].includes(attack.behavior)
@@ -330,36 +351,26 @@ export class PrimaryAttackSystem {
     weapon: PrimaryAttackDefinition,
     direction: Vec2,
     alreadyHit: Set<EntityId>,
+    previousProgress: number,
+    currentProgress: number,
     events: SimulationEvent[]
   ): void {
-    const sx = this.world.x[source] ?? 0;
-    const sy = this.world.y[source] ?? 0;
-    const sourceTeam = this.world.getTeam(source);
-    const dirLength = Math.hypot(direction.x, direction.y) || 1;
-    const nx = direction.x / dirLength;
-    const ny = direction.y / dirLength;
-    const halfArc = weapon.attackAngleDegrees * Math.PI / 360;
-    // activeIdList is maintained in ascending id order, so the prior explicit
-    // sort was redundant. Reuse a stable buffer since damage can kill mid-loop.
-    const candidates = this.world.copyActiveIdsInto(this.meleeIdScratch);
-    for (const target of candidates) {
-      if (target === source) continue;
-      if (alreadyHit.has(target)) continue;
-      if (!weapon.friendlyFire && this.world.getTeam(target) === sourceTeam) continue;
-      const dx = (this.world.x[target] ?? 0) - sx;
-      const dy = (this.world.y[target] ?? 0) - sy;
-      const distance = Math.hypot(dx, dy);
-      const effectiveReach = (this.world.radius[source] ?? 0)
-        + weapon.range
-        + (this.world.radius[target] ?? 0);
-      if (distance < weapon.minRange || distance > effectiveReach) continue;
-      const dot = distance > 0 ? (dx / distance) * nx + (dy / distance) * ny : 1;
-      const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
-      if (angle > halfArc) continue;
+    const hits = resolvePrimaryMeleeHits(
+      this.world,
+      source,
+      weapon,
+      direction,
+      previousProgress,
+      currentProgress,
+      alreadyHit
+    );
+    const loadout = this.world.getLoadout(source);
+    const damage = weapon.damage * loadout.primaryDamageMultiplier;
+    const knockback = weapon.knockback * loadout.primaryKnockbackMultiplier;
+
+    for (const hit of hits) {
+      const target = hit.targetId;
       alreadyHit.add(target);
-      const loadout = this.world.getLoadout(source);
-      const damage = weapon.damage * loadout.primaryDamageMultiplier;
-      const knockback = weapon.knockback * loadout.primaryKnockbackMultiplier;
       this.damage.dealDamage(source, target, damage, this.primaryElement(source), events);
       if (this.world.isAlive(target)) {
         this.knockback.applyKnockback(source, target, knockback, events, 'weapon');
@@ -380,10 +391,7 @@ export class PrimaryAttackSystem {
         sourceId: source,
         targetId: target,
         weaponId: weapon.id,
-        position: {
-          x: this.world.x[target] ?? 0,
-          y: this.world.y[target] ?? 0
-        },
+        position: hit.position,
         damage,
         knockback
       });

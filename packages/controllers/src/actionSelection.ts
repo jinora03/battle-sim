@@ -4,6 +4,7 @@ import {
   getFighter,
   getPrimaryAttack,
   getPrimaryAttackActivationProfile,
+  resolveMeleeContactReach,
   type AiAbilityUseRule,
   type AiProfile
 } from '@kinetic/content';
@@ -54,6 +55,21 @@ export interface AbilitySelectionResult {
 const SKILL_ORDER: AbilitySlot[] = ['ultimate', 'skill3', 'skill2', 'skill1'];
 const SLOT_RANK: Record<AbilitySlot, number> = { ultimate: 0, skill3: 1, skill2: 2, skill1: 3, basic: 4 };
 const ABILITY_EFFECT_RADIUS_CACHE = new Map<string, number>();
+
+const AI_CHARGED_MELEE_REPEAT_LOCK_TICKS: Readonly<Record<string, number>> = {
+  'driving-slash': 540,
+  'lance-charge': 600,
+  'breakthrough-charge': 780,
+  'glacier-charge': 360,
+  'bramble-charge': 420,
+  'solar-rush': 300,
+  'phase-lunge': 360
+};
+
+/** AI-only pacing for large cinematic melee charges. Player cooldowns are untouched. */
+export function getAiChargedMeleeRepeatLockTicks(abilityId: string): number {
+  return AI_CHARGED_MELEE_REPEAT_LOCK_TICKS[abilityId] ?? 0;
+}
 const DEFAULT_RULE: Record<AbilitySlot, AiAbilityUseRule> = {
   basic: { slot: 'basic', everyTicks: 1, phaseTicks: 0, minDistance: 0, maxDistance: 99999, priority: 0 },
   skill1: { slot: 'skill1', everyTicks: 1, phaseTicks: 0, minDistance: 0, maxDistance: 99999, priority: 4 },
@@ -137,6 +153,14 @@ export class ActionSelectionSpatialContext {
     return this.entities;
   }
 
+  hostileCountForTeam(team: number): number {
+    let count = 0;
+    for (const [candidateTeam, members] of this.teamMembers) {
+      if (candidateTeam !== team) count += members.length;
+    }
+    return count;
+  }
+
   countHostilesInRadius(
     team: number,
     selfId: EntityId,
@@ -214,6 +238,8 @@ export function selectAbilityAction(
   const hpRatio = entity.hp / Math.max(1, entity.maxHp);
   const candidates: AiAbilityCandidateDebug[] = [];
   const configuredRules = new Map(profile.abilityUsage.map((rule) => [rule.slot, rule]));
+  const availableHostiles = spatialContext?.hostileCountForTeam(entity.team)
+    ?? countAvailableHostiles(snapshot.entities, entity);
   let selectedKind: SelectedAbilityAction['kind'] | null = null;
   let selectedSlot: AbilitySlot | null = null;
   let selectedAbilityId: string | null = null;
@@ -273,6 +299,12 @@ export function selectAbilityAction(
     } else if (snapshot.tick < openingReadyTick) {
       valid = false;
       reason = `opening lockout (${openingReadyTick - snapshot.tick} ticks remaining)`;
+    } else if (
+      getAiChargedMeleeRepeatLockTicks(abilityId) > 0
+      && snapshot.tick < (selectionContext?.chargeLockUntilTick ?? 0)
+    ) {
+      valid = false;
+      reason = `charge pacing lockout (${(selectionContext?.chargeLockUntilTick ?? 0) - snapshot.tick} ticks remaining)`;
     } else if (rule.healthBelow !== undefined && hpRatio > rule.healthBelow) {
       valid = false;
       reason = `health above ${Math.round(rule.healthBelow * 100)}% threshold`;
@@ -306,7 +338,8 @@ export function selectAbilityAction(
       valid = false;
       reason = 'line of sight blocked';
     } else if (activation.targeting === 'area') {
-      const requiredTargets = Math.max(activation.minimumTargets, rule.minimumTargets ?? 1);
+      const configuredTargets = Math.max(activation.minimumTargets, rule.minimumTargets ?? 1);
+      const requiredTargets = resolveAiRequiredTargetCount(configuredTargets, availableHostiles);
       if (targetCount < requiredTargets) {
         valid = false;
         reason = `needs ${requiredTargets} useful target${requiredTargets === 1 ? '' : 's'}`;
@@ -356,9 +389,14 @@ export function selectAbilityAction(
   const primaryAttack = getPrimaryAttack(fighter.primaryAttackId);
   const primaryActivation = getPrimaryAttackActivationProfile(primaryAttack);
   const primaryState = entity.abilities.find((item) => item.slot === 'basic' && item.source === 'primaryAttack');
-  const effectiveMax = ['melee', 'spin', 'continuous', 'orbit', 'slam'].includes(primaryAttack.behavior) && target
-    ? primaryAttack.range + entity.radius + target.radius
-    : primaryAttack.range;
+  const contactReach = target
+    ? resolveMeleeContactReach(primaryAttack, entity.radius, target.radius, 1.16)
+    : 0;
+  const effectiveMax = contactReach > 0
+    ? contactReach
+    : ['melee', 'spin', 'continuous', 'orbit', 'slam'].includes(primaryAttack.behavior) && target
+      ? primaryAttack.range + entity.radius + target.radius
+      : primaryAttack.range;
   const areaBehavior = ['spin', 'continuous', 'orbit', 'slam'].includes(primaryAttack.behavior);
   let primaryValid = true;
   let primaryReason = 'primary attack ready';
@@ -375,13 +413,20 @@ export function selectAbilityAction(
     primaryValid = false;
     primaryReason = 'line of sight blocked';
   }
+  const meleeRhythmFighter = fighter.id === 'blade-vanguard' || fighter.id === 'iron-lancer';
+  const primaryRangePressure = primaryValid && target && Number.isFinite(effectiveMax) && effectiveMax > 0
+    ? Math.max(0, 1 - fallbackDistance / effectiveMax)
+    : 0;
+  const primaryScore = meleeRhythmFighter
+    ? 90 + primaryRangePressure * 12
+    : 30;
   if (collectDebug) {
     candidates.push({
       slot: 'basic',
       abilityId: primaryAttack.id,
       abilityName: primaryAttack.name,
       valid: primaryValid,
-      score: 30,
+      score: primaryScore,
       reason: primaryReason,
       distance: Number.isFinite(fallbackDistance) ? fallbackDistance : -1,
       targetCount: target ? 1 : 0,
@@ -389,8 +434,8 @@ export function selectAbilityAction(
       targetId: target?.id ?? null
     });
   }
-  if (selectedSlot === null && primaryValid) {
-    consider('primaryAttack', 'basic', primaryAttack.id, target?.id ?? null, 30, `${primaryAttack.name}: ${primaryReason}`);
+  if (primaryValid && (selectedSlot === null || meleeRhythmFighter)) {
+    consider('primaryAttack', 'basic', primaryAttack.id, target?.id ?? null, primaryScore, `${primaryAttack.name}: ${primaryReason}`);
   }
 
   const selected: SelectedAbilityAction | null = selectedKind && selectedSlot && selectedAbilityId
@@ -418,6 +463,16 @@ export function selectAbilityAction(
       candidates
     } : null
   };
+}
+
+/**
+ * Preserve multi-target intent when several opponents exist, while ensuring a
+ * duel never permanently disables an otherwise valid area ability.
+ */
+export function resolveAiRequiredTargetCount(requestedTargets: number, availableHostiles: number): number {
+  const requested = Math.max(1, Math.trunc(requestedTargets));
+  const available = Math.max(0, Math.trunc(availableHostiles));
+  return available > 0 ? Math.min(requested, available) : requested;
 }
 
 interface ResolvedAbilityTarget {
@@ -489,6 +544,14 @@ function abilityEffectRadius(ability: ReturnType<typeof getAbility>): number {
   }
   ABILITY_EFFECT_RADIUS_CACHE.set(ability.id, radius);
   return radius;
+}
+
+function countAvailableHostiles(entities: readonly EntitySnapshot[], self: EntitySnapshot): number {
+  let count = 0;
+  for (const entity of entities) {
+    if (entity.id !== self.id && entity.team !== self.team) count += 1;
+  }
+  return count;
 }
 
 function countHostilesBruteForce(

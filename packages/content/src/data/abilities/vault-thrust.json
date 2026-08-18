@@ -1,0 +1,39 @@
+{
+  "id": "vault-thrust",
+  "name": "Vault Thrust",
+  "slot": "skill3",
+  "cooldownTicks": 305,
+  "castTicks": 13,
+  "castMovementMultiplier": 0.55,
+  "activation": {
+    "intent": "movement",
+    "targeting": "direction",
+    "priority": 66,
+    "minRange": 70,
+    "maxRange": 240,
+    "requiresLineOfSight": true,
+    "aimToleranceDegrees": 30
+  },
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "APPLY_IMPULSE_SELF",
+          "magnitude": 15
+        },
+        {
+          "type": "MELEE_WEAPON_STRIKE",
+          "amount": 16,
+          "knockback": 24,
+          "element": "metal",
+          "enemiesOnly": true,
+          "sweepDegrees": 18,
+          "reachMultiplier": 1.34,
+          "widthMultiplier": 1.12
+        }
+      ]
+    }
+  ]
+}

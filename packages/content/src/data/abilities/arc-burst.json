@@ -15,7 +15,7 @@
           "kind": "wave",
           "radius": 155,
           "damage": 16,
-          "impulse": 9,
+          "impulse": 46,
           "element": "electric",
           "enemiesOnly": true
         },

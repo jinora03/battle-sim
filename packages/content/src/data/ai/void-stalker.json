@@ -6,12 +6,12 @@
   "retreatHealthRatio": 0.09,
   "steeringStrength": 1.12,
   "movementStyle": "orbit",
-  "orbitStrength": 1.15,
+  "orbitStrength": 0.78,
   "wallAvoidance": 1.05,
   "targeting": "clustered",
   "allySeparation": 0.9,
   "targetSpread": 0.65,
-  "targetStickiness": 0.72,
+  "targetStickiness": 0.82,
   "abilityUsage": [
     {
       "slot": "skill1",

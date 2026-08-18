@@ -1,5 +1,5 @@
 import { getAbility, getAiProfile, getArena, getFighter, getPrimaryAttack } from '@kinetic/content';
-import { ActionSelectionSpatialContext, selectAbilityAction, type AiDecisionDebug } from './actionSelection';
+import { ActionSelectionSpatialContext, getAiChargedMeleeRepeatLockTicks, selectAbilityAction, type AiDecisionDebug } from './actionSelection';
 import { getAiCornerEscapeSign } from './seededDecisionVariation';
 
 export * from './actionSelection';
@@ -10,6 +10,9 @@ export interface ControllerSource {
   commandsForTick(snapshot: WorldSnapshot): SimulationCommand[];
   reset?(): void;
 }
+
+/** Optional read-only hook for Battle Intelligence and diagnostics. */
+export type AiDecisionObserver = (decision: AiDecisionDebug, tick: number) => void;
 
 interface AiMemory {
   targetId: EntityId | null;
@@ -26,9 +29,41 @@ interface AiMemory {
   abilityVariationEpoch: number;
   cornerPressureReactions: number;
   cornerEscapeEpoch: number;
+  chargeLockUntilTick: number;
 }
 
 const ZERO: Vec2 = { x: 0, y: 0 };
+const AI_URGENCY_START_TICK = 45 * 60;
+const AI_URGENCY_FULL_TICK = 70 * 60;
+
+/**
+ * Late-fight engagement pressure. Normal pacing is untouched for the first
+ * 45 seconds; after that, fighters gradually compress spacing and retreat
+ * less so long-tail duels resolve without a hard timeout rule.
+ */
+export function resolveAiEngagementUrgency(tick: number): number {
+  if (tick <= AI_URGENCY_START_TICK) return 0;
+  if (tick >= AI_URGENCY_FULL_TICK) return 1;
+  return (tick - AI_URGENCY_START_TICK) / (AI_URGENCY_FULL_TICK - AI_URGENCY_START_TICK);
+}
+
+/**
+ * Resolve a practical spacing target from a fighter profile and weapon. A
+ * throwable's configured profile often describes its brawling identity, so
+ * do not force it out to the generic ranged 55-62% distance band.
+ */
+export function resolveAiPreferredCombatDistance(profileDistance: number, weaponId: string | null | undefined): number {
+  if (!weaponId) return profileDistance;
+  const attack = getPrimaryAttack(weaponId);
+  if (attack.behavior === 'throwable') {
+    const identityDistance = profileDistance > 180 ? profileDistance : attack.range * 0.45;
+    return Math.max(attack.minRange + 55, Math.min(attack.range * 0.5, identityDistance));
+  }
+  if (['ranged', 'automatic', 'beam'].includes(attack.behavior)) {
+    return Math.max(attack.minRange + 45, Math.min(attack.range * 0.62, profileDistance > 180 ? profileDistance : attack.range * 0.55));
+  }
+  return Math.max(58, Math.min(profileDistance, attack.range * 0.82));
+}
 
 export interface AiCornerEscapeInput {
   seed: number;
@@ -109,6 +144,7 @@ export class AiController implements ControllerSource {
   private readonly actionSelectionSpatial = new ActionSelectionSpatialContext();
   private clusterDensityTick = Number.NEGATIVE_INFINITY;
   private detailedDebugEnabled: boolean;
+  private decisionObserver: AiDecisionObserver | null;
   private workloadStats: AiWorkloadStats = {
     ...aiWorkloadPolicyForEntityCount(0),
     aiEntities: 0,
@@ -120,8 +156,13 @@ export class AiController implements ControllerSource {
     areaCandidateChecks: 0
   };
 
-  constructor(detailedDebugEnabled = true) {
+  constructor(detailedDebugEnabled = true, decisionObserver: AiDecisionObserver | null = null) {
     this.detailedDebugEnabled = detailedDebugEnabled;
+    this.decisionObserver = decisionObserver;
+  }
+
+  setDecisionObserver(observer: AiDecisionObserver | null): void {
+    this.decisionObserver = observer;
   }
 
   setDetailedDebugEnabled(enabled: boolean): void {
@@ -183,7 +224,8 @@ export class AiController implements ControllerSource {
         nextAttackDecisionTick: snapshot.tick + attackPhase,
         abilityVariationEpoch: 0,
         cornerPressureReactions: 0,
-        cornerEscapeEpoch: 0
+        cornerEscapeEpoch: 0,
+        chargeLockUntilTick: 0
       };
       const currentTarget = memory.targetId === null ? undefined : this.entityById.get(memory.targetId);
 
@@ -246,20 +288,32 @@ export class AiController implements ControllerSource {
       if (!target) continue;
       const busy = entity.weaponAttack !== null || entity.abilities.some((ability) => ability.phase === 'casting' || ability.phase === 'armed');
       if (!busy && snapshot.tick >= memory.nextAttackDecisionTick) {
+        const collectDecision = this.detailedDebugEnabled || this.decisionObserver !== null;
         const action = selectAbilityAction(
           snapshot,
           entity,
           target,
           profile,
-          this.detailedDebugEnabled,
+          collectDecision,
           this.actionSelectionSpatial,
-          { openingReadiness: true, variationEpoch: memory.abilityVariationEpoch }
+          {
+            openingReadiness: true,
+            variationEpoch: memory.abilityVariationEpoch,
+            chargeLockUntilTick: memory.chargeLockUntilTick
+          }
         );
-        if (action.debug) this.decisions.set(entity.id, action.debug);
+        if (action.debug) {
+          if (this.detailedDebugEnabled) this.decisions.set(entity.id, action.debug);
+          this.decisionObserver?.(action.debug, snapshot.tick);
+        }
         memory.nextAttackDecisionTick = snapshot.tick + policy.attackDecisionInterval;
         this.workloadStats.attackEvaluations += 1;
         if (action.selected) {
-          if (action.selected.kind === 'ability') memory.abilityVariationEpoch += 1;
+          if (action.selected.kind === 'ability') {
+            memory.abilityVariationEpoch += 1;
+            const repeatLock = getAiChargedMeleeRepeatLockTicks(action.selected.abilityId);
+            if (repeatLock > 0) memory.chargeLockUntilTick = snapshot.tick + repeatLock;
+          }
           const selectedTarget = action.selected.targetId === null ? undefined : this.entityById.get(action.selected.targetId);
           const actionDirection = selectedTarget
             ? action.selected.kind === 'primaryAttack'
@@ -400,23 +454,55 @@ export class AiController implements ControllerSource {
       ? { x: -toward.y, y: toward.x }
       : { x: toward.y, y: -toward.x };
     const hpRatio = entity.hp / Math.max(1, entity.maxHp);
-    const retreat = hpRatio <= profile.retreatHealthRatio;
-    const preferredDistance = this.preferredCombatDistance(profile.preferredDistance, weaponId);
+    const urgency = resolveAiEngagementUrgency(snapshot.tick);
+    const retreatThreshold = profile.retreatHealthRatio * (1 - urgency * 0.75);
+    const retreat = hpRatio <= retreatThreshold;
+    const basePreferredDistance = resolveAiPreferredCombatDistance(profile.preferredDistance, weaponId);
+    const preferredDistance = basePreferredDistance * (1 - urgency * 0.18);
     const attack = weaponId ? getPrimaryAttack(weaponId) : null;
     const ranged = attack ? ['ranged', 'automatic', 'throwable', 'beam'].includes(attack.behavior) : profile.movementStyle === 'kite';
     const pressure = this.enemyPressure(entity, entities, Math.max(230, preferredDistance * 0.9));
+    const orbitStrength = profile.orbitStrength * (1 - urgency * 0.55);
+    const fighter = getFighter(entity.fighterId);
+    const chargeAbilityId = fighter.abilitySlots.skill1;
+    const chargeRule = profile.abilityUsage.find((rule) => rule.slot === 'skill1');
+    const chargeState = chargeAbilityId
+      ? entity.abilities.find((ability) => ability.source === 'ability' && ability.abilityId === chargeAbilityId)
+      : undefined;
+    const busy = entity.weaponAttack !== null
+      || entity.abilities.some((ability) => ability.phase === 'casting' || ability.phase === 'armed');
+    const createsChargeRunway = !retreat
+      && !busy
+      && (fighter.id === 'blade-vanguard' || fighter.id === 'iron-lancer')
+      && chargeAbilityId !== null
+      && chargeAbilityId !== undefined
+      && getAiChargedMeleeRepeatLockTicks(chargeAbilityId) > 0
+      && chargeState?.phase === 'ready'
+      && snapshot.tick >= memory.chargeLockUntilTick
+      && chargeRule !== undefined
+      && distance < chargeRule.minDistance * 0.96;
     let x = 0;
     let y = 0;
 
     if (retreat) {
       x = -toward.x;
       y = -toward.y;
+    } else if (createsChargeRunway && chargeRule) {
+      // Do not plant or snap into a special state. The fighter simply gives
+      // itself a short, readable runway while continuously facing the target.
+      // Once the real charge min-distance is reached, ordinary action selection
+      // can commit the charge on a later attack evaluation.
+      const runwayTarget = chargeRule.minDistance * 1.06;
+      const shortage = Math.max(0, runwayTarget - distance) / Math.max(1, runwayTarget);
+      const backstep = 0.48 + shortage * 0.48;
+      x = -toward.x * backstep + perpendicular.x * 0.08;
+      y = -toward.y * backstep + perpendicular.y * 0.08;
     } else if (profile.movementStyle === 'orbit' || profile.movementStyle === 'kite') {
       const deadZone = Math.max(28, preferredDistance * 0.14);
       const error = distance - preferredDistance;
       const radial = Math.abs(error) <= deadZone ? 0 : Math.max(-1, Math.min(1, error / Math.max(70, preferredDistance * 0.5)));
-      x = toward.x * radial + perpendicular.x * Math.max(0.16, profile.orbitStrength);
-      y = toward.y * radial + perpendicular.y * Math.max(0.16, profile.orbitStrength);
+      x = toward.x * radial + perpendicular.x * Math.max(0.12, orbitStrength);
+      y = toward.y * radial + perpendicular.y * Math.max(0.12, orbitStrength);
       if (ranged && pressure.strength > 0) {
         const danger = Math.max(0, 1 - pressure.nearestDistance / Math.max(100, preferredDistance * 0.82));
         x += pressure.away.x * danger * 1.35;
@@ -424,13 +510,13 @@ export class AiController implements ControllerSource {
       }
     } else if (profile.movementStyle === 'charger') {
       const radial = distance > preferredDistance ? 1 : distance < preferredDistance * 0.65 ? -0.25 : 0.12;
-      x = toward.x * radial * (0.9 + profile.aggression * 0.35) + perpendicular.x * Math.max(0.08, profile.orbitStrength);
-      y = toward.y * radial * (0.9 + profile.aggression * 0.35) + perpendicular.y * Math.max(0.08, profile.orbitStrength);
+      x = toward.x * radial * (0.9 + profile.aggression * 0.35) + perpendicular.x * Math.max(0.06, orbitStrength);
+      y = toward.y * radial * (0.9 + profile.aggression * 0.35) + perpendicular.y * Math.max(0.06, orbitStrength);
     } else {
       const error = distance - preferredDistance;
       const radial = Math.abs(error) < 28 ? 0 : Math.max(-0.6, Math.min(1, error / Math.max(60, preferredDistance)));
-      x = toward.x * radial + perpendicular.x * Math.max(0.08, profile.orbitStrength);
-      y = toward.y * radial + perpendicular.y * Math.max(0.08, profile.orbitStrength);
+      x = toward.x * radial + perpendicular.x * Math.max(0.06, orbitStrength);
+      y = toward.y * radial + perpendicular.y * Math.max(0.06, orbitStrength);
     }
 
     // Committed ranged attacks need a readable firing lane. Stream attacks hold
@@ -448,12 +534,18 @@ export class AiController implements ControllerSource {
         : distance > preferredDistance * farThreshold
           ? burstCommitted ? 0.2 : 0.34
           : 0;
-      const strafe = Math.max(burstCommitted ? 0.42 : 0.3, profile.orbitStrength);
+      const strafe = Math.max(burstCommitted ? 0.42 : 0.3, orbitStrength);
       x = toward.x * radial + perpendicular.x * strafe;
       y = toward.y * radial + perpendicular.y * strafe;
     }
 
-    if (!ranged && distance < preferredDistance * 1.75) {
+    if (!retreat && urgency > 0) {
+      const pressureScale = ranged ? 0.18 : 0.34;
+      x += toward.x * urgency * pressureScale;
+      y += toward.y * urgency * pressureScale;
+    }
+
+    if (!ranged && !createsChargeRunway && distance < preferredDistance * 1.75) {
       const slotAngle = (entity.id * 2.399963229728653 + target.id * 0.73) % (Math.PI * 2);
       const slotRadius = Math.max(55, preferredDistance * (0.86 + Math.min(4, targetEngagements) * 0.035));
       const slotX = target.x + Math.cos(slotAngle) * slotRadius;
@@ -554,15 +646,6 @@ export class AiController implements ControllerSource {
       x: target.x + target.vx * leadTicks - entity.x,
       y: target.y + target.vy * leadTicks - entity.y
     });
-  }
-
-  private preferredCombatDistance(profileDistance: number, weaponId: string | null | undefined): number {
-    if (!weaponId) return profileDistance;
-    const attack = getPrimaryAttack(weaponId);
-    if (['ranged', 'automatic', 'throwable', 'beam'].includes(attack.behavior)) {
-      return Math.max(attack.minRange + 45, Math.min(attack.range * 0.62, profileDistance > 180 ? profileDistance : attack.range * 0.55));
-    }
-    return Math.max(58, Math.min(profileDistance, attack.range * 0.82));
   }
 
   private selectTarget(

@@ -95,6 +95,14 @@ const visualRecipes: Record<string, VisualRecipe> = {
     id: 'void-reaper', shape: 'orb', bodyColor: 0x6c3eb2, bodyDarkColor: 0x1c103a,
     coreColor: 0xf2d6ff, auraColor: 0xa55cff, accentColor: 0x61e0ff, horns: true
   },
+  'blade-vanguard': {
+    id: 'blade-vanguard', shape: 'mech', bodyColor: 0x72859a, bodyDarkColor: 0x18222e,
+    coreColor: 0xeaf8ff, auraColor: 0x58cfff, accentColor: 0xb8e9ff, horns: false
+  },
+  'iron-lancer': {
+    id: 'iron-lancer', shape: 'mech', bodyColor: 0x6e675d, bodyDarkColor: 0x211d18,
+    coreColor: 0xffdda0, auraColor: 0xff9f4a, accentColor: 0xd9e2e8, horns: true
+  },
   ballast: {
     id: 'ballast', shape: 'orb', bodyColor: 0x514468, bodyDarkColor: 0x171222,
     coreColor: 0xd8c4ff, auraColor: 0x8c6bc2, accentColor: 0x74e7ff, horns: false
@@ -145,6 +153,14 @@ const motionRecipes: Record<string, MotionRecipe> = {
   'void-orbit': {
     id: 'void-orbit', speedStretch: 0.22, impactSquash: 0.16, lean: 0.19,
     pulseAmount: 0.052, pulseSpeed: 2.8, weaponSpin: 3.7
+  },
+  'blade-duelist': {
+    id: 'blade-duelist', speedStretch: 0.24, impactSquash: 0.16, lean: 0.22,
+    pulseAmount: 0.024, pulseSpeed: 2.7, weaponSpin: 1.8
+  },
+  'iron-lancer': {
+    id: 'iron-lancer', speedStretch: 0.15, impactSquash: 0.18, lean: 0.16,
+    pulseAmount: 0.018, pulseSpeed: 1.6, weaponSpin: 0.7
   },
   'weighted-orbit': {
     id: 'weighted-orbit', speedStretch: 0.1, impactSquash: 0.22, lean: 0.12,
@@ -350,8 +366,30 @@ export type SkillMotionStyle =
   | 'rocket'
   | 'brace'
   | 'spin'
+  | 'spiral'
+  | 'sweep'
+  | 'recoil'
+  | 'charge'
+  | 'charge-sweep'
+  | 'flow'
+  | 'phase'
+  | 'pivot'
   | 'tremble'
   | 'overdrive';
+
+export type SkillKnockbackStyle =
+  | 'tackle'
+  | 'explosive-ram'
+  | 'weapon-charge'
+  | 'shockwave'
+  | 'flowing-shove'
+  | 'electric-tackle'
+  | 'juggernaut'
+  | 'phase-strike'
+  | 'precision-shot'
+  | 'rocket-recoil'
+  | 'power-charge'
+  | 'gravity-punt';
 
 export type SkillResolveStyle =
   | 'water-splash'
@@ -388,6 +426,8 @@ export interface SkillPresentationRecipe {
   accentColor: number;
   telegraph: SkillTelegraphStyle;
   motion: SkillMotionStyle;
+  /** Signature physical displacement language for personality/VFX routing. */
+  knockbackStyle?: SkillKnockbackStyle;
   resolve: SkillResolveStyle;
   importance: 'basic' | 'skill' | 'ultimate';
   telegraphRadius: number;
@@ -396,15 +436,15 @@ export interface SkillPresentationRecipe {
 const skillPresentationRecipes: Record<string, SkillPresentationRecipe> = {
   'magma-dash': {
     abilityId: 'magma-dash', icon: 'CR', shortName: 'Cinder Rush', color: 0xff4a1f, accentColor: 0xfff09a,
-    telegraph: 'directional-stream', motion: 'stream', resolve: 'cinder-rush', importance: 'skill', telegraphRadius: 165
+    telegraph: 'directional-stream', motion: 'spiral', knockbackStyle: 'tackle', resolve: 'cinder-rush', importance: 'skill', telegraphRadius: 165
   },
   'inferno-collapse': {
     abilityId: 'inferno-collapse', icon: 'ML', shortName: 'Meltdown', color: 0xff2518, accentColor: 0xffffb0,
-    telegraph: 'mega-danger', motion: 'overdrive', resolve: 'meltdown', importance: 'ultimate', telegraphRadius: 265
+    telegraph: 'mega-danger', motion: 'overdrive', knockbackStyle: 'shockwave', resolve: 'meltdown', importance: 'ultimate', telegraphRadius: 265
   },
   'kinetic-pulse': {
     abilityId: 'kinetic-pulse', icon: 'KP', shortName: 'Kinetic Pulse', color: 0x60d9ff, accentColor: 0xe3fbff,
-    telegraph: 'outward-rings', motion: 'brace', resolve: 'kinetic-pulse', importance: 'skill', telegraphRadius: 220
+    telegraph: 'outward-rings', motion: 'pivot', knockbackStyle: 'shockwave', resolve: 'kinetic-pulse', importance: 'skill', telegraphRadius: 220
   },
   'reactor-overdrive': {
     abilityId: 'reactor-overdrive', icon: 'RO', shortName: 'Reactor Overdrive', color: 0x5edcff, accentColor: 0xffffff,
@@ -416,11 +456,11 @@ const skillPresentationRecipes: Record<string, SkillPresentationRecipe> = {
   },
   'surge-dash': {
     abilityId: 'surge-dash', icon: 'SD', shortName: 'Surge Dash', color: 0x27c9ff, accentColor: 0xe1fdff,
-    telegraph: 'directional-stream', motion: 'stream', resolve: 'water-dash', importance: 'skill', telegraphRadius: 92
+    telegraph: 'directional-stream', motion: 'flow', knockbackStyle: 'flowing-shove', resolve: 'water-dash', importance: 'skill', telegraphRadius: 92
   },
   'pressure-wave': {
     abilityId: 'pressure-wave', icon: 'PW', shortName: 'Pressure Wave', color: 0x238de8, accentColor: 0xc7f8ff,
-    telegraph: 'outward-rings', motion: 'compress', resolve: 'pressure-wave', importance: 'skill', telegraphRadius: 165
+    telegraph: 'outward-rings', motion: 'compress', knockbackStyle: 'flowing-shove', resolve: 'pressure-wave', importance: 'skill', telegraphRadius: 165
   },
   undertow: {
     abilityId: 'undertow', icon: 'UT', shortName: 'Undertow', color: 0x175fa8, accentColor: 0x7cecff,
@@ -428,7 +468,7 @@ const skillPresentationRecipes: Record<string, SkillPresentationRecipe> = {
   },
   'tidal-cataclysm': {
     abilityId: 'tidal-cataclysm', icon: 'TC', shortName: 'Tidal Cataclysm', color: 0x41d9ff, accentColor: 0xffffff,
-    telegraph: 'tidal-gather', motion: 'gather', resolve: 'tidal-cataclysm', importance: 'ultimate', telegraphRadius: 300
+    telegraph: 'tidal-gather', motion: 'gather', knockbackStyle: 'flowing-shove', resolve: 'tidal-cataclysm', importance: 'ultimate', telegraphRadius: 300
   },
   'blast-contact': {
     abilityId: 'blast-contact', icon: 'ID', shortName: 'Impact Detonator', color: 0xff8a36, accentColor: 0xfff0a8,
@@ -436,19 +476,19 @@ const skillPresentationRecipes: Record<string, SkillPresentationRecipe> = {
   },
   'blast-dash': {
     abilityId: 'blast-dash', icon: 'BD', shortName: 'Blast Dash', color: 0xff7836, accentColor: 0xffef8a,
-    telegraph: 'rocket-charge', motion: 'rocket', resolve: 'rocket-burst', importance: 'skill', telegraphRadius: 95
+    telegraph: 'rocket-charge', motion: 'recoil', knockbackStyle: 'explosive-ram', resolve: 'rocket-burst', importance: 'skill', telegraphRadius: 95
   },
   'concussion-bomb': {
     abilityId: 'concussion-bomb', icon: 'CB', shortName: 'Concussion Bomb', color: 0xffa23b, accentColor: 0xfff2b0,
-    telegraph: 'warning-ring', motion: 'brace', resolve: 'concussion', importance: 'skill', telegraphRadius: 155
+    telegraph: 'warning-ring', motion: 'brace', knockbackStyle: 'explosive-ram', resolve: 'concussion', importance: 'skill', telegraphRadius: 155
   },
   'shrapnel-burst': {
     abilityId: 'shrapnel-burst', icon: 'SB', shortName: 'Shrapnel Burst', color: 0xff6840, accentColor: 0xffd65c,
-    telegraph: 'shrapnel-lock', motion: 'spin', resolve: 'shrapnel', importance: 'skill', telegraphRadius: 205
+    telegraph: 'shrapnel-lock', motion: 'spin', knockbackStyle: 'explosive-ram', resolve: 'shrapnel', importance: 'skill', telegraphRadius: 205
   },
   'mega-bomb': {
     abilityId: 'mega-bomb', icon: 'MB', shortName: 'MEGA BOMB', color: 0xff3d20, accentColor: 0xffef65,
-    telegraph: 'mega-danger', motion: 'tremble', resolve: 'mega-bomb', importance: 'ultimate', telegraphRadius: 285
+    telegraph: 'mega-danger', motion: 'tremble', knockbackStyle: 'shockwave', resolve: 'mega-bomb', importance: 'ultimate', telegraphRadius: 285
   },
   'ember-impact': { abilityId: 'ember-impact', icon: 'EI', shortName: 'Ember Impact', color: 0xff6b32, accentColor: 0xffe083, telegraph: 'none', motion: 'snap', resolve: 'contact-pop', importance: 'basic', telegraphRadius: 54 },
   'flame-ring': { abilityId: 'flame-ring', icon: 'FV', shortName: 'Fire Vortex', color: 0xb92717, accentColor: 0xffdc62, telegraph: 'inward-vortex', motion: 'vortex', resolve: 'fire-vortex', importance: 'skill', telegraphRadius: 215 },
@@ -457,44 +497,52 @@ const skillPresentationRecipes: Record<string, SkillPresentationRecipe> = {
   'magnet-drag': { abilityId: 'magnet-drag', icon: 'MD', shortName: 'Magnet Drag', color: 0x54c9dc, accentColor: 0xf1ffff, telegraph: 'inward-vortex', motion: 'vortex', resolve: 'undertow', importance: 'skill', telegraphRadius: 255 },
   fortify: { abilityId: 'fortify', icon: 'FT', shortName: 'Fortify', color: 0x7193a6, accentColor: 0xd9fbff, telegraph: 'reactor-charge', motion: 'brace', resolve: 'reactor-overdrive', importance: 'skill', telegraphRadius: 160 },
   'frost-impact': { abilityId: 'frost-impact', icon: 'FI', shortName: 'Frost Impact', color: 0x9eeaff, accentColor: 0xffffff, telegraph: 'none', motion: 'snap', resolve: 'water-splash', importance: 'basic', telegraphRadius: 58 },
-  'glacier-charge': { abilityId: 'glacier-charge', icon: 'GC', shortName: 'Glacier Charge', color: 0x69ccf3, accentColor: 0xeaffff, telegraph: 'directional-stream', motion: 'stream', resolve: 'magma-dash', importance: 'skill', telegraphRadius: 110 },
-  'frost-nova': { abilityId: 'frost-nova', icon: 'FN', shortName: 'Frost Nova', color: 0x8adfff, accentColor: 0xffffff, telegraph: 'outward-rings', motion: 'compress', resolve: 'pressure-wave', importance: 'skill', telegraphRadius: 185 },
+  'glacier-charge': { abilityId: 'glacier-charge', icon: 'GC', shortName: 'Glacier Charge', color: 0x69ccf3, accentColor: 0xeaffff, telegraph: 'directional-stream', motion: 'sweep', knockbackStyle: 'weapon-charge', resolve: 'magma-dash', importance: 'skill', telegraphRadius: 110 },
+  'frost-nova': { abilityId: 'frost-nova', icon: 'FN', shortName: 'Frost Nova', color: 0x8adfff, accentColor: 0xffffff, telegraph: 'outward-rings', motion: 'compress', knockbackStyle: 'shockwave', resolve: 'pressure-wave', importance: 'skill', telegraphRadius: 185 },
   'ice-anchor': { abilityId: 'ice-anchor', icon: 'IA', shortName: 'Ice Anchor', color: 0x5aa8d1, accentColor: 0xe9fdff, telegraph: 'reactor-charge', motion: 'brace', resolve: 'reactor-overdrive', importance: 'skill', telegraphRadius: 165 },
   'absolute-zero': { abilityId: 'absolute-zero', icon: 'AZ', shortName: 'Absolute Zero', color: 0x8deaff, accentColor: 0xffffff, telegraph: 'tidal-gather', motion: 'gather', resolve: 'tidal-cataclysm', importance: 'ultimate', telegraphRadius: 310 },
   'static-strike': { abilityId: 'static-strike', icon: 'SS', shortName: 'Static Strike', color: 0xfff45c, accentColor: 0xb9fbff, telegraph: 'none', motion: 'snap', resolve: 'contact-pop', importance: 'basic', telegraphRadius: 52 },
-  'lightning-dash': { abilityId: 'lightning-dash', icon: 'LD', shortName: 'Lightning Dash', color: 0xffed44, accentColor: 0x75f5ff, telegraph: 'rocket-charge', motion: 'rocket', resolve: 'rocket-burst', importance: 'skill', telegraphRadius: 100 },
-  'arc-burst': { abilityId: 'arc-burst', icon: 'AB', shortName: 'Arc Burst', color: 0x7aeaff, accentColor: 0xffffff, telegraph: 'outward-rings', motion: 'brace', resolve: 'kinetic-pulse', importance: 'skill', telegraphRadius: 175 },
+  'lightning-dash': { abilityId: 'lightning-dash', icon: 'LD', shortName: 'Lightning Dash', color: 0xffed44, accentColor: 0x75f5ff, telegraph: 'rocket-charge', motion: 'charge', knockbackStyle: 'electric-tackle', resolve: 'rocket-burst', importance: 'skill', telegraphRadius: 100 },
+  'arc-burst': { abilityId: 'arc-burst', icon: 'AB', shortName: 'Arc Burst', color: 0x7aeaff, accentColor: 0xffffff, telegraph: 'outward-rings', motion: 'brace', knockbackStyle: 'shockwave', resolve: 'kinetic-pulse', importance: 'skill', telegraphRadius: 175 },
   'polarity-pull': { abilityId: 'polarity-pull', icon: 'PP', shortName: 'Polarity Pull', color: 0xd9ec4a, accentColor: 0x78f5ff, telegraph: 'inward-vortex', motion: 'vortex', resolve: 'undertow', importance: 'skill', telegraphRadius: 255 },
   'thunder-dome': { abilityId: 'thunder-dome', icon: 'TD', shortName: 'Thunder Dome', color: 0xffec35, accentColor: 0xffffff, telegraph: 'reactor-charge', motion: 'overdrive', resolve: 'reactor-overdrive', importance: 'ultimate', telegraphRadius: 300 },
   'thorn-impact': { abilityId: 'thorn-impact', icon: 'TI', shortName: 'Thorn Impact', color: 0x7ecf55, accentColor: 0xe1ffa7, telegraph: 'none', motion: 'snap', resolve: 'contact-pop', importance: 'basic', telegraphRadius: 58 },
-  'bramble-charge': { abilityId: 'bramble-charge', icon: 'BC', shortName: 'Bramble Charge', color: 0x5cac43, accentColor: 0xcfff85, telegraph: 'directional-stream', motion: 'stream', resolve: 'magma-dash', importance: 'skill', telegraphRadius: 118 },
-  'seed-burst': { abilityId: 'seed-burst', icon: 'SB', shortName: 'Seed Burst', color: 0x84d45d, accentColor: 0xeaffb1, telegraph: 'shrapnel-lock', motion: 'spin', resolve: 'shrapnel', importance: 'skill', telegraphRadius: 195 },
+  'bramble-charge': { abilityId: 'bramble-charge', icon: 'BC', shortName: 'Bramble Charge', color: 0x5cac43, accentColor: 0xcfff85, telegraph: 'directional-stream', motion: 'charge', knockbackStyle: 'juggernaut', resolve: 'magma-dash', importance: 'skill', telegraphRadius: 118 },
+  'seed-burst': { abilityId: 'seed-burst', icon: 'SB', shortName: 'Seed Burst', color: 0x84d45d, accentColor: 0xeaffb1, telegraph: 'shrapnel-lock', motion: 'spin', knockbackStyle: 'juggernaut', resolve: 'shrapnel', importance: 'skill', telegraphRadius: 195 },
   regenerate: { abilityId: 'regenerate', icon: 'RG', shortName: 'Regenerate', color: 0x4fb957, accentColor: 0xe8ffc2, telegraph: 'reactor-charge', motion: 'gather', resolve: 'reactor-overdrive', importance: 'skill', telegraphRadius: 155 },
   overgrowth: { abilityId: 'overgrowth', icon: 'OG', shortName: 'Overgrowth', color: 0x65c94d, accentColor: 0xf2ffb3, telegraph: 'tidal-gather', motion: 'gather', resolve: 'tidal-cataclysm', importance: 'ultimate', telegraphRadius: 315 },
   'phase-cut': { abilityId: 'phase-cut', icon: 'PC', shortName: 'Phase Cut', color: 0xaa68ff, accentColor: 0x75e9ff, telegraph: 'none', motion: 'snap', resolve: 'contact-pop', importance: 'basic', telegraphRadius: 54 },
-  'phase-lunge': { abilityId: 'phase-lunge', icon: 'PL', shortName: 'Phase Lunge', color: 0x9252e8, accentColor: 0x67eaff, telegraph: 'directional-stream', motion: 'stream', resolve: 'rocket-burst', importance: 'skill', telegraphRadius: 105 },
+  'phase-lunge': { abilityId: 'phase-lunge', icon: 'PL', shortName: 'Phase Lunge', color: 0x9252e8, accentColor: 0x67eaff, telegraph: 'directional-stream', motion: 'phase', knockbackStyle: 'phase-strike', resolve: 'rocket-burst', importance: 'skill', telegraphRadius: 105 },
   'gravity-well': { abilityId: 'gravity-well', icon: 'GW', shortName: 'Gravity Well', color: 0x7540c5, accentColor: 0x8cecff, telegraph: 'inward-vortex', motion: 'vortex', resolve: 'undertow', importance: 'skill', telegraphRadius: 270 },
-  'void-burst': { abilityId: 'void-burst', icon: 'VB', shortName: 'Void Burst', color: 0x9a50ec, accentColor: 0xc5a3ff, telegraph: 'warning-ring', motion: 'compress', resolve: 'concussion', importance: 'skill', telegraphRadius: 195 },
+  'void-burst': { abilityId: 'void-burst', icon: 'VB', shortName: 'Void Burst', color: 0x9a50ec, accentColor: 0xc5a3ff, telegraph: 'warning-ring', motion: 'compress', knockbackStyle: 'phase-strike', resolve: 'concussion', importance: 'skill', telegraphRadius: 195 },
   singularity: { abilityId: 'singularity', icon: 'SG', shortName: 'Singularity', color: 0x5e238f, accentColor: 0xb7eaff, telegraph: 'mega-danger', motion: 'tremble', resolve: 'inferno-collapse', importance: 'ultimate', telegraphRadius: 340 },
   featherfall: { abilityId: 'featherfall', icon: 'FF', shortName: 'Featherfall', color: 0xa992dc, accentColor: 0x9cf4ff, telegraph: 'outward-rings', motion: 'compress', resolve: 'mass-bloom', importance: 'skill', telegraphRadius: 275 },
-  downbeat: { abilityId: 'downbeat', icon: 'DB', shortName: 'Downbeat', color: 0x7859aa, accentColor: 0xdffcff, telegraph: 'directional-stream', motion: 'brace', resolve: 'downbeat-punt', importance: 'skill', telegraphRadius: 330 },
-  'dead-weight': { abilityId: 'dead-weight', icon: 'DW', shortName: 'Dead Weight', color: 0x4f405f, accentColor: 0xbcefff, telegraph: 'reactor-charge', motion: 'brace', resolve: 'anchor-drop', importance: 'skill', telegraphRadius: 205 },
+  downbeat: { abilityId: 'downbeat', icon: 'DB', shortName: 'Downbeat', color: 0x7859aa, accentColor: 0xdffcff, telegraph: 'directional-stream', motion: 'pivot', knockbackStyle: 'gravity-punt', resolve: 'downbeat-punt', importance: 'skill', telegraphRadius: 330 },
+  'dead-weight': { abilityId: 'dead-weight', icon: 'DW', shortName: 'Dead Weight', color: 0x4f405f, accentColor: 0xbcefff, telegraph: 'reactor-charge', motion: 'brace', knockbackStyle: 'gravity-punt', resolve: 'anchor-drop', importance: 'skill', telegraphRadius: 205 },
   'last-call': { abilityId: 'last-call', icon: 'LC', shortName: 'Last Call', color: 0x382348, accentColor: 0xd8faff, telegraph: 'tidal-gather', motion: 'tremble', resolve: 'last-call', importance: 'ultimate', telegraphRadius: 455 },
   'combat-roll': { abilityId: 'combat-roll', icon: 'CR', shortName: 'Combat Roll', color: 0x7edfff, accentColor: 0xffffff, telegraph: 'directional-stream', motion: 'stream', resolve: 'rocket-burst', importance: 'skill', telegraphRadius: 100 },
   'tactical-slide': { abilityId: 'tactical-slide', icon: 'TS', shortName: 'Tactical Slide', color: 0x7edfff, accentColor: 0xffffff, telegraph: 'directional-stream', motion: 'stream', resolve: 'rocket-burst', importance: 'skill', telegraphRadius: 130 },
   'suppressive-fire': { abilityId: 'suppressive-fire', icon: 'SB', shortName: 'Suppressive Burst', color: 0xffd56a, accentColor: 0xffffff, telegraph: 'directional-stream', motion: 'brace', resolve: 'shrapnel', importance: 'skill', telegraphRadius: 310 },
-  'pinning-round': { abilityId: 'pinning-round', icon: 'PR', shortName: 'Pinning Round', color: 0x6ee6ff, accentColor: 0xffffff, telegraph: 'shrapnel-lock', motion: 'brace', resolve: 'concussion', importance: 'skill', telegraphRadius: 340 },
+  'pinning-round': { abilityId: 'pinning-round', icon: 'PR', shortName: 'Pinning Round', color: 0x6ee6ff, accentColor: 0xffffff, telegraph: 'shrapnel-lock', motion: 'recoil', knockbackStyle: 'precision-shot', resolve: 'concussion', importance: 'skill', telegraphRadius: 340 },
   'kill-zone': { abilityId: 'kill-zone', icon: 'KZ', shortName: 'Kill Zone', color: 0xff9f35, accentColor: 0xfff0a6, telegraph: 'reactor-charge', motion: 'overdrive', resolve: 'gatling-overdrive', importance: 'ultimate', telegraphRadius: 360 },
   'grenade-launcher': { abilityId: 'grenade-launcher', icon: 'GL', shortName: 'Grenade Launcher', color: 0xff934e, accentColor: 0xffec9b, telegraph: 'warning-ring', motion: 'fuse-pop', resolve: 'concussion', importance: 'skill', telegraphRadius: 210 },
   'overdrive-barrage': { abilityId: 'overdrive-barrage', icon: 'OB', shortName: 'Overdrive Barrage', color: 0xffdf74, accentColor: 0xffffff, telegraph: 'reactor-charge', motion: 'overdrive', resolve: 'reactor-overdrive', importance: 'ultimate', telegraphRadius: 320 },
   'rocket-salvo': { abilityId: 'rocket-salvo', icon: 'RS', shortName: 'Rocket Salvo', color: 0xffa33d, accentColor: 0xfff1a8, telegraph: 'directional-stream', motion: 'brace', resolve: 'shrapnel', importance: 'skill', telegraphRadius: 430 },
-  'blast-jump': { abilityId: 'blast-jump', icon: 'BJ', shortName: 'Blast Jump', color: 0xff7138, accentColor: 0xffdf8c, telegraph: 'rocket-charge', motion: 'rocket', resolve: 'rocket-burst', importance: 'skill', telegraphRadius: 145 },
+  'blast-jump': { abilityId: 'blast-jump', icon: 'BJ', shortName: 'Blast Jump', color: 0xff7138, accentColor: 0xffdf8c, telegraph: 'rocket-charge', motion: 'recoil', knockbackStyle: 'rocket-recoil', resolve: 'rocket-burst', importance: 'skill', telegraphRadius: 145 },
   'siege-marker': { abilityId: 'siege-marker', icon: 'SM', shortName: 'Siege Marker', color: 0xff8b36, accentColor: 0xfff0a3, telegraph: 'warning-ring', motion: 'brace', resolve: 'concussion', importance: 'skill', telegraphRadius: 250 },
   'starburst-convergence': { abilityId: 'starburst-convergence', icon: 'SC', shortName: 'Starburst Convergence', color: 0xff5a2a, accentColor: 0xffef83, telegraph: 'mega-danger', motion: 'tremble', resolve: 'mega-bomb', importance: 'ultimate', telegraphRadius: 380 },
-  'solar-rush': { abilityId: 'solar-rush', icon: 'SR', shortName: 'Sky Rush', color: 0x4b9cff, accentColor: 0xffffff, telegraph: 'directional-stream', motion: 'rocket', resolve: 'rocket-burst', importance: 'skill', telegraphRadius: 190 },
-  'thunder-clap': { abilityId: 'thunder-clap', icon: 'TC', shortName: 'Thunder Clap', color: 0x8dd8ff, accentColor: 0xffffff, telegraph: 'outward-rings', motion: 'brace', resolve: 'kinetic-pulse', importance: 'skill', telegraphRadius: 210 },
+  'solar-rush': { abilityId: 'solar-rush', icon: 'SR', shortName: 'Sky Rush', color: 0x4b9cff, accentColor: 0xffffff, telegraph: 'directional-stream', motion: 'charge', knockbackStyle: 'power-charge', resolve: 'rocket-burst', importance: 'skill', telegraphRadius: 190 },
+  'thunder-clap': { abilityId: 'thunder-clap', icon: 'TC', shortName: 'Thunder Clap', color: 0x8dd8ff, accentColor: 0xffffff, telegraph: 'outward-rings', motion: 'brace', knockbackStyle: 'power-charge', resolve: 'kinetic-pulse', importance: 'skill', telegraphRadius: 210 },
   'solar-aegis': { abilityId: 'solar-aegis', icon: 'SA', shortName: 'Solar Aegis', color: 0xffb34d, accentColor: 0xffffff, telegraph: 'reactor-charge', motion: 'overdrive', resolve: 'reactor-overdrive', importance: 'skill', telegraphRadius: 115 },
-  'solar-laser': { abilityId: 'solar-laser', icon: 'SL', shortName: 'Solar Beam', color: 0xff3b2f, accentColor: 0xfff4c2, telegraph: 'directional-stream', motion: 'tremble', resolve: 'solar-laser', importance: 'ultimate', telegraphRadius: 900 }
+  'solar-laser': { abilityId: 'solar-laser', icon: 'SL', shortName: 'Solar Beam', color: 0xff3b2f, accentColor: 0xfff4c2, telegraph: 'directional-stream', motion: 'tremble', resolve: 'solar-laser', importance: 'ultimate', telegraphRadius: 900 },
+  'driving-slash': { abilityId: 'driving-slash', icon: 'DS', shortName: 'Driving Slash', color: 0x7bcfff, accentColor: 0xf2fbff, telegraph: 'directional-stream', motion: 'charge-sweep', knockbackStyle: 'weapon-charge', resolve: 'cinder-rush', importance: 'skill', telegraphRadius: 150 },
+  crosscut: { abilityId: 'crosscut', icon: 'XC', shortName: 'Crosscut', color: 0x98dfff, accentColor: 0xffffff, telegraph: 'warning-ring', motion: 'sweep', knockbackStyle: 'weapon-charge', resolve: 'contact-pop', importance: 'skill', telegraphRadius: 238 },
+  'duelist-step': { abilityId: 'duelist-step', icon: 'DF', shortName: 'Duelist Step', color: 0x74bfe9, accentColor: 0xe9fbff, telegraph: 'directional-stream', motion: 'recoil', resolve: 'rocket-burst', importance: 'skill', telegraphRadius: 205 },
+  'execution-arc': { abilityId: 'execution-arc', icon: 'EA', shortName: 'Execution Arc', color: 0xc9e9f5, accentColor: 0xffffff, telegraph: 'warning-ring', motion: 'sweep', knockbackStyle: 'weapon-charge', resolve: 'concussion', importance: 'ultimate', telegraphRadius: 315 },
+  'lance-charge': { abilityId: 'lance-charge', icon: 'LC', shortName: 'Lance Charge', color: 0xc5ced6, accentColor: 0xffc66d, telegraph: 'directional-stream', motion: 'charge', knockbackStyle: 'weapon-charge', resolve: 'magma-dash', importance: 'skill', telegraphRadius: 170 },
+  'pike-sweep': { abilityId: 'pike-sweep', icon: 'PS', shortName: 'Pike Sweep', color: 0xaeb8c0, accentColor: 0xffd589, telegraph: 'warning-ring', motion: 'sweep', knockbackStyle: 'weapon-charge', resolve: 'contact-pop', importance: 'skill', telegraphRadius: 292 },
+  'vault-thrust': { abilityId: 'vault-thrust', icon: 'VT', shortName: 'Vault Thrust', color: 0xb8c2c9, accentColor: 0xffd589, telegraph: 'directional-stream', motion: 'charge', knockbackStyle: 'weapon-charge', resolve: 'rocket-burst', importance: 'skill', telegraphRadius: 255 },
+  'breakthrough-charge': { abilityId: 'breakthrough-charge', icon: 'BT', shortName: 'Breakthrough', color: 0x7d8790, accentColor: 0xffc05e, telegraph: 'rocket-charge', motion: 'charge', knockbackStyle: 'power-charge', resolve: 'rocket-burst', importance: 'ultimate', telegraphRadius: 230 }
 };
 
 const fallbackSkillPresentation: SkillPresentationRecipe = {

@@ -16,6 +16,7 @@ import { BattleSetupDrawer } from '../features/battle/BattleSetupDrawer';
 import { LandscapeHint } from '../features/battle/LandscapeHint';
 import { DirectionPad, FighterCard, SkillIndicator } from '../features/battle/BattleFighterControls';
 import { DeveloperFighterWorkshop } from '../features/creator/DeveloperFighterWorkshop';
+import { BattleIntelligencePanel } from '../features/intelligence/BattleIntelligencePanel';
 import type { AppController } from './AppController';
 
 export function AppWorkspace({ controller }: { controller: AppController }) {
@@ -132,7 +133,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
     >
       <section className="hero-panel">
         <div>
-          <p className="eyebrow">v1.3 Stage 8.10A · Replay video export foundation</p>
+          <p className="eyebrow">v1.3.46 · Stage 8.12 · Replay video export foundation</p>
           <h1>Kinetic Battle Engine</h1>
           <p className="subtitle">Export the current deterministic replay through a dedicated fixed-frame 1080p60 WebM renderer without recording the application interface.</p>
         </div>
@@ -146,6 +147,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
           { id: 'battle', label: 'Fight', shortLabel: 'Fight' },
           { id: 'training', label: 'Lab', shortLabel: 'Lab' },
           { id: 'roster', label: 'Roster', shortLabel: 'Roster', badge: fighters.length },
+          { id: 'intelligence', label: 'Battle Intel', shortLabel: 'Intel' },
           { id: 'creator', label: 'Create Fighter', shortLabel: 'Create' },
           { id: 'profile', label: 'Profile', shortLabel: 'Profile', badge: `Lv ${profile.level}` }
         ]}
@@ -395,7 +397,12 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
 
           <div className="battle-secondary-panels">
             <BattlePerformanceMetrics diagnostics={diagnostics} viewportMetrics={viewportMetrics} fighterCount={fighters.length} />
-            <BattleVideoExport controller={videoExport} replayTick={diagnostics.tick} battleEnded={diagnostics.battleEnded} />
+            <BattleVideoExport
+              controller={videoExport}
+              replayTick={diagnostics.tick}
+              battleEnded={diagnostics.battleEnded}
+              liveBattleActive={battleLaunchPhase === 'running' && !diagnostics.battleEnded && !pausedByUser && !pausedBySystem}
+            />
 
             <details className="panel-section battle-activity-panel" open>
               <summary className="panel-summary"><span><small>Battle log</small><strong>Arena activity & achievements</strong></span><em>{diagnostics.recentArenaActivity.length}</em></summary>
@@ -438,6 +445,7 @@ export function AppWorkspace({ controller }: { controller: AppController }) {
             onResetProfile={resetProfile}
           />
         </div>
+        <BattleIntelligencePanel active={view === 'intelligence'} fighters={fighters} arenas={arenas} />
         <DeveloperFighterWorkshop
           active={view === 'creator'}
           fighters={fighters}

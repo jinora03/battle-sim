@@ -1,0 +1,35 @@
+{
+  "id": "crosscut",
+  "name": "Crosscut",
+  "slot": "skill2",
+  "cooldownTicks": 220,
+  "castTicks": 16,
+  "castMovementMultiplier": 0.62,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "direction",
+    "priority": 72,
+    "minRange": 0,
+    "maxRange": 285,
+    "requiresLineOfSight": true,
+    "aimToleranceDegrees": 30
+  },
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "MELEE_WEAPON_STRIKE",
+          "amount": 18,
+          "knockback": 25,
+          "element": "metal",
+          "enemiesOnly": true,
+          "sweepDegrees": 152,
+          "reachMultiplier": 1.18,
+          "widthMultiplier": 1.18
+        }
+      ]
+    }
+  ]
+}

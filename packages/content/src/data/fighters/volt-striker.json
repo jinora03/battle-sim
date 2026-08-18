@@ -16,11 +16,11 @@
     "mass": 0.9,
     "restitution": 1.02,
     "linearDamping": 0.992,
-    "maxSpeed": 14.8
+    "maxSpeed": 17.8
   },
   "stats": {
     "maxHp": 280,
-    "moveAcceleration": 0.245
+    "moveAcceleration": 0.319
   },
   "aiProfileId": "volt-hunter",
   "abilitySlots": {
@@ -37,5 +37,20 @@
   "visualRecipeId": "volt-striker",
   "animationRecipeId": "electric-spark",
   "audioProfileId": "electric-fast",
-  "primaryAttackId": "arc-emitter"
+  "primaryAttackId": "arc-emitter",
+  "moduleSlots": {
+    "offense": [
+      "overcharge-emitter"
+    ],
+    "defense": [
+      "insulated-shell"
+    ],
+    "mobility": [
+      "arc-capacitors"
+    ],
+    "utility": [
+      "storm-coil"
+    ]
+  },
+  "defaultModuleIds": []
 }

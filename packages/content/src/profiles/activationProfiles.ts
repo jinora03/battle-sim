@@ -27,7 +27,7 @@ export function getAbilityActivationProfile(
   const hasHeal = activateActions.some((action) => action.type === 'HEAL_SELF');
   const hasSelfStatus = activateActions.some((action) => action.type === 'APPLY_STATUS_SELF');
   const hasImpulseSelf = activateActions.some((action) => action.type === 'APPLY_IMPULSE_SELF');
-  const hasDamage = allActions.some((action) => action.type === 'DEAL_DAMAGE_TARGET' || action.type === 'RADIAL_DAMAGE' || action.type === 'DIRECTIONAL_DAMAGE' || action.type === 'DETONATE_STATUS' || action.type === 'LAUNCH_PROJECTILES' || ((action.type === 'EXPLODE' || action.type === 'EXPLODE_AT_TARGET' || action.type === 'AREA_EFFECT_AT_TARGET') && action.damage > 0));
+  const hasDamage = allActions.some((action) => action.type === 'DEAL_DAMAGE_TARGET' || action.type === 'RADIAL_DAMAGE' || action.type === 'DIRECTIONAL_DAMAGE' || action.type === 'MELEE_WEAPON_STRIKE' || action.type === 'DETONATE_STATUS' || action.type === 'LAUNCH_PROJECTILES' || ((action.type === 'EXPLODE' || action.type === 'EXPLODE_AT_TARGET' || action.type === 'AREA_EFFECT_AT_TARGET') && action.damage > 0));
 
   let intent: AbilityActivationProfile['intent'] = 'offensive';
   if (!hasDamage && hasHeal) intent = 'defensive';

@@ -142,7 +142,7 @@ export function createStage810eExportSettings(
     },
     creator: {
       preset: presetId,
-      introSeconds: options.intro === undefined ? (freshDefault ? 0 : 1.5) : options.intro ? 1.5 : 0,
+      introSeconds: options.intro === undefined ? (freshDefault || presetId === 'shorts' ? 0 : 1.5) : options.intro ? 1.5 : 0,
       captionsEnabled: options.captions ?? true,
       thumbnailEnabled: options.thumbnail ?? !freshDefault,
       fighterNameplatesEnabled: options.fighterNameplates ?? true,

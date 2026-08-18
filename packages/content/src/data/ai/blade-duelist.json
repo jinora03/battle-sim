@@ -1,0 +1,49 @@
+{
+  "id": "blade-duelist",
+  "reactionTicks": 5,
+  "aggression": 0.96,
+  "preferredDistance": 145,
+  "retreatHealthRatio": 0.08,
+  "steeringStrength": 1.12,
+  "movementStyle": "chase",
+  "orbitStrength": 0.24,
+  "wallAvoidance": 1.0,
+  "targeting": "lowest-health",
+  "allySeparation": 0.72,
+  "targetSpread": 0.62,
+  "targetStickiness": 0.94,
+  "abilityUsage": [
+    {
+      "slot": "skill1",
+      "everyTicks": 540,
+      "phaseTicks": 54,
+      "minDistance": 245,
+      "maxDistance": 520,
+      "priority": -8
+    },
+    {
+      "slot": "skill2",
+      "everyTicks": 170,
+      "phaseTicks": 78,
+      "minDistance": 0,
+      "maxDistance": 285,
+      "priority": 18
+    },
+    {
+      "slot": "skill3",
+      "everyTicks": 210,
+      "phaseTicks": 126,
+      "minDistance": 0,
+      "maxDistance": 250,
+      "priority": 24
+    },
+    {
+      "slot": "ultimate",
+      "everyTicks": 610,
+      "phaseTicks": 205,
+      "minDistance": 0,
+      "maxDistance": 330,
+      "priority": 22
+    }
+  ]
+}

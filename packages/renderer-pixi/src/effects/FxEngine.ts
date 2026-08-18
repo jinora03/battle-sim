@@ -323,7 +323,10 @@ export class FxEngine {
         const nx = event.direction.x / (Math.hypot(event.direction.x, event.direction.y) || 1);
         const ny = event.direction.y / (Math.hypot(event.direction.x, event.direction.y) || 1);
         this.directionalBurst(event.position.x, event.position.y, nx, ny, color, Math.round(Math.min(12, 3 + event.force * 0.35) * particleScale), 3.5 + event.force * 0.22);
-        if (event.force >= 8) this.shockwave(event.position.x, event.position.y, color, Math.min(42, 14 + event.force * 1.5), 2.5, 0.18);
+        if (event.force >= 8) {
+          this.shockwave(event.position.x, event.position.y, color, Math.min(42, 14 + event.force * 1.5), 2.5, 0.18);
+          shake = Math.max(shake, Math.min(10, 1.8 + (event.force - 8) * 0.32));
+        }
       } else if (event.type === 'abilityActivated') {
         const profileResponse = this.scheduleAbilityCombatVfx(
           event.abilityId,
@@ -429,7 +432,55 @@ export class FxEngine {
     }
   }
 
+  private playKnockbackIdentityAccent(
+    x: number,
+    y: number,
+    dirX: number,
+    dirY: number,
+    recipe: SkillPresentationRecipe,
+    particleScale: number
+  ): void {
+    if (!recipe.knockbackStyle) return;
+    this.shockwave(x, y, recipe.accentColor, recipe.importance === 'ultimate' ? 58 : 38, recipe.importance === 'ultimate' ? 5 : 3.2, 0.24);
+    const length = Math.hypot(dirX, dirY) || 1;
+    const nx = dirX / length;
+    const ny = dirY / length;
+    const count = Math.max(5, Math.round(13 * particleScale));
+    switch (recipe.knockbackStyle) {
+      case 'precision-shot':
+        this.directionalBurst(x, y, nx, ny, recipe.accentColor, Math.max(4, Math.round(8 * particleScale)), 13);
+        break;
+      case 'rocket-recoil':
+      case 'explosive-ram':
+        this.directionalBurst(x, y, -nx, -ny, 0xffb04f, count, 12);
+        break;
+      case 'flowing-shove':
+        this.directionalBurst(x, y, nx, ny, recipe.accentColor, Math.round(18 * particleScale), 8.5);
+        break;
+      case 'phase-strike':
+        this.directionalBurst(x, y, nx, ny, recipe.accentColor, count, 12.5);
+        this.directionalBurst(x, y, -ny, nx, recipe.color, Math.max(5, Math.round(8 * particleScale)), 7.5);
+        break;
+      case 'weapon-charge':
+      case 'gravity-punt':
+        this.directionalBurst(x, y, nx, ny, recipe.accentColor, Math.round(15 * particleScale), 11);
+        break;
+      case 'electric-tackle':
+        this.directionalBurst(x, y, nx, ny, 0xd9ffff, Math.round(17 * particleScale), 13);
+        break;
+      case 'juggernaut':
+      case 'power-charge':
+      case 'tackle':
+        this.directionalBurst(x, y, nx, ny, recipe.accentColor, count, 10.5);
+        break;
+      case 'shockwave':
+        // The main resolve recipe already supplies the radial mass of the hit.
+        break;
+    }
+  }
+
   skillResolve(x: number, y: number, dirX: number, dirY: number, recipe: SkillPresentationRecipe, particleScale: number): void {
+    this.playKnockbackIdentityAccent(x, y, dirX, dirY, recipe, particleScale);
     const amount = recipe.importance === 'ultimate' ? 34 : recipe.importance === 'skill' ? 18 : 9;
     const speed = recipe.importance === 'ultimate' ? 9 : 5.8;
     switch (recipe.resolve) {
@@ -1152,6 +1203,8 @@ export function resolveCrowdFxResponse(events: readonly SimulationEvent[]): FxRe
       freezeMs = Math.max(freezeMs, 14);
     } else if (event.type === 'weaponHit' && event.damage >= 18) {
       shake = Math.max(shake, 2.5);
+    } else if (event.type === 'knockbackApplied' && event.force >= 8) {
+      shake = Math.max(shake, Math.min(8, 1.5 + (event.force - 8) * 0.24));
     } else if (event.type === 'abilityResolved' && event.slot === 'ultimate') {
       const missileUltimate = isMissileCascadeAbility(event.abilityId);
       shake = Math.max(shake, missileUltimate ? 4 : 7);

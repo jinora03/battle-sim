@@ -7,7 +7,7 @@
   max-width: none;
   margin: 0 0 18px;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--ui-nav-count, 6), minmax(0, 1fr));
   gap: 10px;
 }
 .ui-app-navigation button {
@@ -36,7 +36,6 @@ button:not(.ui-button):not(.secondary):not(.secondary-inline):not(.ghost-button)
 button.accent-button, .battle-start-button { --btn-a: #abfff0; --btn-b: #64dcb3; --btn-glow: rgba(123,255,204,.38); }
 .mode-tabs button.active, .training-slot.selected { --btn-a: #86c8ff; --btn-b: #a47cff; --btn-glow: rgba(140,129,255,.25); }
 
-.battle-command-actions { justify-content: center; }
 .battle-command-actions .ui-button {
   justify-content: center;
   text-align: center;
@@ -66,11 +65,6 @@ button.accent-button, .battle-start-button { --btn-a: #abfff0; --btn-b: #64dcb3;
 .arena-column .battle-objective-bar,
 .arena-column .battle-command-bar { margin-bottom: 14px; }
 
-.debug-metric-grid {
-  grid-template-columns: repeat(3, minmax(0,1fr));
-  gap: 8px;
-  overflow-x: hidden;
-}
 .debug-metric-grid .metric {
   min-width: 0;
   overflow: hidden;
@@ -125,7 +119,7 @@ button.accent-button, .battle-start-button { --btn-a: #abfff0; --btn-b: #64dcb3;
   .ui-app-navigation .ui-nav-label { font-size: 13px; }
 }
 @media (max-width: 1100px) {
-  .ui-app-navigation { grid-template-columns: repeat(6, minmax(72px, 1fr)); gap: 8px; }
+  .ui-app-navigation { grid-template-columns: repeat(var(--ui-nav-count, 6), minmax(0, 1fr)); gap: 8px; }
   .ui-app-navigation button { min-height: 64px; }
   .ui-app-navigation .ui-nav-label { font-size: 12px; }
   .debug-metric-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
@@ -133,10 +127,9 @@ button.accent-button, .battle-start-button { --btn-a: #abfff0; --btn-b: #64dcb3;
 @media (max-width: 900px) {
   .ui-app-navigation {
     position: static !important;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--ui-nav-count, 6), minmax(0, 1fr));
     gap: 6px;
   }
-  .ui-app-navigation button { min-height: 56px; padding: 10px 6px; }
   .ui-app-navigation .ui-nav-label { font-size: 11px; }
   .battle-command-actions {
     display: grid !important;
@@ -158,7 +151,6 @@ button.accent-button, .battle-start-button { --btn-a: #abfff0; --btn-b: #64dcb3;
 }
 @media (max-width: 620px) {
   .ui-app-navigation { gap: 4px; padding: 4px; }
-  .ui-app-navigation button { min-height: 52px; padding: 8px 4px; }
   .ui-app-navigation .ui-nav-label { font-size: 10px; }
   .ui-nav-badge { display: none; }
   .battle-command-actions { grid-template-columns: 1fr; }
@@ -179,9 +171,6 @@ button.accent-button, .battle-start-button { --btn-a: #abfff0; --btn-b: #64dcb3;
 }
 .battle-command-bar {
   align-items: center;
-}
-.battle-command-actions {
-  justify-content: center;
 }
 
 /* Richer semantic colors without everything becoming gray */
@@ -329,47 +318,6 @@ button.accent-button, .battle-start-button { --btn-a: #abfff0; --btn-b: #64dcb3;
 }
 
 /* Stronger function-based button colors. */
-.ui-tone-success,
-button.accent-button,
-.battle-start-button {
-  --btn-a: #7fffd3;
-  --btn-b: #0fbf83;
-  --btn-glow: rgba(49, 255, 180, .42);
-}
-.ui-tone-random {
-  --btn-a: #d1adff;
-  --btn-b: #7147e8;
-  --btn-glow: rgba(171, 104, 255, .44);
-}
-.ui-tone-utility,
-button.secondary,
-button.secondary-inline,
-button.inline-secondary,
-.debug-export {
-  --btn-a: #8fe9ff;
-  --btn-b: #2476c8;
-  --btn-glow: rgba(61, 181, 255, .38);
-}
-.ui-tone-pause,
-.playback-toggle {
-  --btn-a: #ffd184;
-  --btn-b: #b36722;
-  --btn-glow: rgba(255, 168, 70, .36);
-}
-.ui-tone-danger,
-button.danger-button,
-button.loadout-delete {
-  --btn-a: #ff9aa8;
-  --btn-b: #d92f62;
-  --btn-glow: rgba(255, 68, 112, .4);
-}
-.ui-tone-ghost,
-button.ghost-button,
-button.ghost-inline {
-  --btn-a: #86b8dd;
-  --btn-b: #48527f;
-  --btn-glow: rgba(100, 151, 220, .24);
-}
 
 /* Smaller Fight-tab dropdown typography without shrinking touch targets. */
 .view-battle .control-panel select,
@@ -508,62 +456,6 @@ button.ghost-inline {
 
 
 /* v1.1 Stage 7.4 pass 5.4 — skill-card cleanup, analog touch pad, movement mode and refined button variance. */
-.ui-button,
-button.secondary,
-button.secondary-inline,
-button.ghost-button,
-button.ghost-inline,
-button.accent-button,
-button.danger-button,
-button.inline-secondary,
-button.debug-export,
-button.loadout-delete,
-button.playback-toggle {
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.045) 28%, transparent 56%),
-    linear-gradient(135deg, color-mix(in srgb, var(--btn-a, #91efff) 92%, #324966), color-mix(in srgb, var(--btn-b, #8e83ff) 88%, #101827)) !important;
-}
-.ui-tone-success,
-button.accent-button,
-.battle-start-button {
-  --btn-a: #a8f6d2;
-  --btn-b: #4bb891;
-  --btn-glow: rgba(91, 235, 181, .26);
-}
-.ui-tone-random {
-  --btn-a: #d6b8ff;
-  --btn-b: #7f6ae3;
-  --btn-glow: rgba(150, 121, 255, .24);
-}
-.ui-tone-utility,
-button.secondary,
-button.secondary-inline,
-button.inline-secondary,
-.debug-export {
-  --btn-a: #acd9ff;
-  --btn-b: #5d8fcb;
-  --btn-glow: rgba(101, 165, 235, .22);
-}
-.ui-tone-pause,
-.playback-toggle {
-  --btn-a: #f4d39c;
-  --btn-b: #b87f41;
-  --btn-glow: rgba(239, 175, 89, .24);
-}
-.ui-tone-danger,
-button.danger-button,
-button.loadout-delete {
-  --btn-a: #f7b1b7;
-  --btn-b: #d85f78;
-  --btn-glow: rgba(231, 98, 128, .24);
-}
-.ui-tone-ghost,
-button.ghost-button,
-button.ghost-inline {
-  --btn-a: #90b0ce;
-  --btn-b: #54617f;
-  --btn-glow: rgba(107, 140, 192, .16);
-}
 .settings-action-row .ui-button,
 .battle-command-actions .ui-button,
 .match-result-actions .ui-button {
@@ -1034,9 +926,6 @@ button.playback-toggle:hover:not(:disabled) {
 }
 
 /* Stage 7.5 — left-aligned matchup identity and live elimination progress. */
-.battle-objective-bar {
-  grid-template-columns: minmax(210px, .82fr) minmax(280px, 1.25fr) auto;
-}
 .objective-summary {
   justify-self: stretch;
   justify-items: start;
@@ -1060,23 +949,12 @@ button.playback-toggle:hover:not(:disabled) {
   border: 0;
   box-shadow: none;
 }
-.team-progress-lane {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-}
 .team-progress-heading {
   display: flex;
   justify-content: space-between;
   gap: 8px;
   align-items: baseline;
   min-width: 0;
-}
-.team-progress-heading b,
-.team-progress-heading small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .team-progress-heading b {
   color: #dce9f8;
@@ -1283,9 +1161,6 @@ button.playback-toggle:hover:not(:disabled) {
   margin-top: 8px;
 }
 
-.release-settings > .panel-content.settings-group-list {
-  padding: 10px;
-}
 .release-settings .settings-action-row {
   margin-top: 1px;
 }
@@ -1518,7 +1393,6 @@ button.playback-toggle:hover:not(:disabled) {
 
 /* Rebuilt live recipe card. */
 .creator-preview-heading > div > span { display: block; margin-top: 4px; color: #7891a9; font-size: 9px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
-.recipe-preview-stage { height: 340px; }
 .recipe-preview-stage .creator-live-portrait { z-index: 2; animation: creator-float 2.3s ease-in-out infinite, creator-pulse var(--preview-pulse) ease-in-out infinite alternate; }
 .creator-stat-board {
   display: grid;
@@ -1572,14 +1446,9 @@ button.playback-toggle:hover:not(:disabled) {
 .creator-preview-note { margin: 0 14px 16px; color: #758da5; font-size: 9px; line-height: 1.5; text-align: center; }
 
 /* Shared portrait placement inside existing cards. */
-.battle-fighter-preview-portrait .shared-fighter-portrait { transform: scale(.92); }
-.release-fighter-portrait .shared-fighter-portrait { margin: 6px auto; }
 
 @media (max-width: 620px) {
   .shared-fighter-portrait.size-large { --portrait-size: 160px; }
   .recipe-preview-stage { height: 285px; }
-  .creator-stat-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .creator-stat.wide { grid-column: 1 / -1; }
-  .creator-skill-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .creator-skill-summary > span.ultimate { grid-column: 1 / -1; }
 }

@@ -2,9 +2,11 @@ import { SHARED_PRIMARY_ATTACKS } from '../catalogs/sharedPrimaryAttacks';
 import aggressiveBrawlerAiProfileRaw from '../data/ai/aggressive-brawler.json';
 import type { PrimaryAttackDefinition, SkillProjectileDefinition } from '../schemas';
 import { ballastContent } from './ballast';
+import { bladeVanguardContent } from './blade-vanguard';
 import { bomberContent } from './bomber';
 import { frostContent } from './frost';
 import { gunnerContent } from './gunner';
+import { ironLancerContent } from './iron-lancer';
 import { mechContent } from './mech';
 import { pyroContent } from './pyro';
 import { rocketContent } from './rocket';
@@ -28,7 +30,9 @@ export const BUILTIN_FIGHTER_CONTENT: readonly FighterContentBundle[] = [
   gunnerContent,
   rocketContent,
   solarSentinelContent,
-  ballastContent
+  ballastContent,
+  bladeVanguardContent,
+  ironLancerContent
 ];
 
 export const BUILTIN_FIGHTER_RAW: readonly unknown[] = BUILTIN_FIGHTER_CONTENT.map((content) => content.fighter);
@@ -62,6 +66,8 @@ export const BUILTIN_PRIMARY_ATTACKS: readonly PrimaryAttackDefinition[] = [
   thornContent.primaryAttack,
   voidContent.primaryAttack,
   ballastContent.primaryAttack,
+  bladeVanguardContent.primaryAttack,
+  ironLancerContent.primaryAttack,
   ...SHARED_PRIMARY_ATTACKS
 ];
 

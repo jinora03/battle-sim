@@ -16,11 +16,11 @@
     "mass": 1.0,
     "restitution": 0.96,
     "linearDamping": 0.993,
-    "maxSpeed": 13.4
+    "maxSpeed": 16.1
   },
   "stats": {
-    "maxHp": 325,
-    "moveAcceleration": 0.215
+    "maxHp": 350,
+    "moveAcceleration": 0.28
   },
   "aiProfileId": "void-stalker",
   "abilitySlots": {
@@ -37,5 +37,20 @@
   "visualRecipeId": "void-reaper",
   "animationRecipeId": "void-orbit",
   "audioProfileId": "void-deep",
-  "primaryAttackId": "void-scythe"
+  "primaryAttackId": "void-scythe",
+  "moduleSlots": {
+    "offense": [
+      "phase-edge"
+    ],
+    "defense": [
+      "event-horizon-guard"
+    ],
+    "mobility": [
+      "phase-thrusters"
+    ],
+    "utility": [
+      "gravity-lens"
+    ]
+  },
+  "defaultModuleIds": []
 }

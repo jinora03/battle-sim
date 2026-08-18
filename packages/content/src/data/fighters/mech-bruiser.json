@@ -16,11 +16,11 @@
     "mass": 4.2,
     "restitution": 0.66,
     "linearDamping": 0.997,
-    "maxSpeed": 9
+    "maxSpeed": 10.8
   },
   "stats": {
     "maxHp": 510,
-    "moveAcceleration": 0.12
+    "moveAcceleration": 0.156
   },
   "aiProfileId": "heavy-bruiser",
   "abilitySlots": {
@@ -36,5 +36,20 @@
   "visualRecipeId": "mech-bruiser",
   "animationRecipeId": "heavy-mech",
   "audioProfileId": "metal-heavy",
-  "primaryAttackId": "hydraulic-gauntlet"
+  "primaryAttackId": "hydraulic-gauntlet",
+  "moduleSlots": {
+    "offense": [
+      "piston-overdrive"
+    ],
+    "defense": [
+      "reactive-plating"
+    ],
+    "mobility": [
+      "vector-servos"
+    ],
+    "utility": [
+      "magnet-array"
+    ]
+  },
+  "defaultModuleIds": []
 }

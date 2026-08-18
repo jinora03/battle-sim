@@ -15,7 +15,7 @@
           "kind": "wave",
           "radius": 170,
           "damage": 13,
-          "impulse": 7,
+          "impulse": 50,
           "element": "ice",
           "enemiesOnly": true
         },

@@ -1,6 +1,7 @@
 import type { BroadcastLayoutDefinition } from '../broadcastLayout';
 import type { BroadcastScene } from '../broadcastScene';
 import type { BroadcastCameraFrame } from '../cinematicCamera';
+import { getCreatorLayoutGeometry } from '../creatorLayoutGeometry';
 import { LEFT_ACCENT, RIGHT_ACCENT, drawArenaFrame } from './canvasPrimitives';
 import { drawLandscapeFighterPanel, drawResult } from './fighterHud';
 
@@ -16,8 +17,11 @@ export function drawLandscapeBroadcast(
   arenaCanvas: HTMLCanvasElement,
   cameraFrame: BroadcastCameraFrame
 ): void {
-  drawArenaFrame(ctx, arenaCanvas, layout.arena, false, cameraFrame);
-  drawLandscapeFighterPanel(ctx, scene.left, { x: 20, y: 56, width: 320, height: 968 }, LEFT_ACCENT, false);
-  drawLandscapeFighterPanel(ctx, scene.right, { x: 1580, y: 56, width: 320, height: 968 }, RIGHT_ACCENT, true);
-  drawResult(ctx, scene.resultCallout, layout.arena, false);
+  const geometry = getCreatorLayoutGeometry(layout);
+  if (geometry.id !== 'landscape') throw new Error(`Expected landscape creator geometry, received ${geometry.id}.`);
+
+  drawArenaFrame(ctx, arenaCanvas, geometry.arena, false, cameraFrame);
+  drawLandscapeFighterPanel(ctx, scene.left, geometry.fighterPanels.left, LEFT_ACCENT, false);
+  drawLandscapeFighterPanel(ctx, scene.right, geometry.fighterPanels.right, RIGHT_ACCENT, true);
+  drawResult(ctx, scene.resultCallout, geometry.arena, false);
 }

@@ -12,8 +12,8 @@ export const solarSentinelContent: FighterContentBundle = {
   abilities: [solarRushRaw, thunderClapRaw, solarAegisRaw, solarLaserRaw],
   primaryAttack: {
     id: 'solar-punch', name: 'Solar Punch', form: 'gauntlet', behavior: 'melee', category: 'melee', style: 'thrust',
-    range: 185, minRange: 0, damage: 19, knockback: 9, windupTicks: 8, activeTicks: 5, recoveryTicks: 10,
-    cooldownTicks: 31, attackAngleDegrees: 72, visualScale: 1.5, movementAllowed: true, friendlyFire: false,
+    range: 185, minRange: 0, damage: 17, knockback: 9, windupTicks: 8, activeTicks: 5, recoveryTicks: 10,
+    cooldownTicks: 34, attackAngleDegrees: 72, visualScale: 1.5, visualMounts: [{ id: 'center', side: 'center' }], visualGrip: { hand: 'right', x: 0.06 }, movementAllowed: true, friendlyFire: false,
     visualId: 'solar-punch', audioId: 'solar-impact'
   }
 };

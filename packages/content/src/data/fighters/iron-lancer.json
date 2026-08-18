@@ -1,0 +1,43 @@
+{
+  "id": "iron-lancer",
+  "name": "Iron Lancer",
+  "classification": {
+    "archetype": "charger",
+    "elements": ["neutral", "metal"],
+    "traits": ["spear", "momentum", "reach"]
+  },
+  "physics": {
+    "radius": 51,
+    "mass": 2.35,
+    "restitution": 0.74,
+    "linearDamping": 0.996,
+    "maxSpeed": 13.8
+  },
+  "stats": {
+    "maxHp": 440,
+    "moveAcceleration": 0.205
+  },
+  "aiProfileId": "iron-charger",
+  "abilitySlots": {
+    "skill1": "lance-charge",
+    "skill2": "pike-sweep",
+    "skill3": "vault-thrust",
+    "ultimate": "breakthrough-charge"
+  },
+  "moduleSlots": {
+    "offense": ["penetrator-tip"],
+    "defense": ["brace-plating"],
+    "mobility": ["charge-spurs"],
+    "utility": ["counterweight-shaft"]
+  },
+  "defaultModuleIds": [],
+  "resistances": {
+    "neutral": 0.84,
+    "metal": 0.82,
+    "electric": 1.08
+  },
+  "visualRecipeId": "iron-lancer",
+  "animationRecipeId": "iron-lancer",
+  "audioProfileId": "metal-heavy",
+  "primaryAttackId": "war-spear"
+}

@@ -13,15 +13,15 @@
         {
           "type": "EXPLODE",
           "kind": "explosion",
-          "radius": 205,
-          "damage": 14,
-          "impulse": 8,
+          "radius": 220,
+          "damage": 18,
+          "impulse": 46,
           "element": "neutral",
           "enemiesOnly": true
         },
         {
           "type": "APPLY_IMPULSE_SELF",
-          "magnitude": 5
+          "magnitude": 9
         }
       ]
     }

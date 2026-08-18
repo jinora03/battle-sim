@@ -24,7 +24,7 @@ const battle: BattleDefinition = {
 describe('Stage 8.10F export stabilization and broadcast cleanup', () => {
   it('keeps the vertical preset true 9:16 with a large arena and no timer or battle-event strip', () => {
     expect(BROADCAST_LAYOUTS.vertical).toMatchObject({ width: 1080, height: 1920, aspectLabel: '9:16' });
-    expect(BROADCAST_LAYOUTS.vertical.arena.width).toBe(BROADCAST_LAYOUTS.vertical.arena.height);
+    expect(BROADCAST_LAYOUTS.vertical.arena.height).toBe(1150);
     expect(BROADCAST_LAYOUTS.vertical.arena.x + BROADCAST_LAYOUTS.vertical.arena.width / 2).toBe(540);
 
     const vertical = readFileSync(new URL('../packages/video-export/src/renderers/verticalBroadcastRenderer.ts', import.meta.url), 'utf8');
@@ -36,7 +36,8 @@ describe('Stage 8.10F export stabilization and broadcast cleanup', () => {
     expect(vertical).not.toContain('eventCallout');
     expect(vertical).toContain('scene.modeName');
     expect(vertical).toContain('scene.arenaName');
-    expect(vertical).toContain('drawVerticalSkillsPanel(');
+    expect(vertical).toContain('drawVerticalLiveStatus(');
+    expect(vertical).not.toContain('drawVerticalSkillsPanel(');
   });
 
   it('keeps the landscape side cards without permanent header, footer or accent rails', () => {

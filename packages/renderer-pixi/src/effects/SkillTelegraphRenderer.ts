@@ -1,7 +1,12 @@
 import { Container, Graphics, Text } from 'pixi.js';
-import { getAbility } from '@kinetic/content';
+import { getAbility, getMeleeContactProfile, getPrimaryAttack, resolveMeleeContactReach } from '@kinetic/content';
 import type { EntityId, EntitySnapshot, Vec2, WorldSnapshot } from '@kinetic/protocol';
 import { getAbilityCombatVfxProfile, getSkillPresentation, type SkillPresentationRecipe } from '@kinetic/visual-engine';
+import {
+  isMeleeWeaponTelegraph,
+  resolveMeleeTelegraphGeometry,
+  type MeleeTelegraphInput
+} from '../meleeSkillTelegraph';
 
 export class SkillTelegraphRenderer {
   readonly container = new Container();
@@ -80,6 +85,15 @@ export class SkillTelegraphRenderer {
     const radius = recipe.telegraphRadius;
     const angle = castDirection ? Math.atan2(castDirection.y, castDirection.x) : entity.rotation;
     const alpha = 0.22 + pulse * 0.24;
+
+    // Melee weapon skills and weapon charges read as a directional swept blade or
+    // committed forward lane derived from the real contact envelope, never a
+    // centred bubble. Ranged/area abilities keep the generic telegraphs below.
+    const meleeInput = this.resolveMeleeTelegraphInput(entity, recipe, angle, progress);
+    if (meleeInput && isMeleeWeaponTelegraph(meleeInput)) {
+      this.drawMeleeWeaponTelegraph(meleeInput, recipe, pulse);
+      return;
+    }
 
     switch (recipe.telegraph) {
       case 'directional-stream': {
@@ -260,6 +274,142 @@ export class SkillTelegraphRenderer {
       case 'none':
       default:
         break;
+    }
+  }
+
+  private resolveMeleeTelegraphInput(
+    entity: EntitySnapshot,
+    recipe: SkillPresentationRecipe,
+    facingRadians: number,
+    progress: number
+  ): MeleeTelegraphInput | null {
+    const primary = getPrimaryAttack(entity.primaryAttackId);
+    const primaryIsMeleeWeapon = getMeleeContactProfile(primary) !== null;
+    const activateActions = getAbility(recipe.abilityId).triggers
+      .filter((trigger) => trigger.event === 'ON_ACTIVATE')
+      .flatMap((trigger) => trigger.actions);
+    const strike = activateActions.find((action) => action.type === 'MELEE_WEAPON_STRIKE') as unknown as
+      | { sweepDegrees?: number; reachMultiplier?: number }
+      | undefined;
+    const hasMeleeWeaponStrike = strike !== undefined;
+    const sweepDegrees = strike ? Number(strike.sweepDegrees ?? 0) : 0;
+    const reachMultiplier = strike ? Number(strike.reachMultiplier ?? 1) : 1;
+    const isCharge = activateActions.some((action) => action.type === 'APPLY_IMPULSE_SELF');
+    if (!primaryIsMeleeWeapon && !hasMeleeWeaponStrike && !isCharge) return null;
+    return {
+      originX: entity.x,
+      originY: entity.y,
+      facingRadians,
+      fighterRadius: entity.radius,
+      primaryIsMeleeWeapon,
+      hasMeleeWeaponStrike,
+      sweepDegrees,
+      isCharge,
+      knockbackStyle: recipe.knockbackStyle,
+      weaponReach: primaryIsMeleeWeapon
+        ? resolveMeleeContactReach(primary, entity.radius, 0, reachMultiplier)
+        : 0,
+      telegraphRadius: recipe.telegraphRadius,
+      progress
+    };
+  }
+
+  private drawMeleeWeaponTelegraph(
+    input: MeleeTelegraphInput,
+    recipe: SkillPresentationRecipe,
+    pulse: number
+  ): void {
+    const geometry = resolveMeleeTelegraphGeometry(input);
+    const cos = Math.cos(geometry.facingRadians);
+    const sin = Math.sin(geometry.facingRadians);
+    const perpX = -sin;
+    const perpY = cos;
+    const edgeAlpha = 0.2 + pulse * 0.2;
+    const leadAlpha = 0.55 + pulse * 0.28;
+    const tipRadius = 4.5 + pulse * 2.5;
+
+    if (geometry.kind === 'arc') {
+      const samples = 22;
+      // Outer reach arc as a bounded polyline: it spans only the swing, never a full ring.
+      this.graphics.moveTo(
+        geometry.originX + Math.cos(geometry.startAngle) * geometry.outerRadius,
+        geometry.originY + Math.sin(geometry.startAngle) * geometry.outerRadius
+      );
+      for (let i = 1; i <= samples; i += 1) {
+        const sampleAngle = geometry.startAngle + geometry.sweepRadians * (i / samples);
+        this.graphics.lineTo(
+          geometry.originX + Math.cos(sampleAngle) * geometry.outerRadius,
+          geometry.originY + Math.sin(sampleAngle) * geometry.outerRadius
+        );
+      }
+      this.graphics.stroke({ color: recipe.color, width: 2.5 + pulse * 1.5, alpha: edgeAlpha + 0.12 });
+
+      // Radial edges bound the swing volume.
+      for (const edge of [geometry.startAngle, geometry.endAngle]) {
+        this.graphics
+          .moveTo(
+            geometry.originX + Math.cos(edge) * geometry.innerRadius,
+            geometry.originY + Math.sin(edge) * geometry.innerRadius
+          )
+          .lineTo(
+            geometry.originX + Math.cos(edge) * geometry.outerRadius,
+            geometry.originY + Math.sin(edge) * geometry.outerRadius
+          )
+          .stroke({ color: recipe.color, width: 2, alpha: edgeAlpha });
+      }
+
+      // The blade edge sweeping to its current leading position.
+      this.graphics
+        .moveTo(
+          geometry.originX + Math.cos(geometry.leadAngle) * geometry.innerRadius,
+          geometry.originY + Math.sin(geometry.leadAngle) * geometry.innerRadius
+        )
+        .lineTo(geometry.tip.x, geometry.tip.y)
+        .stroke({ color: recipe.accentColor, width: 3.5 + pulse * 1.5, alpha: leadAlpha });
+      this.graphics.circle(geometry.tip.x, geometry.tip.y, tipRadius).fill({ color: recipe.accentColor, alpha: 0.5 + pulse * 0.3 });
+      return;
+    }
+
+    // Lane: a committed forward thrust/charge.
+    const nearX = geometry.originX + cos * input.fighterRadius * 0.2;
+    const nearY = geometry.originY + sin * input.fighterRadius * 0.2;
+    const farX = geometry.originX + cos * geometry.laneLength;
+    const farY = geometry.originY + sin * geometry.laneLength;
+    const halfWidth = geometry.laneHalfWidth;
+    for (const side of [1, -1]) {
+      this.graphics
+        .moveTo(nearX + perpX * halfWidth * side, nearY + perpY * halfWidth * side)
+        .lineTo(farX + perpX * halfWidth * side, farY + perpY * halfWidth * side)
+        .stroke({ color: recipe.color, width: 2, alpha: edgeAlpha });
+    }
+    // Bold forward arrowhead at the tip — a direction pointer that grows as the charge builds.
+    const arrowLength = Math.min(geometry.laneLength * 0.22, input.fighterRadius * 1.2) * (0.6 + geometry.reachProgress * 0.55);
+    const arrowWidth = halfWidth + input.fighterRadius * 0.2;
+    const arrowBackX = geometry.tip.x - cos * arrowLength;
+    const arrowBackY = geometry.tip.y - sin * arrowLength;
+    this.graphics
+      .moveTo(arrowBackX + perpX * arrowWidth, arrowBackY + perpY * arrowWidth)
+      .lineTo(geometry.tip.x, geometry.tip.y)
+      .lineTo(arrowBackX - perpX * arrowWidth, arrowBackY - perpY * arrowWidth)
+      .stroke({ color: recipe.accentColor, width: 3 + pulse * 1.5, alpha: leadAlpha });
+    // Weapon leading line emerging from the fighter and travelling forward to the tip.
+    this.graphics
+      .moveTo(geometry.originX, geometry.originY)
+      .lineTo(geometry.tip.x, geometry.tip.y)
+      .stroke({ color: recipe.accentColor, width: 3.5 + pulse * 1.5, alpha: leadAlpha });
+    this.graphics.circle(geometry.tip.x, geometry.tip.y, tipRadius).fill({ color: recipe.accentColor, alpha: 0.5 + pulse * 0.3 });
+    // Brace chevrons behind the fighter build as the charge winds up.
+    const braceAlpha = 0.16 + geometry.reachProgress * 0.4;
+    for (let i = 0; i < 2; i += 1) {
+      const back = input.fighterRadius * (0.6 + i * 0.44);
+      const wing = input.fighterRadius * (0.34 + i * 0.12);
+      const cx = geometry.originX - cos * back;
+      const cy = geometry.originY - sin * back;
+      this.graphics
+        .moveTo(cx + perpX * wing - cos * wing * 0.6, cy + perpY * wing - sin * wing * 0.6)
+        .lineTo(cx, cy)
+        .lineTo(cx - perpX * wing - cos * wing * 0.6, cy - perpY * wing - sin * wing * 0.6)
+        .stroke({ color: recipe.color, width: 2, alpha: braceAlpha });
     }
   }
 }

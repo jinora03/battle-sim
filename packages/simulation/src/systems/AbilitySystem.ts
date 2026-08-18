@@ -19,6 +19,8 @@ import { AbilityActionExecutor } from './AbilityActionExecutor';
 import type { ArenaCollisionSystem } from './ArenaCollisionSystem';
 import type { CooldownSystem } from './CooldownSystem';
 import type { ProjectileSystem } from './ProjectileSystem';
+import { getChargedMeleeLaunchProfile } from './chargedMeleeLaunchProfile';
+import { resolveChargedMeleeContact } from './meleeContact';
 import {
   normalizeAbilityVector,
   type AbilityCollisionContext,
@@ -189,6 +191,9 @@ export class AbilitySystem {
     for (const abilityId of [...armed.keys()].sort()) {
       const state = armed.get(abilityId);
       if (!state || state.expiresTick <= this.context.getTick()) continue;
+      // Charged melee payoffs are resolved from actual weapon contact below,
+      // never from fighter-body overlap alone.
+      if (getChargedMeleeLaunchProfile(abilityId)) continue;
       const slot = slotByAbility.get(abilityId);
       if (!slot) continue;
       const ability = getAbility(abilityId);
@@ -212,6 +217,92 @@ export class AbilitySystem {
       this.actions.triggerPassives(context.self, 'ON_ABILITY_RESOLVED', triggerContext, events);
     }
     if (armed.size === 0) this.armedAbilities.delete(context.self);
+  }
+
+  /**
+   * Resolve charged melee payoffs from the held weapon envelope after movement.
+   * The old body-collision callback intentionally ignores these abilities so a
+   * visible sword/spear/halberd/gauntlet contact is required for damage/launch.
+   */
+  resolveArmedMeleeContacts(events: SimulationEvent[]): void {
+    const tick = this.context.getTick();
+    for (const self of [...this.armedAbilities.keys()].sort((a, b) => a - b)) {
+      const armed = this.armedAbilities.get(self);
+      if (!armed || !this.world.isAlive(self)) continue;
+      for (const abilityId of [...armed.keys()].sort()) {
+        const state = armed.get(abilityId);
+        if (!state || state.expiresTick <= tick || !getChargedMeleeLaunchProfile(abilityId)) continue;
+
+        // Keep the visible held weapon on the same committed line used by
+        // gameplay contact during the post-cast drive.
+        this.world.rotation[self] = Math.atan2(state.direction.y, state.direction.x);
+
+        const candidates: EntityId[] = [];
+        if (state.targetId !== null && this.world.isAlive(state.targetId)) candidates.push(state.targetId);
+        for (const id of this.world.activeIdsView()) {
+          if (id === self || id === state.targetId || !this.world.isAlive(id)) continue;
+          if (this.world.getTeam(id) === this.world.getTeam(self)) continue;
+          candidates.push(id);
+        }
+
+        for (const target of candidates) {
+          const contact = resolveChargedMeleeContact(this.world, self, target, state.direction);
+          if (!contact) continue;
+          const relativeX = (this.world.vx[self] ?? 0) - (this.world.vx[target] ?? 0);
+          const relativeY = (this.world.vy[self] ?? 0) - (this.world.vy[target] ?? 0);
+          const impact = Math.max(3.5, relativeX * state.direction.x + relativeY * state.direction.y);
+          const ability = getAbility(abilityId);
+          const triggerContext: AbilityTriggerContext = {
+            self,
+            target,
+            impact,
+            normal: state.direction,
+            abilityId
+          };
+          const fired = this.actions.executeTriggers(ability, 'ON_COLLISION', triggerContext, events);
+          if (!fired) continue;
+
+          armed.delete(abilityId);
+          const fighter = getFighter(this.world.getFighterId(self));
+          const collisionActions = ability.triggers
+            .filter((trigger) => trigger.event === 'ON_COLLISION')
+            .flatMap((trigger) => trigger.actions);
+          const weaponDamage = collisionActions.reduce(
+            (sum, action) => sum + (action.type === 'DEAL_DAMAGE_TARGET' ? action.amount : 0),
+            0
+          );
+          const weaponKnockback = collisionActions.reduce(
+            (sum, action) => sum + (action.type === 'APPLY_KNOCKBACK_TARGET' ? action.magnitude : 0),
+            0
+          );
+          events.push({
+            type: 'weaponHit',
+            tick,
+            sourceId: self,
+            targetId: target,
+            weaponId: fighter.primaryAttackId,
+            position: contact.position,
+            damage: weaponDamage,
+            knockback: weaponKnockback,
+            presentation: 'impact'
+          });
+          const slot = (['skill1', 'skill2', 'skill3', 'ultimate'] as AbilitySlot[])
+            .find((candidate) => fighter.abilitySlots[candidate] === abilityId) ?? 'skill1';
+          events.push({
+            type: 'abilityResolved',
+            tick,
+            entityId: self,
+            abilityId,
+            slot,
+            position: contact.position,
+            direction: state.direction
+          });
+          this.actions.triggerPassives(self, 'ON_ABILITY_RESOLVED', triggerContext, events);
+          break;
+        }
+      }
+      if (armed.size === 0) this.armedAbilities.delete(self);
+    }
   }
 
   triggerBattleStartPassives(events: SimulationEvent[]): void {
@@ -288,8 +379,9 @@ export class AbilitySystem {
           : beamTicks < SOLAR_LASER_RAMP_STAGE_TICKS * 2
             ? 1
             : 2;
-        const damage = rampStage === 0 ? 2.2 : rampStage === 1 ? 3.5 : 5.2;
-        this.context.dealDamage(entityId, targetId, damage, 'fire', events);
+        const baseDamage = rampStage === 0 ? 2.2 : rampStage === 1 ? 3.5 : 5.2;
+        const moduleDamageMultiplier = this.world.getLoadout(entityId).abilityDamageMultiplier[SOLAR_LASER_ABILITY_ID] ?? 1;
+        this.context.dealDamage(entityId, targetId, baseDamage * moduleDamageMultiplier, 'fire', events);
       }
     }
 
@@ -338,7 +430,7 @@ export class AbilitySystem {
     );
 
     if (hasCollisionTrigger) {
-      this.armCollisionAbility(entityId, ability);
+      this.armCollisionAbility(entityId, ability, target, direction);
       return;
     }
 
@@ -359,14 +451,21 @@ export class AbilitySystem {
     );
   }
 
-  private armCollisionAbility(entityId: EntityId, ability: AbilityDefinition): void {
+  private armCollisionAbility(
+    entityId: EntityId,
+    ability: AbilityDefinition,
+    targetId: EntityId | null,
+    direction: Vec2
+  ): void {
     const activation = getAbilityActivationProfile(ability, this.world.getFighterId(entityId));
     if (activation.collisionWindowTicks <= 0) return;
     const armed = this.armedAbilities.get(entityId) ?? new Map<string, ArmedAbilityState>();
     armed.set(ability.id, {
       abilityId: ability.id,
       expiresTick: this.context.getTick() + activation.collisionWindowTicks,
-      totalTicks: activation.collisionWindowTicks
+      totalTicks: activation.collisionWindowTicks,
+      targetId,
+      direction: { ...direction }
     });
     this.armedAbilities.set(entityId, armed);
   }

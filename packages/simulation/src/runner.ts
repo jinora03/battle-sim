@@ -41,7 +41,7 @@ import { PrimaryAttackSystem } from './systems/PrimaryAttackSystem';
 import { CombatResourceSystem } from './systems/CombatResourceSystem';
 import { ModuleEffectSystem } from './systems/ModuleEffectSystem';
 
-export const ENGINE_VERSION = '1.3.45-stage8.11g';
+export const ENGINE_VERSION = '1.3.46-stage8.12';
 export { CONTENT_VERSION };
 export const SIM_TICK_RATE = 60;
 export const SIM_TICK_MS = 1000 / SIM_TICK_RATE;
@@ -464,6 +464,7 @@ export class LocalSimulationRunner implements SimulationRunner {
     this.projectileSystem.update(events);
     this.arenaCollisions.resolveBounds(events);
     this.arenaCollisions.resolveObstacleCollisions(events);
+    this.abilitySystem.resolveArmedMeleeContacts(events);
     this.fighterCollisionSystem.resolve(events);
     this.abilitySystem.enforceSolarLaserLocks();
     this.numericStateRecoverySystem.recover(this.stepMetrics);

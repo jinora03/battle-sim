@@ -41,7 +41,7 @@
         {
           "type": "RADIAL_IMPULSE",
           "radius": 455,
-          "magnitude": 7,
+          "magnitude": 10,
           "enemiesOnly": true,
           "direction": "pull"
         },
@@ -50,7 +50,7 @@
           "kind": "wave",
           "radius": 455,
           "damage": 12,
-          "impulse": 4,
+          "impulse": 7,
           "element": "void",
           "enemiesOnly": true
         }

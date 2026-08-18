@@ -41,7 +41,7 @@
     },
     {
       "slot": "ultimate",
-      "everyTicks": 720,
+      "everyTicks": 840,
       "phaseTicks": 170,
       "minDistance": 90,
       "maxDistance": 1080,

@@ -7,7 +7,7 @@ import { QUICK_BATTLES, type QuickBattle } from './features/home/quickBattles';
 import { NeonButton } from './ui/NeonUI';
 import { useHorizontalDragScroll } from './ui/useHorizontalDragScroll';
 
-export type ReleaseView = 'home' | 'battle' | 'training' | 'roster' | 'creator' | 'profile';
+export type ReleaseView = 'home' | 'battle' | 'training' | 'roster' | 'intelligence' | 'creator' | 'profile';
 
 export function ReleaseHome({ profile, fighters, arenaCount, modeCount, onNavigate, onStart }: {
   profile: PlayerProfile;
@@ -44,7 +44,7 @@ export function ReleaseHome({ profile, fighters, arenaCount, modeCount, onNaviga
     <section className="release-home">
       <div className="release-hero-card">
         <div className="release-hero-copy">
-          <p className="eyebrow">Kinetic Battle Engine 1.1 · Stage 7 + Stage 8</p>
+          <p className="eyebrow">Kinetic Battle Engine v1.3.46 · Stage 8.12</p>
           <h2>Build a fighter. Enter the arena. Let physics decide.</h2>
           <p>Control a modular combatant directly, watch deterministic AI battles, build custom fighters, or scale the same engine into team fights and mass skirmishes.</p>
           <div className="release-hero-actions">
@@ -56,7 +56,7 @@ export function ReleaseHome({ profile, fighters, arenaCount, modeCount, onNaviga
         </div>
         <div className="release-core-orbit" aria-hidden="true">
           <i className="orbit-ring one" /><i className="orbit-ring two" /><i className="orbit-ring three" />
-          <strong>1.1</strong><span>MOBILE READY</span>
+          <strong>v1.3.46</strong><span>MOBILE READY</span>
         </div>
       </div>
 

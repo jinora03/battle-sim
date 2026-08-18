@@ -10,9 +10,22 @@
       "event": "ON_ACTIVATE",
       "conditions": [],
       "actions": [
-        { "type": "HEAL_SELF", "amount": 38 },
-        { "type": "APPLY_STATUS_SELF", "statusId": "fortified", "durationTicks": 190 },
-        { "type": "RADIAL_IMPULSE", "radius": 150, "magnitude": 6, "enemiesOnly": true, "direction": "push" }
+        {
+          "type": "HEAL_SELF",
+          "amount": 38
+        },
+        {
+          "type": "APPLY_STATUS_SELF",
+          "statusId": "fortified",
+          "durationTicks": 190
+        },
+        {
+          "type": "RADIAL_IMPULSE",
+          "radius": 150,
+          "magnitude": 12,
+          "enemiesOnly": true,
+          "direction": "push"
+        }
       ]
     }
   ]

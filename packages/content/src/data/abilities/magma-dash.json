@@ -102,7 +102,7 @@
         },
         {
           "type": "APPLY_KNOCKBACK_TARGET",
-          "magnitude": 8.5
+          "magnitude": 60
         },
         {
           "type": "REMOVE_STATUS_SELF",

@@ -12,8 +12,8 @@ export const ballastContent: FighterContentBundle = {
   abilities: [featherfallRaw, downbeatRaw, deadWeightRaw, lastCallRaw],
   primaryAttack: {
     id: 'skip-stone', name: 'Skip Stone', form: 'void', behavior: 'ranged', category: 'ranged', style: 'shot',
-    range: 740, minRange: 80, damage: 9, knockback: 6, windupTicks: 8, activeTicks: 1, recoveryTicks: 12,
-    cooldownTicks: 52, attackAngleDegrees: 16, visualScale: 1.45, movementAllowed: true, friendlyFire: false,
+    range: 740, minRange: 80, damage: 10, knockback: 6, windupTicks: 8, activeTicks: 1, recoveryTicks: 12,
+    cooldownTicks: 48, attackAngleDegrees: 16, visualScale: 1.45, movementAllowed: true, friendlyFire: false,
     visualId: 'skip-stone', audioId: 'void-cut',
     projectile: {
       speed: 14.2,

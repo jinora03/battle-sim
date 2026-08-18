@@ -1,4 +1,4 @@
-import { AiController, PlayerController } from '@kinetic/controllers';
+import { AiController, PlayerController, type AiDecisionDebug } from '@kinetic/controllers';
 import type { BattleDefinition, ReplayData, SimulationEvent, WorldSnapshot } from '@kinetic/protocol';
 import { ReplayRecorder } from '@kinetic/replay';
 import { checksumSnapshot, LocalSimulationRunner, SIM_TICK_RATE } from '@kinetic/simulation';
@@ -33,6 +33,8 @@ export interface HeadlessSeedSimulationOptions extends SeedReplayGenerationOptio
   requireBattleEnd?: boolean;
   onInitialSnapshot?(snapshot: WorldSnapshot): void;
   onEvents?(events: readonly SimulationEvent[]): void;
+  /** Optional read-only AI action-selection telemetry. */
+  onAiDecision?(decision: AiDecisionDebug, tick: number): void;
 }
 
 export interface HeadlessSeedSimulationResult {
@@ -83,7 +85,7 @@ export async function runHeadlessSeedSimulation(
     throw new SeedReplayGenerationError(`The configured battle cannot be simulated: ${detail}`, 'invalid-battle');
   }
 
-  const ai = new AiController(false);
+  const ai = new AiController(false, options.onAiDecision ?? null);
   const player = new PlayerController();
   const recorder = recordReplay ? new ReplayRecorder(workingBattle) : null;
   const initialSnapshot = runner.getRuntimeSnapshot();

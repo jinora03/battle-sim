@@ -1,0 +1,49 @@
+{
+  "id": "iron-charger",
+  "reactionTicks": 6,
+  "aggression": 0.98,
+  "preferredDistance": 205,
+  "retreatHealthRatio": 0.04,
+  "steeringStrength": 1.06,
+  "movementStyle": "charger",
+  "orbitStrength": 0.08,
+  "wallAvoidance": 0.86,
+  "targeting": "nearest",
+  "allySeparation": 0.78,
+  "targetSpread": 0.72,
+  "targetStickiness": 0.96,
+  "abilityUsage": [
+    {
+      "slot": "skill1",
+      "everyTicks": 600,
+      "phaseTicks": 66,
+      "minDistance": 300,
+      "maxDistance": 720,
+      "priority": -10
+    },
+    {
+      "slot": "skill2",
+      "everyTicks": 180,
+      "phaseTicks": 92,
+      "minDistance": 0,
+      "maxDistance": 320,
+      "priority": 18
+    },
+    {
+      "slot": "skill3",
+      "everyTicks": 230,
+      "phaseTicks": 138,
+      "minDistance": 70,
+      "maxDistance": 420,
+      "priority": 22
+    },
+    {
+      "slot": "ultimate",
+      "everyTicks": 780,
+      "phaseTicks": 250,
+      "minDistance": 340,
+      "maxDistance": 860,
+      "priority": 18
+    }
+  ]
+}

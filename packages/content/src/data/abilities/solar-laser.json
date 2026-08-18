@@ -2,7 +2,7 @@
   "id": "solar-laser",
   "name": "Solar Eye Beams",
   "slot": "ultimate",
-  "cooldownTicks": 720,
+  "cooldownTicks": 840,
   "castTicks": 210,
   "castMovementMultiplier": 0,
   "activation": {

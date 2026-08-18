@@ -19,9 +19,6 @@
     flex: 1 1 calc(50% - 6px);
     min-width: 0;
   }
-  .battle-command-actions .setup-jump {
-    display: inline-flex !important;
-  }
   .mobile-battle-dock,
   .training-mobile-dock {
     bottom: calc(64px + var(--safe-bottom));

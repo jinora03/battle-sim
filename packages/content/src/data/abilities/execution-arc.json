@@ -1,0 +1,35 @@
+{
+  "id": "execution-arc",
+  "name": "Execution Arc",
+  "slot": "ultimate",
+  "cooldownTicks": 650,
+  "castTicks": 32,
+  "castMovementMultiplier": 0.18,
+  "activation": {
+    "intent": "offensive",
+    "targeting": "direction",
+    "priority": 118,
+    "minRange": 0,
+    "maxRange": 305,
+    "requiresLineOfSight": true,
+    "aimToleranceDegrees": 42
+  },
+  "triggers": [
+    {
+      "event": "ON_ACTIVATE",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "MELEE_WEAPON_STRIKE",
+          "amount": 36,
+          "knockback": 50,
+          "element": "metal",
+          "enemiesOnly": true,
+          "sweepDegrees": 224,
+          "reachMultiplier": 1.25,
+          "widthMultiplier": 1.22
+        }
+      ]
+    }
+  ]
+}
