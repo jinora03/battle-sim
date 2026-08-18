@@ -17,13 +17,13 @@ const battle: BattleDefinition = {
 };
 
 describe('Stage 8.10G platform viewing polish', () => {
-  it('restores a fuller Shorts composition with a large arena, readable matchup cards and skills below', () => {
+  it('uses the arena-first Shorts composition with compact live status below', () => {
     const vertical = BROADCAST_LAYOUTS.vertical;
     expect(vertical).toMatchObject({ width: 1080, height: 1920, aspectLabel: '9:16' });
-    expect(vertical.arena.width).toBe(vertical.arena.height);
+    expect(vertical.arena.height).toBe(Math.round(1000 * 1.15));
     expect(vertical.arena.width).toBeGreaterThanOrEqual(980);
     expect(vertical.arena.y).toBeLessThan(400);
-    expect(vertical.arena.y + vertical.arena.height).toBeLessThanOrEqual(1400);
+    expect(vertical.arena.y + vertical.arena.height).toBeLessThanOrEqual(1500);
 
     const geometry = getCreatorLayoutGeometry(vertical);
     expect(geometry.id).toBe('vertical');
@@ -31,12 +31,15 @@ describe('Stage 8.10G platform viewing polish', () => {
     expect(geometry.fighterHeaders.left.width).toBeGreaterThanOrEqual(480);
     expect(geometry.fighterHeaders.right.width).toBe(geometry.fighterHeaders.left.width);
     expect(geometry.versus.x).toBe(vertical.width / 2);
-    expect(geometry.skillsPanels.left.y).toBeGreaterThan(vertical.arena.y + vertical.arena.height);
+    expect(geometry.liveStatusPanels.left.y).toBeGreaterThan(vertical.arena.y + vertical.arena.height);
+    expect(geometry.liveStatusPanels.left.height).toBeLessThan(140);
 
     const source = readFileSync(new URL('../packages/video-export/src/renderers/verticalBroadcastRenderer.ts', import.meta.url), 'utf8');
     expect(source).toContain('scene.modeName');
     expect(source).toContain('scene.arenaName');
-    expect(source).toContain('drawVerticalSkillsPanel(');
+    expect(source).toContain('drawVerticalLiveStatus(');
+    expect(source).toContain('drawLiveMatchupOverlay(');
+    expect(source).not.toContain('drawVerticalSkillsPanel(');
     expect(source).not.toContain('timerLabel');
     expect(source).not.toContain('eventCallout');
   });
@@ -62,7 +65,7 @@ describe('Stage 8.10G platform viewing polish', () => {
     expect(hud).toContain('fighter.weaponName');
     expect(hud).toContain('if (fighter.resource)');
     expect(hud).toContain('drawLandscapeResource(');
-    expect(hud).toContain("ability.slot !== 'basic'");
+    expect(hud).toContain('resolveCreatorLiveStatus(fighter)');
     expect(hud).toContain("ability.phase === 'casting' || ability.phase === 'armed'");
   });
 

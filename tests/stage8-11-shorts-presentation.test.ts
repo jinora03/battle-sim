@@ -35,9 +35,9 @@ describe('creator Shorts matchup intro and fighter nameplates', () => {
     expect(resolveMatchupHook(water, pyro)).toBe('WATER vs FIRE');
     expect(resolveMatchupHook(pyro, frost)).toBe('FIRE vs ICE');
     expect(resolveMatchupHook(pyro, mech)).toBe('FIRE vs STEEL');
-    expect(resolveMatchupHook(rocket, gunner)).toBe('MISSILES vs BULLETS');
-    expect(resolveMatchupHook(bomber, water)).toBe('EXPLOSIONS vs WATER');
-    expect(resolveMatchupHook(bomber, ballast)).toBe('EXPLOSIONS vs MASS');
+    expect(resolveMatchupHook(rocket, gunner)).toBe('MISSILES vs GUNS');
+    expect(resolveMatchupHook(bomber, water)).toBe('BOMBS vs WATER');
+    expect(resolveMatchupHook(bomber, ballast)).toBe('BOMBS vs MASS');
     expect(resolveMatchupHook(volt, thorn)).toBe('SPEED vs NATURE');
     expect(resolveMatchupHook(thorn, volt)).toBe('NATURE vs SPEED');
   });
@@ -49,15 +49,17 @@ describe('creator Shorts matchup intro and fighter nameplates', () => {
     )).toBe('ARCANE vs CUSTOM BRUTE');
   });
 
-  it('uses a 1.5 second creator intro and preserves the disabled zero-frame path', () => {
+  it('starts Shorts on the live battle by default while preserving manual intro support', () => {
     const sixty = createStage810hExportSettings({}, { preset: 'shorts', fps: 60 });
     const thirty = createStage810hExportSettings({}, { preset: 'shorts', fps: 30 });
+    const manual = createStage810hExportSettings({}, { preset: 'shorts', fps: 60, intro: true });
     const disabled = createStage810hExportSettings({}, { preset: 'shorts', fps: 60, intro: false });
     const labelsOff = createStage810hExportSettings({}, { preset: 'shorts', fps: 60, fighterNameplates: false });
 
-    expect(sixty.creator.introSeconds).toBe(1.5);
-    expect(calculateCreatorIntroFrameCount(sixty)).toBe(90);
-    expect(calculateCreatorIntroFrameCount(thirty)).toBe(45);
+    expect(sixty.creator.introSeconds).toBe(0);
+    expect(calculateCreatorIntroFrameCount(sixty)).toBe(0);
+    expect(calculateCreatorIntroFrameCount(thirty)).toBe(0);
+    expect(calculateCreatorIntroFrameCount(manual)).toBe(90);
     expect(calculateCreatorIntroFrameCount(disabled)).toBe(0);
     expect(labelsOff.creator.fighterNameplatesEnabled).toBe(false);
   });

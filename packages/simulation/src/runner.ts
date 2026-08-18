@@ -464,6 +464,7 @@ export class LocalSimulationRunner implements SimulationRunner {
     this.projectileSystem.update(events);
     this.arenaCollisions.resolveBounds(events);
     this.arenaCollisions.resolveObstacleCollisions(events);
+    this.abilitySystem.resolveArmedMeleeContacts(events);
     this.fighterCollisionSystem.resolve(events);
     this.abilitySystem.enforceSolarLaserLocks();
     this.numericStateRecoverySystem.recover(this.stepMetrics);

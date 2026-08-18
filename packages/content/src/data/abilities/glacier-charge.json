@@ -3,8 +3,8 @@
   "name": "Glacier Charge",
   "slot": "skill1",
   "cooldownTicks": 175,
-  "castTicks": 18,
-  "castMovementMultiplier": 0.35,
+  "castTicks": 42,
+  "castMovementMultiplier": 0.3,
   "triggers": [
     {
       "event": "ON_ACTIVATE",
@@ -12,12 +12,12 @@
       "actions": [
         {
           "type": "APPLY_IMPULSE_SELF",
-          "magnitude": 9.5
+          "magnitude": 12
         },
         {
           "type": "APPLY_STATUS_SELF",
           "statusId": "cryo-guard",
-          "durationTicks": 80
+          "durationTicks": 98
         }
       ]
     },
@@ -56,6 +56,6 @@
     }
   ],
   "activation": {
-    "collisionWindowTicks": 80
+    "collisionWindowTicks": 98
   }
 }

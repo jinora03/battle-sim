@@ -1,3 +1,5 @@
+export { BLADE_VANGUARD_VFX_PROFILES } from './bladeVanguardVfx';
+export { IRON_LANCER_VFX_PROFILES } from './ironLancerVfx';
 export { FROST_WARDEN_VFX_PROFILES } from './frostWardenVfx';
 export { ROCKET_VANGUARD_VFX_PROFILES } from './rocketVanguardVfx';
 export { THORN_COLOSSUS_VFX_PROFILES } from './thornColossusVfx';

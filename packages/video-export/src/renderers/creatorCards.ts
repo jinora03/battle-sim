@@ -1,7 +1,7 @@
 import type { BroadcastLayoutDefinition } from '../broadcastLayout';
 import type { BroadcastScene } from '../broadcastScene';
 import type { CreatorBattleSummary } from '../types';
-import { resolveMatchupHook } from '../creatorMatchupHook';
+import { resolveCreatorFighterName, resolveMatchupHook } from '../creatorMatchupHook';
 import { drawBroadcastFighterPortrait } from './fighterPortrait';
 import {
   LEFT_ACCENT,
@@ -222,7 +222,7 @@ function drawIntroNameplate(
 ): void {
   ctx.save();
   ctx.globalAlpha *= progress;
-  drawFittedText(ctx, fighter.name, x, nameY, vertical ? 430 : 590, vertical ? 56 : 60, 950, TEXT_PRIMARY, 'center');
+  drawFittedText(ctx, vertical ? resolveCreatorFighterName(fighter) : fighter.name, x, nameY, vertical ? 430 : 590, vertical ? 56 : 60, 950, TEXT_PRIMARY, 'center');
   drawText(
     ctx,
     fighter.identity.toUpperCase(),
@@ -298,7 +298,7 @@ function drawVerticalSummary(
   drawPanel(ctx, x, y, width, height, 34, 'rgba(5, 13, 27, 0.988)', victoryAccent);
 
   drawText(ctx, summary.winningTeam === null ? 'BATTLE COMPLETE' : 'VICTORY', centerX, y + 58, 20, 950, READY_ACCENT, 'center', 2.2);
-  drawFittedText(ctx, summary.winnerName, centerX, y + 122, width - 100, 54, 950, TEXT_PRIMARY, 'center');
+  drawFittedText(ctx, winner ? resolveCreatorFighterName(winner) : summary.winnerName, centerX, y + 122, width - 100, 54, 950, TEXT_PRIMARY, 'center');
 
   if (winner) {
     drawWinnerPortrait(ctx, winner, centerX, y + 275, 126, winnerFacing);

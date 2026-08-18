@@ -4,5 +4,6 @@ export * from './loadouts';
 export { ATTACK_FORM_BEHAVIORS, isAttackCombinationAllowed } from './validation/attackCatalog';
 export * from './registries/contentRegistry';
 export * from './profiles/activationProfiles';
+export * from './profiles/meleeContactProfiles';
 
 export const CONTENT_VERSION = '1.3.46-stage8.12';

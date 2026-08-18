@@ -11,9 +11,6 @@ export function drawBroadcastFighterPortrait(
   const { visual } = fighter;
   const accent = color(visual.accentColor);
   const aura = color(visual.auraColor);
-  const body = color(visual.bodyColor);
-  const dark = color(visual.bodyDarkColor);
-  const core = color(visual.coreColor);
 
   ctx.save();
   const glow = ctx.createRadialGradient(centerX, centerY, radius * 0.25, centerX, centerY, radius * 1.45);
@@ -31,7 +28,51 @@ export function drawBroadcastFighterPortrait(
   ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
   ctx.stroke();
 
-  const shellRadius = radius * 0.72;
+  drawFighterBodyCore(ctx, fighter, centerX, centerY, radius * 0.72, facing);
+  ctx.restore();
+}
+
+/**
+ * Draws only the authored fighter body treatment without the portrait ring.
+ * This is used by the simplified vertical matchup header so the card reads as
+ * a fighter identity, not as another weapon/icon module.
+ */
+export function drawBroadcastFighterBody(
+  ctx: CanvasRenderingContext2D,
+  fighter: BroadcastFighterView,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  facing: 'left' | 'right'
+): void {
+  const aura = color(fighter.visual.auraColor);
+  ctx.save();
+  const glow = ctx.createRadialGradient(centerX, centerY, radius * 0.18, centerX, centerY, radius * 1.3);
+  glow.addColorStop(0, withAlpha(aura, 0.24));
+  glow.addColorStop(0.62, withAlpha(aura, 0.09));
+  glow.addColorStop(1, withAlpha(aura, 0));
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius * 1.34, 0, Math.PI * 2);
+  ctx.fill();
+  drawFighterBodyCore(ctx, fighter, centerX, centerY, radius, facing);
+  ctx.restore();
+}
+
+function drawFighterBodyCore(
+  ctx: CanvasRenderingContext2D,
+  fighter: BroadcastFighterView,
+  centerX: number,
+  centerY: number,
+  shellRadius: number,
+  facing: 'left' | 'right'
+): void {
+  const { visual } = fighter;
+  const accent = color(visual.accentColor);
+  const body = color(visual.bodyColor);
+  const dark = color(visual.bodyDarkColor);
+  const core = color(visual.coreColor);
+
   const shellGradient = ctx.createRadialGradient(
     centerX - shellRadius * 0.26,
     centerY - shellRadius * 0.34,
@@ -49,7 +90,7 @@ export function drawBroadcastFighterPortrait(
   ctx.fill();
 
   ctx.strokeStyle = withAlpha(accent, 0.58);
-  ctx.lineWidth = Math.max(4, radius * 0.025);
+  ctx.lineWidth = Math.max(4, shellRadius * 0.035);
   ctx.stroke();
 
   if (visual.shape === 'mech') drawMechDetails(ctx, centerX, centerY, shellRadius, accent);
@@ -59,7 +100,7 @@ export function drawBroadcastFighterPortrait(
 
   if (visual.horns) drawHorns(ctx, centerX, centerY, shellRadius, facing, accent);
 
-  const coreRadius = radius * 0.19;
+  const coreRadius = shellRadius * 0.264;
   const coreGradient = ctx.createRadialGradient(
     centerX - coreRadius * 0.32,
     centerY - coreRadius * 0.35,
@@ -76,9 +117,8 @@ export function drawBroadcastFighterPortrait(
   ctx.arc(centerX, centerY, coreRadius, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = withAlpha('#ffffff', 0.74);
-  ctx.lineWidth = Math.max(2, radius * 0.014);
+  ctx.lineWidth = Math.max(2, shellRadius * 0.02);
   ctx.stroke();
-  ctx.restore();
 }
 
 function drawMechDetails(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, accent: string): void {

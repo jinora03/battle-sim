@@ -10,17 +10,29 @@
     "targeting": "direction",
     "priority": 66,
     "minRange": 70,
-    "maxRange": 400,
+    "maxRange": 240,
     "requiresLineOfSight": true,
-    "aimToleranceDegrees": 40
+    "aimToleranceDegrees": 30
   },
   "triggers": [
     {
       "event": "ON_ACTIVATE",
       "conditions": [],
       "actions": [
-        { "type": "APPLY_IMPULSE_SELF", "magnitude": 15 },
-        { "type": "DIRECTIONAL_DAMAGE", "range": 255, "arcDegrees": 48, "amount": 16, "knockback": 24, "element": "metal", "enemiesOnly": true }
+        {
+          "type": "APPLY_IMPULSE_SELF",
+          "magnitude": 15
+        },
+        {
+          "type": "MELEE_WEAPON_STRIKE",
+          "amount": 16,
+          "knockback": 24,
+          "element": "metal",
+          "enemiesOnly": true,
+          "sweepDegrees": 18,
+          "reachMultiplier": 1.34,
+          "widthMultiplier": 1.12
+        }
       ]
     }
   ]

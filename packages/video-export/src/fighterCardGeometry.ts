@@ -1,6 +1,6 @@
 import type { BroadcastRect } from './broadcastLayout';
 
-export type FighterCardTextAlign = 'left' | 'right';
+export type FighterCardTextAlign = 'left' | 'center' | 'right';
 
 export interface FighterIdentityGeometry {
   textX: number;
@@ -28,9 +28,19 @@ export interface FighterHpGeometry {
 
 export interface VerticalFighterCardGeometry {
   padding: number;
-  identity: FighterIdentityGeometry;
-  weapon: FighterWeaponGeometry | null;
-  hp: FighterHpGeometry;
+  name: {
+    textX: number;
+    textAlign: FighterCardTextAlign;
+    maxWidth: number;
+    y: number;
+  };
+  portrait: {
+    centerX: number;
+    centerY: number;
+    radius: number;
+    facing: 'left' | 'right';
+  };
+  hp: BroadcastRect;
 }
 
 export interface LandscapeFighterCardGeometry {
@@ -42,50 +52,48 @@ export interface LandscapeFighterCardGeometry {
 }
 
 /**
- * Resolves the internal geometry of a vertical creator fighter card. The
- * renderer owns colors and typography; this module owns placement and
- * mirroring so weapon/identity/HP spacing has one source of truth.
+ * Resolves the compact vertical creator fighter card. The fighter body and
+ * viewer-facing name form one centered mirrored group, with only a thin HP
+ * bar retained underneath. Weapon/archetype metadata stays out of Shorts.
  */
 export function getVerticalFighterCardGeometry(
   rect: BroadcastRect,
-  alignRight: boolean,
-  showWeapon: boolean
+  alignRight: boolean
 ): VerticalFighterCardGeometry {
   const padding = 28;
-  const weaponColumnWidth = showWeapon ? 168 : 0;
-  const textX = alignRight ? rect.x + rect.width - padding : rect.x + padding;
-  const textAlign: FighterCardTextAlign = alignRight ? 'right' : 'left';
-  const weaponCenterX = alignRight
-    ? rect.x + padding + weaponColumnWidth / 2
-    : rect.x + rect.width - padding - weaponColumnWidth / 2;
+  const portraitRadius = 58;
+  const nameWidth = 150;
+  const groupGap = 18;
+  const portraitDiameter = portraitRadius * 2;
+  const groupWidth = nameWidth + groupGap + portraitDiameter;
+  const groupLeft = rect.x + (rect.width - groupWidth) / 2;
+
+  const nameCenterX = alignRight
+    ? groupLeft + portraitDiameter + groupGap + nameWidth / 2
+    : groupLeft + nameWidth / 2;
+  const portraitCenterX = alignRight
+    ? groupLeft + portraitRadius
+    : groupLeft + nameWidth + groupGap + portraitRadius;
 
   return {
     padding,
-    identity: {
-      textX,
-      textAlign,
-      maxWidth: rect.width - padding * 2 - weaponColumnWidth,
-      nameY: rect.y + 74,
-      identityY: rect.y + 120
+    name: {
+      textX: nameCenterX,
+      textAlign: 'center',
+      maxWidth: nameWidth,
+      y: rect.y + 102
     },
-    weapon: showWeapon ? {
-      centerX: weaponCenterX,
-      previewY: rect.y + 64,
-      previewSize: 92,
-      labelY: rect.y + 138,
-      labelWidth: 116,
-      fallbackLabelY: rect.y + 138,
-      fallbackLabelWidth: 116
-    } : null,
+    portrait: {
+      centerX: portraitCenterX,
+      centerY: rect.y + 86,
+      radius: portraitRadius,
+      facing: alignRight ? 'left' : 'right'
+    },
     hp: {
-      labelY: null,
-      bar: {
-        x: rect.x + padding,
-        y: rect.y + 150,
-        width: rect.width - padding * 2,
-        height: 22
-      },
-      valueY: rect.y + 184
+      x: rect.x + 42,
+      y: rect.y + rect.height - 30,
+      width: rect.width - 84,
+      height: 12
     }
   };
 }

@@ -4,10 +4,10 @@ export const FROST_WARDEN_AUDIO_PROFILES = [
   {
     abilityId: 'glacier-charge', palette: 'ice', hierarchy: 'skill',
     layers: {
-      anticipation: { intent: 'transformation', intensity: 0.7, variant: 'frozen-pressure' },
-      activation: { intent: 'knockback', intensity: 0.94, durationSeconds: 0.22, variant: 'crystalline-fracture' },
-      sustain: { intent: 'channel', intensity: 0.58, durationSeconds: 0.24, delaySeconds: 0.03, variant: 'frozen-pressure' },
-      release: { intent: 'status-application', intensity: 0.66, durationSeconds: 0.18, delaySeconds: 0.14, variant: 'crystalline-fracture' }
+      anticipation: { intent: 'transformation', intensity: 0.84, variant: 'frozen-pressure' },
+      activation: { intent: 'knockback', intensity: 1.04, durationSeconds: 0.24, variant: 'crystalline-fracture' },
+      sustain: { intent: 'channel', anchor: 'activated', intensity: 0.66, durationSeconds: 0.42, delaySeconds: 0.05, variant: 'frozen-pressure' },
+      release: { intent: 'knockback', intensity: 0.86, durationSeconds: 0.22, delaySeconds: 0.07, variant: 'crystalline-fracture' }
     }
   },
   {

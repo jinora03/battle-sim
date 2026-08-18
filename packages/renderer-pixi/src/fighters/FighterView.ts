@@ -24,6 +24,26 @@ import {
   resolveWeaponVisualMountPose,
   type ResolvedWeaponVisualMount
 } from '../weaponMounts';
+import {
+  resolveFighterAnatomy,
+  resolveFighterArmPose,
+  resolveHeldWeaponPoint,
+  resolveHeldWeaponPose,
+  type HeldWeaponPose
+} from '../fighterAnatomy';
+import {
+  getChargePresentationProfile,
+  resolveChargeBodyPose,
+  resolveChargeReleasePose,
+  resolveChargeShake,
+  resolveChargeTravelAbility,
+  resolveChargeTravelWeaponPose,
+  resolveChargeWeaponPose,
+  resolveChargeWeaponTipScale,
+  type ChargePresentationProfile
+} from '../chargePresentation';
+import { resolveMeleeSkillWeaponPose } from '../meleeSkillPresentation';
+import { resolveSwingSmear, resolveThrustStreak } from '../meleeStrikeSmear';
 import type { VisualLod } from './types';
 
 function moduleIdsKey(moduleIds: readonly string[]): string {
@@ -41,7 +61,11 @@ export class FighterView {
   private readonly damageOverlay = new Graphics();
   private readonly core = new Graphics();
   private readonly aura = new Graphics();
+  private readonly meleeArmRig = new Graphics();
   private readonly weaponRig = new Container();
+  private readonly chargeFx = new Graphics();
+  private readonly weaponChargeFx = new Graphics();
+  private readonly meleeAttackFx = new Graphics();
   private readonly weaponMountViews: Array<{ mount: ResolvedWeaponVisualMount; graphics: Graphics }>;
   private readonly ultimateWeapon = new Graphics();
   private readonly velocityVector = new Graphics();
@@ -54,6 +78,8 @@ export class FighterView {
   private readonly motion: MotionRecipe;
   private readonly weaponDefinition: PrimaryAttackDefinition;
   private readonly equippedModuleIdsKey: string;
+  private weaponGeometryScale = 1;
+  private heldWeaponPose: HeldWeaponPose | null = null;
   private impact = 0;
   private damageFlash = 0;
   private knockbackRotation = 0;
@@ -83,10 +109,14 @@ export class FighterView {
       this.statusIndicators.graphics,
       this.mountedAttachments.graphics,
       this.aura,
+      this.chargeFx,
       this.body,
       this.core,
       this.damageOverlay,
+      this.meleeArmRig,
       this.weaponRig,
+      this.meleeAttackFx,
+      this.weaponChargeFx,
       this.ultimateWeapon,
       this.healthRing.graphics,
       this.resourceRing.graphics,
@@ -116,6 +146,12 @@ export class FighterView {
       view.graphics.scale.set(1);
     }
     this.ultimateWeapon.clear();
+    this.chargeFx.clear();
+    this.weaponChargeFx.clear();
+    this.meleeAttackFx.clear();
+    this.meleeArmRig.clear();
+    this.meleeAttackFx.clear();
+    this.heldWeaponPose = null;
   }
 
   setProfile(profileId: PresentationSettings['renderProfile']): void {
@@ -161,6 +197,11 @@ export class FighterView {
     const cast = entity.abilities.find((ability) => ability.source === 'ability' && ability.phase === 'casting');
     const castRecipe = cast ? getSkillPresentation(cast.abilityId) : null;
     const castProgress = cast && cast.castTotalTicks > 0 ? 1 - cast.castRemainingTicks / cast.castTotalTicks : 0;
+    const chargeProfile = cast ? getChargePresentationProfile(cast.abilityId) : null;
+    const chargeRelease = resolveChargeReleasePose(entity.statuses, entity.radius);
+    const travelChargeAbilityId = resolveChargeTravelAbility(entity.fighterId, entity.statuses, entity.abilities);
+    const travelChargeProfile = travelChargeAbilityId ? getChargePresentationProfile(travelChargeAbilityId) : null;
+    const travelChargeRecipe = travelChargeAbilityId ? getSkillPresentation(travelChargeAbilityId) : null;
     const castPulse = cast ? Math.sin(castProgress * Math.PI * 8) : 0;
     let castScaleX = 1;
     let castScaleY = 1;
@@ -204,6 +245,23 @@ export class FighterView {
         case 'snap': castScaleX = 1.12; castScaleY = 0.92; break;
       }
     }
+    if (chargeProfile) {
+      const chargeBody = resolveChargeBodyPose(chargeProfile, castProgress);
+      castScaleX = chargeBody.scaleX;
+      castScaleY = chargeBody.scaleY;
+      rotationOffset = chargeBody.rotation;
+      const shake = resolveChargeShake(
+        chargeProfile,
+        cast?.castDirection ?? null,
+        elapsedSeconds,
+        castProgress,
+        entity.radius,
+        reducedMotion
+      );
+      jitterX += shake.x;
+      jitterY += shake.y;
+    }
+    this.updateChargePresentation(castRecipe, chargeProfile, castProgress, elapsedSeconds, reducedMotion);
     this.impact *= 0.86;
     const knockbackRotation = this.updateKnockbackReaction(elapsedSeconds, reducedMotion);
 
@@ -224,8 +282,35 @@ export class FighterView {
     const stabilizeRangedAim = attackFacing !== null
       && (this.weaponDefinition.form === 'rifle' || this.weaponDefinition.form === 'launcher');
     this.weaponRig.rotation = stabilizeRangedAim && this.profileId !== 'debug' ? -presentationRotation : 0;
+    // The Gunner rotary-cannon is a sibling of weaponRig, so it must cancel
+    // presentation-only body wobble independently. Otherwise Kill Zone rounds
+    // fly on the authoritative aim line while the visible ult barrel drifts.
+    this.ultimateWeapon.rotation = this.profileId !== 'debug' ? -presentationRotation : 0;
     this.container.scale.set(pose.scaleX * castScaleX * victoryPulse, pose.scaleY * castScaleY * victoryPulse);
-    this.updateWeaponPose(weaponAttack, reducedMotion);
+    this.updateWeaponPose(
+      weaponAttack,
+      reducedMotion,
+      chargeProfile,
+      castProgress,
+      chargeRelease,
+      travelChargeAbilityId,
+      cast?.abilityId ?? null
+    );
+    this.updateHeldArmRig();
+    this.updateMeleeAttackPresentation(
+      weaponAttack,
+      cast?.abilityId ?? null,
+      castProgress,
+      reducedMotion
+    );
+    this.updateWeaponChargePresentation(
+      castRecipe ?? travelChargeRecipe,
+      chargeProfile ?? travelChargeProfile,
+      cast ? castProgress : travelChargeProfile ? 1 : 0,
+      elapsedSeconds,
+      reducedMotion,
+      chargeRelease
+    );
     this.updateProfiledUltimateWeapon(entity, elapsedSeconds, reducedMotion);
     this.damageFlash *= reducedMotion ? 0.84 : 0.925;
     const damagePulse = Math.max(0, this.damageFlash);
@@ -259,6 +344,298 @@ export class FighterView {
     this.container.destroy({ children: true });
   }
 
+  private updateChargePresentation(
+    recipe: ReturnType<typeof getSkillPresentation> | null,
+    profile: ChargePresentationProfile | null,
+    progress: number,
+    elapsedSeconds: number,
+    reducedMotion: boolean
+  ): void {
+    this.chargeFx.clear();
+    if (!recipe || !profile || this.lod === 'army') return;
+
+    const r = this.entity.radius;
+    const t = Math.max(0, Math.min(1, progress));
+    const build = 0.22 + t * 0.78;
+    const pulse = reducedMotion ? 0.9 : 0.86 + Math.sin(elapsedSeconds * 15) * 0.14;
+
+    // Keep the body cue minimal: the charge should read from the weapon, not
+    // from soft circular trails behind the fighter.
+    this.chargeFx.circle(0, 0, r * (1.03 + t * 0.08))
+      .stroke({ color: recipe.color, width: Math.max(2.5, r * 0.06), alpha: 0.16 + build * 0.2 });
+    this.chargeFx.circle(0, 0, r * (0.8 + t * 0.08))
+      .fill({ color: recipe.color, alpha: 0.025 + build * 0.035 });
+
+    // Rear tension is shown with clean directional streaks/chevrons rather
+    // than bubble-like circles. This preserves charge readability while keeping
+    // the silhouette aggressive.
+    const rearStreaks = profile.kind === 'brace' ? 4 : profile.kind === 'sweep' ? 3 : 2;
+    for (let index = 0; index < rearStreaks; index += 1) {
+      const lane = index - (rearStreaks - 1) / 2;
+      const startX = -r * (0.92 + index * 0.26 + t * 0.12);
+      const endX = startX - r * (0.32 + t * 0.22);
+      const y = lane * r * 0.22;
+      const alpha = Math.max(0.16, 0.28 + build * 0.24 - index * 0.04);
+      this.chargeFx.moveTo(startX, y).lineTo(endX, y)
+        .stroke({ color: index % 2 === 0 ? recipe.accentColor : recipe.color, width: Math.max(2, r * 0.042), alpha });
+      this.chargeFx.moveTo(endX, y)
+        .lineTo(endX + r * 0.12, y - r * 0.08)
+        .moveTo(endX, y)
+        .lineTo(endX + r * 0.12, y + r * 0.08)
+        .stroke({ color: recipe.accentColor, width: Math.max(1.5, r * 0.032), alpha: alpha * 0.82 });
+    }
+
+    // A small front spearhead/pressure wedge makes the release direction clear.
+    const front = r * (0.92 + t * 0.18);
+    this.chargeFx.moveTo(front, 0)
+      .lineTo(front - r * 0.24, -r * 0.12)
+      .moveTo(front, 0)
+      .lineTo(front - r * 0.24, r * 0.12)
+      .stroke({ color: recipe.accentColor, width: Math.max(2.5, r * 0.055), alpha: 0.36 + build * 0.42 });
+
+    // Held-weapon charges get a clear forward arrow so viewers can read the
+    // intended lane before release. Because +X is anatomy-front, this remains
+    // aligned with the same direction the weapon and simulation use.
+    if (this.weaponDefinition.visualGrip) {
+      const arrowStart = r * 1.08;
+      const arrowEnd = r * (1.72 + t * 0.48);
+      const arrowAlpha = 0.28 + build * 0.62;
+      const head = r * (0.24 + t * 0.08);
+      this.chargeFx.moveTo(arrowStart, 0).lineTo(arrowEnd, 0)
+        .stroke({ color: recipe.accentColor, width: Math.max(4, r * 0.085), alpha: arrowAlpha * 0.72 });
+      this.chargeFx.moveTo(arrowEnd, 0)
+        .lineTo(arrowEnd - head, -head * 0.62)
+        .moveTo(arrowEnd, 0)
+        .lineTo(arrowEnd - head, head * 0.62)
+        .stroke({ color: 0xffffff, width: Math.max(3, r * 0.065), alpha: arrowAlpha });
+    }
+
+    if (profile.kind === 'electric') {
+      const tail = r * (1.45 + t * 0.55);
+      this.chargeFx.moveTo(-r * 0.72, -r * 0.1)
+        .lineTo(-tail * 0.68, r * 0.08)
+        .lineTo(-tail, -r * 0.06)
+        .stroke({ color: recipe.accentColor, width: Math.max(2, r * 0.05), alpha: 0.62 * build });
+    } else if (profile.kind === 'unstable') {
+      for (let index = 0; index < 3; index += 1) {
+        const angle = (reducedMotion ? index * 2.1 : elapsedSeconds * (3.1 + index) + index * 2.1);
+        const distance = r * (0.88 + t * 0.24);
+        this.chargeFx.circle(Math.cos(angle) * distance, Math.sin(angle) * distance, r * 0.065)
+          .fill({ color: recipe.accentColor, alpha: 0.36 * build });
+      }
+    } else if (profile.kind === 'gravity') {
+      this.chargeFx.circle(0, 0, r * (1.3 + t * 0.1))
+        .stroke({ color: recipe.accentColor, width: Math.max(2, r * 0.05), alpha: 0.34 * build });
+      this.chargeFx.circle(0, 0, r * (1.48 - t * 0.12))
+        .stroke({ color: recipe.color, width: Math.max(2, r * 0.04), alpha: 0.22 * build });
+    } else if (profile.kind === 'heavy' || profile.kind === 'brace') {
+      this.chargeFx.moveTo(-r * 0.7, -r * 0.68).lineTo(-r * (1.15 + t * 0.18), -r * 0.82)
+        .stroke({ color: recipe.accentColor, width: Math.max(2.5, r * 0.05), alpha: 0.3 * build });
+      this.chargeFx.moveTo(-r * 0.7, r * 0.68).lineTo(-r * (1.15 + t * 0.18), r * 0.82)
+        .stroke({ color: recipe.accentColor, width: Math.max(2.5, r * 0.05), alpha: 0.3 * build });
+    }
+  }
+
+  private updateMeleeAttackPresentation(
+    attack: EntitySnapshot['weaponAttack'],
+    castAbilityId: string | null,
+    castProgress: number,
+    reducedMotion: boolean
+  ): void {
+    this.meleeAttackFx.clear();
+    const grip = this.weaponDefinition.visualGrip;
+    const pose = this.heldWeaponPose;
+    if (!grip || !pose || this.lod === 'army') return;
+
+    const r = this.entity.radius;
+    const form = this.weaponDefinition.form;
+    const swingSkill = castAbilityId === 'crosscut'
+      || castAbilityId === 'duelist-step'
+      || castAbilityId === 'execution-arc'
+      || castAbilityId === 'pike-sweep';
+    const thrustSkill = castAbilityId === 'vault-thrust';
+    const basicSwing = attack?.style === 'swing' && attack.phase === 'active';
+    const basicThrust = attack?.style === 'thrust' && attack.phase === 'active';
+    if (!basicSwing && !basicThrust && !swingSkill && !thrustSkill) return;
+
+    const progress = attack
+      ? 1 - attack.remainingTicks / Math.max(1, attack.totalTicks)
+      : Math.max(0, Math.min(1, castProgress));
+    const intensity = reducedMotion ? 0.72 : 0.72 + Math.sin(progress * Math.PI) * 0.28;
+    const tipScale = form === 'sword' ? 2.16 : form === 'spear' ? 1.78 : resolveChargeWeaponTipScale(form);
+    const tip = resolveHeldWeaponPoint(
+      this.weaponDefinition,
+      r,
+      pose,
+      tipScale,
+      0,
+      this.weaponGeometryScale
+    );
+    const hand = pose.hand;
+    const dx = tip.x - hand.x;
+    const dy = tip.y - hand.y;
+    const length = Math.max(1, Math.hypot(dx, dy));
+    const angle = Math.atan2(dy, dx);
+
+    if (basicSwing || swingSkill) {
+      const ultimateBoost = castAbilityId === 'execution-arc' ? 1.22 : 1;
+      const sweepRadius = length * ultimateBoost;
+      const smear = resolveSwingSmear({
+        handX: hand.x,
+        handY: hand.y,
+        bladeAngle: angle,
+        reach: sweepRadius,
+        progress,
+        intensity,
+        samples: reducedMotion ? 3 : 6
+      });
+      // Faint outer swoosh bounding the arc the blade has actually crossed.
+      this.meleeAttackFx.arc(hand.x, hand.y, sweepRadius, angle - smear.spanRadians, angle)
+        .stroke({ color: this.visual.accentColor, width: Math.max(8, r * 0.17), alpha: 0.2 * intensity });
+      // Ghost blades fanned across the swept arc; oldest drawn first so the bright edge sits on top.
+      for (let i = smear.slices.length - 1; i >= 1; i -= 1) {
+        const slice = smear.slices[i];
+        if (!slice) continue;
+        this.meleeAttackFx
+          .moveTo(hand.x, hand.y)
+          .lineTo(hand.x + Math.cos(slice.angle) * slice.radius, hand.y + Math.sin(slice.angle) * slice.radius)
+          .stroke({ color: this.visual.coreColor, width: Math.max(3, r * 0.075), alpha: 0.5 * slice.alpha });
+      }
+      // Bright leading blade edge and a concise tip flash.
+      this.meleeAttackFx.moveTo(hand.x, hand.y).lineTo(smear.leadTip.x, smear.leadTip.y)
+        .stroke({ color: 0xffffff, width: Math.max(2.5, r * 0.06), alpha: 0.82 * intensity });
+      this.meleeAttackFx.circle(smear.leadTip.x, smear.leadTip.y, Math.max(3, r * 0.09))
+        .fill({ color: 0xffffff, alpha: 0.5 * intensity });
+      return;
+    }
+
+    const nx = Math.cos(angle);
+    const ny = Math.sin(angle);
+    const extension = r * (thrustSkill ? 0.82 : 0.58);
+    const streak = resolveThrustStreak({
+      handX: hand.x,
+      handY: hand.y,
+      thrustAngle: angle,
+      reach: length,
+      extension,
+      progress,
+      intensity,
+      samples: reducedMotion ? 3 : 5
+    });
+    // Receding motion-blur echoes behind the lunging point; oldest first.
+    for (let i = streak.segments.length - 1; i >= 1; i -= 1) {
+      const seg = streak.segments[i];
+      if (!seg) continue;
+      this.meleeAttackFx
+        .moveTo(hand.x + nx * seg.fromDist, hand.y + ny * seg.fromDist)
+        .lineTo(hand.x + nx * seg.toDist, hand.y + ny * seg.toDist)
+        .stroke({ color: this.visual.accentColor, width: Math.max(6, r * 0.14), alpha: 0.4 * seg.alpha });
+    }
+    // Bright thrust core out to the leading tip.
+    this.meleeAttackFx.moveTo(hand.x, hand.y).lineTo(streak.tip.x, streak.tip.y)
+      .stroke({ color: this.visual.coreColor, width: Math.max(4, r * 0.085), alpha: 0.66 * intensity });
+    const head = r * 0.2;
+    this.meleeAttackFx.moveTo(streak.tip.x, streak.tip.y)
+      .lineTo(streak.tip.x - nx * head - ny * head * 0.6, streak.tip.y - ny * head + nx * head * 0.6)
+      .moveTo(streak.tip.x, streak.tip.y)
+      .lineTo(streak.tip.x - nx * head + ny * head * 0.6, streak.tip.y - ny * head - nx * head * 0.6)
+      .stroke({ color: 0xffffff, width: Math.max(2.5, r * 0.06), alpha: 0.82 * intensity });
+    this.meleeAttackFx.circle(streak.tip.x, streak.tip.y, Math.max(2.5, r * 0.07))
+      .fill({ color: 0xffffff, alpha: 0.5 * intensity });
+  }
+
+  private updateWeaponChargePresentation(
+    recipe: ReturnType<typeof getSkillPresentation> | null,
+    profile: ChargePresentationProfile | null,
+    progress: number,
+    elapsedSeconds: number,
+    reducedMotion: boolean,
+    release: ReturnType<typeof resolveChargeReleasePose>
+  ): void {
+    this.weaponChargeFx.clear();
+    const grip = this.weaponDefinition.visualGrip;
+    const pose = this.heldWeaponPose;
+    if (!recipe || !profile || !grip || !pose || this.lod === 'army') return;
+
+    const r = this.entity.radius;
+    const t = Math.max(0, Math.min(1, progress));
+    const build = 0.18 + t * 0.82;
+    const weaponTipScale = resolveChargeWeaponTipScale(this.weaponDefinition.form);
+    const hand = pose.hand;
+    const tip = resolveHeldWeaponPoint(
+      this.weaponDefinition,
+      r,
+      pose,
+      weaponTipScale,
+      0,
+      this.weaponGeometryScale
+    );
+    const dx = tip.x - hand.x;
+    const dy = tip.y - hand.y;
+    const length = Math.max(1, Math.hypot(dx, dy));
+    const nx = dx / length;
+    const ny = dy / length;
+    const sx = -ny;
+    const sy = nx;
+    const pulse = reducedMotion ? 0.92 : 0.82 + Math.sin(elapsedSeconds * (12 + profile.shakeFrequency * 0.08)) * 0.18;
+
+    // The weapon itself is the charge meter: the read should stay on the blade,
+    // spear, halberd, scythe, or gauntlet rather than behind-body circles.
+    this.weaponChargeFx.moveTo(hand.x, hand.y).lineTo(tip.x, tip.y)
+      .stroke({ color: recipe.color, width: Math.max(11, r * (0.19 + t * 0.1)), alpha: 0.1 + build * 0.24 });
+    this.weaponChargeFx.moveTo(hand.x, hand.y).lineTo(tip.x, tip.y)
+      .stroke({ color: recipe.accentColor, width: Math.max(4, r * 0.085), alpha: 0.38 + build * 0.56 });
+    this.weaponChargeFx.moveTo(hand.x, hand.y).lineTo(tip.x, tip.y)
+      .stroke({ color: 0xffffff, width: Math.max(1.6, r * 0.03), alpha: 0.18 + build * 0.28 });
+
+    // Use converging charge streaks into the weapon instead of circular beads.
+    const gatherCount = profile.kind === 'brace' ? 6 : profile.kind === 'sweep' ? 5 : 4;
+    for (let index = 0; index < gatherCount; index += 1) {
+      const cycle = (elapsedSeconds * (0.72 + index * 0.05) + index / gatherCount + t * 0.9) % 1;
+      const along = 0.12 + cycle * 0.82;
+      const wobble = reducedMotion ? 0 : Math.sin(elapsedSeconds * (7 + index) + index * 1.4) * r * 0.055 * (1 - t * 0.6);
+      const px = hand.x + dx * along + sx * wobble;
+      const py = hand.y + dy * along + sy * wobble;
+      const rear = r * (0.18 + (1 - along) * 0.22);
+      const alpha = (0.22 + build * 0.48) * (0.55 + along * 0.45);
+      this.weaponChargeFx.moveTo(px - nx * rear, py - ny * rear).lineTo(px, py)
+        .stroke({ color: index % 2 === 0 ? recipe.accentColor : recipe.color, width: Math.max(2, r * 0.038), alpha });
+    }
+
+    // The loaded tip becomes unmistakable shortly before release.
+    const tipRadius = r * (0.13 + t * 0.1) * (0.94 + pulse * 0.14);
+    this.weaponChargeFx.circle(tip.x, tip.y, tipRadius * 1.9)
+      .stroke({ color: recipe.color, width: Math.max(2.5, r * 0.05), alpha: 0.24 + build * 0.42 });
+    this.weaponChargeFx.circle(tip.x, tip.y, tipRadius)
+      .fill({ color: recipe.accentColor, alpha: 0.48 + build * 0.46 });
+
+    if (t > 0.52) {
+      const pressure = (t - 0.52) / 0.48;
+      const rear = r * (0.54 + pressure * 0.34);
+      this.weaponChargeFx.moveTo(hand.x - nx * rear + sx * r * 0.14, hand.y - ny * rear + sy * r * 0.14)
+        .lineTo(hand.x + nx * r * 0.06, hand.y + ny * r * 0.06)
+        .stroke({ color: recipe.accentColor, width: Math.max(2.4, r * 0.055), alpha: 0.28 + pressure * 0.54 });
+      this.weaponChargeFx.moveTo(hand.x - nx * rear - sx * r * 0.14, hand.y - ny * rear - sy * r * 0.14)
+        .lineTo(hand.x + nx * r * 0.04, hand.y + ny * r * 0.04)
+        .stroke({ color: recipe.color, width: Math.max(2, r * 0.05), alpha: 0.24 + pressure * 0.48 });
+    }
+
+    // During the short authored follow-through, draw a hard directional streak
+    // through the real weapon. It visually connects charge -> weapon release ->
+    // target launch instead of letting the VFX end before the strike happens.
+    if (release) {
+      const releaseAlpha = Math.max(0, 1 - release.progress);
+      const streakStartX = hand.x - nx * r * 0.4;
+      const streakStartY = hand.y - ny * r * 0.4;
+      const streakEndX = tip.x + nx * r * (0.55 + (1 - release.progress) * 0.45);
+      const streakEndY = tip.y + ny * r * (0.55 + (1 - release.progress) * 0.45);
+      this.weaponChargeFx.moveTo(streakStartX, streakStartY).lineTo(streakEndX, streakEndY)
+        .stroke({ color: recipe.accentColor, width: Math.max(6, r * 0.13), alpha: 0.58 * releaseAlpha });
+      this.weaponChargeFx.moveTo(hand.x, hand.y).lineTo(streakEndX, streakEndY)
+        .stroke({ color: 0xffffff, width: Math.max(2.5, r * 0.055), alpha: 0.7 * releaseAlpha });
+    }
+  }
+
   private updateProfiledUltimateWeapon(entity: EntitySnapshot, elapsedSeconds: number, reducedMotion: boolean): void {
     this.ultimateWeapon.clear();
     const rig = entity.statuses
@@ -269,7 +646,10 @@ export class FighterView {
     const r = entity.radius;
     const spin = reducedMotion ? 0 : elapsedSeconds * 28;
     const barrelStart = r * 0.7;
-    const barrelEnd = r * 2.45;
+    // Match the persistent ult barrel tip to the same muzzle distance used by
+    // Gunner's rifle/projectile spawn path instead of maintaining a second
+    // hard-coded length that can drift out of alignment.
+    const barrelEnd = r * (this.weaponDefinition.muzzleOffsetScale ?? 2.55);
     const outline = 0xf7fcff;
     const body = 0x1a252f;
     const brass = 0xffbd58;
@@ -316,17 +696,27 @@ export class FighterView {
     return Math.max(-Math.PI * 2.25, Math.min(Math.PI * 2.25, this.knockbackRotation));
   }
 
-  private updateWeaponPose(attack: EntitySnapshot['weaponAttack'], reducedMotion: boolean): void {
+  private updateWeaponPose(
+    attack: EntitySnapshot['weaponAttack'],
+    reducedMotion: boolean,
+    chargeProfile: ChargePresentationProfile | null,
+    chargeProgress: number,
+    chargeRelease: ReturnType<typeof resolveChargeReleasePose>,
+    travelChargeAbilityId: string | null,
+    castAbilityId: string | null
+  ): void {
     const r = this.entity.radius;
+    this.heldWeaponPose = null;
     const progress = attack ? 1 - attack.remainingTicks / Math.max(1, attack.totalTicks) : 0;
     const eased = progress * progress * (3 - 2 * progress);
 
     for (const view of this.weaponMountViews) {
       const mountPose = resolveWeaponVisualMountPose(view.mount, r);
-      let x = mountPose.x;
-      let y = mountPose.y;
-      let rotation = mountPose.rotation;
-      const sideSwing = view.mount.side === 'left' ? -0.82 : 1;
+      const heldBy = this.weaponDefinition.visualGrip?.hand;
+      let motionX = 0;
+      let motionY = 0;
+      let rotation = this.weaponDefinition.visualGrip ? 0 : mountPose.rotation;
+      const sideSwing = heldBy === 'left' || (!heldBy && view.mount.side === 'left') ? -0.82 : 1;
       view.graphics.scale.set(mountPose.scale);
 
       if (attack && !reducedMotion) {
@@ -339,7 +729,7 @@ export class FighterView {
                 : 1.5 - eased * 1.5);
             break;
           case 'thrust':
-            x += attack.phase === 'windup'
+            motionX += attack.phase === 'windup'
               ? -r * 0.28 * eased
               : attack.phase === 'active'
                 ? r * 0.78 * Math.sin(progress * Math.PI)
@@ -356,7 +746,7 @@ export class FighterView {
           case 'spin':
           case 'orbit':
             rotation += attack.phase === 'active'
-              ? progress * Math.PI * 5 * (view.mount.side === 'left' ? -1 : 1)
+              ? progress * Math.PI * 5 * (heldBy === 'left' || (!heldBy && view.mount.side === 'left') ? -1 : 1)
               : attack.phase === 'windup'
                 ? -0.45 * eased
                 : 0;
@@ -367,12 +757,12 @@ export class FighterView {
               ? Math.max(0, Math.sin(progress * Math.PI * rounds * 2))
               : 0;
             rotation -= recoilPulse * 0.025;
-            x -= r * 0.2 * recoilPulse;
+            motionX -= r * 0.2 * recoilPulse;
             break;
           }
           case 'shot':
           case 'stream':
-            x -= attack.phase === 'active' ? r * (this.weaponDefinition.form === 'launcher' ? 0.42 : 0.26) * Math.sin(progress * Math.PI * 2) : 0;
+            motionX -= attack.phase === 'active' ? r * (this.weaponDefinition.form === 'launcher' ? 0.42 : 0.26) * Math.sin(progress * Math.PI * 2) : 0;
             break;
           case 'lob':
             rotation += attack.phase === 'windup'
@@ -380,13 +770,98 @@ export class FighterView {
               : attack.phase === 'active'
                 ? -0.95 + eased * 1.9
                 : 0.95 - eased * 0.95;
-            y -= attack.phase === 'windup' ? r * 0.2 * eased : 0;
+            motionY -= attack.phase === 'windup' ? r * 0.2 * eased : 0;
             break;
         }
       }
 
-      view.graphics.position.set(x, y);
-      view.graphics.rotation = rotation;
+      const meleeSkillPose = this.weaponDefinition.visualGrip
+        ? resolveMeleeSkillWeaponPose(castAbilityId, chargeProgress, r)
+        : null;
+      if (meleeSkillPose) {
+        motionX += meleeSkillPose.x;
+        motionY += meleeSkillPose.y;
+        rotation += meleeSkillPose.rotation;
+      } else if (chargeProfile && this.weaponDefinition.visualGrip) {
+        const chargeWeapon = resolveChargeWeaponPose(chargeProfile, chargeProgress, r);
+        motionX += chargeWeapon.x;
+        motionY += chargeWeapon.y;
+        rotation += chargeWeapon.rotation;
+      } else if (chargeRelease && this.weaponDefinition.visualGrip) {
+        motionX += chargeRelease.x;
+        motionY += chargeRelease.y;
+        rotation += chargeRelease.rotation;
+      } else if (travelChargeAbilityId && this.weaponDefinition.visualGrip) {
+        const travelPose = resolveChargeTravelWeaponPose(travelChargeAbilityId, r);
+        motionX += travelPose.x;
+        motionY += travelPose.y;
+        rotation += travelPose.rotation;
+      }
+
+      const heldPose = resolveHeldWeaponPose(
+        this.weaponDefinition,
+        r,
+        rotation,
+        mountPose.scale * this.weaponGeometryScale,
+        { x: motionX, y: motionY }
+      );
+      if (heldPose) {
+        if (!this.heldWeaponPose) this.heldWeaponPose = heldPose;
+        view.graphics.position.set(heldPose.x, heldPose.y);
+        view.graphics.rotation = heldPose.rotation;
+      } else {
+        view.graphics.position.set(mountPose.x + motionX, mountPose.y + motionY);
+        view.graphics.rotation = rotation;
+      }
+    }
+  }
+
+  private updateHeldArmRig(): void {
+    this.meleeArmRig.clear();
+    const grip = this.weaponDefinition.visualGrip;
+    const pose = this.heldWeaponPose;
+    if (!grip || !pose || this.lod === 'army') return;
+
+    const r = this.entity.radius;
+    const anatomy = resolveFighterAnatomy(r);
+    const outline = this.visual.bodyDarkColor;
+    const armColor = this.visual.accentColor;
+    const handColor = this.visual.coreColor;
+    const armWidth = Math.max(5, r * 0.18);
+    const outlineWidth = armWidth + Math.max(2, r * 0.07);
+
+    const drawArm = (side: 'left' | 'right', shoulder: { x: number; y: number }, hand: { x: number; y: number }) => {
+      const arm = resolveFighterArmPose(shoulder, hand, side, r);
+      this.meleeArmRig.moveTo(arm.shoulder.x, arm.shoulder.y)
+        .lineTo(arm.elbow.x, arm.elbow.y)
+        .lineTo(arm.hand.x, arm.hand.y)
+        .stroke({ color: outline, width: outlineWidth, alpha: 0.9 });
+      this.meleeArmRig.moveTo(arm.shoulder.x, arm.shoulder.y)
+        .lineTo(arm.elbow.x, arm.elbow.y)
+        .lineTo(arm.hand.x, arm.hand.y)
+        .stroke({ color: armColor, width: armWidth, alpha: 0.96 });
+      this.meleeArmRig.circle(arm.elbow.x, arm.elbow.y, Math.max(3, r * 0.08))
+        .fill({ color: armColor, alpha: 0.98 });
+      this.meleeArmRig.circle(arm.hand.x, arm.hand.y, Math.max(3.5, r * 0.1))
+        .fill({ color: handColor, alpha: 0.98 });
+    };
+
+    const primarySocket = grip.hand === 'left'
+      ? { shoulder: anatomy.leftShoulder, hand: pose.hand }
+      : { shoulder: anatomy.rightShoulder, hand: pose.hand };
+    drawArm(grip.hand, primarySocket.shoulder, primarySocket.hand);
+
+    if (grip.support) {
+      const supportPoint = resolveHeldWeaponPoint(
+        this.weaponDefinition,
+        r,
+        pose,
+        grip.support.x,
+        grip.support.y ?? 0,
+        this.weaponGeometryScale
+      );
+      const supportShoulder = grip.support.hand === 'left' ? anatomy.leftShoulder : anatomy.rightShoulder;
+      drawArm(grip.support.hand, supportShoulder, supportPoint);
     }
   }
 
@@ -564,11 +1039,11 @@ export class FighterView {
     // Sword fallback: longer blade with a deliberately slimmer top-down profile.
     const handleStart = -size * 0.16;
     const guardX = size * 0.12;
-    const end = size * 1.68;
+    const end = size * 1.82;
     weapon.moveTo(handleStart, 0).lineTo(guardX, 0).stroke({ color: 0x5a3624, width: Math.max(5, r * 0.15), alpha: 1 });
     weapon.circle(handleStart, 0, Math.max(3, r * 0.1)).fill({ color: 0xd9ad5e, alpha: 0.98 });
     weapon.moveTo(guardX, -size * 0.18).lineTo(guardX, size * 0.18).stroke({ color: core, width: Math.max(4, r * 0.12), alpha: 1 });
-    weapon.moveTo(guardX + size * 0.04, -size * 0.1).lineTo(end - size * 0.14, -size * 0.13).lineTo(end + size * 0.26, 0).lineTo(end - size * 0.14, size * 0.13).lineTo(guardX + size * 0.04, size * 0.1).fill({ color: accent, alpha: 0.98 });
+    weapon.moveTo(guardX + size * 0.04, -size * 0.1).lineTo(end - size * 0.14, -size * 0.16).lineTo(end + size * 0.34, 0).lineTo(end - size * 0.14, size * 0.16).lineTo(guardX + size * 0.04, size * 0.1).fill({ color: accent, alpha: 0.98 });
     weapon.moveTo(guardX + size * 0.12, 0).lineTo(end, 0).stroke({ color: 0xffffff, width: Math.max(2, r * 0.06), alpha: 0.55 });
   }
 
@@ -585,6 +1060,9 @@ export class FighterView {
     this.statusIndicators.reset();
     this.mountedAttachments.reset();
     this.aura.clear();
+    this.meleeArmRig.clear();
+    this.meleeAttackFx.clear();
+    this.heldWeaponPose = null;
     this.body.clear();
     this.damageOverlay.clear();
     this.core.clear();
@@ -597,6 +1075,8 @@ export class FighterView {
     if (this.entity.controller === 'player') {
       this.playerMarker.circle(0, 0, r * 1.48).stroke({ color: 0xffffff, width: 2.2, alpha: 0.48 });
     }
+
+    this.weaponGeometryScale = profile.showCharacterLayers && this.lod !== 'army' ? 1 : 0.8;
 
     if (profile.showCharacterLayers && this.lod !== 'army') {
       if (this.lod === 'hero') {
@@ -621,6 +1101,18 @@ export class FighterView {
         }
       }
 
+      // Every fighter now exposes the same subtle +X/front cue. This makes
+      // anatomical right/left visually inspectable instead of inferred from a
+      // rotationally symmetric body.
+      const anatomy = resolveFighterAnatomy(r);
+      this.body.moveTo(r * 0.5, -r * 0.16)
+        .lineTo(anatomy.front.x, 0)
+        .lineTo(r * 0.5, r * 0.16)
+        .closePath()
+        .fill({ color: this.visual.accentColor, alpha: 0.2 });
+      this.body.moveTo(r * 0.58, 0).lineTo(anatomy.front.x, 0)
+        .stroke({ color: this.visual.coreColor, width: Math.max(2, r * 0.055), alpha: 0.52 });
+
       this.damageOverlay.circle(0, 0, r * 0.98).fill({ color: 0xff172f, alpha: 0.98 });
       this.damageOverlay.circle(0, 0, r * 1.08).stroke({ color: 0xff5364, width: Math.max(4, r * 0.16), alpha: 0.94 });
       this.damageOverlay.circle(-r * 0.24, -r * 0.24, r * 0.46).fill({ color: 0xffffff, alpha: 0.42 });
@@ -628,8 +1120,17 @@ export class FighterView {
       this.core.circle(0, 0, r * 0.3).fill({ color: this.visual.coreColor, alpha: 1 });
       this.core.circle(0, 0, r * 0.5).stroke({ color: this.visual.coreColor, width: 2, alpha: 0.42 });
       if (this.visual.horns && this.lod === 'hero') {
-        this.body.moveTo(-r * 0.6, -r * 0.55).lineTo(-r * 0.92, -r * 1.02).stroke({ color: this.visual.accentColor, width: 5, alpha: 0.95 });
-        this.body.moveTo(r * 0.6, -r * 0.55).lineTo(r * 0.92, -r * 1.02).stroke({ color: this.visual.accentColor, width: 5, alpha: 0.95 });
+        // Horns now act as a forward crown/brow around the canonical +X front
+        // instead of sitting on the old screen-top axis and contradicting the
+        // anatomy rig.
+        const hornBaseX = r * 0.46;
+        const hornTipX = anatomy.front.x + r * 0.08;
+        this.body.moveTo(hornBaseX, -r * 0.18).lineTo(hornTipX, -r * 0.3)
+          .stroke({ color: this.visual.accentColor, width: Math.max(4, r * 0.12), alpha: 0.96 });
+        this.body.moveTo(hornBaseX, r * 0.18).lineTo(hornTipX, r * 0.3)
+          .stroke({ color: this.visual.accentColor, width: Math.max(4, r * 0.12), alpha: 0.96 });
+        this.body.moveTo(r * 0.58, -r * 0.08).lineTo(anatomy.front.x, 0).lineTo(r * 0.58, r * 0.08)
+          .stroke({ color: this.visual.accentColor, width: Math.max(2.5, r * 0.07), alpha: 0.74 });
       }
       for (const view of this.weaponMountViews) this.drawConfiguredWeapon(view.graphics, r, this.weaponDefinition);
     } else {

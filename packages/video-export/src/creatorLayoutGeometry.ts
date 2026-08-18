@@ -22,7 +22,7 @@ export interface VerticalCreatorLayoutGeometry {
     right: BroadcastRect;
   };
   versus: CreatorLayoutPoint;
-  skillsPanels: {
+  liveStatusPanels: {
     left: BroadcastRect;
     right: BroadcastRect;
   };
@@ -47,9 +47,9 @@ const VERTICAL_BASE: Omit<VerticalCreatorLayoutGeometry, 'arena'> = {
     right: { x: 572, y: 112, width: 492, height: 200 }
   },
   versus: { x: 540, y: 212 },
-  skillsPanels: {
-    left: { x: 40, y: 1380, width: 490, height: 420 },
-    right: { x: 550, y: 1380, width: 490, height: 420 }
+  liveStatusPanels: {
+    left: { x: 40, y: 1510, width: 490, height: 118 },
+    right: { x: 550, y: 1510, width: 490, height: 118 }
   }
 };
 
@@ -64,7 +64,7 @@ const LANDSCAPE_BASE: Omit<LandscapeCreatorLayoutGeometry, 'arena'> = {
 /**
  * Resolves the top-level creator composition around the arena. The arena itself
  * remains authoritative in broadcastLayout.ts; this module owns the surrounding
- * matchup, VS, skill and fighter-panel geometry used by the renderers.
+ * matchup, VS, live-status and fighter-panel geometry used by the renderers.
  */
 export function getCreatorLayoutGeometry(layout: BroadcastLayoutDefinition): CreatorLayoutGeometry {
   const baseLayout = BROADCAST_LAYOUTS[layout.id];
@@ -84,9 +84,9 @@ export function getCreatorLayoutGeometry(layout: BroadcastLayoutDefinition): Cre
         right: scaleRect(VERTICAL_BASE.fighterHeaders.right, scale)
       },
       versus: scalePoint(VERTICAL_BASE.versus, scale),
-      skillsPanels: {
-        left: scaleRect(VERTICAL_BASE.skillsPanels.left, scale),
-        right: scaleRect(VERTICAL_BASE.skillsPanels.right, scale)
+      liveStatusPanels: {
+        left: scaleRect(VERTICAL_BASE.liveStatusPanels.left, scale),
+        right: scaleRect(VERTICAL_BASE.liveStatusPanels.right, scale)
       }
     };
   }

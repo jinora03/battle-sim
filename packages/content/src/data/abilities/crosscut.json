@@ -10,16 +10,25 @@
     "targeting": "direction",
     "priority": 72,
     "minRange": 0,
-    "maxRange": 250,
+    "maxRange": 285,
     "requiresLineOfSight": true,
-    "aimToleranceDegrees": 70
+    "aimToleranceDegrees": 30
   },
   "triggers": [
     {
       "event": "ON_ACTIVATE",
       "conditions": [],
       "actions": [
-        { "type": "DIRECTIONAL_DAMAGE", "range": 238, "arcDegrees": 152, "amount": 18, "knockback": 25, "element": "metal", "enemiesOnly": true }
+        {
+          "type": "MELEE_WEAPON_STRIKE",
+          "amount": 18,
+          "knockback": 25,
+          "element": "metal",
+          "enemiesOnly": true,
+          "sweepDegrees": 152,
+          "reachMultiplier": 1.18,
+          "widthMultiplier": 1.18
+        }
       ]
     }
   ]

@@ -29,19 +29,16 @@ export function resolvePrimaryAttackVisualMounts(
     ? attack.visualMounts
     : [{ id: 'center', side: 'center' }];
 
-  return mounts.map((mount, index) => {
-    const swingSideAngle = attack.style === 'swing' && mount.side !== 'center'
-      ? (mount.side === 'right' ? 72 : -72)
-      : 0;
-    return {
-      id: mount.id || `mount-${index}`,
-      side: mount.side,
-      forwardOffset: mount.forwardOffset ?? 0,
-      lateralOffset: mount.lateralOffset ?? SIDE_LATERAL_OFFSETS[mount.side],
-      scale: mount.scale ?? (mount.side === 'center' ? 1 : 0.78),
-      rotationRadians: (mount.rotationDegrees ?? swingSideAngle) * Math.PI / 180
-    };
-  });
+  return mounts.map((mount, index) => ({
+    id: mount.id || `mount-${index}`,
+    side: mount.side,
+    forwardOffset: mount.forwardOffset ?? 0,
+    lateralOffset: mount.lateralOffset ?? SIDE_LATERAL_OFFSETS[mount.side],
+    scale: mount.scale ?? (mount.side === 'center' ? 1 : 0.78),
+    // Generic mount sockets never infer a weapon-facing angle. Held weapons
+    // rotate around their explicit grip through the anatomy rig instead.
+    rotationRadians: (mount.rotationDegrees ?? 0) * Math.PI / 180
+  }));
 }
 
 export function resolveWeaponVisualMountPose(

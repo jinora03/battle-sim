@@ -3,17 +3,17 @@
   "name": "Sky Rush",
   "slot": "skill1",
   "cooldownTicks": 125,
-  "castTicks": 9,
-  "castMovementMultiplier": 1,
+  "castTicks": 34,
+  "castMovementMultiplier": 0.92,
   "activation": {
     "intent": "offensive",
     "targeting": "direction",
     "priority": 70,
-    "minRange": 70,
-    "maxRange": 430,
+    "minRange": 60,
+    "maxRange": 500,
     "requiresLineOfSight": true,
     "minimumTargets": 1,
-    "aimToleranceDegrees": 65
+    "aimToleranceDegrees": 70
   },
   "triggers": [
     {
@@ -22,11 +22,11 @@
       "actions": [
         {
           "type": "APPLY_IMPULSE_SELF",
-          "magnitude": 16
+          "magnitude": 19
         },
         {
           "type": "DIRECTIONAL_DAMAGE",
-          "range": 190,
+          "range": 230,
           "arcDegrees": 48,
           "amount": 16,
           "knockback": 60,

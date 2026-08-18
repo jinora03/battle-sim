@@ -1,5 +1,6 @@
 import {
   getFighter,
+  getPrimaryAttack,
   getPassive,
   getProjectileSource,
   type AbilityAction,
@@ -11,6 +12,8 @@ import type { EntityId, SimulationEvent, Vec2 } from '@kinetic/protocol';
 import { resolveImpulseDirection } from '../combatModifiers';
 import { World } from '../world';
 import type { ProjectileSystem } from './ProjectileSystem';
+import { getChargedMeleeLaunchProfile } from './chargedMeleeLaunchProfile';
+import { resolveAbilityMeleeStrikeHits } from './meleeContact';
 import {
   normalizeAbilityVector,
   type AbilitySystemContext,
@@ -107,11 +110,15 @@ export class AbilityActionExecutor {
     switch (action.type) {
       case 'APPLY_IMPULSE_SELF': {
         const impulseDirection = resolveImpulseDirection(context.normal, action.direction);
-        const magnitude = action.magnitude * this.abilityMultiplier(self, context.abilityId, 'abilitySelfImpulseMultiplier');
+        const chargeLaunch = getChargedMeleeLaunchProfile(context.abilityId);
+        const magnitude = action.magnitude
+          * this.abilityMultiplier(self, context.abilityId, 'abilitySelfImpulseMultiplier')
+          * (chargeLaunch?.selfForceMultiplier ?? 1);
         this.context.addExternalImpulse(
           self,
           impulseDirection.x * magnitude,
-          impulseDirection.y * magnitude
+          impulseDirection.y * magnitude,
+          chargeLaunch?.selfImpulse
         );
         break;
       }
@@ -156,12 +163,16 @@ export class AbilityActionExecutor {
         break;
       case 'APPLY_KNOCKBACK_TARGET':
         if (target !== null && this.world.isAlive(target)) {
+          const chargeLaunch = getChargedMeleeLaunchProfile(context.abilityId);
           this.context.applyKnockback(
             self,
             target,
-            action.magnitude * this.abilityMultiplier(self, context.abilityId, 'abilityImpulseMultiplier'),
+            action.magnitude
+              * this.abilityMultiplier(self, context.abilityId, 'abilityImpulseMultiplier')
+              * (chargeLaunch?.targetForceMultiplier ?? 1),
             events,
-            'ability'
+            'ability',
+            chargeLaunch?.targetImpulse
           );
         }
         break;
@@ -185,7 +196,10 @@ export class AbilityActionExecutor {
       case 'DIRECTIONAL_DAMAGE': {
         const range = action.range * this.abilityMultiplier(self, context.abilityId, 'abilityRadiusMultiplier');
         const damage = action.amount * this.abilityMultiplier(self, context.abilityId, 'abilityDamageMultiplier');
-        const knockback = action.knockback * this.abilityMultiplier(self, context.abilityId, 'abilityImpulseMultiplier');
+        const chargeLaunch = getChargedMeleeLaunchProfile(context.abilityId);
+        const knockback = action.knockback
+          * this.abilityMultiplier(self, context.abilityId, 'abilityImpulseMultiplier')
+          * (chargeLaunch?.targetForceMultiplier ?? 1);
         this.forEachInCone(
           self,
           range,
@@ -195,10 +209,58 @@ export class AbilityActionExecutor {
           (other) => {
             this.context.dealDamage(self, other, damage, action.element, events);
             if (knockback > 0 && this.world.isAlive(other)) {
-              this.context.applyKnockback(self, other, knockback, events, 'ability');
+              this.context.applyKnockback(
+                self,
+                other,
+                knockback,
+                events,
+                'ability',
+                chargeLaunch?.targetImpulse
+              );
             }
           }
         );
+        break;
+      }
+      case 'MELEE_WEAPON_STRIKE': {
+        const damage = action.amount * this.abilityMultiplier(self, context.abilityId, 'abilityDamageMultiplier');
+        const chargeLaunch = getChargedMeleeLaunchProfile(context.abilityId);
+        const knockback = action.knockback
+          * this.abilityMultiplier(self, context.abilityId, 'abilityImpulseMultiplier')
+          * (chargeLaunch?.targetForceMultiplier ?? 1);
+        const reachMultiplier = (action.reachMultiplier ?? 1)
+          * this.abilityMultiplier(self, context.abilityId, 'abilityRadiusMultiplier');
+        const hits = resolveAbilityMeleeStrikeHits(this.world, self, context.normal, {
+          sweepDegrees: action.sweepDegrees,
+          reachMultiplier,
+          widthMultiplier: action.widthMultiplier ?? 1,
+          enemiesOnly: action.enemiesOnly
+        });
+        const weaponId = getFighter(this.world.getFighterId(self)).primaryAttackId;
+        for (const hit of hits) {
+          const other = hit.targetId;
+          this.context.dealDamage(self, other, damage, action.element, events);
+          if (knockback > 0 && this.world.isAlive(other)) {
+            this.context.applyKnockback(
+              self,
+              other,
+              knockback,
+              events,
+              'ability',
+              chargeLaunch?.targetImpulse
+            );
+          }
+          events.push({
+            type: 'weaponHit',
+            tick: this.context.getTick(),
+            sourceId: self,
+            targetId: other,
+            weaponId,
+            position: hit.position,
+            damage,
+            knockback
+          });
+        }
         break;
       }
       case 'RADIAL_STATUS': {

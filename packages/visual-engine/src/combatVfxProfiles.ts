@@ -1,5 +1,7 @@
 import {
+  BLADE_VANGUARD_VFX_PROFILES,
   FROST_WARDEN_VFX_PROFILES,
+  IRON_LANCER_VFX_PROFILES,
   ROCKET_VANGUARD_VFX_PROFILES,
   THORN_COLOSSUS_VFX_PROFILES,
   VOID_REAPER_VFX_PROFILES,
@@ -509,6 +511,8 @@ const profiles: Readonly<Record<string, CombatVfxProfile>> = {
       { phase: 'release', intent: 'beam', anchor: 'resolved', durationSeconds: 0.28, intensity: 0.78, radiusScale: 0.82 }
     ]
   },
+  ...BLADE_VANGUARD_VFX_PROFILES,
+  ...IRON_LANCER_VFX_PROFILES,
   ...FROST_WARDEN_VFX_PROFILES,
   ...ROCKET_VANGUARD_VFX_PROFILES,
   ...WATER_SHAPER_VFX_PROFILES,

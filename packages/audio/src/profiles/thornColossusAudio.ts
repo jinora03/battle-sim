@@ -4,10 +4,10 @@ export const THORN_COLOSSUS_AUDIO_PROFILES = [
   {
     abilityId: 'bramble-charge', palette: 'nature', hierarchy: 'skill',
     layers: {
-      anticipation: { intent: 'transformation', intensity: 0.72, variant: 'organic-growth' },
-      activation: { intent: 'knockback', intensity: 0.96, durationSeconds: 0.24, variant: 'thorn-fracture' },
-      sustain: { intent: 'channel', intensity: 0.62, durationSeconds: 0.34, delaySeconds: 0.035, variant: 'organic-growth' },
-      release: { intent: 'status-application', intensity: 0.7, durationSeconds: 0.2, delaySeconds: 0.2, variant: 'thorn-fracture' }
+      anticipation: { intent: 'transformation', intensity: 0.86, variant: 'organic-growth' },
+      activation: { intent: 'knockback', intensity: 1.06, durationSeconds: 0.25, variant: 'thorn-fracture' },
+      sustain: { intent: 'channel', anchor: 'activated', intensity: 0.7, durationSeconds: 0.48, delaySeconds: 0.05, variant: 'organic-growth' },
+      release: { intent: 'knockback', intensity: 0.9, durationSeconds: 0.22, delaySeconds: 0.07, variant: 'thorn-fracture' }
     }
   },
   {

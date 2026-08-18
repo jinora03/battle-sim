@@ -5,75 +5,70 @@ import {
 } from '@kinetic/video-export';
 
 describe('creator fighter card geometry', () => {
-  it('keeps the approved vertical fighter-card internals mirrored', () => {
+  it('centers the vertical fighter body/name groups and keeps them mirrored', () => {
     const left = getVerticalFighterCardGeometry(
       { x: 16, y: 112, width: 492, height: 200 },
-      false,
-      true
+      false
     );
     const right = getVerticalFighterCardGeometry(
       { x: 572, y: 112, width: 492, height: 200 },
-      true,
       true
     );
 
-    expect(left).toMatchObject({
+    expect(left).toEqual({
       padding: 28,
-      identity: {
-        textX: 44,
-        textAlign: 'left',
-        maxWidth: 268,
-        nameY: 186,
-        identityY: 232
+      name: {
+        textX: 195,
+        textAlign: 'center',
+        maxWidth: 150,
+        y: 214
       },
-      weapon: {
-        centerX: 396,
-        previewY: 176,
-        previewSize: 92,
-        labelY: 250,
-        labelWidth: 116
+      portrait: {
+        centerX: 346,
+        centerY: 198,
+        radius: 58,
+        facing: 'right'
       },
       hp: {
-        labelY: null,
-        bar: { x: 44, y: 262, width: 436, height: 22 },
-        valueY: 296
+        x: 58,
+        y: 282,
+        width: 408,
+        height: 12
       }
     });
 
-    expect(right).toMatchObject({
+    expect(right).toEqual({
       padding: 28,
-      identity: {
-        textX: 1036,
-        textAlign: 'right',
-        maxWidth: 268,
-        nameY: 186,
-        identityY: 232
+      name: {
+        textX: 885,
+        textAlign: 'center',
+        maxWidth: 150,
+        y: 214
       },
-      weapon: {
-        centerX: 684,
-        previewY: 176,
-        previewSize: 92,
-        labelY: 250,
-        labelWidth: 116
+      portrait: {
+        centerX: 734,
+        centerY: 198,
+        radius: 58,
+        facing: 'left'
       },
       hp: {
-        labelY: null,
-        bar: { x: 600, y: 262, width: 436, height: 22 },
-        valueY: 296
+        x: 614,
+        y: 282,
+        width: 408,
+        height: 12
       }
     });
   });
 
-  it('gives multi-fighter vertical cards the full identity width and no weapon block', () => {
+  it('allocates only a thin HP bar in addition to the vertical body/name group', () => {
     const geometry = getVerticalFighterCardGeometry(
       { x: 16, y: 112, width: 492, height: 200 },
-      false,
       false
     );
 
-    expect(geometry.identity.maxWidth).toBe(436);
-    expect(geometry.weapon).toBeNull();
-    expect(geometry.hp.bar).toEqual({ x: 44, y: 262, width: 436, height: 22 });
+    expect(geometry.hp).toEqual({ x: 58, y: 282, width: 408, height: 12 });
+    expect('weapon' in geometry).toBe(false);
+    expect('identity' in geometry).toBe(false);
   });
 
   it('keeps landscape identity, weapon and HP placement in one model', () => {

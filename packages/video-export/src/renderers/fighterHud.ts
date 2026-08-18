@@ -1,4 +1,6 @@
 import type { BroadcastRect } from '../broadcastLayout';
+import { resolveCreatorLiveStatus } from '../creatorLiveStatus';
+import { resolveCreatorFighterName } from '../creatorMatchupHook';
 import type {
   BroadcastAbilityView,
   BroadcastCallout,
@@ -23,6 +25,7 @@ import {
   drawText,
   roundedRectPath
 } from './canvasPrimitives';
+import { drawBroadcastFighterBody } from './fighterPortrait';
 import { drawWeaponPreview } from './weaponPreview';
 
 export function drawLandscapeFighterPanel(
@@ -84,32 +87,42 @@ export function drawVerticalFighterHeader(
   accent: string,
   alignRight: boolean
 ): void {
-  const geometry = getVerticalFighterCardGeometry(rect, alignRight, fighter.memberCount <= 1);
-  const { identity, hp } = geometry;
-  const textAlign: CanvasTextAlign = identity.textAlign;
+  const geometry = getVerticalFighterCardGeometry(rect, alignRight);
+  const displayName = resolveCreatorFighterName(fighter);
 
   drawPanel(ctx, rect.x, rect.y, rect.width, rect.height, 20, 'rgba(9, 18, 33, 0.92)', PANEL_BORDER);
 
-  // Fighter identity owns the outer side while the mirrored weapon column owns
-  // the side nearest the centered VS. Geometry for both now comes from one model.
-  drawFittedText(ctx, fighter.name, identity.textX, identity.nameY, identity.maxWidth, 46, 950, TEXT_PRIMARY, textAlign);
-  if (fighter.memberCount > 1) {
-    drawFittedText(ctx, fighter.identity, identity.textX, identity.identityY, identity.maxWidth, 16, 800, accent, textAlign);
-  } else {
-    drawFittedText(ctx, fighter.identity, identity.textX, identity.identityY, identity.maxWidth, 16, 850, accent, textAlign);
-    if (geometry.weapon) drawVerticalWeaponBlock(ctx, fighter, geometry.weapon, accent);
-  }
-
-  drawHpBar(ctx, fighter, hp.bar.x, hp.bar.y, hp.bar.width, hp.bar.height, accent, alignRight);
-  drawText(
+  // Shorts header stays character-first: actual authored fighter body +
+  // viewer-facing name, centered as one mirrored group. A thin HP bar restores
+  // battle readability without bringing the old dashboard clutter back.
+  drawBroadcastFighterBody(
     ctx,
-    `${Math.ceil(fighter.hp).toLocaleString()} HP`,
-    identity.textX,
-    hp.valueY,
-    14,
-    800,
-    TEXT_SECONDARY,
-    textAlign
+    fighter,
+    geometry.portrait.centerX,
+    geometry.portrait.centerY,
+    geometry.portrait.radius,
+    geometry.portrait.facing
+  );
+  drawFittedText(
+    ctx,
+    displayName,
+    geometry.name.textX,
+    geometry.name.y,
+    geometry.name.maxWidth,
+    48,
+    950,
+    TEXT_PRIMARY,
+    geometry.name.textAlign
+  );
+  drawHpBar(
+    ctx,
+    fighter,
+    geometry.hp.x,
+    geometry.hp.y,
+    geometry.hp.width,
+    geometry.hp.height,
+    accent,
+    alignRight
   );
 }
 
@@ -140,66 +153,40 @@ function drawLandscapeWeaponBlock(
   );
 }
 
-function drawVerticalWeaponBlock(
-  ctx: CanvasRenderingContext2D,
-  fighter: BroadcastFighterView,
-  geometry: FighterWeaponGeometry,
-  accent: string
-): void {
-  const previewDrawn = drawWeaponPreview(
-    ctx,
-    fighter,
-    geometry.centerX,
-    geometry.previewY,
-    geometry.previewSize,
-    accent,
-    0.88
-  );
-  drawFittedText(
-    ctx,
-    fighter.weaponName,
-    geometry.centerX,
-    geometry.labelY,
-    geometry.labelWidth,
-    previewDrawn ? 17 : 16,
-    800,
-    TEXT_SECONDARY,
-    'center'
-  );
-}
-
-export function drawVerticalSkillsPanel(
+export function drawVerticalLiveStatus(
   ctx: CanvasRenderingContext2D,
   fighter: BroadcastFighterView,
   rect: BroadcastRect,
   accent: string,
   alignRight: boolean
 ): void {
-  const padding = 22;
+  const padding = 18;
   const textX = alignRight ? rect.x + rect.width - padding : rect.x + padding;
   const textAlign: CanvasTextAlign = alignRight ? 'right' : 'left';
-  drawPanel(ctx, rect.x, rect.y, rect.width, rect.height, 18, PANEL_FILL, PANEL_BORDER);
-  drawFittedText(ctx, `${fighter.name.toUpperCase()} SKILLS`, textX, rect.y + 32, rect.width - padding * 2, 14, 900, accent, textAlign);
+  const live = resolveCreatorLiveStatus(fighter);
 
-  let abilityStartY = rect.y + 54;
-  if (fighter.resource) {
-    drawVerticalResource(ctx, fighter.resource, rect.x + padding, rect.y + 43, rect.width - padding * 2, accent, alignRight);
-    abilityStartY = rect.y + 92;
+  drawPanel(ctx, rect.x, rect.y, rect.width, rect.height, 16, 'rgba(9, 18, 33, 0.88)', PANEL_BORDER);
+  drawFittedText(ctx, resolveCreatorFighterName(fighter).toUpperCase(), textX, rect.y + 23, rect.width - padding * 2, 12, 900, accent, textAlign);
+  drawFittedText(ctx, live.action, textX, rect.y + 53, rect.width - padding * 2, 18, 900, TEXT_PRIMARY, textAlign);
+
+  const details = [live.status, live.resource].filter((value): value is string => Boolean(value));
+  if (details.length === 0) {
+    drawText(ctx, 'LIVE', textX, rect.y + 87, 11, 800, TEXT_SECONDARY, textAlign, 0.8);
+    return;
   }
 
-  const visibleAbilities = fighter.abilities.filter((ability) => ability.slot !== 'basic').slice(0, 4);
-  visibleAbilities.forEach((ability, index) => {
-    drawAbilityTile(ctx, ability, rect.x + padding, abilityStartY + index * 64, rect.width - padding * 2, 56, accent);
-  });
-
-  const statusY = rect.y + rect.height - 43;
-  if (fighter.statuses.length > 0) {
-    drawStatuses(ctx, fighter, rect.x + padding, statusY, rect.width - padding * 2, accent);
-  } else {
-    drawText(ctx, 'No active status', textX, statusY + 17, 11, 700, TEXT_SECONDARY, textAlign);
-  }
+  drawFittedText(
+    ctx,
+    details.join('  ·  '),
+    textX,
+    rect.y + 87,
+    rect.width - padding * 2,
+    13,
+    800,
+    TEXT_SECONDARY,
+    textAlign
+  );
 }
-
 
 export function drawCallout(
   ctx: CanvasRenderingContext2D,
@@ -234,32 +221,6 @@ export function drawResult(
   drawText(ctx, callout.eyebrow.toUpperCase(), x + width / 2, y + 44, vertical ? 16 : 14, 900, READY_ACCENT, 'center', 1.2);
   drawFittedText(ctx, callout.title, x + width / 2, y + (vertical ? 105 : 92), width - 70, vertical ? 38 : 34, 950, TEXT_PRIMARY, 'center');
   if (callout.detail) drawText(ctx, callout.detail.toUpperCase(), x + width / 2, y + height - 27, 12, 800, TEXT_SECONDARY, 'center', 0.8);
-}
-
-function drawVerticalResource(
-  ctx: CanvasRenderingContext2D,
-  resource: BroadcastResourceView,
-  x: number,
-  y: number,
-  width: number,
-  accent: string,
-  alignRight: boolean
-): void {
-  const textX = alignRight ? x + width : x;
-  const textAlign: CanvasTextAlign = alignRight ? 'right' : 'left';
-  drawText(ctx, resource.name.toUpperCase(), textX, y + 12, 10, 900, TEXT_SECONDARY, textAlign, 0.9);
-  const valueLabel = `${Math.round(resource.value)} / ${Math.round(resource.maximum)}`;
-  drawText(ctx, valueLabel, alignRight ? x : x + width, y + 12, 10, 800, TEXT_PRIMARY, alignRight ? 'left' : 'right');
-  const barY = y + 18;
-  roundedRectPath(ctx, x, barY, width, 7, 3.5);
-  ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  ctx.fill();
-  const fillWidth = Math.max(resource.ratio > 0 ? 3 : 0, width * resource.ratio);
-  if (fillWidth > 0) {
-    roundedRectPath(ctx, alignRight ? x + width - fillWidth : x, barY, fillWidth, 7, 3.5);
-    ctx.fillStyle = accent;
-    ctx.fill();
-  }
 }
 
 function drawLandscapeResource(

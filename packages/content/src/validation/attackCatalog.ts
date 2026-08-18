@@ -39,6 +39,18 @@ export function validateAttackCatalog(
     if (attack.visualScale <= 0 || attack.range <= 0 || attack.cooldownTicks <= 0) {
       throw new Error(`Primary attack ${attack.id} has invalid range, scale, or cooldown.`);
     }
+    if (attack.visualGrip) {
+      const { x, y = 0, rotationDegrees = 0, support } = attack.visualGrip;
+      if (![x, y, rotationDegrees].every(Number.isFinite)) {
+        throw new Error(`Primary attack ${attack.id} has an invalid visual grip.`);
+      }
+      if (support) {
+        const supportY = support.y ?? 0;
+        if (![support.x, supportY].every(Number.isFinite) || support.hand === attack.visualGrip.hand) {
+          throw new Error(`Primary attack ${attack.id} has an invalid support grip.`);
+        }
+      }
+    }
   }
   for (const projectile of skillProjectiles) {
     if (ids.has(projectile.id)) throw new Error(`Duplicate projectile source: ${projectile.id}`);

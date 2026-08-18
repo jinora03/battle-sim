@@ -3,16 +3,16 @@
   "name": "Lance Charge",
   "slot": "skill1",
   "cooldownTicks": 190,
-  "castTicks": 24,
-  "castMovementMultiplier": 0.18,
+  "castTicks": 56,
+  "castMovementMultiplier": 0.16,
   "activation": {
     "intent": "offensive",
     "targeting": "direction",
     "priority": 94,
-    "minRange": 120,
-    "maxRange": 620,
+    "minRange": 100,
+    "maxRange": 720,
     "requiresLineOfSight": true,
-    "collisionWindowTicks": 84,
+    "collisionWindowTicks": 110,
     "aimToleranceDegrees": 28
   },
   "triggers": [
@@ -20,20 +20,43 @@
       "event": "ON_ACTIVATE",
       "conditions": [],
       "actions": [
-        { "type": "APPLY_STATUS_SELF", "statusId": "lance-charge", "durationTicks": 84 },
-        { "type": "APPLY_IMPULSE_SELF", "magnitude": 23 }
+        {
+          "type": "APPLY_STATUS_SELF",
+          "statusId": "lance-charge",
+          "durationTicks": 110
+        },
+        {
+          "type": "APPLY_IMPULSE_SELF",
+          "magnitude": 26
+        }
       ]
     },
     {
       "event": "ON_COLLISION",
       "conditions": [
-        { "type": "SELF_HAS_STATUS", "statusId": "lance-charge" },
-        { "type": "IMPACT_ABOVE", "value": 2.8 }
+        {
+          "type": "SELF_HAS_STATUS",
+          "statusId": "lance-charge"
+        },
+        {
+          "type": "IMPACT_ABOVE",
+          "value": 2.4
+        }
       ],
       "actions": [
-        { "type": "DEAL_DAMAGE_TARGET", "amount": 22, "element": "neutral" },
-        { "type": "APPLY_KNOCKBACK_TARGET", "magnitude": 44 },
-        { "type": "REMOVE_STATUS_SELF", "statusId": "lance-charge" }
+        {
+          "type": "DEAL_DAMAGE_TARGET",
+          "amount": 22,
+          "element": "neutral"
+        },
+        {
+          "type": "APPLY_KNOCKBACK_TARGET",
+          "magnitude": 44
+        },
+        {
+          "type": "REMOVE_STATUS_SELF",
+          "statusId": "lance-charge"
+        }
       ]
     }
   ]

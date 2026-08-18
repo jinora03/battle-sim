@@ -35,9 +35,10 @@ export const BROADCAST_LAYOUTS: Readonly<Record<BroadcastLayoutId, BroadcastLayo
     aspectLabel: '9:16',
     width: 1080,
     height: 1920,
-    // Restore the fuller Shorts/Reels composition: a near-edge-to-edge square
-    // arena with enough room above for matchup identity and below for skills.
-    arena: { x: 40, y: 350, width: 1000, height: 1000 },
+    // Arena-first Shorts composition. The +15% height increase is intentionally
+    // conservative for this pass so fighters become more readable without
+    // jumping immediately to the earlier 25-40% enlargement target.
+    arena: { x: 40, y: 330, width: 1000, height: 1150 },
     safeArea: { x: 48, y: 54, width: 900, height: 1740 }
   }
 };

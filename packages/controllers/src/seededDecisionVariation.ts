@@ -6,6 +6,8 @@ export interface AiSelectionContext {
   openingReadiness: boolean;
   /** Changes only after a skill is committed, never once per simulation tick. */
   variationEpoch: number;
+  /** AI-only pacing gate for cinematic charged melee abilities. */
+  chargeLockUntilTick?: number;
 }
 
 export interface AiOpeningWindow {

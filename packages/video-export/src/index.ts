@@ -15,6 +15,7 @@ export * from './creatorLayoutGeometry';
 export * from './fighterCardGeometry';
 export * from './creatorBackgroundMusic';
 export * from './creatorMatchupHook';
+export * from './creatorLiveStatus';
 export * from './creatorHighlightScoring';
 export * from './creatorPresets';
 export * from './creatorThumbnail';

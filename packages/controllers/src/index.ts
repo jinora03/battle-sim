@@ -1,5 +1,5 @@
 import { getAbility, getAiProfile, getArena, getFighter, getPrimaryAttack } from '@kinetic/content';
-import { ActionSelectionSpatialContext, selectAbilityAction, type AiDecisionDebug } from './actionSelection';
+import { ActionSelectionSpatialContext, getAiChargedMeleeRepeatLockTicks, selectAbilityAction, type AiDecisionDebug } from './actionSelection';
 import { getAiCornerEscapeSign } from './seededDecisionVariation';
 
 export * from './actionSelection';
@@ -29,6 +29,7 @@ interface AiMemory {
   abilityVariationEpoch: number;
   cornerPressureReactions: number;
   cornerEscapeEpoch: number;
+  chargeLockUntilTick: number;
 }
 
 const ZERO: Vec2 = { x: 0, y: 0 };
@@ -223,7 +224,8 @@ export class AiController implements ControllerSource {
         nextAttackDecisionTick: snapshot.tick + attackPhase,
         abilityVariationEpoch: 0,
         cornerPressureReactions: 0,
-        cornerEscapeEpoch: 0
+        cornerEscapeEpoch: 0,
+        chargeLockUntilTick: 0
       };
       const currentTarget = memory.targetId === null ? undefined : this.entityById.get(memory.targetId);
 
@@ -294,7 +296,11 @@ export class AiController implements ControllerSource {
           profile,
           collectDecision,
           this.actionSelectionSpatial,
-          { openingReadiness: true, variationEpoch: memory.abilityVariationEpoch }
+          {
+            openingReadiness: true,
+            variationEpoch: memory.abilityVariationEpoch,
+            chargeLockUntilTick: memory.chargeLockUntilTick
+          }
         );
         if (action.debug) {
           if (this.detailedDebugEnabled) this.decisions.set(entity.id, action.debug);
@@ -303,7 +309,11 @@ export class AiController implements ControllerSource {
         memory.nextAttackDecisionTick = snapshot.tick + policy.attackDecisionInterval;
         this.workloadStats.attackEvaluations += 1;
         if (action.selected) {
-          if (action.selected.kind === 'ability') memory.abilityVariationEpoch += 1;
+          if (action.selected.kind === 'ability') {
+            memory.abilityVariationEpoch += 1;
+            const repeatLock = getAiChargedMeleeRepeatLockTicks(action.selected.abilityId);
+            if (repeatLock > 0) memory.chargeLockUntilTick = snapshot.tick + repeatLock;
+          }
           const selectedTarget = action.selected.targetId === null ? undefined : this.entityById.get(action.selected.targetId);
           const actionDirection = selectedTarget
             ? action.selected.kind === 'primaryAttack'
@@ -453,12 +463,40 @@ export class AiController implements ControllerSource {
     const ranged = attack ? ['ranged', 'automatic', 'throwable', 'beam'].includes(attack.behavior) : profile.movementStyle === 'kite';
     const pressure = this.enemyPressure(entity, entities, Math.max(230, preferredDistance * 0.9));
     const orbitStrength = profile.orbitStrength * (1 - urgency * 0.55);
+    const fighter = getFighter(entity.fighterId);
+    const chargeAbilityId = fighter.abilitySlots.skill1;
+    const chargeRule = profile.abilityUsage.find((rule) => rule.slot === 'skill1');
+    const chargeState = chargeAbilityId
+      ? entity.abilities.find((ability) => ability.source === 'ability' && ability.abilityId === chargeAbilityId)
+      : undefined;
+    const busy = entity.weaponAttack !== null
+      || entity.abilities.some((ability) => ability.phase === 'casting' || ability.phase === 'armed');
+    const createsChargeRunway = !retreat
+      && !busy
+      && (fighter.id === 'blade-vanguard' || fighter.id === 'iron-lancer')
+      && chargeAbilityId !== null
+      && chargeAbilityId !== undefined
+      && getAiChargedMeleeRepeatLockTicks(chargeAbilityId) > 0
+      && chargeState?.phase === 'ready'
+      && snapshot.tick >= memory.chargeLockUntilTick
+      && chargeRule !== undefined
+      && distance < chargeRule.minDistance * 0.96;
     let x = 0;
     let y = 0;
 
     if (retreat) {
       x = -toward.x;
       y = -toward.y;
+    } else if (createsChargeRunway && chargeRule) {
+      // Do not plant or snap into a special state. The fighter simply gives
+      // itself a short, readable runway while continuously facing the target.
+      // Once the real charge min-distance is reached, ordinary action selection
+      // can commit the charge on a later attack evaluation.
+      const runwayTarget = chargeRule.minDistance * 1.06;
+      const shortage = Math.max(0, runwayTarget - distance) / Math.max(1, runwayTarget);
+      const backstep = 0.48 + shortage * 0.48;
+      x = -toward.x * backstep + perpendicular.x * 0.08;
+      y = -toward.y * backstep + perpendicular.y * 0.08;
     } else if (profile.movementStyle === 'orbit' || profile.movementStyle === 'kite') {
       const deadZone = Math.max(28, preferredDistance * 0.14);
       const error = distance - preferredDistance;
@@ -507,7 +545,7 @@ export class AiController implements ControllerSource {
       y += toward.y * urgency * pressureScale;
     }
 
-    if (!ranged && distance < preferredDistance * 1.75) {
+    if (!ranged && !createsChargeRunway && distance < preferredDistance * 1.75) {
       const slotAngle = (entity.id * 2.399963229728653 + target.id * 0.73) % (Math.PI * 2);
       const slotRadius = Math.max(55, preferredDistance * (0.86 + Math.min(4, targetEngagements) * 0.035));
       const slotX = target.x + Math.cos(slotAngle) * slotRadius;

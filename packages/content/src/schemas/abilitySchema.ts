@@ -35,6 +35,7 @@ export type AbilityAction =
   | { type: 'RADIAL_IMPULSE'; radius: number; magnitude: number; enemiesOnly: boolean; direction: 'push' | 'pull' }
   | { type: 'RADIAL_DAMAGE'; radius: number; amount: number; element: Element; enemiesOnly: boolean }
   | { type: 'DIRECTIONAL_DAMAGE'; range: number; arcDegrees: number; amount: number; knockback: number; element: Element; enemiesOnly: boolean }
+  | { type: 'MELEE_WEAPON_STRIKE'; sweepDegrees: number; reachMultiplier?: number; widthMultiplier?: number; amount: number; knockback: number; element: Element; enemiesOnly: boolean }
   | { type: 'RADIAL_STATUS'; radius: number; statusId: string; durationTicks: number; stacks?: number; enemiesOnly: boolean }
   | {
       type: 'AREA_EFFECT_AT_TARGET';
@@ -134,6 +135,16 @@ const actionSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('DIRECTIONAL_DAMAGE'), range: z.number().positive(), arcDegrees: z.number().min(1).max(360),
     amount: z.number().nonnegative(), knockback: z.number().nonnegative().default(0), element: elementSchema, enemiesOnly: z.boolean().default(true)
+  }),
+  z.object({
+    type: z.literal('MELEE_WEAPON_STRIKE'),
+    sweepDegrees: z.number().min(0).max(330),
+    reachMultiplier: z.number().min(0.5).max(2).optional(),
+    widthMultiplier: z.number().min(0.5).max(2).optional(),
+    amount: z.number().nonnegative(),
+    knockback: z.number().nonnegative().default(0),
+    element: elementSchema,
+    enemiesOnly: z.boolean().default(true)
   }),
   z.object({ type: z.literal('RADIAL_STATUS'), radius: z.number().positive(), statusId: z.string(), durationTicks: z.number().int().positive(), stacks: z.number().int().positive().optional(), enemiesOnly: z.boolean().default(true) }),
   z.object({

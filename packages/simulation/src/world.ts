@@ -24,6 +24,8 @@ export interface ArmedAbilityState {
   abilityId: string;
   expiresTick: number;
   totalTicks: number;
+  targetId: EntityId | null;
+  direction: Vec2;
 }
 
 
